@@ -5,9 +5,10 @@ export const siteConfig = {
   tagline: "Open source software and education for the modern web",
   description:
     "Provelopment helps small businesses build and maintain a strong web presence through open source software, practical education, and developer-focused resources.",
-  contact: {
-    email: "hello@provelopment.com",
-  },
+contact: {
+  email: "hello@provelopment.com",
+  phone: undefined,
+},
   socialLinks: [
     {
       platform: "github",
