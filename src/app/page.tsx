@@ -1,61 +1,56 @@
+import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
 
 export default function HomePage() {
   return (
-    <main>
-      <header>
-        <p>{siteConfig.name}</p>
-        <h1>{siteConfig.tagline}</h1>
-        <p>{siteConfig.description}</p>
-      </header>
+    <>
+      <SiteHeader />
 
-      <section aria-labelledby="contact-heading">
-        <h2 id="contact-heading">Contact</h2>
+      <main>
+        <header>
+          <p>{siteConfig.name}</p>
+          <h1>{siteConfig.tagline}</h1>
+          <p>{siteConfig.description}</p>
+        </header>
 
-        {siteConfig.contact.email ? (
-          <p>
-            <a href={`mailto:${siteConfig.contact.email}`}>
-              {siteConfig.contact.email}
-            </a>
-          </p>
-        ) : null}
+        <section aria-labelledby="contact-heading">
+          <h2 id="contact-heading">Contact</h2>
 
-        {siteConfig.contact.phone ? (
-          <p>
-            <a href={`tel:${siteConfig.contact.phone}`}>
-              {siteConfig.contact.phone}
-            </a>
-          </p>
-        ) : null}
-      </section>
-
-      <section aria-labelledby="social-heading">
-        <h2 id="social-heading">Connect</h2>
-
-        <ul>
-          {siteConfig.socialLinks.map((socialLink) => (
-            <li key={socialLink.platform}>
-              <a
-                href={socialLink.href}
-                rel="noreferrer"
-                target="_blank"
-              >
-                {socialLink.label}
+          {siteConfig.contact.email ? (
+            <p>
+              <a href={`mailto:${siteConfig.contact.email}`}>
+                {siteConfig.contact.email}
               </a>
-            </li>
-          ))}
-        </ul>
-      </section>
+            </p>
+          ) : null}
 
-      <nav aria-label="Primary navigation">
-        <ul>
-          {siteConfig.navigation.map((item) => (
-            <li key={item.href}>
-              <a href={item.href}>{item.label}</a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    </main>
+          {siteConfig.contact.phone ? (
+            <p>
+              <a href={`tel:${siteConfig.contact.phone}`}>
+                {siteConfig.contact.phone}
+              </a>
+            </p>
+          ) : null}
+        </section>
+
+        <section aria-labelledby="social-heading">
+          <h2 id="social-heading">Connect</h2>
+
+          <ul>
+            {siteConfig.socialLinks.map((socialLink) => (
+              <li key={socialLink.platform}>
+                <a
+                  href={socialLink.href}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {socialLink.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </main>
+    </>
   );
 }
