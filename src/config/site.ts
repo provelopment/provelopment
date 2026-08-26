@@ -2,6 +2,13 @@ import type { SiteConfig } from "./site-config";
 
 export const siteConfig = {
   url: "https://provelopment.com",
+  defaultLocale: "en",
+  locales: [
+    {
+      code: "en",
+      label: "English",
+    },
+  ],
   name: "Provelopment",
   tagline: "Open source software and education for the modern web",
   description:
