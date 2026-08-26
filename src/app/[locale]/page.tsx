@@ -1,10 +1,34 @@
+import type { Metadata } from "next";
+
 import { getDictionary, siteConfig } from "@/config";
+import { buildLanguageAlternates } from "@/core/locale";
+
+const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+interface HomePageProps {
+  readonly params: Promise<{ readonly locale: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: HomePageProps): Promise<Metadata> {
+  const { locale } = await params;
+
+  return {
+    alternates: {
+      canonical: `${siteConfig.url}/${locale}`,
+      languages: buildLanguageAlternates({
+        baseUrl: siteConfig.url,
+        locales: localeCodes,
+        defaultLocale: siteConfig.defaultLocale,
+      }),
+    },
+  };
+}
 
 export default async function HomePage({
   params,
-}: {
-  params: Promise<{ readonly locale: string }>;
-}) {
+}: HomePageProps) {
   const { locale } = await params;
   const dictionary = getDictionary(locale);
 

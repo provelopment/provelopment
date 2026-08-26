@@ -32,7 +32,10 @@ export async function generateMetadata({
 
   return {
     title: content?.title ?? "About",
-    alternates: { languages: languageAlternates() },
+    alternates: {
+      canonical: `${siteConfig.url}/${locale}/about`,
+      languages: languageAlternates(),
+    },
   };
 }
 

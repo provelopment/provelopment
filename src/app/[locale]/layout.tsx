@@ -33,6 +33,13 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | ${siteConfig.name}`,
     },
     description: siteConfig.description,
+    openGraph: {
+      type: "website",
+      siteName: siteConfig.name,
+    },
+    twitter: {
+      card: "summary_large_image",
+    },
     alternates: {
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
