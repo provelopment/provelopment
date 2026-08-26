@@ -1,15 +1,26 @@
+import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import type { Metadata } from "next";
-import { siteConfig } from "@/config";
+import { notFound } from "next/navigation";
+import { MarkdownContent } from "@/components/site/markdown-content";
 
-export const metadata: Metadata = {
-  title: "About",
-};
+const pageContentRepository = createFileSystemPageContentRepository();
 
-export default function AboutPage() {
+export async function generateMetadata(): Promise<Metadata> {
+  const content = await pageContentRepository.findBySlug("about");
+  return { title: content?.title ?? "About" };
+}
+
+export default async function AboutPage() {
+  const content = await pageContentRepository.findBySlug("about");
+
+  if (!content) {
+    notFound();
+  }
+
   return (
     <>
-      <h1>About</h1>
-      <p>{siteConfig.description}</p>
+      <h1>{content.title}</h1>
+      <MarkdownContent markdown={content.body} />
     </>
   );
 }
