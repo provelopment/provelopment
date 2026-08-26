@@ -15,6 +15,8 @@ export interface ContactConfig {
 }
 
 export interface SiteConfig {
+  /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
+  readonly url: string;
   readonly name: string;
   readonly tagline: string;
   readonly description: string;

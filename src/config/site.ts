@@ -1,6 +1,7 @@
 import type { SiteConfig } from "./site-config";
 
 export const siteConfig = {
+  url: "https://provelopment.com",
   name: "Provelopment",
   tagline: "Open source software and education for the modern web",
   description:
