@@ -91,12 +91,23 @@ Adapters may depend on external technologies.
 
 ### `src/config`
 
-Typed application and site configuration.
+Application and site configuration, loaded from `site.config.json`.
 
-This is a primary customization boundary for downstream website clones.
+The JSON file is the primary customization boundary for downstream website
+clones: branding, languages, navigation, contact details, and feature flags
+are all edited there without touching application code.
 
-Configuration should allow common branding and site behavior to be changed
-without modifying application logic.
+Rules:
+
+- `site.config.json` is validated against the Zod schema in
+  `src/config/schema.ts` by the loader (`src/config/loader.ts`). A bad edit
+  fails the build with an actionable message.
+- Application code reads configuration only through the loader's exported
+  `siteConfig`; importing the JSON directly elsewhere bypasses validation.
+- Optional functionality is expressed as feature flags under `features`
+  and consumed by adapters (for example `features.analytics.provider`).
+- UI-string dictionaries live in `src/config/i18n/<locale>.ts`; they are
+  content, not settings, and remain TypeScript modules for now.
 
 ### `content`
 

@@ -48,16 +48,19 @@ Vercel deployments can additionally be gated on the same checks in
 
 ## Configuration Alignment
 
-Before go-live, verify that `src/config/site.ts` matches reality:
+Before go-live, verify that `site.config.json` matches reality:
 
-- `url` must be the final production origin (`https://…`, no trailing
+- `site.url` must be the final production origin (`https://…`, no trailing
   slash). It drives the sitemap, hreflang alternates, canonical URLs, and
   social preview metadata.
 - Branding fields (`name`, `tagline`, `description`, contact, social links)
   appear across the UI and in search/social results.
+- Feature flags under `features` control optional functionality such as
+  analytics.
 
-Changing these values is a configuration-level change; commit and push to
-trigger a redeploy.
+The file is validated at build time; invalid edits fail the build with an
+actionable message. Changing these values is a configuration-level change;
+commit and push to trigger a redeploy.
 
 ## Post-Deployment Verification Checklist
 

@@ -457,3 +457,22 @@ Rules:
 
 Adding a locale must be possible through configuration, dictionaries, and
 content alone.
+
+---
+
+## 25. JSON Configuration
+
+`site.config.json` is the single source of truth for site settings:
+branding, languages, contact details, social links, navigation, and
+feature flags under `features`.
+
+Rules:
+
+- Read configuration only through the validated loader exports from
+  `src/config`. Never import `site.config.json` directly elsewhere.
+- Every new configuration field requires a matching entry in
+  `src/config/schema.ts` and unit coverage in the loader tests.
+- New optional functionality should be expressed as a feature flag under
+  `features`, consumed by its own adapter, and documented.
+- Do not duplicate configuration values in components or constants; when a
+  value seems missing, extend the schema and the JSON file instead.
