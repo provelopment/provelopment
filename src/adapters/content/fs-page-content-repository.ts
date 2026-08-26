@@ -24,7 +24,7 @@ function stripQuotes(value: string): string {
   return trimmed;
 }
 
-function parsePageFile(raw: string, slug: string): PageContent {
+export function parsePageFile(raw: string, slug: string): PageContent {
   const match = frontmatterPattern.exec(raw);
 
   if (!match) {
