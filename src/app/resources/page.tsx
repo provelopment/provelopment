@@ -18,9 +18,11 @@ export default async function ResourcesPage() {
   }
 
   return (
-    <>
-      <h1>{content.title}</h1>
-      <MarkdownContent markdown={content.body} />
-    </>
+    <article className="mx-auto max-w-4xl px-4 py-12">
+      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <div className="mt-6">
+        <MarkdownContent markdown={content.body} />
+      </div>
+    </article>
   );
 }
