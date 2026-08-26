@@ -1,4 +1,7 @@
+export { parseSiteConfig, siteConfig } from "./loader";
+export type { SiteConfigFile } from "./loader";
 export type {
+  AnalyticsConfig,
   ContactConfig,
   LocaleConfig,
   NavigationItem,
@@ -6,6 +9,5 @@ export type {
   SocialLink,
 } from "./site-config";
 
-export { siteConfig } from "./site";
 export { getDictionary } from "./i18n";
 export type { Dictionary } from "./i18n/dictionary";

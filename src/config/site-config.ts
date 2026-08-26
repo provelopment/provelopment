@@ -21,6 +21,10 @@ export interface ContactConfig {
   readonly phone?: string;
 }
 
+export interface AnalyticsConfig {
+  readonly provider: "vercel";
+}
+
 export interface SiteConfig {
   /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
   readonly url: string;
@@ -34,4 +38,6 @@ export interface SiteConfig {
   readonly contact: ContactConfig;
   readonly socialLinks: readonly SocialLink[];
   readonly navigation: readonly NavigationItem[];
+  /** Optional functionality flags; each is consumed by its own adapter. */
+  readonly analytics?: AnalyticsConfig;
 }

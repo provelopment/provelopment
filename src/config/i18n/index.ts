@@ -1,7 +1,7 @@
 import { en } from "./en";
 import type { Dictionary } from "./dictionary";
 import type { Locale } from "@/core/locale";
-import { siteConfig } from "@/config/site";
+import { siteConfig } from "../loader";
 
 const dictionaries: Readonly<Record<string, Dictionary>> = { en };
 
