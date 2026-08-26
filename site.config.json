@@ -1,9 +1,9 @@
 {
   "site": {
-    "url": "https://www.provelopment.com",
-    "name": "Provelopment",
-    "tagline": "Open source software and education for the modern web",
-    "description": "Provelopment helps small businesses build and maintain a strong web presence through open source software, practical education, and developer-focused resources."
+    "url": "https://www.example.com",
+    "name": "My Site",
+    "tagline": "A fast, multilingual website for your small business",
+    "description": "Replace this description with your own. My Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
   },
   "i18n": {
     "defaultLocale": "en",
@@ -15,20 +15,9 @@
     ]
   },
   "contact": {
-    "email": "hello@provelopment.com"
+    "email": "hello@example.com"
   },
-  "socialLinks": [
-    {
-      "platform": "github",
-      "label": "GitHub",
-      "href": "https://github.com/provelopment"
-    },
-    {
-      "platform": "youtube",
-      "label": "YouTube",
-      "href": "https://www.youtube.com/@provelopment"
-    }
-  ],
+  "socialLinks": [],
   "navigation": [
     {
       "label": "Home",

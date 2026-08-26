@@ -2,12 +2,16 @@
 title: Resources
 ---
 
-Resources for building and maintaining your web presence are on the way.
+This sample Resources page demonstrates how Markdown content works in the
+Provelopment Foundation template.
 
-Planned resources include:
+What you can put on a page like this:
 
-- Guides and tutorials for the modern web
-- Open source tools released by Provelopment
-- Educational material for developers and small business owners
+- Guides and tutorials
+- Downloadable material
+- Links to external resources
 
-In the meantime, reach out at [hello@provelopment.com](mailto:hello@provelopment.com).
+Need more than static pages? The architecture (see `ARCHITECTURE.md`) is
+designed so new capabilities can be added incrementally without a rewrite.
+
+Questions about the template? Open an issue on the project repository.

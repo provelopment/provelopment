@@ -2,15 +2,24 @@
 title: About
 ---
 
-Provelopment helps small businesses build and maintain a strong web presence
-through open source software, practical education, and developer-focused
-resources.
+This page is a sample included with the Provelopment Foundation template.
+Everything you see here comes from a Markdown file:
+`content/pages/en/about.md`.
 
-## What we do
+## Editing content
 
-- **Open source software** — practical tools that small businesses can adopt,
-  adapt, and trust.
-- **Education** — clear, developer-focused guidance for building and
-  maintaining a modern web presence.
-- **Reusable platforms** — website foundations that can be re-branded and
-  customized without starting from scratch.
+Each page lives at `content/pages/<locale>/<slug>.md`. The frontmatter sets
+the page title, and the body is rendered as rich Markdown:
+
+- **Bold**, _italic_, and `inline code`
+- [Links](https://example.com) and lists
+- Multiple heading levels
+
+### Adding pages
+
+Create a new `.md` file in `content/pages/<locale>/` and it becomes a page.
+Add it to the `navigation` array in `site.config.json` so visitors can find
+it. When a translation is missing for a locale, the default locale's version
+is served automatically.
+
+Replace this copy with the real story of your business.
