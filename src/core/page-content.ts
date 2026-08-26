@@ -6,6 +6,8 @@
  */
 export interface PageContent {
   readonly slug: string;
+  /** The locale of the content actually served (after any fallback). */
+  readonly locale: string;
   readonly title: string;
   readonly body: string;
 }

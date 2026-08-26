@@ -1,12 +1,13 @@
+import type { Locale } from "@/core/locale";
 import type { PageContent } from "@/core/page-content";
 
 /**
- * Port for retrieving human-authored page content.
+ * Port for retrieving human-authored page content for a locale.
  *
- * Concrete implementations belong in `src/adapters`. Application and
- * framework code must depend on this interface, not on any concrete
- * implementation.
+ * Implementations should fall back to the default locale when a
+ * translation is missing; missing translations must not produce broken
+ * pages. Concrete implementations belong in `src/adapters`.
  */
 export interface PageContentRepository {
-  findBySlug(slug: string): Promise<PageContent | null>;
+  findBySlug(slug: string, locale: Locale): Promise<PageContent | null>;
 }

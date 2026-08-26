@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { parsePageFile } from "@/adapters/content/fs-page-content-repository";
+import {
+  createFileSystemPageContentRepository,
+  parsePageFile,
+} from "@/adapters/content/fs-page-content-repository";
 
 describe("parsePageFile", () => {
   it("parses the title and body from frontmatter", () => {
     const page = parsePageFile(
       "---\ntitle: About\n---\n\nHello world\n",
       "about",
+      "en",
     );
 
     expect(page).toEqual({
       slug: "about",
+      locale: "en",
       title: "About",
       body: "\nHello world\n",
     });
@@ -20,6 +25,7 @@ describe("parsePageFile", () => {
     const page = parsePageFile(
       "---\r\ntitle: About\r\n---\r\nBody copy\r\n",
       "about",
+      "en",
     );
 
     expect(page.title).toBe("About");
@@ -27,19 +33,55 @@ describe("parsePageFile", () => {
   });
 
   it("strips surrounding quotes from the title", () => {
-    const page = parsePageFile('---\ntitle: "About Us"\n---\n', "about-us");
+    const page = parsePageFile(
+      '---\ntitle: "About Us"\n---\n',
+      "about-us",
+      "en",
+    );
 
     expect(page.title).toBe("About Us");
   });
 
   it("throws when frontmatter is missing", () => {
-    expect(() => parsePageFile("Just some text", "broken")).toThrow(
-      /missing frontmatter/i,
-    );
+    expect(() =>
+      parsePageFile("Just some text", "broken", "en"),
+    ).toThrow(/missing frontmatter/i);
   });
 
   it("throws when the title is missing from frontmatter", () => {
-    expect(() => parsePageFile("---\ndescription: x\n---\n", "broken"))
-      .toThrow(/missing title/i);
+    expect(() =>
+      parsePageFile("---\ndescription: x\n---\n", "broken", "en"),
+    ).toThrow(/missing title/i);
+  });
+});
+
+describe("createFileSystemPageContentRepository", () => {
+  const repository = createFileSystemPageContentRepository({
+    defaultLocale: "en",
+  });
+
+  it("finds content for the requested locale", async () => {
+    const page = await repository.findBySlug("about", "en");
+
+    expect(page?.locale).toBe("en");
+    expect(page?.title).toBe("About");
+  });
+
+  it("falls back to the default locale when a translation is missing", async () => {
+    const page = await repository.findBySlug("about", "fr");
+
+    expect(page?.locale).toBe("en");
+    expect(page?.title).toBe("About");
+  });
+
+  it("returns null for slugs that do not exist in any locale", async () => {
+    const page = await repository.findBySlug("does-not-exist", "en");
+
+    expect(page).toBeNull();
+  });
+
+  it("rejects unsafe slugs and malformed locales", async () => {
+    expect(await repository.findBySlug("../secrets", "en")).toBeNull();
+    expect(await repository.findBySlug("about", "../etc")).toBeNull();
   });
 });

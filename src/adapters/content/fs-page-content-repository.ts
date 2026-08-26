@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { PageContentRepository } from "@/application/page-content-repository";
+import { isWellFormedLocale, type Locale } from "@/core/locale";
 import type { PageContent } from "@/core/page-content";
 
 const contentDirectory = path.join(process.cwd(), "content", "pages");
@@ -24,7 +25,11 @@ function stripQuotes(value: string): string {
   return trimmed;
 }
 
-export function parsePageFile(raw: string, slug: string): PageContent {
+export function parsePageFile(
+  raw: string,
+  slug: string,
+  locale: Locale,
+): PageContent {
   const match = frontmatterPattern.exec(raw);
 
   if (!match) {
@@ -40,31 +45,53 @@ export function parsePageFile(raw: string, slug: string): PageContent {
 
   return {
     slug,
+    locale,
     title: stripQuotes(titleMatch[1]),
     body,
   };
 }
 
+export interface FileSystemPageContentRepositoryOptions {
+  /** Locale used when the requested locale has no translation yet. */
+  readonly defaultLocale: Locale;
+}
+
+function readPage(
+  locale: Locale,
+  slug: string,
+): Promise<string> {
+  return readFile(path.join(contentDirectory, locale, `${slug}.md`), "utf8");
+}
+
 /**
  * Adapter that reads page content from Markdown files under
- * `content/pages/<slug>.md`.
+ * `content/pages/<locale>/<slug>.md`, falling back to the default locale
+ * when the requested locale has no translation.
  */
-export function createFileSystemPageContentRepository(): PageContentRepository {
+export function createFileSystemPageContentRepository(
+  options: FileSystemPageContentRepositoryOptions,
+): PageContentRepository {
+  const { defaultLocale } = options;
+
   return {
-    async findBySlug(slug: string): Promise<PageContent | null> {
-      if (!validSlugPattern.test(slug)) {
+    async findBySlug(slug, locale): Promise<PageContent | null> {
+      if (!validSlugPattern.test(slug) || !isWellFormedLocale(locale)) {
         return null;
       }
 
-      try {
-        const raw = await readFile(
-          path.join(contentDirectory, `${slug}.md`),
-          "utf8",
-        );
-        return parsePageFile(raw, slug);
-      } catch {
-        return null;
+      const candidateLocales =
+        locale === defaultLocale ? [locale] : [locale, defaultLocale];
+
+      for (const candidateLocale of candidateLocales) {
+        try {
+          const raw = await readPage(candidateLocale, slug);
+          return parsePageFile(raw, slug, candidateLocale);
+        } catch {
+          // Try the next candidate; missing files fall through.
+        }
       }
+
+      return null;
     },
   };
 }
