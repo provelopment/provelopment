@@ -1,13 +1,19 @@
 import Link from "next/link";
-import { siteConfig } from "@/config";
+import { getDictionary, siteConfig } from "@/config";
 
-export function SiteFooter() {
+interface SiteFooterProps {
+    readonly locale: string;
+}
+
+export function SiteFooter({ locale }: SiteFooterProps) {
+    const dictionary = getDictionary(locale);
+
     return (
         <footer className="mt-16 border-t border-border">
             <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        Contact
+                        {dictionary.sections.contact}
                     </h2>
 
                     {siteConfig.contact.email ? (
@@ -35,7 +41,7 @@ export function SiteFooter() {
 
                 <div>
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        Connect
+                        {dictionary.sections.connect}
                     </h2>
 
                     <ul className="mt-3 space-y-2">
@@ -54,16 +60,16 @@ export function SiteFooter() {
                     </ul>
                 </div>
 
-                <nav aria-label="Footer navigation">
+                <nav aria-label={dictionary.navigation.footerLabel}>
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        Navigate
+                        {dictionary.sections.navigate}
                     </h2>
 
                     <ul className="mt-3 space-y-2">
                         {siteConfig.navigation.map((item) => (
                             <li key={item.href}>
                                 <Link
-                                    href={item.href}
+                                    href={`/${locale}${item.href === "/" ? "" : item.href}`}
                                     className="hover:text-primary"
                                 >
                                     {item.label}

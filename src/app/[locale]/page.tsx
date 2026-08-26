@@ -1,6 +1,13 @@
-import { siteConfig } from "@/config";
+import { getDictionary, siteConfig } from "@/config";
 
-export default function HomePage() {
+export default async function HomePage({
+  params,
+}: {
+  params: Promise<{ readonly locale: string }>;
+}) {
+  const { locale } = await params;
+  const dictionary = getDictionary(locale);
+
   return (
     <>
       <header className="mx-auto max-w-4xl px-4 pt-16 pb-10">
@@ -21,7 +28,7 @@ export default function HomePage() {
       >
         <div className="rounded-lg border border-border bg-accent p-6">
           <h2 id="home-about-heading" className="text-xl font-semibold">
-            About
+            {dictionary.sections.about}
           </h2>
           <p className="mt-2 text-muted-foreground">{siteConfig.description}</p>
         </div>
