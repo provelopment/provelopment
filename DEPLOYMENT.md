@@ -1,7 +1,7 @@
 # Deployment Runbook
 
-This runbook takes a Provelopment site (upstream or a downstream clone) from
-repository to a live production website on Vercel.
+This runbook takes a site built from this template (upstream or a downstream
+clone) from repository to a live production website on Vercel.
 
 ## Prerequisites
 

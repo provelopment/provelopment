@@ -1,8 +1,8 @@
-# Provelopment AI Agent Instructions
+# AI Agent Instructions
 
 ## 1. Mission
 
-Provelopment is an open-source, re-brandable web platform for helping small
+This project is an open-source, re-brandable web platform for helping small
 businesses establish and maintain a web presence.
 
 The project begins as a frontend-only Next.js application but is deliberately
@@ -36,7 +36,7 @@ Do not make architectural changes based only on assumptions.
 
 ## 3. Architecture
 
-Provelopment follows Hexagonal Architecture / Ports and Adapters principles.
+This project follows Hexagonal Architecture / Ports and Adapters principles.
 
 The major application boundaries are:
 
@@ -105,7 +105,7 @@ Framework-specific code belongs at the appropriate outer boundary.
 
 ## 6. Configuration and Re-brandability
 
-Provelopment is intended to be re-branded and customized by downstream users.
+The platform is intended to be re-branded and customized by downstream users.
 
 Common downstream customization should prefer configuration and content over
 modification of platform logic.
@@ -123,8 +123,8 @@ Potential customization areas include:
 - content
 - enabled features
 
-Do not hard-code Provelopment-specific business information into reusable
-platform components.
+Do not hard-code any specific business's information — including the
+upstream project's own branding — into reusable platform components.
 
 When implementing a feature, consider whether it should be:
 
@@ -319,7 +319,7 @@ Do not commit:
 
 ## 17. Upstream / Downstream Compatibility
 
-Provelopment is intended to evolve as an upstream project while supporting
+The upstream project is intended to evolve over time while supporting
 downstream customized websites.
 
 When making a change, consider whether the change will be:

@@ -1,8 +1,8 @@
-# Provelopment Architecture
+# Architecture
 
 ## Purpose
 
-Provelopment is a reusable, re-brandable web platform intended to support
+The platform is a reusable, re-brandable web template intended to support
 small businesses in establishing and maintaining a web presence.
 
 The application is initially frontend-only but must remain capable of evolving
