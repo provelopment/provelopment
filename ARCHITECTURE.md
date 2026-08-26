@@ -109,6 +109,33 @@ Human-authored content such as:
 
 Content should remain separate from application implementation.
 
+#### Content system
+
+Page content lives as Markdown files under `content/pages/<slug>.md`.
+
+Each file begins with minimal frontmatter containing a `title`:
+
+```markdown
+---
+title: Page Title
+---
+
+Body copy in Markdown.
+```
+
+The content pipeline follows the ports and adapters boundaries:
+
+- `src/core/page-content.ts` defines the `PageContent` concept.
+- `src/application/page-content-repository.ts` defines the
+  `PageContentRepository` port.
+- `src/adapters/content/fs-page-content-repository.ts` implements the port
+  against the filesystem.
+- Framework code in `src/app` composes the adapter with the port and renders
+  Markdown to HTML only at the presentation boundary.
+
+Application code must depend on the port, never directly on the adapter,
+except at composition time in `src/app`.
+
 ### `public`
 
 Static assets served directly by the web application.
