@@ -432,3 +432,28 @@ Do not rely on an AI agent remembering decisions from a previous conversation.
 
 The repository must contain enough information for a new agent to understand
 the project independently.
+
+---
+
+## 24. Internationalization
+
+All user-facing routes live under the `[locale]` dynamic segment. Requests
+without a locale prefix are redirected by `src/proxy.ts` based on the
+`NEXT_LOCALE` cookie, the `Accept-Language` header, and finally the
+configured default locale.
+
+Rules:
+
+- Never hard-code user-facing copy in components. Interface strings belong
+  in `src/config/i18n/<locale>.ts` and must satisfy the `Dictionary`
+  interface.
+- New routes must be added under `src/app/[locale]`.
+- Markdown content belongs under `content/pages/<locale>/<slug>.md`. When a
+  translation is missing, the default locale's content is served instead.
+- Locale negotiation and related pure logic belong in `src/core` and must be
+  unit-tested.
+- Each locale must be statically renderable and represented in the sitemap
+  with hreflang alternates.
+
+Adding a locale must be possible through configuration, dictionaries, and
+content alone.

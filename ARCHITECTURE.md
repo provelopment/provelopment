@@ -200,6 +200,49 @@ A downstream project should be able to change its:
 without modifying the platform's core business/application logic wherever
 practical.
 
+## Internationalization
+
+The platform supports multiple locales as a first-class concern.
+
+### Locale routing
+
+All user-facing routes live under a `[locale]` dynamic segment, for example
+`/en/about`. Supported locales and the default locale are defined in
+`src/config`.
+
+Requests without a locale prefix are redirected by `src/proxy.ts` (Next.js
+16's renamed middleware) using, in order:
+
+1. the `NEXT_LOCALE` cookie,
+2. the `Accept-Language` header,
+3. the configured default locale.
+
+### UI strings
+
+User-facing interface strings ("dictionaries") live in
+`src/config/i18n/<locale>.ts` and must satisfy the `Dictionary` interface.
+Hard-coded user-facing copy in reusable components is a violation of this
+boundary.
+
+### Localized content
+
+Markdown content is organized per locale under `content/pages/<locale>/`.
+The content port accepts a locale and falls back to the default locale when
+a translation has not been authored yet. Missing translations must not
+produce broken routes.
+
+### SEO
+
+Each locale is treated as a distinct page:
+
+- `<html lang>` reflects the active locale.
+- Pages expose `alternates.languages` (hreflang) including `x-default`.
+- The sitemap lists every route for every supported locale.
+
+Adding a new locale is a configuration-level change: register the locale in
+`src/config`, author its dictionary, and author its content. Platform logic
+must not require modification.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI
