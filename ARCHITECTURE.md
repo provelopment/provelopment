@@ -185,6 +185,25 @@ Possible future infrastructure includes:
 
 The architecture should allow these to be introduced incrementally.
 
+## Hosting and Deployment
+
+The platform targets Vercel as its primary infrastructure provider.
+
+Constraints and rules:
+
+- The locale-detection proxy (`src/proxy.ts`) requires a host with
+  edge-middleware support. Plain static-file hosting without middleware is
+  not sufficient for this application.
+- GitHub triggers deployments: pushes to `main` deploy to production, and
+  pull requests receive preview deployments gated by CI.
+- Vercel-specific APIs must not leak into `core`, `application`, or
+  `adapters`. Hosting is an infrastructure detail composed at the outermost
+  boundary.
+- No environment variables are required today; deployment-specific values
+  (such as the production origin) are owned by `src/config`.
+
+See `DEPLOYMENT.md` for the operational runbook.
+
 ## Re-brandability
 
 A downstream project should be able to change its:
