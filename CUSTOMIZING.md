@@ -51,8 +51,15 @@ title; the body is rendered as Markdown.
 
 1. Add the locale to `i18n.locales` in `site.config.json`.
 2. Create a dictionary at `src/config/i18n/<code>.ts` satisfying the
-   `Dictionary` interface.
+   `Dictionary` interface. Beyond section headings and 404 copy, it carries:
+   - `home.tagline` / `home.description` — the localized home-page hero copy
+   - `navigation.items` — localized navigation labels keyed by href
+     (`"/"`, `"/about"`, …). Missing keys fall back to the label configured
+     in `site.config.json`, so pages you don't localize still work.
 3. Optionally translate pages under `content/pages/<code>/`.
+
+See `es.ts`, `fr.ts`, `de.ts`, `ja.ts`, `zh.ts`, `ko.ts`, or `id.ts` for
+complete reference dictionaries.
 
 Every locale is statically rendered and included in the sitemap with
 hreflang alternates.
