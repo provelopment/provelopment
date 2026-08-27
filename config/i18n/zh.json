@@ -1,0 +1,29 @@
+{
+  "home": {
+    "tagline": "为小型企业打造的快速多语言网站",
+    "description": "请将此描述替换为您自己的内容。My Site 是 Provelopment Foundation 模板的演示：编辑 site.config.json、Markdown 内容和您的资源，让它成为您自己的网站。"
+  },
+  "sections": {
+    "about": "关于",
+    "contact": "联系我们",
+    "connect": "关注我们",
+    "navigate": "浏览"
+  },
+  "navigation": {
+    "primaryLabel": "主导航",
+    "footerLabel": "页脚导航",
+    "items": {
+      "/": "首页",
+      "/about": "关于",
+      "/resources": "资源"
+    }
+  },
+  "notFound": {
+    "title": "页面未找到",
+    "message": "您访问的页面不存在。",
+    "returnHome": "返回首页"
+  },
+  "language": {
+    "label": "语言"
+  }
+}

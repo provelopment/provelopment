@@ -106,8 +106,9 @@ Rules:
   `siteConfig`; importing the JSON directly elsewhere bypasses validation.
 - Optional functionality is expressed as feature flags under `features`
   and consumed by adapters (for example `features.analytics.provider`).
-- UI-string dictionaries live in `src/config/i18n/<locale>.ts`; they are
-  content, not settings, and remain TypeScript modules for now.
+- UI-string dictionaries live in `config/i18n/<locale>.json`; they are
+  content, not settings — edited as JSON and validated against the Zod
+  `dictionarySchema` at load time.
 
 ### `content`
 
@@ -250,7 +251,7 @@ Requests without a locale prefix are redirected by `src/proxy.ts` (Next.js
 ### UI strings
 
 User-facing interface strings ("dictionaries") live in
-`src/config/i18n/<locale>.ts` and must satisfy the `Dictionary` interface.
+`config/i18n/<locale>.json` and must validate against the Zod `dictionarySchema`.
 Hard-coded user-facing copy in reusable components is a violation of this
 boundary.
 

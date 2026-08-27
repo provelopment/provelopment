@@ -38,7 +38,7 @@ title; the body is rendered as Markdown.
 - Wire new pages into `navigation` in `site.config.json`.
 - Missing translations fall back to the default locale automatically.
 - Interface strings (buttons, headings outside page bodies) live in the
-  dictionaries under `src/config/i18n/<locale>.ts`.
+  dictionaries under `config/i18n/<locale>.json` (see §4).
 
 ## 3. Branding Assets
 
@@ -47,20 +47,27 @@ title; the body is rendered as Markdown.
   `src/app/[locale]/opengraph-image.tsx` from your config values.
 - Colors and typography: design tokens in `src/app/globals.css`.
 
-## 4. Adding a Locale
+## 4. Interface Translations — `config/i18n/*.json`
+
+User-facing interface strings (nav labels, hero copy, section headings, 404
+copy, the language-selector label) live in one JSON file per locale under
+`config/i18n/`. These are the customizable translation data.
 
 1. Add the locale to `i18n.locales` in `site.config.json`.
-2. Create a dictionary at `src/config/i18n/<code>.ts` satisfying the
-   `Dictionary` interface. Beyond section headings and 404 copy, it carries:
+2. Create `config/i18n/<code>.json` matching the shape of the existing files.
+   Each file carries:
    - `home.tagline` / `home.description` — the localized home-page hero copy
    - `navigation.items` — localized navigation labels keyed by href
      (`"/"`, `"/about"`, …). Missing keys fall back to the label configured
      in `site.config.json`, so pages you don't localize still work.
    - `language.label` — accessible label for the header language selector
-3. Optionally translate pages under `content/pages/<code>/`.
+3. Every file is validated against a **Zod schema** at load time — a missing
+   key or malformed value fails the build with an actionable error, so a
+   typo can't silently ship.
+4. Optionally translate pages under `content/pages/<code>/`.
 
-See `es.ts`, `fr.ts`, `de.ts`, `ja.ts`, `zh.ts`, `ko.ts`, or `id.ts` for
-complete reference dictionaries.
+See `es.json`, `fr.json`, `de.json`, `ja.json`, `zh.json`, `ko.json`, or
+`id.json` for complete reference dictionaries.
 
 Every locale is statically rendered and included in the sitemap with
 hreflang alternates.
