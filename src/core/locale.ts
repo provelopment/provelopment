@@ -82,6 +82,18 @@ export function negotiateLocale(options: NegotiateLocaleOptions): Locale {
   return defaultLocale;
 }
 
+/**
+ * Returns `pathname` with its leading locale segment replaced by
+ * `newLocale` (e.g. `/en/about` + `fr` → `/fr/about`). Route pathnames are
+ * always rendered under a supported locale, so the first segment is treated
+ * as that locale.
+ */
+export function replaceLocaleSegment(pathname: string, newLocale: Locale): string {
+  const segments = pathname.split("/");
+  segments[1] = newLocale;
+  return segments.join("/");
+}
+
 export interface LanguageAlternatesOptions {
   readonly baseUrl: string;
   readonly locales: readonly Locale[];

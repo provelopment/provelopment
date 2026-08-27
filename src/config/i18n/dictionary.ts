@@ -32,4 +32,8 @@ export interface Dictionary {
     readonly message: string;
     readonly returnHome: string;
   };
+  /** Accessible label for the locale selector. */
+  readonly language: {
+    readonly label: string;
+  };
 }

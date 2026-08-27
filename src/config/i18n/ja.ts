@@ -26,4 +26,7 @@ export const ja: Dictionary = {
     message: "お探しのページは存在しません。",
     returnHome: "ホームに戻る",
   },
+  language: {
+    label: "言語",
+  },
 };

@@ -26,4 +26,7 @@ export const ko: Dictionary = {
     message: "찾으시는 페이지가 존재하지 않습니다.",
     returnHome: "홈으로 돌아가기",
   },
+  language: {
+    label: "언어",
+  },
 };

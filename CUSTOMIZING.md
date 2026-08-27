@@ -56,6 +56,7 @@ title; the body is rendered as Markdown.
    - `navigation.items` — localized navigation labels keyed by href
      (`"/"`, `"/about"`, …). Missing keys fall back to the label configured
      in `site.config.json`, so pages you don't localize still work.
+   - `language.label` — accessible label for the header language selector
 3. Optionally translate pages under `content/pages/<code>/`.
 
 See `es.ts`, `fr.ts`, `de.ts`, `ja.ts`, `zh.ts`, `ko.ts`, or `id.ts` for
