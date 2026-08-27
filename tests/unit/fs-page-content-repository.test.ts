@@ -68,7 +68,7 @@ describe("createFileSystemPageContentRepository", () => {
   });
 
   it("falls back to the default locale when a translation is missing", async () => {
-    const page = await repository.findBySlug("about", "fr");
+    const page = await repository.findBySlug("about", "sv");
 
     expect(page?.locale).toBe("en");
     expect(page?.title).toBe("About");

@@ -1,0 +1,29 @@
+import type { Dictionary } from "./dictionary";
+
+export const fr: Dictionary = {
+  home: {
+    tagline: "Un site web rapide et multilingue pour votre petite entreprise",
+    description:
+      "Remplacez cette description par la vôtre. My Site est une démonstration du modèle Provelopment Foundation : modifiez site.config.json, le contenu Markdown et vos ressources pour vous l'approprier.",
+  },
+  sections: {
+    about: "À propos",
+    contact: "Contact",
+    connect: "Nous suivre",
+    navigate: "Naviguer",
+  },
+  navigation: {
+    primaryLabel: "Navigation principale",
+    footerLabel: "Navigation de pied de page",
+    items: {
+      "/": "Accueil",
+      "/about": "À propos",
+      "/resources": "Ressources",
+    },
+  },
+  notFound: {
+    title: "Page introuvable",
+    message: "La page que vous cherchez n'existe pas.",
+    returnHome: "Retour à l'accueil",
+  },
+};
