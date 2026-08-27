@@ -25,5 +25,11 @@
   },
   "language": {
     "label": "言語"
+  },
+  "business": {
+    "open": "営業中",
+    "closed": "閉店",
+    "noHours": "営業時間はありません",
+    "hoursLabel": "営業時間"
   }
 }

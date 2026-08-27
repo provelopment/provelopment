@@ -25,5 +25,11 @@
   },
   "language": {
     "label": "Language"
+  },
+  "business": {
+    "open": "Open now",
+    "closed": "Closed",
+    "noHours": "Hours not available",
+    "hoursLabel": "Business hours"
   }
 }

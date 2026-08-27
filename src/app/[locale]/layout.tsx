@@ -1,4 +1,5 @@
 import { VercelAnalytics } from "@/adapters/analytics/vercel-analytics";
+import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
@@ -71,6 +72,7 @@ export default async function LocaleLayout({
         <SiteHeader locale={locale} />
         <main className="flex-1">{children}</main>
         <SiteFooter locale={locale} />
+        <StructuredData />
         {siteConfig.analytics?.provider === "vercel" ? (
           <VercelAnalytics />
         ) : null}

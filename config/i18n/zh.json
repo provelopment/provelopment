@@ -25,5 +25,11 @@
   },
   "language": {
     "label": "语言"
+  },
+  "business": {
+    "open": "营业中",
+    "closed": "已打烊",
+    "noHours": "暂无营业时间",
+    "hoursLabel": "营业时间"
   }
 }

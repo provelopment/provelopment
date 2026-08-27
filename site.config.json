@@ -60,6 +60,33 @@
       "href": "/resources"
     }
   ],
+  "business": {
+    "timezone": "Asia/Jakarta",
+    "type": "LocalBusiness",
+    "locations": [
+      {
+        "id": "main",
+        "name": "My Site HQ",
+        "address": {
+          "street": "1 Demo Street",
+          "city": "Jakarta",
+          "country": "Indonesia"
+        },
+        "phone": "+62 21 0000 0000",
+        "timezone": "Asia/Jakarta",
+        "hours": {
+          "intervals": [
+            {
+              "days": ["mon", "tue", "wed", "thu", "fri"],
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "exceptional": []
+        }
+      }
+    ]
+  },
   "features": {
     "analytics": {
       "provider": "vercel"

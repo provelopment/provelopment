@@ -1,3 +1,5 @@
+import type { Business } from "@/core/business";
+
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
   readonly code: string;
@@ -38,6 +40,8 @@ export interface SiteConfig {
   readonly contact: ContactConfig;
   readonly socialLinks: readonly SocialLink[];
   readonly navigation: readonly NavigationItem[];
+  /** Normalized business profile (from `business` block or legacy contact). */
+  readonly business: Business;
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;
 }

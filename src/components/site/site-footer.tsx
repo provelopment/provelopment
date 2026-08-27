@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDictionary, siteConfig } from "@/config";
+import { BusinessInfo } from "./business-info";
 
 interface SiteFooterProps {
     readonly locale: string;
@@ -11,33 +12,7 @@ export function SiteFooter({ locale }: SiteFooterProps) {
     return (
         <footer className="mt-16 border-t border-border">
             <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        {dictionary.sections.contact}
-                    </h2>
-
-                    {siteConfig.contact.email ? (
-                        <p className="mt-3">
-                            <a
-                                href={`mailto:${siteConfig.contact.email}`}
-                                className="hover:text-primary"
-                            >
-                                {siteConfig.contact.email}
-                            </a>
-                        </p>
-                    ) : null}
-
-                    {siteConfig.contact.phone ? (
-                        <p className="mt-3">
-                            <a
-                                href={`tel:${siteConfig.contact.phone}`}
-                                className="hover:text-primary"
-                            >
-                                {siteConfig.contact.phone}
-                            </a>
-                        </p>
-                    ) : null}
-                </div>
+                <BusinessInfo locale={locale} />
 
                 <div>
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
