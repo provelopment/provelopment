@@ -445,8 +445,8 @@ configured default locale.
 Rules:
 
 - Never hard-code user-facing copy in components. Interface strings belong
-  in `src/config/i18n/<locale>.ts` and must satisfy the `Dictionary`
-  interface.
+  in `config/i18n/<locale>.json` and must validate against the Zod dictionary
+  schema.
 - New routes must be added under `src/app/[locale]`.
 - Markdown content belongs under `content/pages/<locale>/<slug>.md`. When a
   translation is missing, the default locale's content is served instead.
