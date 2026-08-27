@@ -72,7 +72,7 @@ export function SiteFooter({ locale }: SiteFooterProps) {
                                     href={`/${locale}${item.href === "/" ? "" : item.href}`}
                                     className="hover:text-primary"
                                 >
-                                    {item.label}
+                                    {dictionary.navigation.items[item.href] ?? item.label}
                                 </Link>
                             </li>
                         ))}

@@ -39,10 +39,10 @@ export default async function HomePage({
           {siteConfig.name}
         </p>
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          {siteConfig.tagline}
+          {dictionary.home.tagline}
         </h1>
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          {siteConfig.description}
+          {dictionary.home.description}
         </p>
       </header>
 
@@ -54,7 +54,9 @@ export default async function HomePage({
           <h2 id="home-about-heading" className="text-xl font-semibold">
             {dictionary.sections.about}
           </h2>
-          <p className="mt-2 text-muted-foreground">{siteConfig.description}</p>
+          <p className="mt-2 text-muted-foreground">
+            {dictionary.home.description}
+          </p>
         </div>
       </section>
     </>

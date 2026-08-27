@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-import { siteConfig } from "@/config";
+import { getDictionary, siteConfig } from "@/config";
 
 export const alt = `${siteConfig.name} — ${siteConfig.tagline}`;
 export const size = {
@@ -18,6 +18,7 @@ export default async function OpengraphImage({
   params,
 }: OpengraphImageProps) {
   const { locale } = await params;
+  const dictionary = getDictionary(locale);
 
   return new ImageResponse(
     (
@@ -55,7 +56,7 @@ export default async function OpengraphImage({
             maxWidth: 940,
           }}
         >
-          {siteConfig.tagline}
+          {dictionary.home.tagline}
         </div>
 
         <div style={{ display: "flex", fontSize: 26, color: "#a3a3a3" }}>

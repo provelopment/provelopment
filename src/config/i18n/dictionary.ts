@@ -6,6 +6,11 @@
  * boundary.
  */
 export interface Dictionary {
+  /** Localized home-page hero copy shown above the fold. */
+  readonly home: {
+    readonly tagline: string;
+    readonly description: string;
+  };
   readonly sections: {
     readonly about: string;
     readonly contact: string;
@@ -15,6 +20,12 @@ export interface Dictionary {
   readonly navigation: {
     readonly primaryLabel: string;
     readonly footerLabel: string;
+    /**
+     * Localized navigation-item labels keyed by href (`"/"`, `"/about"`,
+     * …). Lookups fall back to the label configured in `site.config.json`
+     * when a key is missing, so custom pages need no dictionary entry.
+     */
+    readonly items: { readonly [href: string]: string };
   };
   readonly notFound: {
     readonly title: string;

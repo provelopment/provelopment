@@ -28,7 +28,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                                     href={`/${locale}${item.href === "/" ? "" : item.href}`}
                                     className="text-sm text-muted-foreground transition-colors hover:text-foreground"
                                 >
-                                    {item.label}
+                                    {dictionary.navigation.items[item.href] ?? item.label}
                                 </Link>
                             </li>
                         ))}
