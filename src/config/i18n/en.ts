@@ -26,4 +26,7 @@ export const en: Dictionary = {
     message: "The page you are looking for does not exist.",
     returnHome: "Return home",
   },
+  language: {
+    label: "Language",
+  },
 };

@@ -26,4 +26,7 @@ export const es: Dictionary = {
     message: "La página que buscas no existe.",
     returnHome: "Volver al inicio",
   },
+  language: {
+    label: "Idioma",
+  },
 };

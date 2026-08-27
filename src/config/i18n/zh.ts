@@ -26,4 +26,7 @@ export const zh: Dictionary = {
     message: "您访问的页面不存在。",
     returnHome: "返回首页",
   },
+  language: {
+    label: "语言",
+  },
 };

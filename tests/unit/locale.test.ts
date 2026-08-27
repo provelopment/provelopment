@@ -4,7 +4,22 @@ import {
   buildLanguageAlternates,
   negotiateLocale,
   parseAcceptLanguage,
+  replaceLocaleSegment,
 } from "@/core/locale";
+
+describe("replaceLocaleSegment", () => {
+  it("swaps the leading locale segment", () => {
+    expect(replaceLocaleSegment("/en/about", "fr")).toBe("/fr/about");
+  });
+
+  it("handles the locale root", () => {
+    expect(replaceLocaleSegment("/en", "de")).toBe("/de");
+  });
+
+  it("preserves deeper paths and trailing slashes", () => {
+    expect(replaceLocaleSegment("/en/resources/", "zh")).toBe("/zh/resources/");
+  });
+});
 
 describe("parseAcceptLanguage", () => {
   it("orders entries by quality", () => {

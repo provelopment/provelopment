@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getDictionary, siteConfig } from "@/config";
+import { LanguageSwitcher } from "./language-switcher";
 
 interface SiteHeaderProps {
     readonly locale: string;
@@ -20,20 +21,27 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                     </Link>
                 </div>
 
-                <nav aria-label={dictionary.navigation.primaryLabel}>
-                    <ul className="flex items-center gap-4">
-                        {siteConfig.navigation.map((item) => (
-                            <li key={item.href}>
-                                <Link
-                                    href={`/${locale}${item.href === "/" ? "" : item.href}`}
-                                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                                >
-                                    {dictionary.navigation.items[item.href] ?? item.label}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
-                </nav>
+                <div className="flex items-center gap-4">
+                    <nav aria-label={dictionary.navigation.primaryLabel}>
+                        <ul className="flex items-center gap-4">
+                            {siteConfig.navigation.map((item) => (
+                                <li key={item.href}>
+                                    <Link
+                                        href={`/${locale}${item.href === "/" ? "" : item.href}`}
+                                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                                    >
+                                        {dictionary.navigation.items[item.href] ?? item.label}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
+
+                    <LanguageSwitcher
+                        locale={locale}
+                        label={dictionary.language.label}
+                    />
+                </div>
             </div>
         </header>
     );

@@ -26,4 +26,7 @@ export const de: Dictionary = {
     message: "Die gesuchte Seite existiert nicht.",
     returnHome: "Zurück zur Startseite",
   },
+  language: {
+    label: "Sprache",
+  },
 };

@@ -26,4 +26,7 @@ export const id: Dictionary = {
     message: "Halaman yang Anda cari tidak ada.",
     returnHome: "Kembali ke beranda",
   },
+  language: {
+    label: "Bahasa",
+  },
 };
