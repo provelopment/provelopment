@@ -1,39 +1,45 @@
+import { z } from "zod";
+
 /**
- * User-facing interface strings for one locale.
+ * Zod schema for a single locale's user-facing interface strings.
  *
- * Components must render interface copy from a dictionary; hard-coded
- * user-facing copy in components violates the internationalization
- * boundary.
+ * The schema is the source of truth; `Dictionary` is derived from it via
+ * `z.infer`, so a component-visible type can never drift from the runtime
+ * validator. Each locale's JSON under `config/i18n/<locale>.json` is
+ * validated against this at module load, so a malformed or incomplete
+ * translation fails the build (or tests) with actionable errors.
+ *
+ * The schema establishes shape and required keys only. It does NOT attempt
+ * to judge translation quality — native-speaker review is a separate concern.
  */
-export interface Dictionary {
+export const dictionarySchema = z.object({
   /** Localized home-page hero copy shown above the fold. */
-  readonly home: {
-    readonly tagline: string;
-    readonly description: string;
-  };
-  readonly sections: {
-    readonly about: string;
-    readonly contact: string;
-    readonly connect: string;
-    readonly navigate: string;
-  };
-  readonly navigation: {
-    readonly primaryLabel: string;
-    readonly footerLabel: string;
-    /**
-     * Localized navigation-item labels keyed by href (`"/"`, `"/about"`,
-     * …). Lookups fall back to the label configured in `site.config.json`
-     * when a key is missing, so custom pages need no dictionary entry.
-     */
-    readonly items: { readonly [href: string]: string };
-  };
-  readonly notFound: {
-    readonly title: string;
-    readonly message: string;
-    readonly returnHome: string;
-  };
+  home: z.object({
+    tagline: z.string(),
+    description: z.string(),
+  }),
+  sections: z.object({
+    about: z.string(),
+    contact: z.string(),
+    connect: z.string(),
+    navigate: z.string(),
+  }),
+  navigation: z.object({
+    primaryLabel: z.string(),
+    footerLabel: z.string(),
+    /** Localized navigation-item labels keyed by href (`"/"`, `"/about"`, …). */
+    items: z.record(z.string(), z.string()),
+  }),
+  notFound: z.object({
+    title: z.string(),
+    message: z.string(),
+    returnHome: z.string(),
+  }),
   /** Accessible label for the locale selector. */
-  readonly language: {
-    readonly label: string;
-  };
-}
+  language: z.object({
+    label: z.string(),
+  }),
+});
+
+export type Dictionary = z.infer<typeof dictionarySchema>;
+export type DictionaryType = typeof dictionarySchema;
