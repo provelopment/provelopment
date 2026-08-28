@@ -25,6 +25,43 @@ function atZonedLocal(y: number, mo: number, d: number, hh: number, mm: number, 
   return instant;
 }
 
+// Same idea as `atZonedLocal`, but also pins the desired wall-clock CALENDAR
+// DATE (the time-only helper above can converge onto the next day for
+// late-night instants, which is wrong for date-keyed exceptional hours).
+function atZonedWallClock(
+  y: number,
+  mo: number,
+  d: number,
+  hh: number,
+  mm: number,
+  tz: string,
+): Date {
+  const wantDate = new Date(Date.UTC(y, mo - 1, d));
+  const wantMinutes = hh * 60 + mm;
+  let instant = new Date(Date.UTC(y, mo - 1, d, hh, mm));
+
+  for (let i = 0; i < 8; i++) {
+    const fmt = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    });
+    const parts = fmt.formatToParts(instant);
+    const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+    let hour = get("hour");
+    if (hour === 24) hour = 0;
+    const actualDate = new Date(Date.UTC(get("year"), get("month") - 1, get("day")));
+    const actualMinutes = hour * 60 + get("minute");
+
+    const correction =
+      Math.round((wantDate.getTime() - actualDate.getTime()) / 86_400_000) *
+        86_400_000 +
+      (wantMinutes - actualMinutes) * 60_000;
+    if (correction === 0) return instant;
+    instant = new Date(instant.getTime() + correction);
+  }
+  return instant;
+}
+
 function loc(hours: BusinessLocation["hours"], tz = "Asia/Jakarta"): BusinessLocation {
   return {
     id: "l1",
@@ -102,5 +139,101 @@ describe("multiple intervals + overnight", () => {
   it("closed at 03:00", () => {
     const d = atZonedLocal(2026, 8, 28, 3, 0, "Asia/Jakarta");
     expect(isOpen(loc(overnight), d)).toBe(false);
+  });
+});
+
+describe("multiple intervals on one day", () => {
+  const splitDay: BusinessLocation["hours"] = {
+    intervals: [
+      { days: ["mon", "tue"], open: "09:00", close: "12:00" },
+      { days: ["mon", "tue"], open: "14:00", close: "17:00" },
+    ],
+    exceptional: [],
+  };
+
+  it("is open during the first slot", () => {
+    const tue = atZonedWallClock(2026, 8, 25, 10, 0, "Asia/Jakarta"); // Tue
+    expect(isOpen(loc(splitDay), tue)).toBe(true);
+  });
+
+  it("is closed between the two slots", () => {
+    const tue = atZonedWallClock(2026, 8, 25, 13, 0, "Asia/Jakarta");
+    expect(isOpen(loc(splitDay), tue)).toBe(false);
+  });
+
+  it("is open during the second slot", () => {
+    const tue = atZonedWallClock(2026, 8, 25, 15, 0, "Asia/Jakarta");
+    expect(isOpen(loc(splitDay), tue)).toBe(true);
+  });
+
+  it("is closed after the last slot", () => {
+    const tue = atZonedWallClock(2026, 8, 25, 18, 0, "Asia/Jakarta");
+    expect(isOpen(loc(splitDay), tue)).toBe(false);
+  });
+});
+
+describe("exceptional closure overrides a regular opening", () => {
+  const holidayClosure: BusinessLocation["hours"] = {
+    intervals: [{ days: ["mon", "tue", "wed", "thu", "fri"], open: "09:00", close: "17:00" }],
+    exceptional: [{ date: "2026-08-27", closed: true }], // Thu 2026-08-27
+  };
+
+  it("is open on a normal Thursday", () => {
+    const normalThursday = atZonedWallClock(2026, 8, 20, 10, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayClosure), normalThursday)).toBe(true);
+  });
+
+  it("is closed on the exceptional (holiday) Thursday", () => {
+    const holidayThursday = atZonedWallClock(2026, 8, 27, 10, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayClosure), holidayThursday)).toBe(false);
+  });
+});
+
+describe("exceptional opening overrides a regular closure", () => {
+  const saturdayOpening: BusinessLocation["hours"] = {
+    intervals: [{ days: ["mon", "tue", "wed", "thu", "fri"], open: "09:00", close: "17:00" }],
+    exceptional: [{ date: "2026-08-29", open: "10:00", close: "14:00" }], // Sat 2026-08-29
+  };
+
+  it("is closed on a regular Saturday", () => {
+    const normalSaturday = atZonedWallClock(2026, 9, 5, 11, 0, "Asia/Jakarta");
+    expect(isOpen(loc(saturdayOpening), normalSaturday)).toBe(false);
+  });
+
+  it("is open on the exceptional Saturday", () => {
+    const openSaturday = atZonedWallClock(2026, 8, 29, 11, 0, "Asia/Jakarta");
+    expect(isOpen(loc(saturdayOpening), openSaturday)).toBe(true);
+  });
+
+  it("is closed after the exceptional opening ends", () => {
+    const lateSaturday = atZonedWallClock(2026, 8, 29, 15, 0, "Asia/Jakarta");
+    expect(isOpen(loc(saturdayOpening), lateSaturday)).toBe(false);
+  });
+});
+
+describe("exceptional overnight hours (22:00–02:00)", () => {
+  const holidayOvernight: BusinessLocation["hours"] = {
+    intervals: [{ days: ["mon", "tue", "wed", "thu", "fri"], open: "09:00", close: "17:00" }],
+    exceptional: [{ date: "2026-08-25", open: "22:00", close: "02:00" }], // Tue 2026-08-25
+  };
+
+  it("is open late on the exceptional day", () => {
+    const late = atZonedWallClock(2026, 8, 25, 23, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayOvernight), late)).toBe(true);
+  });
+
+  it("carries over into the next morning (after midnight)", () => {
+    const nextMorning = atZonedWallClock(2026, 8, 26, 1, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayOvernight), nextMorning)).toBe(true);
+  });
+
+  it("is closed after the carry-over ends", () => {
+    const after = atZonedWallClock(2026, 8, 26, 3, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayOvernight), after)).toBe(false);
+  });
+
+  it("replaces the regular daytime schedule on the exceptional day", () => {
+    const afternoon = atZonedWallClock(2026, 8, 25, 16, 0, "Asia/Jakarta");
+    expect(isOpen(loc(holidayOvernight), afternoon)).toBe(false);
   });
 });

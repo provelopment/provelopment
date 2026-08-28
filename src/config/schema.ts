@@ -54,6 +54,26 @@ const timeSchema = z
   .string()
   .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be HH:mm in 24-hour format");
 
+/**
+ * Validates a real IANA timezone identifier using the runtime's `Intl`
+ * timezone table (the authoritative, cross-platform list — not a hand-written
+ * zone list). Node/ICU throws for unknown identifiers, so a typo in config
+ * fails validation at build time with an actionable message.
+ */
+function isIanaTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const ianaTimeZoneSchema = z.string().refine(isIanaTimeZone, {
+  message:
+    "must be a valid IANA timezone identifier, e.g. 'Asia/Jakarta' or 'America/New_York'",
+});
+
 const addressSchema = z.object({
   street: z.string().min(1),
   city: z.string().min(1),
@@ -73,7 +93,9 @@ const openIntervalSchema = z
     open: timeSchema,
     close: timeSchema,
   })
-  // Reject overnight as sane data: close==open is invalid (24h would be 00:00–24:00).
+  // A 24h/continuous schedule is intentionally ambiguous in this model
+  // (a full-day interval would be 00:00–24:00, not expressible), so reject
+  // `open === close`. Overnight (`close < open`) is fully supported.
   .refine((i) => i.open !== i.close, "open and close must differ");
 
 const exceptionalHoursSchema = z.object({
@@ -95,7 +117,7 @@ const businessLocationSchema = z.object({
   address: addressSchema,
   geo: geoCoordsSchema.optional(),
   phone: z.string().min(1).optional(),
-  timezone: z.string().min(1, "must be a valid IANA timezone").optional(),
+  timezone: ianaTimeZoneSchema.optional(),
   hours: businessHoursSchema.optional(),
 });
 
@@ -108,7 +130,7 @@ const businessTypeSchema = z.enum([
 ]);
 
 const businessSchema = z.object({
-  timezone: z.string().min(1, "must be a valid IANA timezone").optional(),
+  timezone: ianaTimeZoneSchema.optional(),
   type: businessTypeSchema.optional(),
   name: z.string().min(1).optional(),
   tagline: z.string().min(1).optional(),

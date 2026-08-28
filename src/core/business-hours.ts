@@ -1,4 +1,4 @@
-import type { BusinessHours, BusinessLocation, ExceptionalHours, Weekday } from "./business";
+import type { BusinessHours, BusinessLocation, Weekday } from "./business";
 
 /**
  * Business-hours evaluation. All times are evaluated in the location's IANA
@@ -13,6 +13,21 @@ export const DEFAULT_TIMEZONE = "Etc/UTC";
 const WEEKDAY_ORDER: readonly Weekday[] = [
   "mon", "tue", "wed", "thu", "fri", "sat", "sun",
 ];
+
+/**
+ * Returns whether `value` is a real IANA timezone identifier. Uses the
+ * runtime's `Intl` timezone resolver — the single authoritative, cross-platform
+ * timezone table — rather than a hand-maintained zone list; Node/ICU throws for
+ * unknown zones, which we treat as invalid.
+ */
+export function isIanaTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** `HH:mm` → minutes past midnight (0..1439). */
 export function parseTime(hhmm: string): number {
@@ -53,38 +68,76 @@ export function zonedDayMinutes(date: Date, timeZone: string): { weekday: number
   return { weekday, minutes: hour * 60 + minute };
 }
 
-function isExceptionalActive(exception: ExceptionalHours, date: Date, timeZone: string): boolean {
-  // Compare the exception's YYYY-MM-DD against the wall-clock date in the zone.
-  const { year, month, day } = (() => {
-    const fmt = new Intl.DateTimeFormat("en-CA", {
-      timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-    });
-    const parts = fmt.formatToParts(date);
-    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "0";
-    return { year: get("year"), month: get("month"), day: get("day") };
-  })();
-  return exception.date === `${year}-${month}-${day}`;
+/** `YYYY-MM-DD` (wall-clock, location timezone) of `date`. */
+export function zonedISODate(date: Date, timeZone: string): string {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  const parts = fmt.formatToParts(date);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? "00";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
-/** Open intervals for a weekday (parsed minutes + overnight flag). */
+/** Shifts a `YYYY-MM-DD` by a number of calendar days (UTC-safe wall-clock arithmetic). */
+function shiftISODate(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/**
+ * Weekday index implied by a `YYYY-MM-DD` wall-clock date, in WEEKDAY_ORDER
+ * space (0=Mon..6=Sun). JS `getUTCDay()` is 0=Sun..6=Sat, so convert.
+ */
+function weekdayOfISODate(iso: string): number {
+  const [y, m, d] = iso.split("-").map(Number);
+  return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+}
+
+/** Parsed open interval (minutes past midnight + overnight flag). */
 interface ParsedInterval {
-  readonly weekday: number;
   readonly open: number;
   readonly close: number;
   readonly overnight: boolean;
 }
 
-/** Managed minutes & weekday → open intervals, with the weekday this interval starts on. */
+function parseIntervals(
+  intervals: readonly { open: string; close: string }[],
+): ParsedInterval[] {
+  return intervals.map((i) => {
+    const open = parseTime(i.open);
+    const close = parseTime(i.close);
+    return { open, close, overnight: close <= open };
+  });
+}
+
+/** Effective intervals anchored to a regular weekday (0=Sun..6=Sat). */
 function intervalsForWeekday(hours: BusinessHours, weekday: number): ParsedInterval[] {
   const day = WEEKDAY_ORDER[weekday];
-  return hours.intervals
-    .filter((i) => i.days.includes(day))
-    .flatMap<ParsedInterval>((i) => {
-      const open = parseTime(i.open);
-      const close = parseTime(i.close);
-      const overnight = close <= open;
-      return [{ weekday, open, close, overnight }];
-    });
+  return parseIntervals(hours.intervals.filter((i) => i.days.includes(day)));
+}
+
+/**
+ * Effective intervals that START on a given wall-clock date, honoring any
+ * exceptional override for that exact date.
+ *
+ * Exceptional hours follow the SAME model as regular hours: an interval with
+ * `close < open` is overnight and spans into the following day (e.g. an
+ * exceptional `22:00–02:00` opens 22:00 that day and runs until 02:00 the
+ * next). An exceptional `closed` yields no intervals for the date. An
+ * exceptional entry with neither `closed` nor a valid interval is closed.
+ */
+function intervalsStartingOnDay(hours: BusinessHours, isoDate: string): ParsedInterval[] {
+  const exceptional = hours.exceptional.find((e) => e.date === isoDate);
+  if (exceptional) {
+    if (exceptional.closed) return [];
+    if (exceptional.open && exceptional.close) {
+      const open = parseTime(exceptional.open);
+      const close = parseTime(exceptional.close);
+      return [{ open, close, overnight: close <= open }];
+    }
+    return [];
+  }
+  return intervalsForWeekday(hours, weekdayOfISODate(isoDate));
 }
 
 /** Open-status result: open (with minutes remaining) or closed. */
@@ -93,11 +146,11 @@ export type OpenStatus =
   | { open: false };
 
 /**
- * Effective status at a moment. Handles:
- *  - regular intervals (single day, multi-interval, closed days),
- *  - overnight intervals carried into the next day,
- *  - exceptional-date overrides (closure or opening) replacing that day's
- *    regular schedule (while still honoring the prior night's carry-over).
+ * Status at a moment in the location's timezone. Handles:
+ *  - regular intervals (single-day, multi-interval, days without hours),
+ *  - overnight intervals — regular or exceptional — carried into the next day,
+ *  - exceptional-date overrides (closure or opening) for that day, while still
+ *    honoring an overnight interval that began the day before.
  */
 export function openStatusAt(
   location: BusinessLocation,
@@ -106,35 +159,24 @@ export function openStatusAt(
 ): OpenStatus | "noSchedule" {
   const hours = location.hours;
   if (!hours) return "noSchedule";
-  const timeZone = resolveTimezone(location, options?.businessTimezone);
-  const { weekday, minutes } = zonedDayMinutes(date, timeZone);
 
-  // Prior-day overnight carry (e.g. an interval 22:00–02:00 begun yesterday).
-  const yesterday = (weekday + 6) % 7;
-  for (const iv of intervalsForWeekday(hours, yesterday)) {
+  const timeZone = resolveTimezone(location, options?.businessTimezone);
+  const { minutes } = zonedDayMinutes(date, timeZone);
+  const today = zonedISODate(date, timeZone);
+
+  // An overnight interval begun yesterday (e.g. 22:00 on the prior day) that
+  // is still running today. Never revoked by today's schedule.
+  const yesterday = shiftISODate(today, -1);
+  for (const iv of intervalsStartingOnDay(hours, yesterday)) {
     if (iv.overnight && minutes < iv.close) {
       return { open: true, minutesRemaining: iv.close - minutes };
     }
   }
 
-  const activeException = hours.exceptional.find((e) => isExceptionalActive(e, date, timeZone));
-  if (activeException) {
-    if (activeException.closed) return { open: false };
-    if (activeException.open && activeException.close) {
-      const open = parseTime(activeException.open);
-      const close = parseTime(activeException.close);
-      if (minutes >= open && minutes < close) {
-        return { open: true, minutesRemaining: close - minutes };
-      }
-      return { open: false };
-    }
-    return { open: false }; // declared exceptional but ambiguous → closed
-  }
-
-  for (const iv of intervalsForWeekday(hours, weekday)) {
+  for (const iv of intervalsStartingOnDay(hours, today)) {
     if (iv.overnight) {
-      // Covers [open, midnight); the [0, close) part is handled by the
-      // "yesterday" loop above.
+      // Covers [open, midnight); the [00:00, close) part of the same interval
+      // is handled by the next day's carry-over loop above.
       if (minutes >= iv.open) {
         return { open: true, minutesRemaining: 1440 - minutes + iv.close };
       }
@@ -144,6 +186,18 @@ export function openStatusAt(
   }
 
   return { open: false };
+}
+
+/** True when `date` falls on an exceptional (overridden) date for the location. */
+export function isExceptionalToday(
+  location: BusinessLocation,
+  date: Date,
+  options?: { businessTimezone?: string },
+): boolean {
+  const hours = location.hours;
+  if (!hours) return false;
+  const timeZone = resolveTimezone(location, options?.businessTimezone);
+  return hours.exceptional.some((e) => e.date === zonedISODate(date, timeZone));
 }
 
 /**

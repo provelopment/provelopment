@@ -147,4 +147,64 @@ describe("parseSiteConfig", () => {
       /features\.analytics\.provider/,
     );
   });
+
+  it("rejects an invalid IANA timezone with an actionable error", () => {
+    const invalid = {
+      ...validConfig,
+      business: { timezone: "Asia/Jakartp" },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/IANA timezone/);
+  });
+
+  it("rejects an invalid IANA timezone on a location", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "x",
+            address: { street: "1 Main St", city: "Jakarta" },
+            timezone: "Nowhere/Zone",
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/IANA timezone/);
+  });
+
+  it("accepts a valid IANA timezone", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: { timezone: "America/New_York" },
+    });
+
+    expect(config.business.timezone).toBe("America/New_York");
+  });
+
+  it("accepts overnight exceptional hours (close < open)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [{ date: "2026-12-31", open: "22:00", close: "02:00" }],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(config.business.locations[0].hours?.exceptional[0]).toMatchObject({
+      date: "2026-12-31",
+      open: "22:00",
+      close: "02:00",
+    });
+  });
 });
