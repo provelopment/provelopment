@@ -106,6 +106,46 @@ Optional functionality is expressed as feature flags under `features` in
 - **Structured data:** the JSON-LD `LocalBusiness`/`Organization` block
   includes an `openingHoursSpecification` built from the configured intervals.
 
+### Contact inquiries (`features.contact` + `/contact`)
+
+The `/contact` page and contact form are the inquiry capability. It is
+**content-driven** (`content/pages/<locale>/contact.md` — the sitemap picks the
+route up automatically) and **config-driven**:
+
+```jsonc
+"features": {
+  "contact": {
+    "provider": "webhook",        // or "stub" (the explicit demo default)
+    "fields": { "subject": true } // optionally hide the subject field
+  }
+}
+```
+
+- **No `features.contact`** → the page shows an explicit "contact form is not
+  configured" state. **`provider: "stub"`** (default) → the form works but every
+  submission shows "Demo mode: nothing was sent." **`provider: "webhook"`** →
+  the form delivers to your endpoint. Foundation never stores, emails, or
+  processes inquiries itself — it only forwards to the receiver you connect.
+- **Webhook configuration is environment-only** (never in `site.config.json`):
+  - `CONTACT_WEBHOOK_URL` — the receiver endpoint (must be `https://` for
+    non-local endpoints).
+  - `CONTACT_WEBHOOK_TOKEN` (optional) — sent as an `Authorization: Bearer`
+    header.
+  - If `provider: "webhook"` is set but `CONTACT_WEBHOOK_URL` is missing, the
+    form fails loudly with a "misconfigured" state (it will NOT pretend to be
+    the demo).
+- **Payload** (POST, `application/json`):
+  `{ id (UUID), name, email, subject?, message, locale, submittedAt }` — a
+  minimal, stable contract. No visitor IP/user-agent/cookies are included.
+- **Success wording is precise:** "Your inquiry was submitted successfully"
+  means your receiver accepted it — not that a human read it.
+- **Security/privacy built in:** same-origin server action (Next.js origin
+  check), invisible honeypot field that silently discards bots, shared Zod
+  validation, `aria-live` status, no inquiry contents logged.
+- **Rate limiting/anti-abuse at scale is your responsibility** — enforce at
+  your edge/receiver. Foundation is a frontend + integration seam, not an
+  email/spam platform.
+
 ## 6. Deploying
 
 The template deploys to Vercel directly from a Git repository. Follow

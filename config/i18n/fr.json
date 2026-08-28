@@ -15,7 +15,8 @@
     "items": {
       "/": "Accueil",
       "/about": "À propos",
-      "/resources": "Ressources"
+      "/resources": "Ressources",
+      "/contact": "Contact"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "Aller au contenu"
+  },
+  "contact": {
+    "heading": "Contactez-nous",
+    "nameLabel": "Nom",
+    "emailLabel": "E-mail",
+    "subjectLabel": "Objet",
+    "messageLabel": "Message",
+    "submit": "Envoyer la demande",
+    "sending": "Envoi\u2026",
+    "honeypotLabel": "Site web",
+    "success": "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e.",
+    "demoNotice": "Mode d\u00e9mo : rien n'a \u00e9t\u00e9 envoy\u00e9. Connectez un webhook pour recevoir les demandes.",
+    "unconfigured": "Le formulaire de contact n'est pas encore configur\u00e9 sur ce site.",
+    "configError": "Le formulaire de contact n'est pas configur\u00e9 correctement. Veuillez contacter directement le propri\u00e9taire du site.",
+    "sendError": "Votre demande n'a pas pu \u00eatre envoy\u00e9e. Veuillez r\u00e9essayer.",
+    "errors": {
+      "name": "Veuillez saisir votre nom.",
+      "email": "Veuillez saisir une adresse e-mail valide.",
+      "subject": "Veuillez raccourcir l'objet.",
+      "message": "Veuillez saisir un message (5000 caract\u00e8res maximum)."
+    }
   }
 }

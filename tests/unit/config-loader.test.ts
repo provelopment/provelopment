@@ -207,4 +207,39 @@ describe("parseSiteConfig", () => {
       close: "02:00",
     });
   });
+
+  it("maps features.contact stub through to the site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { contact: { provider: "stub" } },
+    });
+
+    expect(config.contactFeature).toEqual({ provider: "stub" });
+  });
+
+  it("maps features.contact webhook with fields through to the site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { contact: { provider: "webhook", fields: { subject: false } } },
+    });
+
+    expect(config.contactFeature).toEqual({
+      provider: "webhook",
+      fields: { subject: false },
+    });
+  });
+
+  it("leaves contactFeature undefined when features.contact is absent (back-compat)", () => {
+    const config = parseSiteConfig(validConfig);
+    expect(config.contactFeature).toBeUndefined();
+  });
+
+  it("rejects an unknown contact provider", () => {
+    const invalid = {
+      ...validConfig,
+      features: { contact: { provider: "mailto" } },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/provider/);
+  });
 });
