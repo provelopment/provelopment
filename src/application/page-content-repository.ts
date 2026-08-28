@@ -10,4 +10,6 @@ import type { PageContent } from "@/core/page-content";
  */
 export interface PageContentRepository {
   findBySlug(slug: string, locale: Locale): Promise<PageContent | null>;
+  /** Lists the page slugs (content files) available for a locale. */
+  listSlugs(locale: Locale): Promise<string[]>;
 }

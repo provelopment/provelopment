@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
-import { getDictionary, siteConfig } from "@/config";
+import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);

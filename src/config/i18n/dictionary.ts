@@ -39,6 +39,17 @@ export const dictionarySchema = z.object({
   language: z.object({
     label: z.string(),
   }),
+  /** Business-profile labels (open/closed/hours display). */
+  business: z.object({
+    open: z.string(),
+    closed: z.string(),
+    noHours: z.string(),
+    hoursLabel: z.string(),
+  }),
+  /** Generic accessibility UI strings. */
+  a11y: z.object({
+    skipToContent: z.string(),
+  }),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

@@ -56,6 +56,69 @@ describe("parseSiteConfig", () => {
     expect(() => parseSiteConfig(invalid)).toThrow(/defaultLocale/);
   });
 
+  it("normalizes legacy top-level contact into the business contact (back-compat bridge)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      contact: { email: "old@example.com", phone: "555" },
+    });
+
+    expect(config.business.name).toBe("Example"); // derived from site.name
+    expect(config.business.contact).toEqual({ email: "old@example.com", phone: "555" });
+    expect(config.business.locations).toEqual([]);
+  });
+
+  it("uses the business block as the canonical source when present", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      contact: { email: "legacy@example.com" },
+      business: {
+        timezone: "Asia/Jakarta",
+        type: "LocalBusiness",
+        locations: [
+          {
+            id: "main",
+            name: "HQ",
+            address: { street: "1 Main St", city: "Jakarta" },
+            timezone: "Asia/Makassar",
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(config.business.type).toBe("LocalBusiness");
+    expect(config.business.timezone).toBe("Asia/Jakarta");
+    // business.contact wins over legacy contact
+    expect(config.business.contact).toEqual({ email: "legacy@example.com" });
+    // locations are canonical
+    expect(config.business.locations).toHaveLength(1);
+    expect(config.business.locations[0].name).toBe("HQ");
+    expect(config.business.locations[0].timezone).toBe("Asia/Makassar");
+    expect(config.business.locations[0].hours?.intervals[0].open).toBe("09:00");
+    // identity falls back to site.* when not overridden
+    expect(config.business.name).toBe("Example");
+  });
+
+  it("rejects invalid business hours (open === close)", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: { intervals: [{ days: ["mon"], open: "09:00", close: "09:00" }], exceptional: [] },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/open and close must differ/);
+  });
+
   it("rejects malformed urls with actionable messages", () => {
     const invalid = {
       ...validConfig,
@@ -83,5 +146,65 @@ describe("parseSiteConfig", () => {
     expect(() => parseSiteConfig(invalid)).toThrow(
       /features\.analytics\.provider/,
     );
+  });
+
+  it("rejects an invalid IANA timezone with an actionable error", () => {
+    const invalid = {
+      ...validConfig,
+      business: { timezone: "Asia/Jakartp" },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/IANA timezone/);
+  });
+
+  it("rejects an invalid IANA timezone on a location", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "x",
+            address: { street: "1 Main St", city: "Jakarta" },
+            timezone: "Nowhere/Zone",
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/IANA timezone/);
+  });
+
+  it("accepts a valid IANA timezone", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: { timezone: "America/New_York" },
+    });
+
+    expect(config.business.timezone).toBe("America/New_York");
+  });
+
+  it("accepts overnight exceptional hours (close < open)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [{ date: "2026-12-31", open: "22:00", close: "02:00" }],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(config.business.locations[0].hours?.exceptional[0]).toMatchObject({
+      date: "2026-12-31",
+      open: "22:00",
+      close: "02:00",
+    });
   });
 });
