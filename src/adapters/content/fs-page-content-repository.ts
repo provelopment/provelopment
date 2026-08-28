@@ -4,74 +4,47 @@ import path from "node:path";
 import type { PageContentRepository } from "@/application/page-content-repository";
 import { isWellFormedLocale, type Locale } from "@/core/locale";
 import type { PageContent } from "@/core/page-content";
-
-const contentDirectory = path.join(process.cwd(), "content", "pages");
+import { parseOfferingsFile, parsePageFile } from "./frontmatter";
 
 /** Slugs are restricted to safe filename characters. */
 const validSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/;
-
-const titlePattern = /^title:\s*(.+?)\s*$/m;
-
-function stripQuotes(value: string): string {
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
-}
-
-export function parsePageFile(
-  raw: string,
-  slug: string,
-  locale: Locale,
-): PageContent {
-  const match = frontmatterPattern.exec(raw);
-
-  if (!match) {
-    throw new Error(`Missing frontmatter in content page "${slug}"`);
-  }
-
-  const [, frontmatter, body] = match;
-  const titleMatch = titlePattern.exec(frontmatter);
-
-  if (!titleMatch) {
-    throw new Error(`Missing title in frontmatter of content page "${slug}"`);
-  }
-
-  return {
-    slug,
-    locale,
-    title: stripQuotes(titleMatch[1]),
-    body,
-  };
-}
+/** Parser used for the repository's collection. */
+export type ContentParser = (raw: string, slug: string, locale: Locale) => PageContent;
 
 export interface FileSystemPageContentRepositoryOptions {
   /** Locale used when the requested locale has no translation yet. */
   readonly defaultLocale: Locale;
+  /**
+   * Collection directory under `content/`, e.g. `pages` (the template's page
+   * content) or `offerings` (the offerings catalog). A single port/adapter
+   * serves every content collection.
+   */
+  readonly collection?: "pages" | "offerings";
+  /** Override parser (used for the `offerings` collection). */
+  readonly parse?: ContentParser;
 }
 
-function readPage(
-  locale: Locale,
-  slug: string,
-): Promise<string> {
-  return readFile(path.join(contentDirectory, locale, `${slug}.md`), "utf8");
+function resolveParser(collection: "pages" | "offerings"): ContentParser {
+  return collection === "offerings" ? parseOfferingsFile : parsePageFile;
 }
 
 /**
- * Adapter that reads page content from Markdown files under
- * `content/pages/<locale>/<slug>.md`, falling back to the default locale
- * when the requested locale has no translation.
+ * Adapter that reads content from Markdown files under
+ * `content/<collection>/<locale>/<slug>.md`, falling back to the default
+ * locale when the requested locale has no translation.
  */
 export function createFileSystemPageContentRepository(
   options: FileSystemPageContentRepositoryOptions,
 ): PageContentRepository {
-  const { defaultLocale } = options;
+  const defaultLocale = options.defaultLocale;
+  const collection = options.collection ?? "pages";
+  const parse = options.parse ?? resolveParser(collection);
+  const contentDirectory = path.join(process.cwd(), "content", collection);
+
+  function readPage(locale: Locale, slug: string): Promise<string> {
+    return readFile(path.join(contentDirectory, locale, `${slug}.md`), "utf8");
+  }
 
   return {
     async findBySlug(slug, locale): Promise<PageContent | null> {
@@ -85,7 +58,7 @@ export function createFileSystemPageContentRepository(
       for (const candidateLocale of candidateLocales) {
         try {
           const raw = await readPage(candidateLocale, slug);
-          return parsePageFile(raw, slug, candidateLocale);
+          return parse(raw, slug, candidateLocale);
         } catch {
           // Try the next candidate; missing files fall through.
         }
