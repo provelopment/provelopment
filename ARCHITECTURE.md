@@ -350,6 +350,32 @@ framework-free application port; the adopter owns the receiving system.
   Zod schema; no inquiry contents are ever logged; rate limiting is the
   adopter's responsibility.
 
+## Offerings catalog (Phase C)
+
+A single type-agnostic offering primitive (services, products, packages,
+programs, consultations) backed by the **same** content port/adapter used for
+pages — no parallel repository.
+
+- **Reuse:** `PageContentRepository` + `createFileSystemPageContentRepository`
+  gain a `collection` option (`"pages"` | `"offerings"`) with a per-collection
+  parser (`parseOfferingsFile` in `src/adapters/content/frontmatter.ts`).
+  `listSlugs` (canonical set) and `findBySlug` (locale→default fallback) work
+  unchanged; the sitemap and JSON-LD-free metadata flow from the canonical
+  content set + `features.offerings`.
+- **Three-concern contract:** content = which offerings exist (canonical =
+  default-locale slugs; locale-only slugs → 404, never an ambiguous fallback);
+  `features.offerings` = capability/exposure (`false`/absent → 404 + no sitemap
+  entries); `navigation[]` = discoverability only (config-authoritative; never
+  derived from content).
+- **Model:** `OfferingsContent` (extends `PageContent`) adds required `blurb`
+  and optional `order`, `featured`, `price` (display-only string), `image`
+  (site-root-relative asset). `sortOfferings` (featured → order → slug) and
+  `isCanonicalOffering` live in `src/core/offerings.ts` (pure, framework-free).
+- **No commerce semantics:** no pricing math, checkout, booking, payments,
+  inventory, customer state, or JSON-LD `Product`/`Service`/`Offer` in Phase C.
+- **Routes** are in `src/app/[locale]/offerings/` (listing + detail); the
+  listing ships a localized empty state when enabled but no content exists.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI

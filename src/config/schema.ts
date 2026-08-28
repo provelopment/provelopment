@@ -176,6 +176,12 @@ export const featuresConfigSchema = z.object({
         .optional(),
     })
     .optional(),
+  /**
+   * Offerings catalog (Phase C). Boolean flag: when `true` the `/offerings`
+   * routes are enabled and exposed (and included in the sitemap). Controlled
+   * independently of `navigation[]` and of the presence of content.
+   */
+  offerings: z.boolean().optional(),
 });
 
 export const siteConfigFileSchema = z.object({

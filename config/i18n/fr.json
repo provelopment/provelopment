@@ -16,7 +16,8 @@
       "/": "Accueil",
       "/about": "À propos",
       "/resources": "Ressources",
-      "/contact": "Contact"
+      "/contact": "Contact",
+      "/offerings": "Offres"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "Veuillez raccourcir l'objet.",
       "message": "Veuillez saisir un message (5000 caract\u00e8res maximum)."
     }
+  },
+  "offerings": {
+    "heading": "Offres",
+    "emptyState": "Nos offres seront bient\u00f4t disponibles ici.",
+    "backToOfferings": "Retour aux offres"
   }
 }

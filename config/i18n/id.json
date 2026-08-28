@@ -16,7 +16,8 @@
       "/": "Beranda",
       "/about": "Tentang",
       "/resources": "Sumber daya",
-      "/contact": "Kontak"
+      "/contact": "Kontak",
+      "/offerings": "Layanan"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "Silakan perpendek subjek.",
       "message": "Silakan masukkan pesan (maksimal 5000 karakter)."
     }
+  },
+  "offerings": {
+    "heading": "Layanan & produk",
+    "emptyState": "Kami akan menampilkan layanan kami di sini segera.",
+    "backToOfferings": "Kembali ke layanan"
   }
 }

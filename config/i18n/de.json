@@ -16,7 +16,8 @@
       "/": "Startseite",
       "/about": "Über uns",
       "/resources": "Ressourcen",
-      "/contact": "Kontakt"
+      "/contact": "Kontakt",
+      "/offerings": "Angebote"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "Bitte k\u00fcrzen Sie den Betreff.",
       "message": "Bitte geben Sie eine Nachricht ein (max. 5000 Zeichen)."
     }
+  },
+  "offerings": {
+    "heading": "Angebote",
+    "emptyState": "Wir zeigen hier bald unsere Angebote.",
+    "backToOfferings": "Zur\u00fcck zu den Angeboten"
   }
 }
