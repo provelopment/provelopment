@@ -37,6 +37,13 @@ title; the body is rendered as Markdown.
 
 - Wire new pages into `navigation` in `site.config.json`.
 - Missing translations fall back to the default locale automatically.
+- The sitemap is derived from the **content model** (every page that has a
+  `<slug>.md` file in the default locale, plus the locale root), not from
+  `navigation`. Navigation controls exposure and order; a page joins the
+  sitemap as soon as its content file exists.
+- Markdown (including any raw HTML in the file) is rendered as-is. These are
+  authored, site-owner files — treat them like source code, never as
+  untrusted user input.
 - Interface strings (buttons, headings outside page bodies) live in the
   dictionaries under `config/i18n/<locale>.json` (see §4).
 
@@ -53,7 +60,10 @@ User-facing interface strings (nav labels, hero copy, section headings, 404
 copy, the language-selector label) live in one JSON file per locale under
 `config/i18n/`. These are the customizable translation data.
 
-1. Add the locale to `i18n.locales` in `site.config.json`.
+Adding a locale is **config + data work only** — no `src/` code needs to
+change:
+
+1. Register the locale in `i18n.locales` in `site.config.json`.
 2. Create `config/i18n/<code>.json` matching the shape of the existing files.
    Each file carries:
    - `home.tagline` / `home.description` — the localized home-page hero copy
@@ -61,22 +71,40 @@ copy, the language-selector label) live in one JSON file per locale under
      (`"/"`, `"/about"`, …). Missing keys fall back to the label configured
      in `site.config.json`, so pages you don't localize still work.
    - `language.label` — accessible label for the header language selector
-3. Every file is validated against a **Zod schema** at load time — a missing
-   key or malformed value fails the build with an actionable error, so a
-   typo can't silently ship.
+   - `business` / `a11y` — business-hours and accessibility strings
+3. Dictionaries are discovered automatically from the `config/i18n/`
+   directory at build time and validated against the **Zod** `dictionarySchema`.
+   A malformed file, a missing key, or a *configured locale with no dictionary
+   file* fails the build with an actionable error — it never silently falls
+   back to English. (`getDictionary()` falls back to the default locale only
+   for locales that are NOT configured.)
 4. Optionally translate pages under `content/pages/<code>/`.
-
-See `es.json`, `fr.json`, `de.json`, `ja.json`, `zh.json`, `ko.json`, or
-`id.json` for complete reference dictionaries.
 
 Every locale is statically rendered and included in the sitemap with
 hreflang alternates.
 
-## 5. Features
+## 5. Features & Business Profile
 
 Optional functionality is expressed as feature flags under `features` in
 `site.config.json` and consumed by dedicated adapters. For example,
 `"analytics": { "provider": "vercel" }` mounts Vercel Web Analytics.
+
+### Business profile, locations & hours (`business` in `site.config.json`)
+
+- **Timezone:** values must be valid IANA identifiers (e.g. `Asia/Jakarta`,
+  `America/New_York`). Invalid zones fail configuration at build time.
+  Resolution precedence: `location.timezone → business.timezone → "Etc/UTC"`.
+- **Hours:** `intervals` list weekday ranges with 24-hour `HH:mm` times.
+  `close < open` means *overnight* — `22:00–02:00` opens at 22:00 and stays
+  open until 02:00 the next day. `open === close` is rejected as ambiguous.
+- **Exceptional days:** `exceptional` entries override a single calendar date
+  (in the location's timezone) — either `closed: true` or a custom interval,
+  overnight included. They follow the same model as regular intervals.
+- **UI:** the footer shows each location's weekly schedule with localized day
+  labels, any exceptional/holiday dates, a timezone indicator, and a live
+  "Open now"/"Closed" badge computed in the location's timezone.
+- **Structured data:** the JSON-LD `LocalBusiness`/`Organization` block
+  includes an `openingHoursSpecification` built from the configured intervals.
 
 ## 6. Deploying
 

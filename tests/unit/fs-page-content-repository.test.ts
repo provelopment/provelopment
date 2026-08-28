@@ -84,4 +84,17 @@ describe("createFileSystemPageContentRepository", () => {
     expect(await repository.findBySlug("../secrets", "en")).toBeNull();
     expect(await repository.findBySlug("about", "../etc")).toBeNull();
   });
+
+  it("lists page slugs for a locale", async () => {
+    const slugs = await repository.listSlugs("en");
+    expect(slugs).toEqual(["about", "resources"]);
+  });
+
+  it("returns an empty list for a locale with no content", async () => {
+    expect(await repository.listSlugs("sv")).toEqual([]);
+  });
+
+  it("rejects malformed locales when listing", async () => {
+    expect(await repository.listSlugs("../etc")).toEqual([]);
+  });
 });

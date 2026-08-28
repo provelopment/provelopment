@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { locale } from "next/root-params";
-import { getDictionary } from "@/config";
+import { getDictionary } from "@/config/i18n";
 
 export default async function NotFound() {
   const currentLocale = await locale();

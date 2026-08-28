@@ -25,5 +25,14 @@
   },
   "language": {
     "label": "Langue"
+  },
+  "business": {
+    "open": "Ouvert maintenant",
+    "closed": "Fermé",
+    "noHours": "Horaires non disponibles",
+    "hoursLabel": "Heures d'ouverture"
+  },
+  "a11y": {
+    "skipToContent": "Aller au contenu"
   }
 }

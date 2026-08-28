@@ -2,6 +2,7 @@ import rawSiteConfig from "../../site.config.json";
 import type { z } from "zod";
 
 import { siteConfigFileSchema } from "./schema";
+import type { Business, BusinessContact } from "@/core/business";
 import type { SiteConfig } from "./site-config";
 
 /** The validated shape of `site.config.json`. */
@@ -30,6 +31,8 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
 
   const json = result.data;
 
+  const business = toNormalizedBusiness(json);
+
   return {
     url: json.site.url,
     name: json.site.name,
@@ -40,7 +43,43 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     contact: json.contact,
     socialLinks: json.socialLinks,
     navigation: json.navigation,
+    business,
     analytics: json.features?.analytics,
+  };
+}
+
+/**
+ * Builds the normalized `Business` object consumed by the application.
+ *
+ * The loader is the ONLY place that knows whether the adopter used the new
+ * `business` block or legacy top-level `contact`. Every downstream consumer
+ * reads the normalized shape, so the bridge can later be removed cleanly.
+ */
+function toNormalizedBusiness(json: SiteConfigFile): Business {
+  const block = json.business;
+  const legacyContact = json.contact;
+
+  const contact: BusinessContact = {
+    email: block?.contact?.email ?? legacyContact.email,
+    phone: block?.contact?.phone ?? legacyContact.phone,
+  };
+
+  return {
+    timezone: block?.timezone,
+    type: block?.type,
+    name: block?.name ?? json.site.name,
+    tagline: block?.tagline ?? json.site.tagline,
+    description: block?.description ?? json.site.description,
+    contact,
+    locations: (block?.locations ?? []).map((loc) => ({
+      id: loc.id,
+      name: loc.name,
+      address: loc.address,
+      geo: loc.geo,
+      phone: loc.phone,
+      timezone: loc.timezone,
+      hours: loc.hours,
+    })),
   };
 }
 
