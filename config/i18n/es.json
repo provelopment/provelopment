@@ -62,5 +62,14 @@
     "heading": "Servicios y productos",
     "emptyState": "Pronto compartiremos nuestras ofertas aqu\u00ed.",
     "backToOfferings": "Volver a las ofertas"
+  },
+  "legal": {
+    "heading": "Legal",
+    "disclaimer": "Estos documentos son plantillas de muestra solo con fines de demostraci\u00f3n y no constituyen asesor\u00eda legal. Consulte a un profesional cualificado para su jurisdicci\u00f3n.",
+    "labels": {
+      "privacy": "Pol\u00edtica de privacidad",
+      "terms": "T\u00e9rminos de servicio",
+      "cookies": "Pol\u00edtica de cookies"
+    }
   }
 }

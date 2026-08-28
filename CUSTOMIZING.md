@@ -80,6 +80,30 @@ Three independent controls:
 With the feature on and no offerings yet, the page shows a friendly empty
 state. Images for the catalog go in `public/` (e.g. `public/images/offerings/`).
 
+### Legal documents (`legal` + `content/legal/`)
+
+Optional legal pages (privacy policy, terms, etc.) are reached from the footer.
+
+1. **Author content** at `content/legal/<locale>/<slug>.md` (frontmatter `title`
+   + Markdown body). Documents only exist for the slugs in your default
+   (e.g. `en`) content folder; other locales fall back to it automatically.
+2. **List them in `site.config.json`** to expose them:
+   ```jsonc
+   "legal": [
+     { "slug": "privacy", "label": "Privacy Policy" },
+     { "slug": "terms",   "label": "Terms of Service" }
+   ]
+   ```
+   A document appears in the footer (and its `/legal/<slug>` route responds)
+   only when it is **both** in `legal` **and** has content. Missing content → the
+   entry is hidden and the URL returns a 404.
+3. **Localize the footer labels** in `config/i18n/<locale>.json` under
+   `legal.labels["<slug>"]` (falls back to the config `label`).
+
+The demo `privacy.md`, `terms.md`, and `cookies.md` shipped with the template
+are clearly marked **placeholders — not legal advice**. Replace them before
+going live.
+
 ## 3. Branding Assets
 
 - Favicon / app icon: replace `src/app/icon.svg`.

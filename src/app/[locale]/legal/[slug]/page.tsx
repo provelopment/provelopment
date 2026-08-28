@@ -1,0 +1,90 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { MarkdownContent } from "@/components/site/markdown-content";
+import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
+import { isCanonicalLegalSlug } from "@/core/legal";
+import { buildLanguageAlternates } from "@/core/locale";
+
+const legalRepository = createFileSystemPageContentRepository({
+  defaultLocale: siteConfig.defaultLocale,
+  collection: "legal",
+});
+
+const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+interface LegalPageProps {
+  readonly params: Promise<{ readonly locale: string; readonly slug: string }>;
+}
+
+/** The configured entry for a legal slug, or null when not configured. */
+function configuredEntry(slug: string) {
+  return siteConfig.legal?.find((entry) => entry.slug === slug) ?? null;
+}
+
+/** Whether the slug is BOTH configured and canonical (content exists). */
+async function isExposedLegal(slug: string): Promise<boolean> {
+  if (!configuredEntry(slug)) return false;
+  const canonicalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
+  return isCanonicalLegalSlug(slug, canonicalSlugs);
+}
+
+export async function generateMetadata({
+  params,
+}: LegalPageProps): Promise<Metadata> {
+  const { locale, slug } = await params;
+  if (!(await isExposedLegal(slug))) return {};
+
+  const content = await legalRepository.findBySlug(slug, locale);
+  if (!content) return {};
+
+  return {
+    title: content.title,
+    alternates: {
+      canonical: `${siteConfig.url}/${locale}/legal/${slug}`,
+      languages: buildLanguageAlternates({
+        baseUrl: siteConfig.url,
+        locales: localeCodes,
+        defaultLocale: siteConfig.defaultLocale,
+        path: `/legal/${slug}`,
+      }),
+    },
+  };
+}
+
+/**
+ * `/legal/[slug]` (Phase D). A legal document is exposed only when it is BOTH:
+ *  - in the `legal` config block (config governs exposure), and
+ *  - canonical (exists in the default locale — content governs existence).
+ * Otherwise it is a proper 404 (no `/legal` index; legal docs are reached from
+ * the footer). Rendering uses the same content repository `findBySlug` locale →
+ * default fallback as every other collection.
+ */
+export default async function LegalPage({ params }: LegalPageProps) {
+  const { locale, slug } = await params;
+
+  if (!(await isExposedLegal(slug))) {
+    notFound();
+  }
+
+  const content = await legalRepository.findBySlug(slug, locale);
+  if (!content) {
+    notFound();
+  }
+
+  const dictionary = getDictionary(locale);
+
+  return (
+    <article className="mx-auto max-w-4xl px-4 py-12">
+      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <div className="mt-6">
+        <MarkdownContent markdown={content.body} />
+      </div>
+      <p className="mt-10 text-sm text-muted-foreground">
+        {dictionary.legal.disclaimer}
+      </p>
+    </article>
+  );
+}

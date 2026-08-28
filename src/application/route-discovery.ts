@@ -12,6 +12,8 @@ export interface SitemapRouteOptions {
   readonly offeringsEnabled: boolean;
   readonly pages: readonly string[];
   readonly canonicalOfferings: readonly string[];
+  /** Canonical, configured legal document slugs (config ∧ content). */
+  readonly legalSlugs?: readonly string[];
 }
 
 export function buildSitemapRoutes(options: SitemapRouteOptions): string[] {
@@ -22,6 +24,10 @@ export function buildSitemapRoutes(options: SitemapRouteOptions): string[] {
       "/offerings",
       ...options.canonicalOfferings.map((slug) => `/offerings/${slug}`),
     );
+  }
+
+  for (const slug of options.legalSlugs ?? []) {
+    routes.push(`/legal/${slug}`);
   }
 
   return routes;

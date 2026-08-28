@@ -78,6 +78,14 @@ export const dictionarySchema = z.object({
     emptyState: z.string(),
     backToOfferings: z.string(),
   }),
+  /** Legal documents strings (Phase D). */
+  legal: z.object({
+    heading: z.string(),
+    /** Footer-of-page note that legal docs are template placeholders. */
+    disclaimer: z.string(),
+    /** Localized footer labels keyed by legal slug. */
+    labels: z.record(z.string(), z.string()),
+  }),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

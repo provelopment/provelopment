@@ -62,5 +62,14 @@
     "heading": "Offres",
     "emptyState": "Nos offres seront bient\u00f4t disponibles ici.",
     "backToOfferings": "Retour aux offres"
+  },
+  "legal": {
+    "heading": "Informations l\u00e9gales",
+    "disclaimer": "Ces documents sont des mod\u00e8les de d\u00e9monstration uniquement et ne constituent pas un conseil juridique. Consultez un professionnel qualifi\u00e9 pour votre juridiction.",
+    "labels": {
+      "privacy": "Politique de confidentialit\u00e9",
+      "terms": "Conditions d'utilisation",
+      "cookies": "Politique de cookies"
+    }
   }
 }
