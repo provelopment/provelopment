@@ -1,9 +1,11 @@
 import { VercelAnalytics } from "@/adapters/analytics/vercel-analytics";
+import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import "../globals.css";
 
@@ -61,6 +63,7 @@ export default async function LocaleLayout({
   params,
 }: LocaleLayoutProps) {
   const { locale } = await params;
+  const dictionary = getDictionary(locale);
 
   return (
     <html
@@ -68,9 +71,18 @@ export default async function LocaleLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground"
+        >
+          {dictionary.a11y.skipToContent}
+        </a>
         <SiteHeader locale={locale} />
-        <main className="flex-1">{children}</main>
+        <main id="main" className="flex-1">
+          {children}
+        </main>
         <SiteFooter locale={locale} />
+        <StructuredData />
         {siteConfig.analytics?.provider === "vercel" ? (
           <VercelAnalytics />
         ) : null}

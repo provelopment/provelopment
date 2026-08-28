@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 
-import { getDictionary, siteConfig } from "@/config";
+import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
 
 export const alt = `${siteConfig.name} — ${siteConfig.tagline}`;
 export const size = {

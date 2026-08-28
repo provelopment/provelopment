@@ -48,6 +48,97 @@ export const contactConfigSchema = z.object({
   phone: z.string().min(1).optional(),
 });
 
+const weekdaySchema = z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
+
+const timeSchema = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "must be HH:mm in 24-hour format");
+
+/**
+ * Validates a real IANA timezone identifier using the runtime's `Intl`
+ * timezone table (the authoritative, cross-platform list — not a hand-written
+ * zone list). Node/ICU throws for unknown identifiers, so a typo in config
+ * fails validation at build time with an actionable message.
+ */
+function isIanaTimeZone(value: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const ianaTimeZoneSchema = z.string().refine(isIanaTimeZone, {
+  message:
+    "must be a valid IANA timezone identifier, e.g. 'Asia/Jakarta' or 'America/New_York'",
+});
+
+const addressSchema = z.object({
+  street: z.string().min(1),
+  city: z.string().min(1),
+  region: z.string().min(1).optional(),
+  postalCode: z.string().min(1).optional(),
+  country: z.string().min(1).optional(),
+});
+
+const geoCoordsSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+});
+
+const openIntervalSchema = z
+  .object({
+    days: z.array(weekdaySchema).min(1, "must list at least one day"),
+    open: timeSchema,
+    close: timeSchema,
+  })
+  // A 24h/continuous schedule is intentionally ambiguous in this model
+  // (a full-day interval would be 00:00–24:00, not expressible), so reject
+  // `open === close`. Overnight (`close < open`) is fully supported.
+  .refine((i) => i.open !== i.close, "open and close must differ");
+
+const exceptionalHoursSchema = z.object({
+  // ISO date YYYY-MM-DD (validated loosely; content owns correctness).
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
+  closed: z.boolean().optional(),
+  open: timeSchema.optional(),
+  close: timeSchema.optional(),
+});
+
+const businessHoursSchema = z.object({
+  intervals: z.array(openIntervalSchema),
+  exceptional: z.array(exceptionalHoursSchema),
+});
+
+const businessLocationSchema = z.object({
+  id: z.string().min(1, "must not be empty"),
+  name: z.string().min(1).optional(),
+  address: addressSchema,
+  geo: geoCoordsSchema.optional(),
+  phone: z.string().min(1).optional(),
+  timezone: ianaTimeZoneSchema.optional(),
+  hours: businessHoursSchema.optional(),
+});
+
+const businessTypeSchema = z.enum([
+  "Organization",
+  "LocalBusiness",
+  "ProfessionalService",
+  "Restaurant",
+  "Store",
+]);
+
+const businessSchema = z.object({
+  timezone: ianaTimeZoneSchema.optional(),
+  type: businessTypeSchema.optional(),
+  name: z.string().min(1).optional(),
+  tagline: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  contact: contactConfigSchema.optional(),
+  locations: z.array(businessLocationSchema).min(1, "must list at least one location").optional(),
+});
+
 export const socialLinkSchema = z.object({
   platform: z.string().min(1, "must not be empty"),
   label: z.string().min(1, "must not be empty"),
@@ -76,5 +167,6 @@ export const siteConfigFileSchema = z.object({
   contact: contactConfigSchema,
   socialLinks: z.array(socialLinkSchema),
   navigation: z.array(navigationItemSchema),
+  business: businessSchema.optional(),
   features: featuresConfigSchema.optional(),
 });
