@@ -42,6 +42,11 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
       emptyState: "c",
       backToOfferings: "c",
     },
+    legal: {
+      heading: "c",
+      disclaimer: "c",
+      labels: { privacy: "Privacy Policy" },
+    },
     ...overrides,
   };
 }

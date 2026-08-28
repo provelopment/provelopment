@@ -47,6 +47,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     analytics: json.features?.analytics,
     contactFeature: json.features?.contact,
     offeringsFeature: json.features?.offerings,
+    legal: json.legal,
   };
 }
 

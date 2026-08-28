@@ -62,5 +62,14 @@
     "heading": "Angebote",
     "emptyState": "Wir zeigen hier bald unsere Angebote.",
     "backToOfferings": "Zur\u00fcck zu den Angeboten"
+  },
+  "legal": {
+    "heading": "Rechtliches",
+    "disclaimer": "Diese Dokumente sind Vorlagen zu Demonstrationszwecken und stellen keine Rechtsberatung dar. Fragen Sie eine qualifizierte Fachkraft f\u00fcr Ihre Rechtsordnung.",
+    "labels": {
+      "privacy": "Datenschutzerkl\u00e4rung",
+      "terms": "Nutzungsbedingungen",
+      "cookies": "Cookie-Richtlinie"
+    }
   }
 }

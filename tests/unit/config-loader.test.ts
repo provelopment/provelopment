@@ -270,4 +270,47 @@ describe("parseSiteConfig", () => {
 
     expect(() => parseSiteConfig(invalid)).toThrow(/offerings/);
   });
+
+  it("maps the legal block through to the site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      legal: [
+        { slug: "privacy", label: "Privacy Policy" },
+        { slug: "terms", label: "Terms of Service" },
+      ],
+    });
+
+    expect(config.legal).toEqual([
+      { slug: "privacy", label: "Privacy Policy" },
+      { slug: "terms", label: "Terms of Service" },
+    ]);
+  });
+
+  it("leaves legal undefined when absent (back-compat)", () => {
+    const config = parseSiteConfig(validConfig);
+    expect(config.legal).toBeUndefined();
+  });
+
+  it("accepts an empty legal array", () => {
+    const config = parseSiteConfig({ ...validConfig, legal: [] });
+    expect(config.legal).toEqual([]);
+  });
+
+  it("rejects a legal entry with an unsafe slug", () => {
+    const invalid = {
+      ...validConfig,
+      legal: [{ slug: "../privacy", label: "Privacy" }],
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/slug/);
+  });
+
+  it("rejects a legal entry with an empty label", () => {
+    const invalid = {
+      ...validConfig,
+      legal: [{ slug: "privacy", label: "" }],
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/label/);
+  });
 });

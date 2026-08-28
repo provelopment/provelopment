@@ -376,6 +376,27 @@ pages — no parallel repository.
 - **Routes** are in `src/app/[locale]/offerings/` (listing + detail); the
   listing ships a localized empty state when enabled but no content exists.
 
+## Legal documents (Phase D)
+
+Optional, config-driven legal pages reached from the footer (no index page).
+
+- **Reuse:** legal content uses the SAME `PageContentRepository` port + fs
+  adapter (`collection: "legal"`) with the basic `parsePageFile` contract
+  (title + body); no parallel repository.
+- **Exposure = config ∧ canonical content.** A legal document is exposed only
+  when it is BOTH in the `legal` config block (`{ slug, label }[]`) AND has a
+  canonical (default-locale) file under `content/legal/`. Content alone never
+  exposes a route; a configured-but-missing entry is dropped from the footer
+  and its route 404s. Pure helpers in `src/core/legal.ts` (`resolveLegalDocs`,
+  `isCanonicalLegalSlug`, `legalLabel`).
+- **Footer discoverability:** the footer renders a legal `<nav>` (localized
+  header + links) only when resolved legal docs exist; labels fall back from
+  `dictionary.legal.labels[slug]` to the config label.
+- **Sitemap/SEO:** legal slugs (config ∩ canonical) feed `buildSitemapRoutes`;
+  each detail page emits canonical + hreflang. Missing translations use the
+  existing repository default-locale fallback. No JSON-LD, no legal-advice
+  semantics; demo docs are clearly marked replaceable templates.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI

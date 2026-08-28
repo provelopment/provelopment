@@ -20,12 +20,14 @@ export interface FileSystemPageContentRepositoryOptions {
    * content) or `offerings` (the offerings catalog). A single port/adapter
    * serves every content collection.
    */
-  readonly collection?: "pages" | "offerings";
+  readonly collection?: "pages" | "offerings" | "legal";
   /** Override parser (used for the `offerings` collection). */
   readonly parse?: ContentParser;
 }
 
-function resolveParser(collection: "pages" | "offerings"): ContentParser {
+function resolveParser(collection: "pages" | "offerings" | "legal"): ContentParser {
+  // `offerings` uses its own parser; `pages` and `legal` share the basic
+  // title + body page contract.
   return collection === "offerings" ? parseOfferingsFile : parsePageFile;
 }
 

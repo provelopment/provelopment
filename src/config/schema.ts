@@ -150,6 +150,16 @@ export const navigationItemSchema = z.object({
   href: z.string().min(1, "must not be empty"),
 });
 
+/** Safe slug for a legal document (must match a `content/legal/` file). */
+const legalSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const legalEntrySchema = z.object({
+  slug: z
+    .string()
+    .regex(legalSlugPattern, "must be a lowercase slug, e.g. 'privacy' or 'terms-of-service'"),
+  label: z.string().min(1, "must not be empty"),
+});
+
 export const featuresConfigSchema = z.object({
   /** Optional functionality, each consumed by its own adapter. */
   analytics: z
@@ -192,4 +202,10 @@ export const siteConfigFileSchema = z.object({
   navigation: z.array(navigationItemSchema),
   business: businessSchema.optional(),
   features: featuresConfigSchema.optional(),
+  /**
+   * Optional legal documents (Phase D). Each entry must have canonical content
+   * under `content/legal/<defaultLocale>/<slug>.md` to be exposed; content
+   * alone never exposes a route.
+   */
+  legal: z.array(legalEntrySchema).optional(),
 });
