@@ -1,5 +1,16 @@
 import { siteConfig } from "@/config";
-import type { BusinessLocation } from "@/core/business";
+import type { BusinessLocation, Weekday } from "@/core/business";
+
+/** schema.org weekday name for each supported internal weekday label. */
+const SCHEMA_WEEKDAYS: Record<Weekday, string> = {
+  mon: "Monday",
+  tue: "Tuesday",
+  wed: "Wednesday",
+  thu: "Thursday",
+  fri: "Friday",
+  sat: "Saturday",
+  sun: "Sunday",
+};
 
 /**
  * Renders a minimal, config-driven Organization/LocalBusiness JSON-LD script.
@@ -30,6 +41,14 @@ function toPlace(loc: BusinessLocation) {
   }
   if (loc.geo) place.geo = toGeo(loc.geo.lat, loc.geo.lng);
   if (loc.phone) place.telephone = loc.phone;
+  if (loc.hours && loc.hours.intervals.length > 0) {
+    place.openingHoursSpecification = loc.hours.intervals.map((interval) => ({
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: interval.days.map((day) => SCHEMA_WEEKDAYS[day]),
+      opens: interval.open,
+      closes: interval.close,
+    }));
+  }
   return place;
 }
 

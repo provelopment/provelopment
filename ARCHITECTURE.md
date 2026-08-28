@@ -148,6 +148,13 @@ The content pipeline follows the ports and adapters boundaries:
 Application code must depend on the port, never directly on the adapter,
 except at composition time in `src/app`.
 
+The port also lists which pages exist for a locale
+(`PageContentRepository.listSlugs`). The sitemap derives its per-locale route
+set from the default-locale content files (plus the locale root), so a new
+page joins the sitemap as soon as its content file exists — there is no
+hard-coded route list to update. Navigation config controls exposure and
+ordering only; it does not define route existence.
+
 ### `public`
 
 Static assets served directly by the web application.
@@ -255,6 +262,15 @@ User-facing interface strings ("dictionaries") live in
 Hard-coded user-facing copy in reusable components is a violation of this
 boundary.
 
+Dictionaries are **discovered from the data surface**: the registry
+(`src/config/i18n/registry.ts`) reads every `config/i18n/<locale>.json` at
+load time, validates each against `dictionarySchema`, and verifies every
+locale enabled in `site.config.json` has a matching file. There is no
+hard-coded import list, so adding a locale is `site.config.json` + one JSON
+file. A malformed dictionary or a configured locale with no dictionary fails
+the build with an actionable error; only locales that are NOT configured fall
+back to the default locale's dictionary.
+
 ### Localized content
 
 Markdown content is organized per locale under `content/pages/<locale>/`.
@@ -271,8 +287,33 @@ Each locale is treated as a distinct page:
 - The sitemap lists every route for every supported locale.
 
 Adding a new locale is a configuration-level change: register the locale in
-`src/config`, author its dictionary, and author its content. Platform logic
-must not require modification.
+`site.config.json`, add `config/i18n/<code>.json`, and author its content.
+Platform logic must not require modification (dictionaries are discovered
+from `config/i18n/` at load time).
+
+## Business profile & hours
+
+- **Configuration owns the data.** The `business` block in `site.config.json`
+  (locations, hours, contact, timezone, type) is validated by the config
+  schema and normalized by the loader to the framework-free `Business` shape
+  in `src/core/business.ts`.
+- **Timezone safety.** Timezones are validated against the runtime `Intl`
+  timezone table at build time; an invalid identifier fails configuration with
+  an actionable error. Evaluation precedence:
+  `location.timezone → business.timezone → "Etc/UTC"`.
+- **One hours model.** `src/core/business-hours.ts` evaluates regular and
+  exceptional intervals identically. `close < open` is an overnight interval
+  that carries into the next morning; an exceptional `closed` suppresses its
+  date; a prior night's overnight interval is never revoked by the next day's
+  schedule. `open === close` is rejected as ambiguous. All evaluation uses
+  wall-clock resolution in the location's IANA timezone (DST-safe via `Intl`).
+- **UI.** The footer renders each location's weekly schedule with localized
+  day labels, its exceptional/holiday dates, a timezone indicator, and a live
+  "Open now/Closed" badge computed client-side in the location's timezone —
+  statically generated pages therefore never bake a build-time timestamp.
+- **Structured data.** The config-driven JSON-LD (`Organization` /
+  `LocalBusiness`) includes an `openingHoursSpecification` built from the
+  configured intervals.
 
 ## AI Development
 
