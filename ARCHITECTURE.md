@@ -404,6 +404,22 @@ Optional, config-driven legal pages reached from the footer (no index page).
   existing repository default-locale fallback. No JSON-LD, no legal-advice
   semantics; demo docs are clearly marked replaceable templates.
 
+## Content body localization (all collections)
+
+Content **bodies** are localized per-collection via the same repository
+`findBySlug` locale → default fallback: a file at
+`content/<type>/<locale>/<slug>.md` is served when present; otherwise the
+default-locale (`en`) file is served. There is **no translation system** beyond
+the content files — no per-locale schema, no dictionary involvement for bodies.
+This applies uniformly to pages (`about`/`resources`/`contact`), offerings
+(`consultation`/`gift-card`/`starter-package`), and legal
+(`privacy`/`terms`/`cookies`). The shipped template localizes every one of these
+to all 8 locales; adopters who omit a locale still get a working page via the
+default-locale fallback. Localized frontmatter fields (e.g. offering
+`title`/`blurb`/`price`) travel in the same files and are served together with
+each locale's body. (Footer **labels** are dictionary-owned and independent —
+see Legal and i18n sections.)
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI
