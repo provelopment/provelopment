@@ -420,6 +420,39 @@ default-locale fallback. Localized frontmatter fields (e.g. offering
 each locale's body. (Footer **labels** are dictionary-owned and independent —
 see Legal and i18n sections.)
 
+## Error handling & recovery (Phase E)
+
+Unexpected failures have a three-tier boundary model, each of which is a
+**Client Component** (App Router requirement) and never surfaces any detail of
+the thrown error (message, stack, internal path, or environment) to users:
+
+- **`[locale]/not-found.tsx`** — expected missing routes and resources
+  (unknown in-locale paths via the `[...rest]` catch-all, unknown locales via
+  `dynamicParams = false`). It is a Server Component that preserves the locale
+  via `next/root-params` `locale()` and renders localized copy from
+  `dictionary.notFound` within the `[locale]` layout.
+- **`[locale]/error.tsx`** — recoverable render errors in the locale segment
+  and its children. Because it renders inside `[locale]/layout.tsx`, the site
+  header, footer, and current locale are preserved. It offers a working
+  `reset()` ("Try again") and a "Return home" link to `/{locale}`.
+- **`[locale]/global-error.tsx`** — catastrophic/root-layout failures. It is a
+  sibling of the root `[locale]/layout.tsx` and must render its own
+  `<html>`/`<body>` (the failed root layout is replaced), so it is intentionally
+  minimal and unlocalized with no dependency on header/footer or a known locale.
+
+Both `error.tsx` and `global-error.tsx` are Client Components, so their recovery
+UI renders on the client during hydration; the server still returns the correct
+status (500) and never leaks exception details. The recovery copy for
+`error.tsx` is localized by reading the current `locale` from `useParams()` and
+selecting the canonical `dictionary.error` block via the client-safe accessor in
+`src/components/site/error-messages.ts`, which statically imports the same
+`config/i18n/*.json` dictionaries the server registry validates — a single,
+non-duplicated translation source.
+
+- **Security rule (hard acceptance):** no error UI may render `error.message`,
+  a stack trace, internal paths, environment details, or `console` output. A
+  regression guard in `tests/architecture/boundaries.test.ts` enforces this.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI

@@ -25,6 +25,12 @@
     "message": "The page you are looking for does not exist.",
     "returnHome": "Return home"
   },
+  "error": {
+    "title": "Something went wrong",
+    "message": "We're sorry that happened. Please try again.",
+    "tryAgain": "Try again",
+    "returnHome": "Return home"
+  },
   "language": {
     "label": "Language"
   },

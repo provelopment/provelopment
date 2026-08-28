@@ -18,6 +18,7 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
       items: { "/": "Home" },
     },
     notFound: { title: "n", message: "m", returnHome: "r" },
+    error: { title: "e", message: "e", tryAgain: "e", returnHome: "e" },
     language: { label: "l" },
     business: { open: "o", closed: "c", noHours: "h", hoursLabel: "hh" },
     a11y: { skipToContent: "s" },

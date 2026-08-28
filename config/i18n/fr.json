@@ -25,6 +25,12 @@
     "message": "La page que vous cherchez n'existe pas.",
     "returnHome": "Retour à l'accueil"
   },
+  "error": {
+    "title": "Une erreur est survenue",
+    "message": "Nous sommes désolés. Veuillez réessayer.",
+    "tryAgain": "Réessayer",
+    "returnHome": "Retour à l'accueil"
+  },
   "language": {
     "label": "Langue"
   },
