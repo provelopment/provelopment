@@ -35,6 +35,13 @@ export const dictionarySchema = z.object({
     message: z.string(),
     returnHome: z.string(),
   }),
+  /** Error-boundary recovery strings (Phase E). */
+  error: z.object({
+    title: z.string(),
+    message: z.string(),
+    tryAgain: z.string(),
+    returnHome: z.string(),
+  }),
   /** Accessible label for the locale selector. */
   language: z.object({
     label: z.string(),

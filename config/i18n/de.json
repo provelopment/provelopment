@@ -25,6 +25,12 @@
     "message": "Die gesuchte Seite existiert nicht.",
     "returnHome": "Zurück zur Startseite"
   },
+  "error": {
+    "title": "Etwas ist schiefgelaufen",
+    "message": "Das tut uns leid. Bitte versuchen Sie es erneut.",
+    "tryAgain": "Erneut versuchen",
+    "returnHome": "Zur Startseite"
+  },
   "language": {
     "label": "Sprache"
   },

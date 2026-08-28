@@ -25,6 +25,12 @@
     "message": "La página que buscas no existe.",
     "returnHome": "Volver al inicio"
   },
+  "error": {
+    "title": "Algo salió mal",
+    "message": "Lo sentimos. Por favor, inténtalo de nuevo.",
+    "tryAgain": "Reintentar",
+    "returnHome": "Volver al inicio"
+  },
   "language": {
     "label": "Idioma"
   },
