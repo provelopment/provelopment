@@ -16,7 +16,8 @@
       "/": "Inicio",
       "/about": "Acerca de",
       "/resources": "Recursos",
-      "/contact": "Contacto"
+      "/contact": "Contacto",
+      "/offerings": "Ofertas"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "Por favor, acorte el asunto.",
       "message": "Por favor, escriba un mensaje (m\u00e1ximo 5000 caracteres)."
     }
+  },
+  "offerings": {
+    "heading": "Servicios y productos",
+    "emptyState": "Pronto compartiremos nuestras ofertas aqu\u00ed.",
+    "backToOfferings": "Volver a las ofertas"
   }
 }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { parsePageFile } from "@/adapters/content/frontmatter";
 import {
   createFileSystemPageContentRepository,
-  parsePageFile,
 } from "@/adapters/content/fs-page-content-repository";
 
 describe("parsePageFile", () => {
