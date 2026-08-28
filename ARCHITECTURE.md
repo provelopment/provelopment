@@ -123,7 +123,10 @@ Content should remain separate from application implementation.
 
 #### Content system
 
-Page content lives as Markdown files under `content/pages/<slug>.md`.
+Page content lives as Markdown files under
+`content/pages/<locale>/<slug>.md` (one directory per locale). Offerings and
+legal documents use the same repository under `content/offerings/` and
+`content/legal/` respectively.
 
 Each file begins with minimal frontmatter containing a `title`:
 
@@ -139,7 +142,8 @@ The content pipeline follows the ports and adapters boundaries:
 
 - `src/core/page-content.ts` defines the `PageContent` concept.
 - `src/application/page-content-repository.ts` defines the
-  `PageContentRepository` port.
+  `PageContentRepository` port (generic over the content shape so the
+  offerings collection keeps its extra fields without casts).
 - `src/adapters/content/fs-page-content-repository.ts` implements the port
   against the filesystem.
 - Framework code in `src/app` composes the adapter with the port and renders
@@ -154,6 +158,12 @@ set from the default-locale content files (plus the locale root), so a new
 page joins the sitemap as soon as its content file exists — there is no
 hard-coded route list to update. Navigation config controls exposure and
 ordering only; it does not define route existence.
+
+Detail collections are **statically generated**: `offerings/[slug]` and
+`legal/[slug]` export `generateStaticParams` (derived from canonical slugs via
+the same content/config seams the sitemap uses) with `dynamicParams = false`,
+so every canonical localized detail page is prerendered at build time and any
+other slug returns a 404 — no on-demand server rendering, no ISR.
 
 ### `public`
 
@@ -443,11 +453,14 @@ the thrown error (message, stack, internal path, or environment) to users:
 Both `error.tsx` and `global-error.tsx` are Client Components, so their recovery
 UI renders on the client during hydration; the server still returns the correct
 status (500) and never leaks exception details. The recovery copy for
-`error.tsx` is localized by reading the current `locale` from `useParams()` and
-selecting the canonical `dictionary.error` block via the client-safe accessor in
-`src/components/site/error-messages.ts`, which statically imports the same
-`config/i18n/*.json` dictionaries the server registry validates — a single,
-non-duplicated translation source.
+`error.tsx` is the canonical `dictionary.error` block, transported from the
+`[locale]` layout (which already resolves the per-locale dictionary) into the
+client boundary through the minimal `ErrorMessagesProvider` context seam in
+`src/components/site/error-messages-context.tsx`. There is no client-side locale
+registry and no duplicated translation data — adding a locale (or changing the
+default) is configuration/data work only. `global-error.tsx` stays deliberately
+minimal and unlocalized because it renders when the layout itself may have
+failed.
 
 - **Security rule (hard acceptance):** no error UI may render `error.message`,
   a stack trace, internal paths, environment details, or `console` output. A

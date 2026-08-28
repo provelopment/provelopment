@@ -4,6 +4,9 @@ import { parsePageFile } from "@/adapters/content/frontmatter";
 import {
   createFileSystemPageContentRepository,
 } from "@/adapters/content/fs-page-content-repository";
+import { siteConfig } from "@/config";
+
+const defaultLocale = siteConfig.defaultLocale;
 
 describe("parsePageFile", () => {
   it("parses the title and body from frontmatter", () => {
@@ -57,36 +60,36 @@ describe("parsePageFile", () => {
 
 describe("createFileSystemPageContentRepository", () => {
   const repository = createFileSystemPageContentRepository({
-    defaultLocale: "en",
+    defaultLocale,
   });
 
   it("finds content for the requested locale", async () => {
-    const page = await repository.findBySlug("about", "en");
+    const page = await repository.findBySlug("about", defaultLocale);
 
-    expect(page?.locale).toBe("en");
+    expect(page?.locale).toBe(defaultLocale);
     expect(page?.title).toBe("About");
   });
 
   it("falls back to the default locale when a translation is missing", async () => {
     const page = await repository.findBySlug("about", "sv");
 
-    expect(page?.locale).toBe("en");
+    expect(page?.locale).toBe(defaultLocale);
     expect(page?.title).toBe("About");
   });
 
   it("returns null for slugs that do not exist in any locale", async () => {
-    const page = await repository.findBySlug("does-not-exist", "en");
+    const page = await repository.findBySlug("does-not-exist", defaultLocale);
 
     expect(page).toBeNull();
   });
 
   it("rejects unsafe slugs and malformed locales", async () => {
-    expect(await repository.findBySlug("../secrets", "en")).toBeNull();
+    expect(await repository.findBySlug("../secrets", defaultLocale)).toBeNull();
     expect(await repository.findBySlug("about", "../etc")).toBeNull();
   });
 
   it("lists page slugs for a locale", async () => {
-    const slugs = await repository.listSlugs("en");
+    const slugs = await repository.listSlugs(defaultLocale);
     expect(slugs).toEqual(["about", "contact", "resources"]);
   });
 
