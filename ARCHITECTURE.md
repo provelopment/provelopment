@@ -453,6 +453,32 @@ non-duplicated translation source.
   a stack trace, internal paths, environment details, or `console` output. A
   regression guard in `tests/architecture/boundaries.test.ts` enforces this.
 
+### Why `global-error.tsx` lives at `[locale]/global-error.tsx` (not `app/global-error.tsx`)
+
+Next.js requires `global-error.js` to be a **sibling of the root layout** — the
+layout that renders `<html>`/`<body>`. In most projects that is the conventional
+`app/layout.tsx`, which is why the docs show `app/global-error.tsx`.
+
+This project intentionally has **no root `app/layout.tsx`**: the root layout is
+the dynamic `[locale]/layout.tsx` (the documented, recommended i18n layout that
+renders `<html lang>`/`<body>` and owns `generateStaticParams` +
+`dynamicParams`). The Step 0 empirical finding (Phase E, verified against a
+Next.js 16.3.1 production build) is that introducing a true root
+`app/layout.tsx` **breaks the existing locale contract**: `[locale]` must remain
+the root segment for `next/root-params` `locale()` to resolve. With a root
+`app/layout.tsx` added, the production build fails with
+`Error: Export locale doesn't exist in target module` at
+`src/app/[locale]/not-found.tsx` (the same build failure also breaks every
+server component reading the locale via `next/root-params`).
+
+Per the Phase E implementation gate ("do not introduce a broader layout
+refactor unless Next.js requires it"), that trade-off was rejected. The global
+error boundary is therefore placed as the sibling of this project's root layout
+at **`src/app/[locale]/global-error.tsx`** — it still renders its own
+`<html>`/`<body>`, still catches catastrophic failures in the root layout, and
+remains intentionally minimal and unlocalized because the root layout (and with
+it the header, footer, and known locale) is exactly what failed.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI
