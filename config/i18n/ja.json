@@ -62,5 +62,14 @@
     "heading": "サービスと商品",
     "emptyState": "近日中に提供内容を掲載します。",
     "backToOfferings": "一覧に戻る"
+  },
+  "legal": {
+    "heading": "法的情報",
+    "disclaimer": "これらの文書はデモ用のテンプレートであり、法的助言ではありません。管轄地域に応じて資格のある専門家にご相談ください。",
+    "labels": {
+      "privacy": "プライバシーポリシー",
+      "terms": "利用規約",
+      "cookies": "Cookieポリシー"
+    }
   }
 }

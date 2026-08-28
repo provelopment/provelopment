@@ -1,14 +1,26 @@
 import Link from "next/link";
+import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import { legalLabel, resolveLegalDocs } from "@/core/legal";
 import { BusinessInfo } from "./business-info";
 
 interface SiteFooterProps {
     readonly locale: string;
 }
 
-export function SiteFooter({ locale }: SiteFooterProps) {
+export async function SiteFooter({ locale }: SiteFooterProps) {
     const dictionary = getDictionary(locale);
+
+    // Legal documents: exposed only at the intersection of the `legal[]`
+    // config block and canonical (default-locale) content. Resolved with the
+    // same content repository used everywhere else.
+    const legalRepository = createFileSystemPageContentRepository({
+        defaultLocale: siteConfig.defaultLocale,
+        collection: "legal",
+    });
+    const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
+    const legalLinks = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs);
 
     return (
         <footer className="mt-16 border-t border-border">
@@ -54,6 +66,27 @@ export function SiteFooter({ locale }: SiteFooterProps) {
                         ))}
                     </ul>
                 </nav>
+
+                {legalLinks.length > 0 ? (
+                    <nav aria-label={dictionary.legal.heading}>
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                            {dictionary.legal.heading}
+                        </h2>
+
+                        <ul className="mt-3 space-y-2">
+                            {legalLinks.map((doc) => (
+                                <li key={doc.slug}>
+                                    <Link
+                                        href={`/${locale}/legal/${doc.slug}`}
+                                        className="hover:text-primary"
+                                    >
+                                        {legalLabel(dictionary.legal.labels, doc)}
+                                    </Link>
+                                </li>
+                            ))}
+                        </ul>
+                    </nav>
+                ) : null}
 
                 <p className="self-end text-sm text-muted-foreground sm:text-right lg:text-left">
                     &copy; {new Date().getFullYear()} {siteConfig.name}
