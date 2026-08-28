@@ -242,4 +242,32 @@ describe("parseSiteConfig", () => {
 
     expect(() => parseSiteConfig(invalid)).toThrow(/provider/);
   });
+
+  it("maps features.offerings true/false through to the site config", () => {
+    const enabled = parseSiteConfig({
+      ...validConfig,
+      features: { offerings: true },
+    });
+    expect(enabled.offeringsFeature).toBe(true);
+
+    const disabled = parseSiteConfig({
+      ...validConfig,
+      features: { offerings: false },
+    });
+    expect(disabled.offeringsFeature).toBe(false);
+  });
+
+  it("leaves offeringsFeature undefined when absent (back-compat)", () => {
+    const config = parseSiteConfig(validConfig);
+    expect(config.offeringsFeature).toBeUndefined();
+  });
+
+  it("rejects a non-boolean offerings value", () => {
+    const invalid = {
+      ...validConfig,
+      features: { offerings: "yes" },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/offerings/);
+  });
 });

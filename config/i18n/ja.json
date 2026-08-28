@@ -16,7 +16,8 @@
       "/": "ホーム",
       "/about": "概要",
       "/resources": "リソース",
-      "/contact": "お問い合わせ"
+      "/contact": "お問い合わせ",
+      "/offerings": "サービス内容"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "件名を短くしてください。",
       "message": "メッセージを入力してください（5000文字まで）。"
     }
+  },
+  "offerings": {
+    "heading": "サービスと商品",
+    "emptyState": "近日中に提供内容を掲載します。",
+    "backToOfferings": "一覧に戻る"
   }
 }

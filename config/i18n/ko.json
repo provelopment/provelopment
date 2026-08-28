@@ -16,7 +16,8 @@
       "/": "홈",
       "/about": "소개",
       "/resources": "리소스",
-      "/contact": "문의"
+      "/contact": "문의",
+      "/offerings": "서비스"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "제목을 줄여 주세요.",
       "message": "메시지를 입력해 주세요(최대 5000자)."
     }
+  },
+  "offerings": {
+    "heading": "서비스 및 상품",
+    "emptyState": "곧 여기에서 서비스를 소개하겠습니다.",
+    "backToOfferings": "서비스 목록으로"
   }
 }
