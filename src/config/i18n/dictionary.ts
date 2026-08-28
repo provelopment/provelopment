@@ -50,6 +50,28 @@ export const dictionarySchema = z.object({
   a11y: z.object({
     skipToContent: z.string(),
   }),
+  /** Contact form strings (Phase B). */
+  contact: z.object({
+    heading: z.string(),
+    nameLabel: z.string(),
+    emailLabel: z.string(),
+    subjectLabel: z.string(),
+    messageLabel: z.string(),
+    submit: z.string(),
+    sending: z.string(),
+    honeypotLabel: z.string(),
+    success: z.string(),
+    demoNotice: z.string(),
+    unconfigured: z.string(),
+    configError: z.string(),
+    sendError: z.string(),
+    errors: z.object({
+      name: z.string(),
+      email: z.string(),
+      subject: z.string(),
+      message: z.string(),
+    }),
+  }),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

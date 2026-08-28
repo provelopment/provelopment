@@ -15,7 +15,8 @@
     "items": {
       "/": "ホーム",
       "/about": "概要",
-      "/resources": "リソース"
+      "/resources": "リソース",
+      "/contact": "お問い合わせ"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "コンテンツへスキップ"
+  },
+  "contact": {
+    "heading": "お問い合わせ",
+    "nameLabel": "お名前",
+    "emailLabel": "メールアドレス",
+    "subjectLabel": "件名",
+    "messageLabel": "メッセージ",
+    "submit": "送信する",
+    "sending": "送信中…",
+    "honeypotLabel": "ウェブサイト",
+    "success": "お問い合わせは正常に送信されました。",
+    "demoNotice": "デモモード：何も送信されませんでした。Webhook を接続するとお問い合わせを受け取れます。",
+    "unconfigured": "このサイトではお問い合わせフォームはまだ設定されていません。",
+    "configError": "お問い合わせフォームが正しく設定されていません。サイト運営者に直接お問い合わせください。",
+    "sendError": "お問い合わせを送信できませんでした。もう一度お試しください。",
+    "errors": {
+      "name": "お名前を入力してください。",
+      "email": "有効なメールアドレスを入力してください。",
+      "subject": "件名を短くしてください。",
+      "message": "メッセージを入力してください（5000文字まで）。"
+    }
   }
 }

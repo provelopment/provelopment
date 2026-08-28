@@ -1,4 +1,5 @@
 import type { Business } from "@/core/business";
+import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
@@ -44,4 +45,6 @@ export interface SiteConfig {
   readonly business: Business;
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;
+  /** Contact inquiry provider configuration (`features.contact`). */
+  readonly contactFeature?: ContactFeatureConfig;
 }

@@ -23,6 +23,27 @@ clone) from repository to a live production website on Vercel.
 Every push to `main` now deploys to production automatically, and every
 pull request receives its own preview URL.
 
+## Environment Variables (contact inquiries)
+
+No environment variables are required for a default build (`provider: "stub"`
+or no `features.contact`). When you enable **`provider: "webhook"`**, set these
+in the Vercel project:
+
+- `CONTACT_WEBHOOK_URL` — the receiver URL (required; `https://` for any
+  non-local host).
+- `CONTACT_WEBHOOK_TOKEN` — optional shared secret, sent as
+  `Authorization: Bearer <token>`.
+
+These are read at **runtime** in the server action, so they do not need to
+exist at build time (no build-time secret required). A webhook provider without
+a URL never silently degrades — it surfaces an explicit "misconfigured" state
+and logs a configuration diagnostic.
+
+**Rate limiting / anti-abuse:** the template is a frontend + integration seam.
+Throttle contact submissions at your edge (Vercel/WAF/firewall) or in the
+receiver. Foundation provides the honeypot and same-origin form protection, not
+server-side rate limiting or spam filtering.
+
 ## Continuous Integration Gating
 
 The repository's CI workflow (`.github/workflows/ci.yml`) runs typecheck,

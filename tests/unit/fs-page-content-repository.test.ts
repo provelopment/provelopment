@@ -87,7 +87,7 @@ describe("createFileSystemPageContentRepository", () => {
 
   it("lists page slugs for a locale", async () => {
     const slugs = await repository.listSlugs("en");
-    expect(slugs).toEqual(["about", "resources"]);
+    expect(slugs).toEqual(["about", "contact", "resources"]);
   });
 
   it("returns an empty list for a locale with no content", async () => {
