@@ -15,7 +15,8 @@
     "items": {
       "/": "首页",
       "/about": "关于",
-      "/resources": "资源"
+      "/resources": "资源",
+      "/contact": "联系"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "跳到主要内容"
+  },
+  "contact": {
+    "heading": "联系我们",
+    "nameLabel": "姓名",
+    "emailLabel": "电子邮箱",
+    "subjectLabel": "主题",
+    "messageLabel": "留言",
+    "submit": "发送咨询",
+    "sending": "发送中…",
+    "honeypotLabel": "网站",
+    "success": "您的咨询已成功提交。",
+    "demoNotice": "演示模式：未发送任何内容。连接 webhook 以接收咨询。",
+    "unconfigured": "此站点的联系表单尚未配置。",
+    "configError": "联系表单配置不正确。请直接联系网站所有者。",
+    "sendError": "无法提交您的咨询，请重试。",
+    "errors": {
+      "name": "请输入您的姓名。",
+      "email": "请输入有效的电子邮箱地址。",
+      "subject": "请缩短主题。",
+      "message": "请输入留言（最多5000个字符）。"
+    }
   }
 }

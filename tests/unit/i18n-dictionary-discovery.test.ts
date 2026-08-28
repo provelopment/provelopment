@@ -21,6 +21,22 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
     language: { label: "l" },
     business: { open: "o", closed: "c", noHours: "h", hoursLabel: "hh" },
     a11y: { skipToContent: "s" },
+    contact: {
+      heading: "c",
+      nameLabel: "c",
+      emailLabel: "c",
+      subjectLabel: "c",
+      messageLabel: "c",
+      submit: "c",
+      sending: "c",
+      honeypotLabel: "c",
+      success: "c",
+      demoNotice: "c",
+      unconfigured: "c",
+      configError: "c",
+      sendError: "c",
+      errors: { name: "c", email: "c", subject: "c", message: "c" },
+    },
     ...overrides,
   };
 }

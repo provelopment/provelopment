@@ -58,6 +58,10 @@
     {
       "label": "Resources",
       "href": "/resources"
+    },
+    {
+      "label": "Contact",
+      "href": "/contact"
     }
   ],
   "business": {
@@ -90,6 +94,9 @@
   "features": {
     "analytics": {
       "provider": "vercel"
+    },
+    "contact": {
+      "provider": "stub"
     }
   }
 }

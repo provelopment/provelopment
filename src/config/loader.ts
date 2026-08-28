@@ -45,6 +45,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     navigation: json.navigation,
     business,
     analytics: json.features?.analytics,
+    contactFeature: json.features?.contact,
   };
 }
 
