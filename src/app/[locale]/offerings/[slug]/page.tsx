@@ -11,7 +11,7 @@ import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { isCanonicalOffering } from "@/core/offerings";
 
-const offeringsRepository = createFileSystemPageContentRepository({
+const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
   collection: "offerings",
 });
@@ -21,6 +21,24 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 interface OfferingsDetailPageProps {
   readonly params: Promise<{ readonly locale: string; readonly slug: string }>;
 }
+
+/**
+ * Statically generates every canonical offering detail page (each locale ×
+ * canonical slug). Non-canonical slugs return a 404 via `dynamicParams`.
+ */
+export async function generateStaticParams(): Promise<
+  { locale: string; slug: string }[]
+> {
+  if (!siteConfig.offeringsFeature) return [];
+
+  const canonicalSlugs = await offeringsRepository.listSlugs(siteConfig.defaultLocale);
+  return localeCodes.flatMap((locale) =>
+    canonicalSlugs.map((slug) => ({ locale, slug })),
+  );
+}
+
+/** Unknown slugs render the 404 instead of being rendered on demand. */
+export const dynamicParams = false;
 
 /** Canonical offering content for `slug`, or null when it should be a 404. */
 async function findCanonicalOffering(
@@ -32,8 +50,7 @@ async function findCanonicalOffering(
   const canonicalSlugs = await offeringsRepository.listSlugs(siteConfig.defaultLocale);
   if (!isCanonicalOffering(slug, canonicalSlugs)) return null;
 
-  const content = await offeringsRepository.findBySlug(slug, locale);
-  return content ? (content as OfferingsContent) : null;
+  return offeringsRepository.findBySlug(slug, locale);
 }
 
 export async function generateMetadata({

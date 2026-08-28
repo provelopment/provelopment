@@ -10,9 +10,15 @@ import { parseOfferingsFile, parsePageFile } from "./frontmatter";
 const validSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Parser used for the repository's collection. */
-export type ContentParser = (raw: string, slug: string, locale: Locale) => PageContent;
+export type ContentParser<T extends PageContent = PageContent> = (
+  raw: string,
+  slug: string,
+  locale: Locale,
+) => T;
 
-export interface FileSystemPageContentRepositoryOptions {
+export interface FileSystemPageContentRepositoryOptions<
+  T extends PageContent = PageContent,
+> {
   /** Locale used when the requested locale has no translation yet. */
   readonly defaultLocale: Locale;
   /**
@@ -22,7 +28,7 @@ export interface FileSystemPageContentRepositoryOptions {
    */
   readonly collection?: "pages" | "offerings" | "legal";
   /** Override parser (used for the `offerings` collection). */
-  readonly parse?: ContentParser;
+  readonly parse?: ContentParser<T>;
 }
 
 function resolveParser(collection: "pages" | "offerings" | "legal"): ContentParser {
@@ -36,12 +42,19 @@ function resolveParser(collection: "pages" | "offerings" | "legal"): ContentPars
  * `content/<collection>/<locale>/<slug>.md`, falling back to the default
  * locale when the requested locale has no translation.
  */
-export function createFileSystemPageContentRepository(
-  options: FileSystemPageContentRepositoryOptions,
-): PageContentRepository {
+export function createFileSystemPageContentRepository<
+  T extends PageContent = PageContent,
+>(
+  options: FileSystemPageContentRepositoryOptions<T>,
+): PageContentRepository<T> {
   const defaultLocale = options.defaultLocale;
   const collection = options.collection ?? "pages";
-  const parse = options.parse ?? resolveParser(collection);
+  // The default parser produces exactly the requested subtype for its
+  // collection (offerings → `OfferingsContent`); callers opting into `T`
+  // assert the match explicitly via the `parse` override.
+  const parse: ContentParser<T> =
+    (options.parse as ContentParser<T> | undefined) ??
+    (resolveParser(collection) as ContentParser<T>);
   const contentDirectory = path.join(process.cwd(), "content", collection);
 
   function readPage(locale: Locale, slug: string): Promise<string> {
@@ -49,7 +62,7 @@ export function createFileSystemPageContentRepository(
   }
 
   return {
-    async findBySlug(slug, locale): Promise<PageContent | null> {
+    async findBySlug(slug, locale): Promise<T | null> {
       if (!validSlugPattern.test(slug) || !isWellFormedLocale(locale)) {
         return null;
       }

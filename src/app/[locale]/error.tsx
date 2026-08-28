@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { getErrorMessages } from "@/components/site/error-messages";
+import { useErrorMessages } from "@/components/site/error-messages-context";
 
 /**
  * Segment error boundary for recoverable render errors within a locale.
@@ -11,7 +11,8 @@ import { getErrorMessages } from "@/components/site/error-messages";
  * This error.tsx catches errors in this segment and its children, so it renders
  * inside the `[locale]` layout and therefore preserves the site header, footer,
  * and current locale. It is a Client Component (per App Router requirements)
- * and localizes its copy via the canonical i18n dictionaries.
+ * and localizes its copy via the canonical `dictionary.error` block, transported
+ * from the `[locale]` layout through `ErrorMessagesProvider`.
  *
  * Security: the UI must never surface any details of the thrown error to
  * users — not its message, its stack, internal paths, or environment
@@ -25,7 +26,8 @@ export default function Error({
   reset: () => void;
 }) {
   const params = useParams<{ locale?: string }>();
-  const messages = getErrorMessages(params?.locale);
+  const messages = useErrorMessages();
+  const locale = params?.locale;
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-24 text-center">
@@ -40,7 +42,7 @@ export default function Error({
           {messages.tryAgain}
         </button>
         <Link
-          href={`/${params?.locale ?? "en"}`}
+          href={`/${locale ?? ""}`}
           className="font-medium text-primary hover:underline"
         >
           {messages.returnHome}

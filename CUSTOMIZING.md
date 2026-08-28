@@ -47,10 +47,22 @@ title; the body is rendered as Markdown.
 - Interface strings (buttons, headings outside page bodies) live in the
   dictionaries under `config/i18n/<locale>.json` (see §4).
 
+> **Navigation is deliberate, not derived.** `navigation[]` may legally point
+> at a route whose feature is disabled or whose content is missing — the link
+> simply leads to a 404. Navigation never filters itself against feature or
+> content state, so when you disable a feature (e.g. `features.offerings`)
+> or remove content, remove (or leave) the matching navigation entry yourself.
+
 All content bodies (pages, offerings, legal) are localized the same way: a
 locale-specific file at `content/<type>/<locale>/<slug>.md` is served when
 present; otherwise the repository falls back to the default-locale body. The
 shipped template localizes every page and the demo content to all 8 locales.
+
+> **Fallback is intentional, not a bug.** A localized URL (e.g.
+> `/de/legal/privacy`) with a missing translation serves the default-locale
+> body under that URL, and `<html lang>` still reflects the requested locale.
+> That is the documented behavior — localize the file when you want a
+> true per-locale page.
 
 ### Offerings catalog (`content/offerings/`)
 
