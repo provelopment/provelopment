@@ -208,6 +208,90 @@ describe("parseSiteConfig", () => {
     });
   });
 
+  it("rejects an exceptional-hours entry that has only `open`", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [{ date: "2026-12-31", open: "09:00" }],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/closed: true or provide both open and close/);
+  });
+
+  it("rejects an exceptional-hours entry that has only `close`", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [{ date: "2026-12-31", close: "17:00" }],
+            },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/closed: true or provide both open and close/);
+  });
+
+  it("accepts an exceptional-hours closure (`closed: true`)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            hours: {
+              intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }],
+              exceptional: [{ date: "2026-12-25", closed: true }],
+            },
+          },
+        ],
+      },
+    });
+
+    expect(config.business.locations[0].hours?.exceptional[0]).toMatchObject({
+      date: "2026-12-25",
+      closed: true,
+    });
+  });
+
+  it("accepts a non-default locale as the configured default (config-driven change)", () => {
+    // Changing the default locale is a configuration change taken straight
+    // from `site.config.json`; no platform code or test assumes locale "en".
+    const config = parseSiteConfig({
+      ...validConfig,
+      i18n: {
+        defaultLocale: "fr",
+        locales: [
+          { code: "fr", label: "Français" },
+          { code: "en", label: "English" },
+        ],
+      },
+    });
+
+    expect(config.defaultLocale).toBe("fr");
+    expect(config.locales.map((l) => l.code)).toEqual(["fr", "en"]);
+  });
+
   it("maps features.contact stub through to the site config", () => {
     const config = parseSiteConfig({
       ...validConfig,

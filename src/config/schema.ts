@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isIanaTimeZone } from "@/core/business-hours";
+
 /**
  * Schema contract for `site.config.json`.
  *
@@ -58,17 +60,9 @@ const timeSchema = z
  * Validates a real IANA timezone identifier using the runtime's `Intl`
  * timezone table (the authoritative, cross-platform list — not a hand-written
  * zone list). Node/ICU throws for unknown identifiers, so a typo in config
- * fails validation at build time with an actionable message.
+ * fails validation at build time with an actionable message. Single
+ * implementation lives in `src/core/business-hours`.
  */
-function isIanaTimeZone(value: string): boolean {
-  try {
-    new Intl.DateTimeFormat("en-US", { timeZone: value });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const ianaTimeZoneSchema = z.string().refine(isIanaTimeZone, {
   message:
     "must be a valid IANA timezone identifier, e.g. 'Asia/Jakarta' or 'America/New_York'",
@@ -98,13 +92,25 @@ const openIntervalSchema = z
   // `open === close`. Overnight (`close < open`) is fully supported.
   .refine((i) => i.open !== i.close, "open and close must differ");
 
-const exceptionalHoursSchema = z.object({
-  // ISO date YYYY-MM-DD (validated loosely; content owns correctness).
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
-  closed: z.boolean().optional(),
-  open: timeSchema.optional(),
-  close: timeSchema.optional(),
-});
+const exceptionalHoursSchema = z
+  .object({
+    // ISO date YYYY-MM-DD (validated loosely; content owns correctness).
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD"),
+    closed: z.boolean().optional(),
+    open: timeSchema.optional(),
+    close: timeSchema.optional(),
+  })
+  // An exceptional entry must be a full override: either a closure
+  // (`closed: true`) or a complete `open` + `close` interval. A partial pair
+  // (only `open` or only `close`) is a config error — rejecting it avoids a
+  // silent "closed that day" surprise from a typo'd entry.
+  .refine(
+    (entry) => entry.closed === true || (entry.open !== undefined && entry.close !== undefined),
+    {
+      message:
+        "an exceptional-hours entry must be either closed: true or provide both open and close",
+    },
+  );
 
 const businessHoursSchema = z.object({
   intervals: z.array(openIntervalSchema),

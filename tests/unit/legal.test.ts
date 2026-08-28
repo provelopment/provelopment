@@ -2,12 +2,23 @@ import { describe, expect, it } from "vitest";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { buildSitemapRoutes } from "@/application/route-discovery";
+import { siteConfig } from "@/config";
 import {
   isCanonicalLegalSlug,
   legalLabel,
   resolveLegalDocs,
   type LegalConfigEntry,
 } from "@/core/legal";
+
+const defaultLocale = siteConfig.defaultLocale;
+
+/** The shipped non-default locales (content assertions, not platform wiring). */
+const nonDefaultLocales = siteConfig.locales
+  .map((locale) => locale.code)
+  .filter((code) => code !== defaultLocale);
+
+/** A locale code guaranteed not to be configured (exercises documented fallback). */
+const unconfiguredLocale = "zz";
 
 const configEntries: readonly LegalConfigEntry[] = [
   { slug: "privacy", label: "Privacy Policy" },
@@ -62,17 +73,17 @@ describe("legalLabel (localized label with config fallback)", () => {
 
 describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
   const repository = createFileSystemPageContentRepository({
-    defaultLocale: "en",
+    defaultLocale,
     collection: "legal",
   });
 
   it("lists the canonical (default-locale) legal slugs", async () => {
-    const slugs = await repository.listSlugs("en");
+    const slugs = await repository.listSlugs(defaultLocale);
     expect(slugs).toEqual(["cookies", "privacy", "terms"]);
   });
 
   it("finds a default-locale legal document (title + body)", async () => {
-    const content = await repository.findBySlug("privacy", "en");
+    const content = await repository.findBySlug("privacy", defaultLocale);
     expect(content?.title).toBe("Privacy Policy");
     expect(content?.body).toMatch(/template placeholder/i);
   });
@@ -80,19 +91,19 @@ describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
   it("falls back to the default locale when a translation is missing", async () => {
     // A locale with no localization (e.g. an adopter locale not yet
     // translated) still resolves via the repository's locale → default
-    // fallback; the canonical (English) content is served.
-    const content = await repository.findBySlug("privacy", "pt");
-    expect(content?.locale).toBe("en");
+    // fallback; the canonical (default-locale) content is served.
+    const content = await repository.findBySlug("privacy", unconfiguredLocale);
+    expect(content?.locale).toBe(defaultLocale);
     expect(content?.title).toBe("Privacy Policy");
     expect(content?.body).toMatch(/template placeholder/i);
   });
 
   it("serves the localized legal body when the locale file exists", async () => {
-    for (const locale of ["es", "fr", "de", "ja", "zh", "ko", "id"]) {
+    for (const locale of nonDefaultLocales) {
       for (const slug of ["privacy", "terms", "cookies"]) {
         const content = await repository.findBySlug(slug, locale);
         expect(content).not.toBeNull();
-        // The locale-specific file wins over the English fallback.
+        // The locale-specific file wins over the default fallback.
         expect(content?.locale).toBe(locale);
         // Localized title (not the English one) is served.
         expect(content?.title).not.toBe(
@@ -106,7 +117,7 @@ describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
   });
 
   it("returns null for unknown slugs", async () => {
-    expect(await repository.findBySlug("does-not-exist", "en")).toBeNull();
+    expect(await repository.findBySlug("does-not-exist", defaultLocale)).toBeNull();
   });
 });
 

@@ -5,11 +5,17 @@ import {
 } from "@/adapters/content/fs-page-content-repository";
 import { parseOfferingsFile, parsePageFile } from "@/adapters/content/frontmatter";
 import { buildSitemapRoutes } from "@/application/route-discovery";
+import { siteConfig } from "@/config";
 import {
   isCanonicalOffering,
   sortOfferings,
   type OfferingsListItem,
 } from "@/core/offerings";
+
+const defaultLocale = siteConfig.defaultLocale;
+
+/** A locale code guaranteed not to be configured (exercises documented fallback). */
+const unconfiguredLocale = "zz";
 
 describe("parseOfferingsFile (frontmatter contract)", () => {
   const raw = `---
@@ -103,28 +109,38 @@ describe("isCanonicalOffering (default-locale slug membership)", () => {
 });
 
 describe("offerings repository (reuses PageContentRepository + fs adapter)", () => {
-  const repository = createFileSystemPageContentRepository({
-    defaultLocale: "en",
+  const repository = createFileSystemPageContentRepository<{
+    slug: string;
+    locale: string;
+    title: string;
+    body: string;
+    blurb?: string;
+    price?: string;
+    order?: number;
+    featured?: boolean;
+    image?: string;
+  }>({
+    defaultLocale,
     collection: "offerings",
   });
 
   it("lists the canonical (default-locale) offering slugs", async () => {
-    const slugs = await repository.listSlugs("en");
+    const slugs = await repository.listSlugs(defaultLocale);
     expect(slugs).toEqual(["consultation", "gift-card", "starter-package"]);
   });
 
   it("finds a default-locale offering with its offering fields", async () => {
-    const content = await repository.findBySlug("consultation", "en");
+    const content = await repository.findBySlug("consultation", defaultLocale);
     expect(content?.title).toBe("Consultation");
     expect((content as { blurb?: string } | null)?.blurb).toBeTruthy();
   });
 
   it("falls back to the default locale content when a translation is missing", async () => {
     // A locale with no localization (e.g. an adopter locale) still resolves
-    // via the repository's locale → default fallback; the canonical (English)
-    // offering is served.
-    const content = await repository.findBySlug("consultation", "pt");
-    expect(content?.locale).toBe("en");
+    // via the repository's locale → default fallback; the canonical offering
+    // is served.
+    const content = await repository.findBySlug("consultation", unconfiguredLocale);
+    expect(content?.locale).toBe(defaultLocale);
     expect(content?.title).toBe("Consultation");
   });
 
@@ -145,7 +161,7 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
       for (const [slug, expectedTitle] of Object.entries(titlesBySlug)) {
         const content = await repository.findBySlug(slug, locale);
         expect(content).not.toBeNull();
-        // The locale-specific file wins over the English fallback.
+        // The locale-specific file wins over the default-locale fallback.
         expect(content?.locale).toBe(locale);
         expect(content?.title).toBe(expectedTitle);
         // A localized blurb is present, too.
@@ -155,7 +171,7 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
   });
 
   it("returns null for unknown slugs", async () => {
-    expect(await repository.findBySlug("does-not-exist", "en")).toBeNull();
+    expect(await repository.findBySlug("does-not-exist", defaultLocale)).toBeNull();
   });
 });
 

@@ -1,4 +1,5 @@
 import { VercelAnalytics } from "@/adapters/analytics/vercel-analytics";
+import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -79,7 +80,9 @@ export default async function LocaleLayout({
         </a>
         <SiteHeader locale={locale} />
         <main id="main" className="flex-1">
-          {children}
+          <ErrorMessagesProvider messages={dictionary.error}>
+            {children}
+          </ErrorMessagesProvider>
         </main>
         <SiteFooter locale={locale} />
         <StructuredData />
