@@ -392,6 +392,13 @@ Optional, config-driven legal pages reached from the footer (no index page).
 - **Footer discoverability:** the footer renders a legal `<nav>` (localized
   header + links) only when resolved legal docs exist; labels fall back from
   `dictionary.legal.labels[slug]` to the config label.
+- **Body localization is independent of footer labels.** Legal document bodies
+  come from `content/legal/<locale>/<slug>.md` and use the repository's standard
+  locale → default fallback (`findBySlug`: locale file first, then `en`). A
+  localized body is served when present; otherwise the canonical (default) body
+  is served — no Legal-specific translation system. The shipped demo docs are
+  localized to all 8 locales (identically-structured, generic, replaceable
+  templates; no jurisdiction-specific claims).
 - **Sitemap/SEO:** legal slugs (config ∩ canonical) feed `buildSitemapRoutes`;
   each detail page emits canonical + hreflang. Missing translations use the
   existing repository default-locale fallback. No JSON-LD, no legal-advice
