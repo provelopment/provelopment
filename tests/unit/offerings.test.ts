@@ -120,9 +120,38 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
   });
 
   it("falls back to the default locale content when a translation is missing", async () => {
-    const content = await repository.findBySlug("consultation", "fr");
+    // A locale with no localization (e.g. an adopter locale) still resolves
+    // via the repository's locale → default fallback; the canonical (English)
+    // offering is served.
+    const content = await repository.findBySlug("consultation", "pt");
     expect(content?.locale).toBe("en");
     expect(content?.title).toBe("Consultation");
+  });
+
+  it("serves the localized offering when the locale file exists", async () => {
+    // Expected localized titles per locale (French legitimately uses
+    // "Consultation", the same word — body/blurb still localized).
+    const localizedTitles: Record<string, Record<string, string>> = {
+      es: { consultation: "Consulta", "gift-card": "Tarjeta de regalo", "starter-package": "Paquete inicial" },
+      fr: { consultation: "Consultation", "gift-card": "Carte cadeau", "starter-package": "Pack de démarrage" },
+      de: { consultation: "Beratung", "gift-card": "Geschenkgutschein", "starter-package": "Startpaket" },
+      ja: { consultation: "相談", "gift-card": "ギフトカード", "starter-package": "スタートパッケージ" },
+      zh: { consultation: "咨询", "gift-card": "礼品卡", "starter-package": "入门套餐" },
+      ko: { consultation: "상담", "gift-card": "선물 카드", "starter-package": "스타터 패키지" },
+      id: { consultation: "Konsultasi", "gift-card": "Kartu hadiah", "starter-package": "Paket pemula" },
+    };
+
+    for (const [locale, titlesBySlug] of Object.entries(localizedTitles)) {
+      for (const [slug, expectedTitle] of Object.entries(titlesBySlug)) {
+        const content = await repository.findBySlug(slug, locale);
+        expect(content).not.toBeNull();
+        // The locale-specific file wins over the English fallback.
+        expect(content?.locale).toBe(locale);
+        expect(content?.title).toBe(expectedTitle);
+        // A localized blurb is present, too.
+        expect((content as { blurb?: string } | null)?.blurb).toBeTruthy();
+      }
+    }
   });
 
   it("returns null for unknown slugs", async () => {

@@ -47,6 +47,11 @@ title; the body is rendered as Markdown.
 - Interface strings (buttons, headings outside page bodies) live in the
   dictionaries under `config/i18n/<locale>.json` (see §4).
 
+All content bodies (pages, offerings, legal) are localized the same way: a
+locale-specific file at `content/<type>/<locale>/<slug>.md` is served when
+present; otherwise the repository falls back to the default-locale body. The
+shipped template localizes every page and the demo content to all 8 locales.
+
 ### Offerings catalog (`content/offerings/`)
 
 Offerings (services, products, packages, programs, consultations — one
