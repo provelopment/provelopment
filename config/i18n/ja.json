@@ -25,6 +25,12 @@
     "message": "お探しのページは存在しません。",
     "returnHome": "ホームに戻る"
   },
+  "error": {
+    "title": "問題が発生しました",
+    "message": "申し訳ございません。もう一度お試しください。",
+    "tryAgain": "もう一度試す",
+    "returnHome": "ホームに戻る"
+  },
   "language": {
     "label": "言語"
   },

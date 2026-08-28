@@ -25,6 +25,12 @@
     "message": "Halaman yang Anda cari tidak ada.",
     "returnHome": "Kembali ke beranda"
   },
+  "error": {
+    "title": "Terjadi kesalahan",
+    "message": "Maaf atas kendala ini. Silakan coba lagi.",
+    "tryAgain": "Coba lagi",
+    "returnHome": "Kembali ke beranda"
+  },
   "language": {
     "label": "Bahasa"
   },

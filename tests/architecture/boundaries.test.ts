@@ -67,3 +67,56 @@ describe("architectural boundaries", () => {
     ]);
   });
 });
+
+const APP_DIRECTORY = path.join(process.cwd(), "src", "app");
+
+function readAppFile(relativePath: string): string {
+  return readFileSync(path.join(APP_DIRECTORY, relativePath), "utf8");
+}
+
+describe("error UX boundaries (Phase E)", () => {
+  it("error.tsx and global-error.tsx are Client Components as App Router requires", () => {
+    for (const file of [
+      path.join("[locale]", "error.tsx"),
+      path.join("[locale]", "global-error.tsx"),
+    ]) {
+      const source = readAppFile(file);
+      expect(source).toContain('"use client"');
+    }
+  });
+
+  it("error boundaries never surface debugging information to users", () => {
+    // Hard acceptance: error UI must never render error.message, stacks,
+    // internal paths, environment details, or console output.
+    const forbidden = [
+      "error.message",
+      ".stack",
+      "process.env",
+      "console.",
+      "window.location",
+    ];
+    for (const file of [
+      path.join("[locale]", "error.tsx"),
+      path.join("[locale]", "global-error.tsx"),
+    ]) {
+      const source = readAppFile(file);
+      for (const leak of forbidden) {
+        expect(source.includes(leak), `${file} must not expose "${leak}"`).toBe(false);
+      }
+    }
+  });
+
+  it("known missing routes stay on the 404 (not-found) path, not a generic error", () => {
+    // The catch-all must call next/navigation notFound() so an unknown
+    // in-locale route renders the localized 404 rather than throwing.
+    const catchAll = readAppFile(path.join("[locale]", "[...rest]", "page.tsx"));
+    expect(catchAll).toMatch(/from\s+["']next\/navigation["']/);
+    expect(catchAll).toMatch(/\bnotFound\(\)\s*;/);
+
+    // not-found preserves locale via the root-params contract rather than
+    // hard-coding or falling back to an error page.
+    const notFound = readAppFile(path.join("[locale]", "not-found.tsx"));
+    expect(notFound).toMatch(/from\s+["']next\/root-params["']/);
+    expect(notFound).toContain("locale()");
+  });
+});

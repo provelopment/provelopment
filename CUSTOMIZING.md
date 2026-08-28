@@ -152,6 +152,9 @@ change:
      (`"/"`, `"/about"`, …). Missing keys fall back to the label configured
      in `site.config.json`, so pages you don't localize still work.
    - `language.label` — accessible label for the header language selector
+   - `error` — copy for the error-recovery page (`title`, `message`,
+     `tryAgain`, `returnHome`). Localized the same way the 404 copy is; the
+     error page automatically follows the active locale.
    - `business` / `a11y` — business-hours and accessibility strings
 3. Dictionaries are discovered automatically from the `config/i18n/`
    directory at build time and validated against the **Zod** `dictionarySchema`.

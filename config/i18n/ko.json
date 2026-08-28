@@ -25,6 +25,12 @@
     "message": "찾으시는 페이지가 존재하지 않습니다.",
     "returnHome": "홈으로 돌아가기"
   },
+  "error": {
+    "title": "문제가 발생했습니다",
+    "message": "죄송합니다. 다시 시도해 주세요.",
+    "tryAgain": "다시 시도",
+    "returnHome": "홈으로 돌아가기"
+  },
   "language": {
     "label": "언어"
   },
