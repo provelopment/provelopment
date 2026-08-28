@@ -100,6 +100,25 @@ Optional legal pages (privacy policy, terms, etc.) are reached from the footer.
 3. **Localize the footer labels** in `config/i18n/<locale>.json` under
    `legal.labels["<slug>"]` (falls back to the config `label`).
 
+### Legal document bodies vs. footer labels
+
+Legal **bodies** are localized independently of the footer **labels**:
+
+- **Footer labels** come from `dictionary.legal.labels["<slug>"]`
+  (`config/i18n/<locale>.json`), falling back to the `label` in `site.config.json`.
+  They only affect the text of the footer links.
+- **Document bodies** come from the content files. A locale-specific body at
+  `content/legal/<locale>/<slug>.md` is served when present; otherwise the
+  repository falls back to the default-locale body (`content/legal/en/<slug>.md`)
+  automatically — exactly the same fallback used everywhere else. So an adopter
+  who has translated the footer but not a document's body still gets a working
+  page until they add the translation.
+- The shipped demo docs include translated bodies for all 8 locales, all
+  preserving the same generic, **replaceable-template / not legal advice**
+  nature as the English originals. There is no separate translation system and
+  no per-locale schema — just the standard content files and the standard
+  repository fallback.
+
 The demo `privacy.md`, `terms.md`, and `cookies.md` shipped with the template
 are clearly marked **placeholders — not legal advice**. Replace them before
 going live.
