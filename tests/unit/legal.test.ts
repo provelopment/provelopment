@@ -78,9 +78,31 @@ describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
   });
 
   it("falls back to the default locale when a translation is missing", async () => {
-    const content = await repository.findBySlug("privacy", "fr");
+    // A locale with no localization (e.g. an adopter locale not yet
+    // translated) still resolves via the repository's locale → default
+    // fallback; the canonical (English) content is served.
+    const content = await repository.findBySlug("privacy", "pt");
     expect(content?.locale).toBe("en");
     expect(content?.title).toBe("Privacy Policy");
+    expect(content?.body).toMatch(/template placeholder/i);
+  });
+
+  it("serves the localized legal body when the locale file exists", async () => {
+    for (const locale of ["es", "fr", "de", "ja", "zh", "ko", "id"]) {
+      for (const slug of ["privacy", "terms", "cookies"]) {
+        const content = await repository.findBySlug(slug, locale);
+        expect(content).not.toBeNull();
+        // The locale-specific file wins over the English fallback.
+        expect(content?.locale).toBe(locale);
+        // Localized title (not the English one) is served.
+        expect(content?.title).not.toBe(
+          { privacy: "Privacy Policy", terms: "Terms of Service", cookies: "Cookie Policy" }[slug],
+        );
+        // Every localized body preserves the template's generic, replaceable
+        // nature and the "not legal advice" notice.
+        expect(content?.body).toMatch(/not legal advice|no es asesoramiento|conseil juridique|Rechtsberatung|法的助言|法律建议|법적 조언|nasihat hukum/i);
+      }
+    }
   });
 
   it("returns null for unknown slugs", async () => {
