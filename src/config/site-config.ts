@@ -1,5 +1,6 @@
 import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
+import type { LegalConfigEntry } from "@/core/legal";
 
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
@@ -49,4 +50,6 @@ export interface SiteConfig {
   readonly contactFeature?: ContactFeatureConfig;
   /** Offerings catalog enabled (`features.offerings === true`). */
   readonly offeringsFeature?: boolean;
+  /** Optional legal documents (config ∧ canonical-content exposure). */
+  readonly legal?: readonly LegalConfigEntry[];
 }

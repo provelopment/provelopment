@@ -3,6 +3,7 @@ import type { MetadataRoute } from "next";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
+import { resolveLegalDocs } from "@/core/legal";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pagesRepository = createFileSystemPageContentRepository({
@@ -12,21 +13,29 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     defaultLocale: siteConfig.defaultLocale,
     collection: "offerings",
   });
+  const legalRepository = createFileSystemPageContentRepository({
+    defaultLocale: siteConfig.defaultLocale,
+    collection: "legal",
+  });
 
-  // Route ownership: the sitemap derives routes from the CONTENT MODEL (page
-  // and offering slugs that exist per the content repository) plus feature
-  // enablement — never from navigation config. A navigation entry points only
-  // at a route; a route belongs in the sitemap only when its content resolves
-  // and the feature exposing it is enabled.
+  // Route ownership: the sitemap derives routes from the CONTENT MODEL (page,
+  // offering, and legal slugs that exist per the content repository) plus
+  // feature/config enablement — never from navigation config. Legal routes are
+  // the intersection of the configured `legal[]` block and canonical content.
   const pages = await pagesRepository.listSlugs(siteConfig.defaultLocale);
   const canonicalOfferings = siteConfig.offeringsFeature
     ? await offeringsRepository.listSlugs(siteConfig.defaultLocale)
     : [];
+  const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
+  const legalSlugs = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs).map(
+    (doc) => doc.slug,
+  );
 
   const routes = buildSitemapRoutes({
     offeringsEnabled: siteConfig.offeringsFeature === true,
     pages,
     canonicalOfferings,
+    legalSlugs,
   });
 
   const lastModified = new Date();
