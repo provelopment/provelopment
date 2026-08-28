@@ -62,5 +62,14 @@
     "heading": "Offerings",
     "emptyState": "We will share our offerings here soon.",
     "backToOfferings": "Back to offerings"
+  },
+  "legal": {
+    "heading": "Legal",
+    "disclaimer": "These documents are template placeholders for demonstration only and are not legal advice. Consult a qualified professional for your jurisdiction.",
+    "labels": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "cookies": "Cookie Policy"
+    }
   }
 }

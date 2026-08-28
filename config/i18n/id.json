@@ -62,5 +62,14 @@
     "heading": "Layanan & produk",
     "emptyState": "Kami akan menampilkan layanan kami di sini segera.",
     "backToOfferings": "Kembali ke layanan"
+  },
+  "legal": {
+    "heading": "Legal",
+    "disclaimer": "Dokumen ini adalah templat untuk demonstrasi dan bukan nasihat hukum. Konsultasikan dengan profesional yang berkualifikasi untuk yurisdiksi Anda.",
+    "labels": {
+      "privacy": "Kebijakan Privasi",
+      "terms": "Ketentuan Layanan",
+      "cookies": "Kebijakan Cookie"
+    }
   }
 }
