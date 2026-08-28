@@ -5,7 +5,7 @@ import { createFileSystemPageContentRepository } from "@/adapters/content/fs-pag
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
-import { isCanonicalLegalSlug } from "@/core/legal";
+import { isCanonicalLegalSlug, resolveLegalDocs } from "@/core/legal";
 import { buildLanguageAlternates } from "@/core/locale";
 
 const legalRepository = createFileSystemPageContentRepository({
@@ -18,6 +18,26 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 interface LegalPageProps {
   readonly params: Promise<{ readonly locale: string; readonly slug: string }>;
 }
+
+/**
+ * Statically generates every exposed legal detail page (each locale × slug
+ * present in both the `legal` config block and default-locale content). Any
+ * other slug returns a 404 via `dynamicParams`.
+ */
+export async function generateStaticParams(): Promise<
+  { locale: string; slug: string }[]
+> {
+  const canonicalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
+  const legalSlugs = resolveLegalDocs(siteConfig.legal, canonicalSlugs).map(
+    (doc) => doc.slug,
+  );
+  return localeCodes.flatMap((locale) =>
+    legalSlugs.map((slug) => ({ locale, slug })),
+  );
+}
+
+/** Unknown slugs render the 404 instead of being rendered on demand. */
+export const dynamicParams = false;
 
 /** The configured entry for a legal slug, or null when not configured. */
 function configuredEntry(slug: string) {

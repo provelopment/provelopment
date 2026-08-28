@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { siteConfig } from "@/config";
+
+const defaultLocale = siteConfig.defaultLocale;
 
 const repository = createFileSystemPageContentRepository({
-  defaultLocale: "en",
+  defaultLocale,
 });
+
+/** A locale code guaranteed not to be configured (exercises documented fallback). */
+const unconfiguredLocale = "zz";
 
 /** Expected contact page titles per locale (French legitimately equals English). */
 const contactTitles: Record<string, string> = {
@@ -22,16 +28,20 @@ describe("contact page localization", () => {
     for (const [locale, expectedTitle] of Object.entries(contactTitles)) {
       const content = await repository.findBySlug("contact", locale);
       expect(content).not.toBeNull();
-      // The locale-specific file wins over the English fallback.
+      // The locale-specific file wins over the default fallback.
       expect(content?.locale).toBe(locale);
       expect(content?.title).toBe(expectedTitle);
     }
   });
 
   it("falls back to the default-locale contact page when no translation exists", async () => {
-    const content = await repository.findBySlug("contact", "pt");
-    expect(content?.locale).toBe("en");
-    expect(content?.title).toBe("Contact");
+    const defaultContent = await repository.findBySlug(
+      "contact",
+      defaultLocale,
+    );
+    const content = await repository.findBySlug("contact", unconfiguredLocale);
+    expect(content?.locale).toBe(defaultLocale);
+    expect(content?.title).toBe(defaultContent?.title);
   });
 
   it("still serves fully-localized pages (about, resources) per locale", async () => {

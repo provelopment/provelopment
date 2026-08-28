@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -9,7 +10,7 @@ import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { sortOfferings } from "@/core/offerings";
 
-const offeringsRepository = createFileSystemPageContentRepository({
+const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
   collection: "offerings",
 });
@@ -72,8 +73,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
   for (const slug of canonicalSlugs) {
     const content = await offeringsRepository.findBySlug(slug, locale);
     if (content) {
-      // `content` is PageContent; the offerings parser adds the offering fields.
-      items.push(content as OfferingsContent);
+      items.push(content);
     }
   }
 
@@ -88,7 +88,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
       <ul className="mt-8 grid gap-6 sm:grid-cols-2">
         {sorted.map((offering) => (
           <li key={offering.slug}>
-            <a
+            <Link
               href={`/${locale}/offerings/${offering.slug}`}
               className="block rounded-lg border border-border bg-accent p-6 transition-colors hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
             >
@@ -108,7 +108,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
               {offering.price ? (
                 <p className="mt-3 text-sm font-medium text-foreground">{offering.price}</p>
               ) : null}
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
