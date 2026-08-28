@@ -15,7 +15,8 @@
     "items": {
       "/": "Home",
       "/about": "About",
-      "/resources": "Resources"
+      "/resources": "Resources",
+      "/contact": "Contact"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "Skip to content"
+  },
+  "contact": {
+    "heading": "Contact us",
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "subjectLabel": "Subject",
+    "messageLabel": "Message",
+    "submit": "Send inquiry",
+    "sending": "Sending\u2026",
+    "honeypotLabel": "Website",
+    "success": "Your inquiry was submitted successfully.",
+    "demoNotice": "Demo mode: nothing was sent. Connect a webhook to receive inquiries.",
+    "unconfigured": "The contact form is not configured on this site yet.",
+    "configError": "The contact form is not configured correctly. Please contact the site owner directly.",
+    "sendError": "Your inquiry could not be submitted. Please try again.",
+    "errors": {
+      "name": "Please enter your name.",
+      "email": "Please enter a valid email address.",
+      "subject": "Please shorten the subject.",
+      "message": "Please enter a message (up to 5000 characters)."
+    }
   }
 }

@@ -315,6 +315,41 @@ from `config/i18n/` at load time).
   `LocalBusiness`) includes an `openingHoursSpecification` built from the
   configured intervals.
 
+## Contact inquiry (Phase B)
+
+The inquiry capability is a frontend + integration seam: `/contact` renders a
+config-driven, localized form; submissions flow through a server action into a
+framework-free application port; the adopter owns the receiving system.
+
+- **Layering:** browser → `src/app/[locale]/contact/page.tsx` +
+  `src/app/contact-actions.ts` (thin Next.js boundary) →
+  `src/application/contact-inquiry-service.ts` (orchestration: honeypot →
+  Zod validation → sender) → port `src/application/contact-inquiry-sender.ts`
+  (`ContactInquirySender`) → adapters in `src/adapters/contact-inquiry/`
+  (`webhook`, `stub`). Core `src/core/contact-inquiry.ts` owns the shared
+  schema and types (framework-free; validated server-side and mirrored by the
+  client).
+- **Providers:** `features.contact: { provider: "webhook" | "stub" }`.
+  No feature → explicit "not configured" page state. `stub` is the default and
+  returns an explicit "nothing was sent" demo result; the webhook is the only
+  production-capable path and there is **no mailto adapter**.
+- **Misconfiguration:** a webhook provider without `CONTACT_WEBHOOK_URL`
+  throws `ContactInquiryMisconfigurationError` at the server action (the
+  earliest runtime boundary — no build-time secrets required) and surfaces as a
+  distinct "misconfigured" state; it can never silently act as the demo stub.
+  Non-loopback webhook endpoints must be HTTPS.
+- **External contract (minimal):** POST
+  `{ id, name, email, subject?, message, locale, submittedAt }`; a UUID `id`
+  gives adopters a correlation/idempotency key without any Foundation storage.
+  No visitor telemetry is collected.
+- **Security model:** server actions are POST-only endpoints with an implicit
+  per-build Action ID; Next.js enforces a same-origin check (Origin is compared
+  against Host/configured origins; mismatch → HTTP 403), which is Next.js's
+  CSRF mitigation. The honeypot (`website` field, discarded before validation)
+  adds bot defense. Request/response payload limits are enforced by the shared
+  Zod schema; no inquiry contents are ever logged; rate limiting is the
+  adopter's responsibility.
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI

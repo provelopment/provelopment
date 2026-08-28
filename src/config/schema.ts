@@ -159,6 +159,23 @@ export const featuresConfigSchema = z.object({
       }),
     })
     .optional(),
+  /**
+   * Contact inquiry capability. `stub` is the explicit demo default; `webhook`
+   * requires the CONTACT_WEBHOOK_URL environment variable at runtime (never
+   * stored in this file — secrets are environment-backed).
+   */
+  contact: z
+    .object({
+      provider: z.enum(["webhook", "stub"], {
+        message: "supported providers: webhook, stub",
+      }),
+      fields: z
+        .object({
+          subject: z.boolean().optional(),
+        })
+        .optional(),
+    })
+    .optional(),
 });
 
 export const siteConfigFileSchema = z.object({

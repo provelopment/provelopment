@@ -15,7 +15,8 @@
     "items": {
       "/": "Beranda",
       "/about": "Tentang",
-      "/resources": "Sumber daya"
+      "/resources": "Sumber daya",
+      "/contact": "Kontak"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "Langsung ke konten"
+  },
+  "contact": {
+    "heading": "Hubungi kami",
+    "nameLabel": "Nama",
+    "emailLabel": "Email",
+    "subjectLabel": "Subjek",
+    "messageLabel": "Pesan",
+    "submit": "Kirim pertanyaan",
+    "sending": "Mengirim…",
+    "honeypotLabel": "Situs web",
+    "success": "Pertanyaan Anda berhasil dikirim.",
+    "demoNotice": "Mode demo: tidak ada yang terkirim. Hubungkan webhook untuk menerima pertanyaan.",
+    "unconfigured": "Formulir kontak belum dikonfigurasi di situs ini.",
+    "configError": "Formulir kontak tidak dikonfigurasi dengan benar. Silakan hubungi pemilik situs secara langsung.",
+    "sendError": "Pertanyaan Anda tidak dapat dikirim. Silakan coba lagi.",
+    "errors": {
+      "name": "Silakan masukkan nama Anda.",
+      "email": "Silakan masukkan alamat email yang valid.",
+      "subject": "Silakan perpendek subjek.",
+      "message": "Silakan masukkan pesan (maksimal 5000 karakter)."
+    }
   }
 }

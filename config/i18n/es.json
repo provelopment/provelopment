@@ -15,7 +15,8 @@
     "items": {
       "/": "Inicio",
       "/about": "Acerca de",
-      "/resources": "Recursos"
+      "/resources": "Recursos",
+      "/contact": "Contacto"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "Saltar al contenido"
+  },
+  "contact": {
+    "heading": "Cont\u00e1ctanos",
+    "nameLabel": "Nombre",
+    "emailLabel": "Correo electr\u00f3nico",
+    "subjectLabel": "Asunto",
+    "messageLabel": "Mensaje",
+    "submit": "Enviar consulta",
+    "sending": "Enviando\u2026",
+    "honeypotLabel": "Sitio web",
+    "success": "Su consulta se envi\u00f3 correctamente.",
+    "demoNotice": "Modo demostraci\u00f3n: no se envi\u00f3 nada. Conecte un webhook para recibir consultas.",
+    "unconfigured": "El formulario de contacto a\u00fan no est\u00e1 configurado en este sitio.",
+    "configError": "El formulario de contacto no est\u00e1 configurado correctamente. Por favor, contacte directamente con el propietario del sitio.",
+    "sendError": "No se pudo enviar su consulta. Int\u00e9ntelo de nuevo.",
+    "errors": {
+      "name": "Por favor, introduzca su nombre.",
+      "email": "Por favor, introduzca un correo electr\u00f3nico v\u00e1lido.",
+      "subject": "Por favor, acorte el asunto.",
+      "message": "Por favor, escriba un mensaje (m\u00e1ximo 5000 caracteres)."
+    }
   }
 }

@@ -15,7 +15,8 @@
     "items": {
       "/": "Startseite",
       "/about": "Über uns",
-      "/resources": "Ressourcen"
+      "/resources": "Ressourcen",
+      "/contact": "Kontakt"
     }
   },
   "notFound": {
@@ -34,5 +35,26 @@
   },
   "a11y": {
     "skipToContent": "Zum Inhalt springen"
+  },
+  "contact": {
+    "heading": "Kontaktieren Sie uns",
+    "nameLabel": "Name",
+    "emailLabel": "E-Mail",
+    "subjectLabel": "Betreff",
+    "messageLabel": "Nachricht",
+    "submit": "Anfrage senden",
+    "sending": "Wird gesendet\u2026",
+    "honeypotLabel": "Website",
+    "success": "Ihre Anfrage wurde erfolgreich \u00fcbermittelt.",
+    "demoNotice": "Demomodus: Es wurde nichts gesendet. Verbinden Sie einen Webhook, um Anfragen zu empfangen.",
+    "unconfigured": "Das Kontaktformular ist auf dieser Website noch nicht konfiguriert.",
+    "configError": "Das Kontaktformular ist nicht korrekt konfiguriert. Bitte kontaktieren Sie den Website-Betreiber direkt.",
+    "sendError": "Ihre Anfrage konnte nicht \u00fcbermittelt werden. Bitte versuchen Sie es erneut.",
+    "errors": {
+      "name": "Bitte geben Sie Ihren Namen ein.",
+      "email": "Bitte geben Sie eine g\u00fcltige E-Mail-Adresse ein.",
+      "subject": "Bitte k\u00fcrzen Sie den Betreff.",
+      "message": "Bitte geben Sie eine Nachricht ein (max. 5000 Zeichen)."
+    }
   }
 }
