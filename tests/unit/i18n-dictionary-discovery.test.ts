@@ -37,6 +37,11 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
       sendError: "c",
       errors: { name: "c", email: "c", subject: "c", message: "c" },
     },
+    offerings: {
+      heading: "c",
+      emptyState: "c",
+      backToOfferings: "c",
+    },
     ...overrides,
   };
 }

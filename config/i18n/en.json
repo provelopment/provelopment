@@ -16,7 +16,8 @@
       "/": "Home",
       "/about": "About",
       "/resources": "Resources",
-      "/contact": "Contact"
+      "/contact": "Contact",
+      "/offerings": "Offerings"
     }
   },
   "notFound": {
@@ -56,5 +57,10 @@
       "subject": "Please shorten the subject.",
       "message": "Please enter a message (up to 5000 characters)."
     }
+  },
+  "offerings": {
+    "heading": "Offerings",
+    "emptyState": "We will share our offerings here soon.",
+    "backToOfferings": "Back to offerings"
   }
 }

@@ -72,6 +72,12 @@ export const dictionarySchema = z.object({
       message: z.string(),
     }),
   }),
+  /** Offerings catalog strings (Phase C). */
+  offerings: z.object({
+    heading: z.string(),
+    emptyState: z.string(),
+    backToOfferings: z.string(),
+  }),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

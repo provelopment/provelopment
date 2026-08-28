@@ -47,4 +47,6 @@ export interface SiteConfig {
   readonly analytics?: AnalyticsConfig;
   /** Contact inquiry provider configuration (`features.contact`). */
   readonly contactFeature?: ContactFeatureConfig;
+  /** Offerings catalog enabled (`features.offerings === true`). */
+  readonly offeringsFeature?: boolean;
 }

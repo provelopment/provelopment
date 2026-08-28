@@ -47,6 +47,39 @@ title; the body is rendered as Markdown.
 - Interface strings (buttons, headings outside page bodies) live in the
   dictionaries under `config/i18n/<locale>.json` (see §4).
 
+### Offerings catalog (`content/offerings/`)
+
+Offerings (services, products, packages, programs, consultations — one
+type-agnostic model) live at `content/offerings/<locale>/<slug>.md`:
+
+```markdown
+---
+title: "Web design"            # required
+blurb: "A short one-liner."    # required
+order: 1                       # optional, listing sort
+featured: true                 # optional, listed first
+price: "From $180"             # optional display-only text (no currency math)
+image: "/images/offerings/x.jpg"  # optional, file under public/
+---
+Long-form detail body.
+```
+
+Three independent controls:
+
+1. **Content** decides which offerings exist — the canonical set is the
+   default-locale slugs. A slug that exists only in a non-default locale is not
+   listed and its URL returns a 404 (no ambiguous English fallback).
+2. **`features.offerings`** decides whether the catalog is exposed: `true`
+   enables `/offerings` (+ each detail page, and sitemap coverage); `false` or
+   missing disables it entirely — the routes return a 404.
+3. **`navigation[]`** decides whether the catalog is linked, e.g.
+   `{ "label": "Offerings", "href": "/offerings" }` (plus the localized label
+   in `config/i18n/<locale>.json` under `navigation.items["/offerings"]`).
+   Navigation is never generated from content automatically.
+
+With the feature on and no offerings yet, the page shows a friendly empty
+state. Images for the catalog go in `public/` (e.g. `public/images/offerings/`).
+
 ## 3. Branding Assets
 
 - Favicon / app icon: replace `src/app/icon.svg`.
