@@ -46,6 +46,10 @@ export const dictionarySchema = z.object({
     noHours: z.string(),
     hoursLabel: z.string(),
   }),
+  /** Generic accessibility UI strings. */
+  a11y: z.object({
+    skipToContent: z.string(),
+  }),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

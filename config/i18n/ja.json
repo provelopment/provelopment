@@ -31,5 +31,8 @@
     "closed": "閉店",
     "noHours": "営業時間はありません",
     "hoursLabel": "営業時間"
+  },
+  "a11y": {
+    "skipToContent": "コンテンツへスキップ"
   }
 }

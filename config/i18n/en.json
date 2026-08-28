@@ -31,5 +31,8 @@
     "closed": "Closed",
     "noHours": "Hours not available",
     "hoursLabel": "Business hours"
+  },
+  "a11y": {
+    "skipToContent": "Skip to content"
   }
 }

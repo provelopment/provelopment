@@ -10,7 +10,8 @@ import ko from "../../config/i18n/ko.json";
 import zh from "../../config/i18n/zh.json";
 
 import { dictionarySchema } from "@/config/i18n/dictionary";
-import { getDictionary, siteConfig } from "@/config";
+import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
 import type { Locale } from "@/core/locale";
 
 const allDictionaries = { de, en, es, fr, id, ja, ko, zh } as const;
@@ -43,10 +44,16 @@ describe("i18n dictionaries (JSON)", () => {
     );
   });
 
-  it("every dictionary exposes the full navigation item set", () => {
+  it("dictionary navigation matches the configured navigation contract", () => {
+    const configuredKeys = siteConfig.navigation.map((item) => item.href).sort();
+
     for (const [code, dict] of Object.entries(allDictionaries)) {
       const items = dict.navigation.items;
-      expect(Object.keys(items).sort(), `locale ${code}`).toEqual(["/", "/about", "/resources"]);
+      // site.config.json is the single source of truth: every configured nav
+      // href must be translated (a missing key would render the fallback
+      // label), and no orphaned keys may linger. This does not hard-code the
+      // current navigation set.
+      expect(Object.keys(items).sort(), `locale ${code}`).toEqual(configuredKeys);
     }
   });
 });

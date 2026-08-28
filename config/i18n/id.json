@@ -31,5 +31,8 @@
     "closed": "Tutup",
     "noHours": "Jam operasional tidak tersedia",
     "hoursLabel": "Jam operasional"
+  },
+  "a11y": {
+    "skipToContent": "Langsung ke konten"
   }
 }

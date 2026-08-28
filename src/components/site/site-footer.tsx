@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { getDictionary, siteConfig } from "@/config";
+import { siteConfig } from "@/config";
+import { getDictionary } from "@/config/i18n";
 import { BusinessInfo } from "./business-info";
 
 interface SiteFooterProps {

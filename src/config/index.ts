@@ -9,5 +9,4 @@ export type {
   SocialLink,
 } from "./site-config";
 
-export { getDictionary } from "./i18n";
 export type { Dictionary } from "./i18n/dictionary";

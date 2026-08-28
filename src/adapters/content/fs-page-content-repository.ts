@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 import type { PageContentRepository } from "@/application/page-content-repository";
@@ -92,6 +92,24 @@ export function createFileSystemPageContentRepository(
       }
 
       return null;
+    },
+
+    async listSlugs(locale: Locale): Promise<string[]> {
+      if (!isWellFormedLocale(locale)) return [];
+
+      let entries: string[];
+      try {
+        entries = await readdir(path.join(contentDirectory, locale));
+      } catch {
+        // No content directory for this locale yet.
+        return [];
+      }
+
+      return entries
+        .filter((file) => file.endsWith(".md"))
+        .map((file) => file.slice(0, -3))
+        .filter((slug) => validSlugPattern.test(slug))
+        .sort();
     },
   };
 }
