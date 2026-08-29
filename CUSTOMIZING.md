@@ -281,6 +281,90 @@ Key points:
 > template author or Provelopment operates from those locations. Replace all of
 > it with your real business data before go-live.
 
+### Customer-facing contact per locale (`business.contact.locales`)
+
+The footer's **customer-facing** contact channels (email + phone) can be
+configured independently for each locale. Configure them once on the business
+contact block; a visitor to a locale sees that locale's values instead of a
+silently global number:
+
+```jsonc
+"business": {
+  "contact": {
+    "email": "hello@example.com",  // global fallback
+    "locales": {
+      "de": { "phone": "+49 30 0000 0000", "email": "hallo@example.de" },
+      "fr": { "phone": "+33 1 0000 0000" } // partial: email inherits global
+    }
+  }
+}
+```
+
+- **`locales` is optional.** No `locales` (or no entry for a locale) falls back
+  to the global contact values — a globally-fixed business is a valid state.
+- **A locale is a customer context, not a country.** The Foundation never infers
+  a phone number from a locale; you supply exactly the per-market values you want.
+- **Precedence:** locale override → global business contact. Locale-specific
+  email and phone are independent (per-field fallback).
+- The location-level `locations[].phone` capability remains supported — use it
+  for a specific branch's number. **Customer-facing contact display** (the
+  footer top block + JSON-LD) reads `business.contact` (locale-resolved). If you
+  want a per-market number shown to visitors, configure
+  `business.contact.locales`.
+
+### Native/local + optional Latin/international address
+
+A location can carry **two structured representations** of the same place:
+
+- `address` — the native/local form (what a local customer reads).
+- `addressInternational` — an optional Latin/international form for global /
+  cross-border consumers (**owner-supplied**; the Foundation never transliterates).
+- `addressMode` — `"local"` (default) or `"local-international"`.
+
+```jsonc
+"locations": [{
+  "id": "main",
+  "address": { "street": "東京都港区芝公園4丁目2-8", "city": "東京都港区", "country": "日本" },
+  "addressInternational": { "street": "4-2-8 Shibakoen, Minato City", "city": "Tokyo", "country": "Japan" },
+  "addressMode": "local-international"
+}]
+```
+
+- **`"local"`** (the default, or omitted) shows only the native/local address.
+  This is right for a business serving primarily local customers, or any
+  Latin-script locale where there is no meaningful second representation — no
+  artificial duplication is needed.
+- **`"local-international"`** shows the native/local address **followed by** the
+  Latin/international address. **It requires `addressInternational`** — requesting
+  this mode without one is a **configuration error** (fail-fast at build time,
+  naming the offending location/locale), because silently dropping the Latin form
+  would hide a mistake. Local-only businesses simply omit `addressInternational`
+  and use the default `local` mode.
+- Both representations are **owner-supplied business data**. No transliteration,
+  translation or geocoding service is invoked.
+- **Precedence / inheritance** mirrors Phase G: a locale override can supply its
+  own `address`, `addressInternational` and/or `addressMode`; each is inherited
+  per-field / per-value from the location base when not overridden. Absent mode
+  defaults to `local`.
+- **What each consumer uses (all from the same resolved location):**
+  - **Visible footer** follows `addressMode` (native only, or native + Latin).
+  - **JSON-LD (structured data)** uses `addressInternational` when supplied,
+    otherwise `address` — for global machine readability.
+  - **Directions/maps** use geo coordinates when present; otherwise the address
+    query prefers `addressInternational`, else `address`.
+- The Foundation ships `ja`/`ko`/`zh` demo locales in **local-international** mode
+  and the Latin-script locales (`id`/`en`/`de`/`fr`/`es`) in **local** mode —
+  **demonstration landmarks only**, replace with your real data.
+
+### Booking label requirement (when `features.booking` is enabled)
+
+If you enable booking (`features.booking.provider = "external-url"`), **every
+configured locale** must provide a localized `booking.book` label in
+`config/i18n/<locale>.json`. A missing label is a build/configuration error
+naming the offending locale(s) — an enabled booking CTA must never silently
+disappear just because one locale lacks its button text. Disabling booking (or
+omitting it) requires no label.
+
 ### Maps directions (`features.maps`)
 
 The footer turns each business-location address into a "Get directions" link via

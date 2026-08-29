@@ -11,6 +11,8 @@ const localeNamePattern = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
 export interface DictionaryRegistry {
   /** Returns the dictionary for a locale, falling back to the default locale. */
   get(locale: Locale): Dictionary;
+  /** Returns every loaded dictionary keyed by locale code (no fallback applied). */
+  all(): ReadonlyMap<string, Dictionary>;
 }
 
 export interface LoadDictionaryRegistryOptions {
@@ -109,6 +111,9 @@ export function loadDictionaryRegistry(options: LoadDictionaryRegistryOptions): 
   return {
     get(locale: Locale): Dictionary {
       return byLocale.get(locale) ?? byLocale.get(options.defaultLocale)!;
+    },
+    all(): ReadonlyMap<string, Dictionary> {
+      return new Map(byLocale);
     },
   };
 }
