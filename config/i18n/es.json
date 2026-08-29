@@ -1,7 +1,7 @@
 {
   "home": {
-    "tagline": "Un sitio web rápido y multilingüe para tu pequeña empresa",
-    "description": "Sustituye esta descripción por la tuya. My Site es una demostración de la plantilla Provelopment Foundation: edita site.config.json, el contenido Markdown y tus recursos para hacerla tuya."
+    "tagline": "Un sitio web rápido y multilingüe para su pequeña empresa",
+    "description": "Sustituya esta descripción por la suya. My Site es una demostración de la plantilla Provelopment Foundation: edite site.config.json, el contenido Markdown y sus recursos para hacerla suya."
   },
   "sections": {
     "about": "Acerca de",
@@ -22,12 +22,12 @@
   },
   "notFound": {
     "title": "Página no encontrada",
-    "message": "La página que buscas no existe.",
+    "message": "La página que busca no existe.",
     "returnHome": "Volver al inicio"
   },
   "error": {
     "title": "Algo salió mal",
-    "message": "Lo sentimos. Por favor, inténtalo de nuevo.",
+    "message": "Lo sentimos. Por favor, inténtelo de nuevo.",
     "tryAgain": "Reintentar",
     "returnHome": "Volver al inicio"
   },
@@ -44,7 +44,7 @@
     "skipToContent": "Saltar al contenido"
   },
   "contact": {
-    "heading": "Cont\u00e1ctanos",
+    "heading": "Cont\u00e1ctenos",
     "nameLabel": "Nombre",
     "emailLabel": "Correo electr\u00f3nico",
     "subjectLabel": "Asunto",
