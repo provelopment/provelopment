@@ -102,6 +102,102 @@ describe("parseSiteConfig", () => {
     expect(config.business.name).toBe("Example");
   });
 
+  it("maps optional per-locale location overrides through the loader", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta", country: "Indonesia" },
+            phone: "+62 21 0000 0000",
+            geo: { lat: -6.2, lng: 106.816 },
+            locales: {
+              de: {
+                address: { city: "Berlin" },
+                phone: "+49 30 0000 0000",
+                geo: { lat: 52.52, lng: 13.405 },
+              },
+            },
+          },
+        ],
+      },
+    });
+
+    const location = config.business.locations[0];
+    expect(location.locales).toEqual({
+      de: {
+        address: { city: "Berlin" },
+        phone: "+49 30 0000 0000",
+        geo: { lat: 52.52, lng: 13.405 },
+      },
+    });
+  });
+
+  it("accepts a location without locales (back-compat: field stays undefined)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        locations: [
+          { id: "main", address: { street: "1 Main St", city: "Jakarta" } },
+        ],
+      },
+    });
+
+    expect(config.business.locations[0].locales).toBeUndefined();
+  });
+
+  it("rejects a non-locale-code key in business.locations[].locales", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            locales: { "not a locale": { address: { city: "Berlin" } } },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/locale|must be a BCP 47-style locale code/);
+  });
+
+  it("rejects an invalid override shape (bad geo latitude)", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            locales: { de: { geo: { lat: 999, lng: 13 } } },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow();
+  });
+
+  it("rejects an empty override address field value", () => {
+    const invalid = {
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "1 Main St", city: "Jakarta" },
+            locales: { de: { address: { city: "" } } },
+          },
+        ],
+      },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow();
+  });
+
   it("rejects invalid business hours (open === close)", () => {
     const invalid = {
       ...validConfig,

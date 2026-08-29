@@ -1,6 +1,7 @@
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import type { BusinessLocation, ExceptionalHours, Weekday } from "@/core/business";
+import { resolveLocationForLocale } from "@/core/business";
 import { resolveTimezone } from "@/core/business-hours";
 import { CurrentStatus } from "./current-status";
 
@@ -173,7 +174,11 @@ export function BusinessInfo({ locale }: BusinessInfoProps) {
       ) : null}
 
       {business.locations.map((location) => (
-        <LocationBlock key={location.id} location={location} locale={locale} />
+        <LocationBlock
+          key={location.id}
+          location={resolveLocationForLocale(location, locale)}
+          locale={locale}
+        />
       ))}
     </div>
   );
