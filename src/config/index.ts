@@ -2,8 +2,10 @@ export { parseSiteConfig, siteConfig } from "./loader";
 export type { SiteConfigFile } from "./loader";
 export type {
   AnalyticsConfig,
+  BookingConfig,
   ContactConfig,
   LocaleConfig,
+  MapsConfig,
   NavigationItem,
   SiteConfig,
   SocialLink,

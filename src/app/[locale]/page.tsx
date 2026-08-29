@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
 
+import { createBookingActionResolver } from "@/adapters/booking";
+import { BookingAction } from "@/components/site/booking-action";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+// Composition boundary: the factory selects the booking adapter from validated
+// configuration. A disabled (or absent) booking feature resolves to `none` and
+// the CTA simply does not render.
+const bookingActionResolver = createBookingActionResolver(siteConfig.bookingFeature);
 
 interface HomePageProps {
   readonly params: Promise<{ readonly locale: string }>;
@@ -45,6 +52,14 @@ export default async function HomePage({
         <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
           {dictionary.home.description}
         </p>
+        <div className="mt-6">
+          {dictionary.booking?.book ? (
+            <BookingAction
+              action={bookingActionResolver.resolve({ locale })}
+              label={dictionary.booking.book}
+            />
+          ) : null}
+        </div>
       </header>
 
       <section

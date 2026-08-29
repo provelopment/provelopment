@@ -91,6 +91,73 @@
             }
           ],
           "exceptional": []
+        },
+        "locales": {
+          "id": {
+            "address": {
+              "street": "Jalan Medan Merdeka Barat, Gambir",
+              "city": "Jakarta",
+              "country": "Indonesia"
+            },
+            "geo": { "lat": -6.1754, "lng": 106.8272 }
+          },
+          "en": {
+            "address": {
+              "street": "Westminster",
+              "city": "London",
+              "postalCode": "SW1A 0AA",
+              "country": "United Kingdom"
+            },
+            "geo": { "lat": 51.5007, "lng": -0.1245 }
+          },
+          "de": {
+            "address": {
+              "street": "Pariser Platz",
+              "city": "Berlin",
+              "country": "Germany"
+            },
+            "geo": { "lat": 52.5163, "lng": 13.3777 }
+          },
+          "fr": {
+            "address": {
+              "street": "Champ de Mars, 5 Avenue Anatole France",
+              "city": "Paris",
+              "country": "France"
+            },
+            "geo": { "lat": 48.8584, "lng": 2.2945 }
+          },
+          "es": {
+            "address": {
+              "street": "Puerta del Sol",
+              "city": "Madrid",
+              "country": "Spain"
+            },
+            "geo": { "lat": 40.4168, "lng": -3.7038 }
+          },
+          "ja": {
+            "address": {
+              "street": "4-2-8 Shibakoen, Minato City",
+              "city": "Tokyo",
+              "country": "Japan"
+            },
+            "geo": { "lat": 35.6586, "lng": 139.7454 }
+          },
+          "ko": {
+            "address": {
+              "street": "161 Sajik-ro, Jongno-gu",
+              "city": "Seoul",
+              "country": "South Korea"
+            },
+            "geo": { "lat": 37.5796, "lng": 126.977 }
+          },
+          "zh": {
+            "address": {
+              "street": "Zhongshan East 1st Road, Huangpu",
+              "city": "Shanghai",
+              "country": "China"
+            },
+            "geo": { "lat": 31.24, "lng": 121.49 }
+          }
         }
       }
     ]
@@ -98,6 +165,13 @@
   "features": {
     "analytics": {
       "provider": "vercel"
+    },
+    "maps": {
+      "provider": "google"
+    },
+    "booking": {
+      "provider": "external-url",
+      "url": "https://example.com/book"
     },
     "contact": {
       "provider": "stub"

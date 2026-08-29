@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import type { DirectionLinkResolver, DirectionsAction } from "@/application/direction-link";
 import type { BusinessLocation, ExceptionalHours, Weekday } from "@/core/business";
 import { resolveLocationForLocale } from "@/core/business";
 import { resolveTimezone } from "@/core/business-hours";
@@ -47,11 +48,16 @@ function describeExceptional(exception: ExceptionalHours, closedLabel: string): 
 interface LocationBlockProps {
   readonly location: BusinessLocation;
   readonly locale: string;
+  /** The provider-resolved directions action for this (already localized) location. */
+  readonly direction: DirectionsAction;
 }
 
-function LocationBlock({ location, locale }: LocationBlockProps) {
+function LocationBlock({ location, locale, direction }: LocationBlockProps) {
   const dictionary = getDictionary(locale);
   const address = location.address;
+  const addressText = [address.street, address.city, address.region, address.postalCode, address.country]
+    .filter(Boolean)
+    .join(", ");
   const hasAddress = Boolean(address.street || address.city);
   const hasHours = Boolean(location.hours && location.hours.intervals.length);
   const timeZone = resolveTimezone(location, siteConfig.business.timezone);
@@ -64,24 +70,18 @@ function LocationBlock({ location, locale }: LocationBlockProps) {
 
       {hasAddress ? (
         <address className="mt-2 not-italic text-muted-foreground">
-          <a
-            href={
-              location.geo
-                ? `https://www.google.com/maps?q=${location.geo.lat},${location.geo.lng}`
-                : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    [address.street, address.city, address.region, address.postalCode, address.country]
-                      .filter(Boolean)
-                      .join(", "),
-                  )}`
-            }
-            className="hover:text-primary"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {[address.street, address.city, address.region, address.postalCode, address.country]
-              .filter(Boolean)
-              .join(", ")}
-          </a>
+          {direction.kind === "link" ? (
+            <a
+              href={direction.href}
+              className="hover:text-primary"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {addressText}
+            </a>
+          ) : (
+            <span>{addressText}</span>
+          )}
         </address>
       ) : null}
 
@@ -142,9 +142,11 @@ function LocationBlock({ location, locale }: LocationBlockProps) {
 
 interface BusinessInfoProps {
   readonly locale: string;
+  /** A provider-resolved direction link resolver (composed at the app boundary). */
+  readonly directionLinkResolver: DirectionLinkResolver;
 }
 
-export function BusinessInfo({ locale }: BusinessInfoProps) {
+export function BusinessInfo({ locale, directionLinkResolver }: BusinessInfoProps) {
   const dictionary = getDictionary(locale);
   const business = siteConfig.business;
   const primaryEmail = business.contact.email ?? "";
@@ -173,13 +175,17 @@ export function BusinessInfo({ locale }: BusinessInfoProps) {
         </p>
       ) : null}
 
-      {business.locations.map((location) => (
-        <LocationBlock
-          key={location.id}
-          location={resolveLocationForLocale(location, locale)}
-          locale={locale}
-        />
-      ))}
+      {business.locations.map((location) => {
+        const resolvedLocation = resolveLocationForLocale(location, locale);
+        return (
+          <LocationBlock
+            key={location.id}
+            location={resolvedLocation}
+            locale={locale}
+            direction={directionLinkResolver.resolve(resolvedLocation)}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -69,6 +69,9 @@
     "emptyState": "我们很快将在这里展示服务内容。",
     "backToOfferings": "返回服务列表"
   },
+  "booking": {
+    "book": "预约"
+  },
   "legal": {
     "heading": "法律信息",
     "disclaimer": "这些文档仅为演示用的模板，不构成法律建议。请咨询您所在司法管辖区的合格专业人士。",

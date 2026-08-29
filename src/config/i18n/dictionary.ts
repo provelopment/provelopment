@@ -85,6 +85,17 @@ export const dictionarySchema = z.object({
     emptyState: z.string(),
     backToOfferings: z.string(),
   }),
+  /**
+   * Booking action strings (Phase H). OPTIONAL: the booking capability is a
+   * config-driven feature (`features.booking`), and a localized label is only
+   * needed where the feature is enabled. Its absence merely means no booking
+   * CTA renders — it is never a required section or a proxy for enablement.
+   */
+  booking: z
+    .object({
+      book: z.string(),
+    })
+    .optional(),
   /** Legal documents strings (Phase D). */
   legal: z.object({
     heading: z.string(),
