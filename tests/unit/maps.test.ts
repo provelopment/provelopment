@@ -50,6 +50,22 @@ describe("google maps adapter", () => {
 
     expect(action).toEqual({ kind: "none" });
   });
+
+  it("prefers the international address for the fallback query when geo is absent", () => {
+    const resolver = createGoogleMapsDirectionLinkResolver();
+    const action = resolver.resolve(
+      location({
+        geo: undefined,
+        address: { street: "1 Rue de Test", city: "Paris", country: "France" },
+        addressInternational: { street: "1 Test Street", city: "Paris", country: "France" },
+      }),
+    );
+
+    expect(action.kind).toBe("link");
+    expect(action.kind === "link" && action.href).toContain(
+      encodeURIComponent("1 Test Street, Paris, France"),
+    );
+  });
 });
 
 describe("createDirectionLinkResolver (factory)", () => {

@@ -12,7 +12,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
 
     return (
         <header className="border-b border-border">
-            <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-4">
+            <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
                 <div>
                     <Link
                         href={`/${locale}`}
@@ -22,9 +22,9 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                     </Link>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <nav aria-label={dictionary.navigation.primaryLabel}>
-                        <ul className="flex items-center gap-4">
+                        <ul className="flex flex-wrap items-center gap-x-4 gap-y-2">
                             {siteConfig.navigation.map((item) => (
                                 <li key={item.href}>
                                     <Link

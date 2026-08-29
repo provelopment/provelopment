@@ -3,6 +3,7 @@ import type { z } from "zod";
 
 import { siteConfigFileSchema } from "./schema";
 import type { Business, BusinessContact } from "@/core/business";
+import { assertValidAddressPresentation } from "@/core/business";
 import type { SiteConfig } from "./site-config";
 
 /** The validated shape of `site.config.json`. */
@@ -67,9 +68,10 @@ function toNormalizedBusiness(json: SiteConfigFile): Business {
   const contact: BusinessContact = {
     email: block?.contact?.email ?? legacyContact.email,
     phone: block?.contact?.phone ?? legacyContact.phone,
+    locales: block?.contact?.locales ?? legacyContact.locales,
   };
 
-  return {
+  const business: Business = {
     timezone: block?.timezone,
     type: block?.type,
     name: block?.name ?? json.site.name,
@@ -80,6 +82,8 @@ function toNormalizedBusiness(json: SiteConfigFile): Business {
       id: loc.id,
       name: loc.name,
       address: loc.address,
+      addressInternational: loc.addressInternational,
+      addressMode: loc.addressMode,
       geo: loc.geo,
       phone: loc.phone,
       timezone: loc.timezone,
@@ -87,6 +91,16 @@ function toNormalizedBusiness(json: SiteConfigFile): Business {
       locales: loc.locales,
     })),
   };
+
+  // A `local-international` presentation mode without an international address
+  // is a config error (see core/business.assertValidAddressPresentation). Runs
+  // here, at build/parse time, so a bad edit fails fast and descriptively.
+  assertValidAddressPresentation(
+    business,
+    json.i18n.locales.map((locale) => locale.code),
+  );
+
+  return business;
 }
 
 /**
