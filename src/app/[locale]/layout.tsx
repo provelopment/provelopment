@@ -1,4 +1,5 @@
-import { VercelAnalytics } from "@/adapters/analytics/vercel-analytics";
+import { createDirectionLinkResolver } from "@/adapters/maps";
+import { createAnalyticsProvider } from "@/adapters/analytics";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata } from "next";
@@ -21,6 +22,12 @@ const geistMono = Geist_Mono({
 });
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+// Composition boundary (the ONLY place providers become concrete): the factories
+// select adapters from validated configuration; the layout below renders the
+// already-composed integrations without any provider-specific conditional.
+const analytics = createAnalyticsProvider(siteConfig.analytics);
+const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
 
 export function generateStaticParams() {
   return siteConfig.locales.map((locale) => ({ locale: locale.code }));
@@ -84,11 +91,9 @@ export default async function LocaleLayout({
             {children}
           </ErrorMessagesProvider>
         </main>
-        <SiteFooter locale={locale} />
+        <SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />
         <StructuredData locale={locale} />
-        {siteConfig.analytics?.provider === "vercel" ? (
-          <VercelAnalytics />
-        ) : null}
+        {analytics}
       </body>
     </html>
   );

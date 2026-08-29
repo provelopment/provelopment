@@ -196,6 +196,43 @@ export const featuresConfigSchema = z.object({
     })
     .optional(),
   /**
+   * Maps directions seam (Phase H). `google` produces a keyless "Get
+   * directions" deep link from the locale-resolved location; `none` (or
+   * absent) disables it. No API key is required for a deep-link provider.
+   */
+  maps: z
+    .object({
+      provider: z.enum(["google", "none"], {
+        message: "supported providers: google, none",
+      }),
+    })
+    .optional(),
+  /**
+   * Booking action seam (Phase H). Deliberately a STATIC external action:
+   * `external-url` deep-links to the adopter's public booking destination,
+   * supplied by `url`. `none` (or absent) disables it. `external-url` requires
+   * a url — a configured provider with a missing url fails the build.
+   */
+  booking: z
+    .object({
+      provider: z.enum(["external-url", "none"], {
+        message: "supported providers: external-url, none",
+      }),
+      url: z
+        .url("must be an absolute URL including protocol, e.g. https://example.com")
+        .optional(),
+    })
+    .superRefine((booking, ctx) => {
+      if (booking.provider === "external-url" && !booking.url) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["url"],
+          message: 'provider "external-url" requires a booking url',
+        });
+      }
+    })
+    .optional(),
+  /**
    * Contact inquiry capability. `stub` is the explicit demo default; `webhook`
    * requires the CONTACT_WEBHOOK_URL environment variable at runtime (never
    * stored in this file — secrets are environment-backed).

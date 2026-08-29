@@ -121,7 +121,7 @@ describe("error UX boundaries (Phase E)", () => {
   });
 });
 
-const componentsDirectory = path.join(process.cwd(), "src", "components", "site");
+const componentsDirectory = path.join(process.cwd(), "src", "components");
 const layoutPath = path.join(process.cwd(), "src", "app", "[locale]", "layout.tsx");
 
 function readSource(relativeDirectory: string, file: string): string {
@@ -129,13 +129,15 @@ function readSource(relativeDirectory: string, file: string): string {
 }
 
 describe("locale-aware business resolution (Phase G)", () => {
+  const siteComponentsDirectory = path.join(componentsDirectory, "site");
+
   it("footer and structured data resolve through the same shared mechanism", () => {
     // Regression guard: if the visible footer reads the resolved location and
     // structured data reads the global one (or vice versa) the two diverge. Both
     // consumers must route through the shared core resolvers so their data can
     // never drift apart.
-    const businessInfo = readSource(componentsDirectory, "business-info.tsx");
-    const structuredData = readSource(componentsDirectory, "structured-data.tsx");
+    const businessInfo = readSource(siteComponentsDirectory, "business-info.tsx");
+    const structuredData = readSource(siteComponentsDirectory, "structured-data.tsx");
 
     expect(businessInfo).toContain("resolveLocationForLocale");
     expect(structuredData).toContain("resolveBusinessForLocale");
@@ -154,5 +156,78 @@ describe("locale-aware business resolution (Phase G)", () => {
     // literal comparisons against locale codes.
     expect(coreBusiness).toContain("location.locales?.[locale]");
     expect(coreBusiness).not.toMatch(/locale\s*===/); // no `locale === "…"` branch exists
+  });
+});
+
+describe("provider integration boundaries (Phase H)", () => {
+  const siteComponentsDirectory = path.join(componentsDirectory, "site");
+  const adaptersDirectory = path.join(process.cwd(), "src", "adapters");
+
+  it("the business component contains no provider-specific URL construction", () => {
+    // The visible footer only renders a resolved direction action — it must
+    // never know that Google Maps (or any provider) exists.
+    const businessInfo = readSource(siteComponentsDirectory, "business-info.tsx");
+    expect(businessInfo).not.toContain("google.com");
+    expect(businessInfo).toContain("direction.kind === \"link\"");
+  });
+
+  it("provider deep-link URLs live only inside their adapter", () => {
+    const mapsAdapter = readSource(path.join(adaptersDirectory, "maps"), "google-maps.ts");
+    expect(mapsAdapter).toContain("google.com/maps");
+
+    for (const file of listTypeScriptFiles(path.join(process.cwd(), "src"))) {
+      if (file.startsWith(path.join(adaptersDirectory, "maps"))) continue;
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toContain("google.com/maps");
+    }
+  });
+
+  it("the analytics provider dependency stays inside its adapter", () => {
+    const analyticsAdapterDirectory = path.join(adaptersDirectory, "analytics");
+
+    for (const file of listTypeScriptFiles(path.join(process.cwd(), "src"))) {
+      if (file.startsWith(analyticsAdapterDirectory)) continue;
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toMatch(/@vercel\/analytics/);
+      expect(source, file).not.toMatch(/vercel-analytics/);
+    }
+  });
+
+  it("the layout renders composed integrations without provider selection", () => {
+    // Provider selection belongs to the adapter factories; the layout must only
+    // render the already-composed integration.
+    const layout = readFileSync(layoutPath, "utf8");
+    expect(layout).toContain("createAnalyticsProvider");
+    expect(layout).toContain("createDirectionLinkResolver");
+    expect(layout).not.toMatch(/\.provider/);
+  });
+
+  it("components contain no provider-specific conditionals", () => {
+    for (const file of listTypeScriptFiles(componentsDirectory)) {
+      const source = readFileSync(file, "utf8");
+      expect(source, file).not.toMatch(/provider\s*===/);
+      expect(source, file).not.toMatch(/===\s*"(vercel|google|external-url)"/);
+    }
+  });
+
+  it("booking is composed at the app boundary, not inside a component", () => {
+    const homePage = readAppFile(path.join("[locale]", "page.tsx"));
+    expect(homePage).toContain("createBookingActionResolver");
+
+    const bookingAction = readSource(siteComponentsDirectory, "booking-action.tsx");
+    expect(bookingAction).not.toMatch(/provider\s*===/);
+    expect(bookingAction).not.toMatch(/===\s*"external-url"/);
+  });
+
+  it("adapters own the provider switching and no single giant factory file exists", () => {
+    // Each integration has its own factory that SELECTS adapters; provider
+    // behaviour lives in per-provider files.
+    for (const integration of ["maps", "booking"]) {
+      const adapterDirectory = path.join(adaptersDirectory, integration);
+      const files = readdirSync(adapterDirectory).filter((name) => /\.[jt]sx?$/.test(name));
+      // index (factory) + none + at least one provider adapter
+      expect(files, integration).toContain("none.ts");
+      expect(files, integration).toContain("index.ts");
+    }
   });
 });
