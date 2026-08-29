@@ -324,6 +324,19 @@ from `config/i18n/` at load time).
 - **Structured data.** The config-driven JSON-LD (`Organization` /
   `LocalBusiness`) includes an `openingHoursSpecification` built from the
   configured intervals.
+- **Locale-aware NAP resolution (Phase G).** A location may carry an optional
+  `locales` map keyed by BCP-47 locale code, each value a partial override of
+  `address`/`phone`/`geo`. `resolveLocationForLocale(location, locale)` in
+  `src/core/business.ts` resolves it (per-field address merge, deterministic
+  fallback: locale override → global location → existing behavior); a missing
+  override never throws. `resolveBusinessForLocale(business, locale)` resolves
+  every location. The footer (`BusinessInfo`) and the JSON-LD (`StructuredData`)
+  both consume these shared resolvers, so visible data and structured data can
+  never diverge. A locale is a visitor context, not a geography mapping, and
+  no locale list is hard-coded in `src/` — adding an override is a
+  configuration/data change only. `timezone` and `hours` deliberately stay at
+  the location level (single global operating schedule) and are not localized
+  in Phase G.
 
 ## Contact inquiry (Phase B)
 

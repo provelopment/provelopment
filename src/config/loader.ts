@@ -82,6 +82,7 @@ function toNormalizedBusiness(json: SiteConfigFile): Business {
       phone: loc.phone,
       timezone: loc.timezone,
       hours: loc.hours,
+      locales: loc.locales,
     })),
   };
 }

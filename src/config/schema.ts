@@ -117,6 +117,17 @@ const businessHoursSchema = z.object({
   exceptional: z.array(exceptionalHoursSchema),
 });
 
+const businessLocationLocaleOverrideSchema = z.object({
+  /**
+   * Per-field partial address. Unspecified fields fall back to the global
+   * location address. `street`/`city` are required only when the whole address
+   * is replaced; a partial override may set just the fields that vary.
+   */
+  address: addressSchema.partial().optional(),
+  phone: z.string().min(1).optional(),
+  geo: geoCoordsSchema.optional(),
+});
+
 const businessLocationSchema = z.object({
   id: z.string().min(1, "must not be empty"),
   name: z.string().min(1).optional(),
@@ -125,6 +136,15 @@ const businessLocationSchema = z.object({
   phone: z.string().min(1).optional(),
   timezone: ianaTimeZoneSchema.optional(),
   hours: businessHoursSchema.optional(),
+  /**
+   * Optional per-locale NAP overrides (Phase G), keyed by BCP-47 locale code.
+   * A locale is a visitor context, not a mapping to a country/geography; each
+   * key is whatever the adopter decides to associate. Adding a locale is a
+   * configuration/data change only — no `src/` platform code edit.
+   */
+  locales: z
+    .record(localeCode, businessLocationLocaleOverrideSchema)
+    .optional(),
 });
 
 const businessTypeSchema = z.enum([

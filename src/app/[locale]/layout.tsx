@@ -85,7 +85,7 @@ export default async function LocaleLayout({
           </ErrorMessagesProvider>
         </main>
         <SiteFooter locale={locale} />
-        <StructuredData />
+        <StructuredData locale={locale} />
         {siteConfig.analytics?.provider === "vercel" ? (
           <VercelAnalytics />
         ) : null}

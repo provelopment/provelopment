@@ -120,3 +120,39 @@ describe("error UX boundaries (Phase E)", () => {
     expect(notFound).toContain("locale()");
   });
 });
+
+const componentsDirectory = path.join(process.cwd(), "src", "components", "site");
+const layoutPath = path.join(process.cwd(), "src", "app", "[locale]", "layout.tsx");
+
+function readSource(relativeDirectory: string, file: string): string {
+  return readFileSync(path.join(relativeDirectory, file), "utf8");
+}
+
+describe("locale-aware business resolution (Phase G)", () => {
+  it("footer and structured data resolve through the same shared mechanism", () => {
+    // Regression guard: if the visible footer reads the resolved location and
+    // structured data reads the global one (or vice versa) the two diverge. Both
+    // consumers must route through the shared core resolvers so their data can
+    // never drift apart.
+    const businessInfo = readSource(componentsDirectory, "business-info.tsx");
+    const structuredData = readSource(componentsDirectory, "structured-data.tsx");
+
+    expect(businessInfo).toContain("resolveLocationForLocale");
+    expect(structuredData).toContain("resolveBusinessForLocale");
+
+    // The root [locale] layout passes the active locale into structured data.
+    const layout = readFileSync(layoutPath, "utf8");
+    expect(layout).toContain("<StructuredData locale={locale} />");
+  });
+
+  it("resolver lives in core and introduces no hard-coded locale mapping", () => {
+    const coreBusiness = readSource(path.join(process.cwd(), "src", "core"), "business.ts");
+
+    // Resolution must be data-driven (lookup by a config-supplied map key), never
+    // locale-specific conditional branches. Guard the semantics of the resolver:
+    // overrides are resolved via lookup against `location.locales[locale]`, not
+    // literal comparisons against locale codes.
+    expect(coreBusiness).toContain("location.locales?.[locale]");
+    expect(coreBusiness).not.toMatch(/locale\s*===/); // no `locale === "…"` branch exists
+  });
+});

@@ -202,6 +202,64 @@ Optional functionality is expressed as feature flags under `features` in
 - **Structured data:** the JSON-LD `LocalBusiness`/`Organization` block
   includes an `openingHoursSpecification` built from the configured intervals.
 
+### Locale-specific business address, phone & geo (`locations[].locales`)
+
+By default a location's address, phone and geo are **global** — the same for
+every locale. If you want a visitor to a specific locale to see market-appropriate
+business data instead of the global/head-office location, add a per-locale
+override to that location:
+
+```jsonc
+"business": {
+  "locations": [
+    {
+      "id": "main",
+      "address": {
+        "street": "1 Demo Street",
+        "city": "Jakarta",
+        "country": "Indonesia"
+      },
+      "phone": "+62 21 0000 0000",
+      "geo": { "lat": -6.2, "lng": 106.816 },
+      "locales": {
+        "de": {
+          "address": { "city": "Example City", "country": "Example Land" },
+          "phone": "+49 30 0000 0000",
+          "geo": { "lat": 52.52, "lng": 13.405 }
+        }
+      }
+    }
+  ]
+}
+```
+
+Key points:
+
+- **`locales` is optional.** A location without it behaves exactly as today
+  (global data for every locale).
+- The `locales` map is keyed by **BCP-47 locale code** (the same codes used in
+  `i18n.locales`). Adding an override for a locale is a pure
+  configuration/data change — no `src/` platform code edit.
+- **A locale is a visitor context, not a geographic mapping.** The Foundation
+  makes no assumption that `de`⇄Germany, `ja`⇄Japan, `id`⇄Indonesia, etc. You
+  decide, in this file, whether a given locale should present different data.
+- **Each override is partial.** Only the fields you set replace the global
+  values: `address` is merged **per field** (unset fields like `street`,
+  `postalCode`, `country` are inherited from the global address), and unset
+  `phone`/`geo` are inherited.
+- **Fallback chain:** locale override → global location data → existing behavior.
+  A locale with no entry always falls back to the global data, never an error.
+- **Timezone and hours are NOT localized in this model.** They stay at the
+  location level and are a single global truth (operating schedules, not
+  identity/presentation).
+- **Structured data follows the same rule:** the footer *and* the JSON-LD
+  resolve through the same mechanism, so a localized address never diverges
+  between the visible footer and structured data.
+- **Only supply real business/location data** appropriate to your own
+  operation. The Foundation ships no fabricated localized addresses as
+  production data; treat the example above (clearly fictional) as schema
+  illustration only.
+
 ### Contact inquiries (`features.contact` + `/contact`)
 
 The `/contact` page and contact form are the inquiry capability. It is
