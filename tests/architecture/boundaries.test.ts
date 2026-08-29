@@ -139,7 +139,9 @@ describe("locale-aware business resolution (Phase G)", () => {
     const businessInfo = readSource(siteComponentsDirectory, "business-info.tsx");
     const structuredData = readSource(siteComponentsDirectory, "structured-data.tsx");
 
-    expect(businessInfo).toContain("resolveLocationForLocale");
+    // Both visible footer and structured data route through the shared combined
+    // resolver so their per-locale data can never drift apart.
+    expect(businessInfo).toContain("resolveBusinessForLocale");
     expect(structuredData).toContain("resolveBusinessForLocale");
 
     // The root [locale] layout passes the active locale into structured data.
@@ -229,5 +231,68 @@ describe("provider integration boundaries (Phase H)", () => {
       expect(files, integration).toContain("none.ts");
       expect(files, integration).toContain("index.ts");
     }
+  });
+});
+
+describe("adapter factory boundary (Phase I)", () => {
+  // Capability integration directories governed by the provider boundary rule:
+  // concrete provider modules may be imported ONLY by their directory factory
+  // (index) or by tests — never by arbitrary application/UI/domain source.
+  // `adapters/content/**` is the pre-existing content repository and is
+  // explicitly EXCLUDED from this rule.
+  const integrationDirectories = ["maps", "booking", "analytics", "contact-inquiry"];
+  const adaptersDirectory = path.join(process.cwd(), "src", "adapters");
+
+  it("concrete provider modules are importable only by their factory index (never bypassed)", () => {
+    const concreteByDomain = new Map<string, string[]>();
+
+    for (const domain of integrationDirectories) {
+      const directory = path.join(adaptersDirectory, domain);
+      const concrete = readdirSync(directory)
+        .filter((name) => /\.[jt]sx?$/.test(name))
+        .filter((name) => !name.startsWith("index"))
+        .map((name) => path.basename(name, path.extname(name)));
+      expect(concrete.length, `${domain} must expose concrete provider modules`).toBeGreaterThan(0);
+      concreteByDomain.set(domain, concrete);
+    }
+
+    const violations: string[] = [];
+
+    for (const file of listTypeScriptFiles(path.join(process.cwd(), "src"))) {
+      // The pre-existing content-repository adapter is out of scope for this rule.
+      if (file.startsWith(path.join(adaptersDirectory, "content"))) continue;
+
+      for (const specifier of extractImportSpecifiers(file)) {
+        for (const domain of integrationDirectories) {
+          const domainDirectory = path.join(adaptersDirectory, domain);
+          // The domain's own factory (index) is the one sanctioned importer.
+          const isDomainIndex = file.startsWith(path.join(domainDirectory, "index."));
+          const concrete = concreteByDomain.get(domain)!;
+
+          const aliasPrefix = `@/adapters/${domain}/`;
+          // Resolve which concrete module (if any) this specifier reaches.
+          let resolvedBase: string | undefined;
+          if (specifier.startsWith(aliasPrefix)) {
+            const remainder = specifier.slice(aliasPrefix.length);
+            resolvedBase = remainder.split(".")[0].split("/")[0];
+          } else if (file.startsWith(domainDirectory)) {
+            // A relative import only targets a concrete module of this domain
+            // when the importer lives inside the domain's own directory.
+            const relative = specifier.startsWith("../") ? specifier.slice(3) : specifier;
+            if (relative.startsWith("./")) {
+              resolvedBase = relative.slice(2).split(".")[0];
+            }
+          }
+
+          if (resolvedBase && concrete.includes(resolvedBase) && !isDomainIndex) {
+            violations.push(
+              `${path.relative(process.cwd(), file)} imports "${specifier}" (${domain}/${resolvedBase}) outside the factory`,
+            );
+          }
+        }
+      }
+    }
+
+    expect(violations).toEqual([]);
   });
 });

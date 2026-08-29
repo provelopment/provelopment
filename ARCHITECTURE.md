@@ -338,6 +338,55 @@ from `config/i18n/` at load time).
   the location level (single global operating schedule) and are not localized
   in Phase G.
 
+## Locale-specific business identity & address representation (Phase I)
+
+Business identity is **owner-configured, per market** — the Foundation provides
+the model, resolution, validation and presentation, never the data. A locale is
+a customer context, never an implicit country: no `locale → country → phone`
+inference exists anywhere in `src/`.
+
+- **Customer-facing contact per locale.** `business.contact` may carry a
+  `locales` map (keyed by BCP-47) of partial `{ email?, phone? }` overrides.
+  `resolveBusinessContactForLocale(contact, locale)` (in `src/core/business.ts`)
+  applies a locale override's fields, falling back to the global contact
+  per-field; `resolveBusinessForLocale` resolves **contact and every location
+  together**. `BusinessInfo` (footer) and `StructuredData` both consume the
+  resolved business, so visible and structured contact can never diverge.
+  Precedence: locale override → global contact.
+- **Two structured address representations.** A location has `address`
+  (native/local) and an optional `addressInternational` (Latin/international
+  form of the same place) plus `addressMode` (`"local"` → local only,
+  `"local-international"` → local + Latin). Both forms are **owner-supplied** —
+  no transliteration, translation or geocoding is ever performed.
+  `addressMode` is a **display** control for human-facing pages only.
+- **Resolution & validation.** `resolveLocationForLocale` merges the native
+  form per-field, the international form per-field (override → base), and the
+  mode per-value (default `"local"`). `assertValidAddressPresentation(business,
+  locales)` — called by the loader at build time — enforces that
+  `local-international` **requires** `addressInternational`, for the base
+  location and every locale override, throwing a descriptive error naming the
+  offending location/locale instead of silently dropping the Latin form.
+- **Consumer rules (each reads the same resolved location):**
+  - Visible UI (footer): follows `addressMode`.
+  - JSON-LD / structured data: `addressInternational ?? address` (global machine
+    readability — Latin is not treated as "more valid", it is simply preferred
+    when owner-supplied).
+  - Directions/maps: geo coordinates first; otherwise the address query prefers
+    `addressInternational ?? address`. The provider adapter only formats the
+    already-resolved location — no locale/address logic moves into it.
+- **Adapter boundary enforced (F2).** A boundary guard in `boundaries.test.ts`
+  asserts that concrete provider adapters under
+  `adapters/{maps,booking,analytics,contact-inquiry}` are importable only by
+  their directory factory (`index`) or by tests — arbitrary
+  application/UI/domain code must consume the capability seam/factory. The
+  pre-existing `adapters/content/**` content repository is explicitly excluded.
+- **Booking label invariant (F1).** When `features.booking.provider =
+  "external-url"`, every configured locale must provide a non-empty
+  `dictionary.booking.book`. `assertBookingLabelPresent` (in
+  `src/config/i18n/index.ts`, run at build time) throws a descriptive error
+  naming the offending locales instead of silently hiding an enabled CTA.
+  Disabled/absent booking requires no label.
+
 ## Contact inquiry (Phase B)
 
 The inquiry capability is a frontend + integration seam: `/contact` renders a

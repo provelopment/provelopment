@@ -48,6 +48,20 @@ export const i18nConfigSchema = z
 export const contactConfigSchema = z.object({
   email: z.email().optional(),
   phone: z.string().min(1).optional(),
+  /**
+   * Optional per-locale customer-facing contact overrides (Phase I), keyed by
+   * BCP-47 locale code. A locale is a customer context, not a country mapping;
+   * locale-specific values win over the global/default values.
+   */
+  locales: z
+    .record(
+      localeCode,
+      z.object({
+        email: z.email().optional(),
+        phone: z.string().min(1).optional(),
+      }),
+    )
+    .optional(),
 });
 
 const weekdaySchema = z.enum(["mon", "tue", "wed", "thu", "fri", "sat", "sun"]);
@@ -75,6 +89,13 @@ const addressSchema = z.object({
   postalCode: z.string().min(1).optional(),
   country: z.string().min(1).optional(),
 });
+
+/**
+ * How a location address is presented on pages (Phase I). `local` shows only
+ * the native/local form; `local-international` shows native PLUS a Latin form
+ * and therefore requires `addressInternational`.
+ */
+const addressPresentationModeSchema = z.enum(["local", "local-international"]);
 
 const geoCoordsSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -124,6 +145,14 @@ const businessLocationLocaleOverrideSchema = z.object({
    * is replaced; a partial override may set just the fields that vary.
    */
   address: addressSchema.partial().optional(),
+  /**
+   * Per-field partial Latin/international address (Phase I). When the location
+   * has a base international address this merges onto it; otherwise it becomes
+   * the international address for this locale.
+   */
+  addressInternational: addressSchema.partial().optional(),
+  /** Display mode for this locale; falls back to the location's base mode. */
+  addressMode: addressPresentationModeSchema.optional(),
   phone: z.string().min(1).optional(),
   geo: geoCoordsSchema.optional(),
 });
@@ -132,6 +161,13 @@ const businessLocationSchema = z.object({
   id: z.string().min(1, "must not be empty"),
   name: z.string().min(1).optional(),
   address: addressSchema,
+  /**
+   * Optional Latin/international representation of the SAME place (Phase I),
+   * for global/cross-border consumers. Owner-supplied — never generated.
+   */
+  addressInternational: addressSchema.optional(),
+  /** How the address is presented on pages; defaults to "local". */
+  addressMode: addressPresentationModeSchema.optional(),
   geo: geoCoordsSchema.optional(),
   phone: z.string().min(1).optional(),
   timezone: ianaTimeZoneSchema.optional(),

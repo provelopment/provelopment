@@ -28,9 +28,22 @@ export interface GeoCoordinates {
 /** Which structured-data type the business identifies as (config-driven, not inferred). */
 export type BusinessType = "Organization" | "LocalBusiness" | "ProfessionalService" | "Restaurant" | "Store";
 
+/** Per-locale override of the business-wide customer-facing contact channels. */
+export interface BusinessContactLocaleOverride {
+  readonly email?: string;
+  readonly phone?: string;
+}
+
 export interface BusinessContact {
   readonly email?: string;
   readonly phone?: string;
+  /**
+   * Optional per-market contact overrides (Phase I), keyed by BCP-47 locale
+   * code. A locale is a customer context, NOT a country mapping: locale→country
+   * is never inferred — the adopter configures whatever per-locale contact
+   * they want (or none, falling back to the global values above).
+   */
+  readonly locales?: Readonly<Record<string, BusinessContactLocaleOverride>>;
 }
 
 /**
@@ -44,9 +57,21 @@ export interface BusinessContact {
  * Locale resolution deliberately keeps `timezone` and `hours` at the location
  * level (not localized) so operating schedules remain a single global truth.
  */
+/**
+ * How an address is presented on human-facing pages.
+ * - `local`               → the native/local representation only.
+ * - `local-international` → the native/local representation PLUS a
+ *   Latin/international representation (requires `addressInternational`).
+ */
+export type AddressPresentationMode = "local" | "local-international";
+
 export interface BusinessLocationLocaleOverride {
-  /** Per-field partial address; unspecified global fields are inherited. */
+  /** Per-field partial native/local address; unspecified global fields are inherited. */
   readonly address?: Partial<Address>;
+  /** Per-field partial Latin/international address (inherits a base if supplied). */
+  readonly addressInternational?: Partial<Address>;
+  /** Display mode for this locale (falls back to the location's base mode). */
+  readonly addressMode?: AddressPresentationMode;
   readonly phone?: string;
   readonly geo?: GeoCoordinates;
 }
@@ -60,7 +85,16 @@ export interface BusinessLocationLocaleOverride {
 export interface BusinessLocation {
   readonly id: string;
   readonly name?: string;
+  /** Native/local address (what a local customer reads). */
   readonly address: Address;
+  /**
+   * Optional Latin/international representation of the SAME place, for
+   * cross-border/global consumers. Owner-supplied business data — the platform
+   * never transliterates. Optional: a local-only business omits it.
+   */
+  readonly addressInternational?: Address;
+  /** How the address is presented on pages; defaults to "local". */
+  readonly addressMode?: AddressPresentationMode;
   readonly geo?: GeoCoordinates;
   readonly phone?: string;
   readonly timezone?: string;
@@ -125,6 +159,27 @@ function mergeAddress(base: Address, override: Partial<Address>): Address {
   };
 }
 
+/** Merges an optional base international address with a partial locale override. */
+function mergeOptionalAddress(
+  base: Address | undefined,
+  override: Partial<Address>,
+): Address {
+  const emptyBase: Address = { street: "", city: "" };
+  return mergeAddress(base ?? emptyBase, override);
+}
+
+/**
+ * Joins a structured address into a single presentation-ready line. Kept here
+ * so visible consumers (footer, any future UI) format addresses identically,
+ * while JSON-LD and provider adapters keep their own consumers. Pure and
+ * framework-free.
+ */
+export function formatAddress(address: Address): string {
+  return [address.street, address.city, address.region, address.postalCode, address.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
 /**
  * Resolves a location's visitor-facing NAP data for a locale.
  *
@@ -150,6 +205,10 @@ export function resolveLocationForLocale(
   return {
     ...location,
     address: override.address ? mergeAddress(location.address, override.address) : location.address,
+    addressInternational: override.addressInternational
+      ? mergeOptionalAddress(location.addressInternational, override.addressInternational)
+      : location.addressInternational,
+    addressMode: override.addressMode ?? location.addressMode ?? "local",
     phone: override.phone ?? location.phone,
     geo: override.geo ?? location.geo,
   };
@@ -165,6 +224,82 @@ export function resolveBusinessForLocale(
 ): Business {
   return {
     ...business,
+    contact: resolveBusinessContactForLocale(business.contact, locale),
     locations: business.locations.map((location) => resolveLocationForLocale(location, locale)),
   };
+}
+
+/**
+ * Resolves a business's customer-facing contact channels for a locale.
+ *
+ * Deterministic fallback (a locale is a customer context, never a country):
+ *   1. the locale override's field, when configured;
+ *   2. the global business contact field, otherwise.
+ *
+ * A contact object with no `locales` map (or no entry for the locale) is
+ * returned unchanged, preserving existing behaviour. Locale-specific values
+ * win over the global/default values; globally-fixed adoption is a valid state
+ * (no per-locale contact at all).
+ */
+export function resolveBusinessContactForLocale(
+  contact: BusinessContact,
+  locale: string,
+): BusinessContact {
+  const override = contact.locales?.[locale];
+  if (!override) return contact;
+
+  return {
+    ...contact,
+    email: override.email ?? contact.email,
+    phone: override.phone ?? contact.phone,
+  };
+}
+
+/**
+ * Validates the address presentation model for every location and locale.
+ *
+ * Invariant: a presentation mode of `local-international` REQUIRES a
+ * Latin/international address. Silently showing only the local form when the
+ * owner explicitly asked for both would hide a configuration mistake, so a
+ * missing international address is a loud, descriptive configuration error
+ * naming the exact location/locale. Local-only owners simply omit
+ * `addressInternational` and use the default "local" mode.
+ *
+ * Pure and framework-free; called by the config loader (build time) so a bad
+ * edit fails fast. The resolvers themselves never throw — this is a config
+ * validation concern, not a resolution concern.
+ */
+export function assertValidAddressPresentation(
+  business: Business,
+  locales: readonly string[],
+): void {
+  const requireInternational = (
+    subject: string,
+    mode: AddressPresentationMode | undefined,
+    international: Address | undefined,
+  ): void => {
+    if ((mode ?? "local") === "local-international" && !international) {
+      throw new Error(
+        `Address presentation mode "local-international" requires a Latin/international address. ` +
+          `Add "addressInternational" for ${subject}, or set "addressMode" to "local".`,
+      );
+    }
+  };
+
+  for (const location of business.locations) {
+    requireInternational(
+      `business.locations["${location.id}"]`,
+      location.addressMode,
+      location.addressInternational,
+    );
+
+    for (const locale of locales) {
+      const resolved = resolveLocationForLocale(location, locale);
+      requireInternational(
+        `business.locations["${location.id}"] for locale "${locale}"`,
+        resolved.addressMode,
+        resolved.addressInternational,
+      );
+    }
+  }
 }

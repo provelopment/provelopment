@@ -552,3 +552,110 @@ describe("parseSiteConfig", () => {
     expect(() => parseSiteConfig(invalid)).toThrow(/booking\.url/);
   });
 });
+
+describe("business contact + address identity (Phase I)", () => {
+  it("maps per-locale business contact overrides through to the normalized contact", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        contact: {
+          email: "global@example.com",
+          locales: {
+            de: { phone: "+49 30 0000 0000" },
+            fr: { email: "bonjour@example.fr" },
+          },
+        },
+        locations: [{ id: "main", address: { street: "1 St", city: "Berlin" } }],
+      },
+    });
+
+    expect(config.business.contact.email).toBe("global@example.com");
+    expect(config.business.contact.locales?.de?.phone).toBe("+49 30 0000 0000");
+    expect(config.business.contact.locales?.fr?.email).toBe("bonjour@example.fr");
+  });
+
+  it("maps addressInternational and addressMode through the location", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      business: {
+        locations: [
+          {
+            id: "main",
+            address: { street: "東京都港区芝公園4丁目2-8", city: "港区", country: "日本" },
+            addressInternational: { street: "4-2-8 Shibakoen", city: "Tokyo", country: "Japan" },
+            addressMode: "local-international",
+          },
+        ],
+      },
+    });
+
+    expect(config.business.locations[0].addressMode).toBe("local-international");
+    expect(config.business.locations[0].addressInternational?.street).toBe("4-2-8 Shibakoen");
+  });
+
+  it("rejects a local-international mode without an international address", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        business: {
+          locations: [
+            {
+              id: "main",
+              address: { street: "1 St", city: "City" },
+              addressMode: "local-international",
+            },
+          ],
+        },
+      }),
+    ).toThrow(/local-international/);
+  });
+
+  it("rejects a locale override requesting local-international with no international address", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        i18n: {
+          defaultLocale: "en",
+          locales: [
+            { code: "en", label: "English" },
+            { code: "ja", label: "日本語" },
+          ],
+        },
+        business: {
+          locations: [
+            {
+              id: "main",
+              address: { street: "1 St", city: "City" },
+              locales: { ja: { addressMode: "local-international" } },
+            },
+          ],
+        },
+      }),
+    ).toThrow(/locale "ja"/);
+  });
+
+  it("accepts a local-international locale override that inherits a base international address", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        i18n: {
+          defaultLocale: "en",
+          locales: [
+            { code: "en", label: "English" },
+            { code: "ja", label: "日本語" },
+          ],
+        },
+        business: {
+          locations: [
+            {
+              id: "main",
+              address: { street: "1 St", city: "City" },
+              addressInternational: { street: "Latin St", city: "City" },
+              locales: { ja: { addressMode: "local-international" } },
+            },
+          ],
+        },
+      }),
+    ).not.toThrow();
+  });
+});
