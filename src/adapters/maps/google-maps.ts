@@ -18,12 +18,16 @@ export function googleMapsAddressQueryUrl(query: string): string {
 
 /** The provider's own address-query derivation (its responsibility, not core's). */
 function googleAddressQuery(location: BusinessLocation): string {
+  // When geo is absent, prefer the Latin/international representation for a
+  // search query (better cross-format resolution), falling back to the
+  // native/local address. The adapter consumes the already-resolved location.
+  const address = location.addressInternational ?? location.address;
   return [
-    location.address.street,
-    location.address.city,
-    location.address.region,
-    location.address.postalCode,
-    location.address.country,
+    address.street,
+    address.city,
+    address.region,
+    address.postalCode,
+    address.country,
   ]
     .filter(Boolean)
     .join(", ");

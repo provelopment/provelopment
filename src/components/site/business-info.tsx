@@ -2,7 +2,7 @@ import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver, DirectionsAction } from "@/application/direction-link";
 import type { BusinessLocation, ExceptionalHours, Weekday } from "@/core/business";
-import { resolveLocationForLocale } from "@/core/business";
+import { formatAddress, resolveBusinessForLocale } from "@/core/business";
 import { resolveTimezone } from "@/core/business-hours";
 import { CurrentStatus } from "./current-status";
 
@@ -54,11 +54,12 @@ interface LocationBlockProps {
 
 function LocationBlock({ location, locale, direction }: LocationBlockProps) {
   const dictionary = getDictionary(locale);
-  const address = location.address;
-  const addressText = [address.street, address.city, address.region, address.postalCode, address.country]
-    .filter(Boolean)
-    .join(", ");
-  const hasAddress = Boolean(address.street || address.city);
+  const addressText = formatAddress(location.address);
+  const internationalText =
+    location.addressMode === "local-international" && location.addressInternational
+      ? formatAddress(location.addressInternational)
+      : null;
+  const hasAddress = Boolean(location.address.street || location.address.city);
   const hasHours = Boolean(location.hours && location.hours.intervals.length);
   const timeZone = resolveTimezone(location, siteConfig.business.timezone);
 
@@ -82,6 +83,9 @@ function LocationBlock({ location, locale, direction }: LocationBlockProps) {
           ) : (
             <span>{addressText}</span>
           )}
+          {internationalText ? (
+            <span className="mt-1 block">{internationalText}</span>
+          ) : null}
         </address>
       ) : null}
 
@@ -148,7 +152,10 @@ interface BusinessInfoProps {
 
 export function BusinessInfo({ locale, directionLinkResolver }: BusinessInfoProps) {
   const dictionary = getDictionary(locale);
-  const business = siteConfig.business;
+  // Resolve the business profile (customer-facing contact + every location) for
+  // this locale so the visible footer shows locale-appropriate contact and
+  // address data, never a silently global fixed number/address.
+  const business = resolveBusinessForLocale(siteConfig.business, locale);
   const primaryEmail = business.contact.email ?? "";
   const primaryPhone = business.contact.phone ?? "";
 
@@ -175,17 +182,14 @@ export function BusinessInfo({ locale, directionLinkResolver }: BusinessInfoProp
         </p>
       ) : null}
 
-      {business.locations.map((location) => {
-        const resolvedLocation = resolveLocationForLocale(location, locale);
-        return (
-          <LocationBlock
-            key={location.id}
-            location={resolvedLocation}
-            locale={locale}
-            direction={directionLinkResolver.resolve(resolvedLocation)}
-          />
-        );
-      })}
+      {business.locations.map((location) => (
+        <LocationBlock
+          key={location.id}
+          location={location}
+          locale={locale}
+          direction={directionLinkResolver.resolve(location)}
+        />
+      ))}
     </div>
   );
 }

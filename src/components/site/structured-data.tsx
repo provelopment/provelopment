@@ -30,14 +30,18 @@ function toPlace(loc: BusinessLocation) {
     "@type": "Place",
     name: loc.name ?? siteConfig.name,
   };
+  // JSON-LD uses the Latin/international representation when supplied (global
+  // machine readability), falling back to the native/local address. It consumes
+  // resolved business data only — no locale/address logic lives here.
+  const address = loc.addressInternational ?? loc.address;
   if (loc.address) {
     place.address = {
       "@type": "PostalAddress",
-      streetAddress: loc.address.street,
-      addressLocality: loc.address.city,
-      addressRegion: loc.address.region,
-      postalCode: loc.address.postalCode,
-      addressCountry: loc.address.country,
+      streetAddress: address.street,
+      addressLocality: address.city,
+      addressRegion: address.region,
+      postalCode: address.postalCode,
+      addressCountry: address.country,
     };
   }
   if (loc.geo) place.geo = toGeo(loc.geo.lat, loc.geo.lng);

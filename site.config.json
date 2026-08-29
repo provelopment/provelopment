@@ -71,6 +71,19 @@
   "business": {
     "timezone": "Asia/Jakarta",
     "type": "LocalBusiness",
+    "contact": {
+      "email": "hello@example.com",
+      "locales": {
+        "id": { "phone": "+62 21 4000 0101", "email": "halo@jakarta.example" },
+        "en": { "phone": "+44 20 7946 0000", "email": "hello@london.example" },
+        "de": { "phone": "+49 30 0000 0102", "email": "hallo@berlin.example" },
+        "fr": { "phone": "+33 1 84 80 00 00", "email": "bonjour@paris.example" },
+        "es": { "phone": "+34 91 000 01 03", "email": "hola@madrid.example" },
+        "ja": { "phone": "+81 3 5555 0104", "email": "konnichiwa@tokyo.example" },
+        "ko": { "phone": "+82 2 0000 0105", "email": "annyeong@seoul.example" },
+        "zh": { "phone": "+86 21 0000 0106", "email": "nihao@shanghai.example" }
+      }
+    },
     "locations": [
       {
         "id": "main",
@@ -80,7 +93,6 @@
           "city": "Jakarta",
           "country": "Indonesia"
         },
-        "phone": "+62 21 0000 0000",
         "timezone": "Asia/Jakarta",
         "hours": {
           "intervals": [
@@ -136,26 +148,44 @@
           },
           "ja": {
             "address": {
+              "street": "東京都港区芝公園4丁目2-8",
+              "city": "東京都港区",
+              "country": "日本"
+            },
+            "addressInternational": {
               "street": "4-2-8 Shibakoen, Minato City",
               "city": "Tokyo",
               "country": "Japan"
             },
+            "addressMode": "local-international",
             "geo": { "lat": 35.6586, "lng": 139.7454 }
           },
           "ko": {
             "address": {
+              "street": "서울특별시 종로구 사직로 161",
+              "city": "서울특별시 종로구",
+              "country": "대한민국"
+            },
+            "addressInternational": {
               "street": "161 Sajik-ro, Jongno-gu",
               "city": "Seoul",
               "country": "South Korea"
             },
+            "addressMode": "local-international",
             "geo": { "lat": 37.5796, "lng": 126.977 }
           },
           "zh": {
             "address": {
+              "street": "上海市黄浦区中山东一路",
+              "city": "上海市黄浦区",
+              "country": "中国"
+            },
+            "addressInternational": {
               "street": "Zhongshan East 1st Road, Huangpu",
               "city": "Shanghai",
               "country": "China"
             },
+            "addressMode": "local-international",
             "geo": { "lat": 31.24, "lng": 121.49 }
           }
         }
