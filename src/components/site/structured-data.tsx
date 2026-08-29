@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config";
 import type { BusinessLocation, Weekday } from "@/core/business";
+import { resolveBusinessForLocale } from "@/core/business";
 
 /** schema.org weekday name for each supported internal weekday label. */
 const SCHEMA_WEEKDAYS: Record<Weekday, string> = {
@@ -52,8 +53,8 @@ function toPlace(loc: BusinessLocation) {
   return place;
 }
 
-export function StructuredData() {
-  const b = siteConfig.business;
+export function StructuredData({ locale }: { readonly locale: string }) {
+  const b = resolveBusinessForLocale(siteConfig.business, locale);
   if (!b.locations.length && !b.contact.email && !b.contact.phone) return null;
 
   const type = b.type ?? "Organization";
