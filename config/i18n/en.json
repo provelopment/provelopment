@@ -69,6 +69,9 @@
     "emptyState": "We will share our offerings here soon.",
     "backToOfferings": "Back to offerings"
   },
+  "booking": {
+    "book": "Book now"
+  },
   "legal": {
     "heading": "Legal",
     "disclaimer": "These documents are template placeholders for demonstration only and are not legal advice. Consult a qualified professional for your jurisdiction.",

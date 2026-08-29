@@ -29,6 +29,17 @@ export interface AnalyticsConfig {
   readonly provider: "vercel";
 }
 
+/** `features.maps` — a keyless directions-deep-link provider. */
+export interface MapsConfig {
+  readonly provider: "google" | "none";
+}
+
+/** `features.booking` — a static external booking action. */
+export interface BookingConfig {
+  readonly provider: "external-url" | "none";
+  readonly url?: string;
+}
+
 export interface SiteConfig {
   /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
   readonly url: string;
@@ -46,6 +57,10 @@ export interface SiteConfig {
   readonly business: Business;
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;
+  /** Maps directions provider configuration (`features.maps`). */
+  readonly mapsFeature?: MapsConfig;
+  /** Booking action provider configuration (`features.booking`). */
+  readonly bookingFeature?: BookingConfig;
   /** Contact inquiry provider configuration (`features.contact`). */
   readonly contactFeature?: ContactFeatureConfig;
   /** Offerings catalog enabled (`features.offerings === true`). */

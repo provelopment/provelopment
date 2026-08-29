@@ -493,4 +493,62 @@ describe("parseSiteConfig", () => {
 
     expect(() => parseSiteConfig(invalid)).toThrow(/label/);
   });
+
+  it("maps features.maps through to the site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { maps: { provider: "google" } },
+    });
+
+    expect(config.mapsFeature).toEqual({ provider: "google" });
+  });
+
+  it("leaves mapsFeature undefined when features.maps is absent (back-compat)", () => {
+    const config = parseSiteConfig(validConfig);
+    expect(config.mapsFeature).toBeUndefined();
+  });
+
+  it("rejects an unknown maps provider", () => {
+    const invalid = {
+      ...validConfig,
+      features: { maps: { provider: "apple" } },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/maps\.provider/);
+  });
+
+  it("maps features.booking through to the site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { booking: { provider: "external-url", url: "https://example.com/book" } },
+    });
+
+    expect(config.bookingFeature).toEqual({
+      provider: "external-url",
+      url: "https://example.com/book",
+    });
+  });
+
+  it("leaves bookingFeature undefined when features.booking is absent (back-compat)", () => {
+    const config = parseSiteConfig(validConfig);
+    expect(config.bookingFeature).toBeUndefined();
+  });
+
+  it("rejects features.booking with provider external-url and no url", () => {
+    const invalid = {
+      ...validConfig,
+      features: { booking: { provider: "external-url" } },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/booking\.url/);
+  });
+
+  it("rejects features.booking with a non-URL destination", () => {
+    const invalid = {
+      ...validConfig,
+      features: { booking: { provider: "external-url", url: "not-a-url" } },
+    };
+
+    expect(() => parseSiteConfig(invalid)).toThrow(/booking\.url/);
+  });
 });

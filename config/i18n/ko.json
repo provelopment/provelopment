@@ -69,6 +69,9 @@
     "emptyState": "곧 여기에서 서비스를 소개하겠습니다.",
     "backToOfferings": "서비스 목록으로"
   },
+  "booking": {
+    "book": "예약하기"
+  },
   "legal": {
     "heading": "법적 정보",
     "disclaimer": "이 문서는 데모용 템플릿이며 법적 조언이 아닙니다. 해당 관할권의 자격을 갖춘 전문가에게 문의하세요.",

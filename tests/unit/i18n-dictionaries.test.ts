@@ -58,4 +58,16 @@ describe("i18n dictionaries (registry-backed, config-derived)", () => {
       }
     }
   });
+
+  it("accepts a dictionary without the optional booking section (back-compat)", () => {
+    // `features.booking` and `dictionary.booking` are optional: a site with no
+    // booking configuration must validate without any booking keys. A
+    // dictionary missing the booking section is a fully valid legacy/minimal
+    // dictionary — never a schema failure.
+    const base = getDictionary(defaultLocale);
+    const withoutBooking = { ...base };
+    delete (withoutBooking as Record<string, unknown>).booking;
+    const result = dictionarySchema.safeParse(withoutBooking);
+    expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
+  });
 });
