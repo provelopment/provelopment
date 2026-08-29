@@ -182,8 +182,18 @@ hreflang alternates.
 ## 5. Features & Business Profile
 
 Optional functionality is expressed as feature flags under `features` in
-`site.config.json` and consumed by dedicated adapters. For example,
-`"analytics": { "provider": "vercel" }` mounts Vercel Web Analytics.
+`site.config.json` and consumed by dedicated adapters. Every integration is
+**optional** — the Foundation provides seams, not mandatory third-party
+accounts. A site with no `features` block (or with a feature omitted) still
+builds and runs normally; unconfigured integrations simply do not render.
+
+Current feature flags:
+
+- `analytics` — visitor analytics provider (e.g. `vercel`).
+- `maps` — directions-deep-link provider for business locations (e.g. `google`).
+- `booking` — static external booking action (e.g. `external-url`).
+- `contact` — contact inquiry provider (`webhook` or the `stub` demo default).
+- `offerings` — enables the offerings catalog routes.
 
 ### Business profile, locations & hours (`business` in `site.config.json`)
 
@@ -259,6 +269,82 @@ Key points:
   operation. The Foundation ships no fabricated localized addresses as
   production data; treat the example above (clearly fictional) as schema
   illustration only.
+
+> **What the shipped Foundation demo configuration uses.** To visually prove the
+> Phase G pipeline (`locale → locale-resolved location → address → geo →
+> directions`), the Foundation's default `site.config.json` ships per-locale
+> overrides pointing at recognizable **public landmarks** (e.g. `en` → Big Ben /
+> Westminster, London; `id` → Monas, Jakarta; `de` → Brandenburg Gate, Berlin;
+> `fr` → Eiffel Tower, Paris; `es` → Puerta del Sol, Madrid; `ja` → Tokyo Tower,
+> Tokyo; `ko` → Gyeongbokgung Palace, Seoul; `zh` → The Bund, Shanghai).
+> **This is Foundation demonstration data only** — it does NOT imply that the
+> template author or Provelopment operates from those locations. Replace all of
+> it with your real business data before go-live.
+
+### Maps directions (`features.maps`)
+
+The footer turns each business-location address into a "Get directions" link via
+a **provider-neutral** seam. Configure which provider builds the link:
+
+```jsonc
+"features": {
+  "maps": { "provider": "google" } // or "none"
+}
+```
+
+- **`google`** (default demo) — a **keyless** deep link to Google Maps built from
+  the **locale-resolved** location (geo coordinate when present, otherwise the
+  address query). No API key, no account, no SDK, no network call.
+- **`none`** or **no `features.maps`** — no directions link is rendered; the
+  address still shows as plain text. The site works unchanged.
+- The directions link always follows Phase G localization: a German visitor sees
+  the German location's coordinates, an English visitor the London coordinates,
+  etc. There is no locale→geography inference in platform code.
+- Adding a different maps provider later (Apple Maps, OpenStreetMap, …) is a
+  new adapter + a config value change — no component or platform-code rewrite.
+
+### Booking action (`features.booking`)
+
+The home page can show a modest static "Book" CTA linking to your external
+scheduler or booking page:
+
+```jsonc
+"features": {
+  "booking": {
+    "provider": "external-url",
+    "url": "https://your-scheduler.example/book"
+  }
+}
+```
+
+- **`external-url`** — renders a static external-link CTA to the **public**
+  `url` (this is configuration, not a secret).
+- **`none`** or **no `features.booking`** — no CTA is rendered; the site works
+  unchanged.
+- **Misconfiguration fails loudly:** `external-url` without a valid `url` is
+  rejected at build/schema time (and throws a typed
+  `BookingMisconfigurationError` at runtime) — it never silently degrades to a
+  hidden `none` state, so a deployment error is caught immediately.
+- This phase is a **static action only**: no Calendly/Google Calendar SDK, no
+  OAuth/account credentials, no embedded scheduling widget. Future calendar
+  providers (Calendly, Google Calendar, Apple Calendar, ICS, …) plug in as
+  adapters behind the same seam.
+
+### Analytics (`features.analytics`)
+
+```jsonc
+"features": {
+  "analytics": { "provider": "vercel" }
+}
+```
+
+- **`vercel`** mounts Vercel Web Analytics exactly as before — no new data
+  collection is introduced.
+- **No `features.analytics`** — no analytics is mounted; the site works
+  unchanged.
+- Provider selection happens in the analytics adapter factory, not in
+  application/layout code. Adding another provider later (GA4, Plausible, …) is
+  an adapter + config change, not an application rewrite.
 
 ### Contact inquiries (`features.contact` + `/contact`)
 

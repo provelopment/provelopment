@@ -373,6 +373,97 @@ framework-free application port; the adopter owns the receiving system.
   Zod schema; no inquiry contents are ever logged; rate limiting is the
   adopter's responsibility.
 
+## Provider Integration Pattern (Phase H)
+
+External services are integrated through a small, **domain-specific** hexagonal
+seam. There is deliberately **no generic `ExternalService<T>` abstraction, no
+provider registry, and no DI container** — each capability owns its own port,
+result types, configuration, and adapters, and they share a documented
+convention rather than a shared runtime substrate.
+
+```
+Business capability
+      ↓
+small port                  (src/application/<domain>.ts)
+      ↓
+provider factory            (src/adapters/<domain>/index.ts)
+      ↓
+small adapter               (src/adapters/<domain>/<provider>.ts)
+```
+
+The four current seams:
+
+| Capability | Port | Adapters | Provider config |
+|---|---|---|---|
+| **Maps directions** | `DirectionLinkResolver` (`direction-link.ts`) | `maps/{google,none}` | `features.maps` |
+| **Booking action** | `BookingActionResolver` (`booking-action.ts`) | `booking/{external-url,none}` | `features.booking` |
+| **Analytics** | `createAnalyticsProvider` factory | `analytics/{index,vercel-analytics}` | `features.analytics` |
+| **Contact inquiry** | `ContactInquirySender` | `contact-inquiry/{webhook,stub}` | `features.contact` |
+
+Guiding rules:
+
+- **Domain-specific ports.** A port is the smallest interface that expresses the
+  business capability (a directions action, a booking action, a sender). Ports
+  live in `src/application`, depend only on `src/core`, and never import
+  adapters or provider SDKs.
+- **Adapters own provider behavior.** The concrete provider implementation
+  (URLs, SDKs, network, secrets) lives entirely inside `src/adapters/<domain>/`.
+  A deep-link maps provider is **keyless** (a public address/coordinate in a URL
+  is not a secret); if a future provider needs credentials, it introduces its
+  own env-backed configuration without contaminating the common contract.
+- **Factories select, adapters do.** `src/adapters/<domain>/index.ts` resolves
+  the configured provider to an adapter. The factory must not contain the
+  provider's behavior in one giant file — provider logic lives in per-provider
+  adapter files.
+- **Composition boundary is `src/app`.** Provider selection is passed into
+  `src/app` (e.g. `createDirectionLinkResolver(siteConfig.mapsFeature)`), and
+  the composition result is passed down to presentational components. Components
+  receive the **already-resolved** action (or nothing) — they must never
+  construct provider URLs or branch on `provider ===`.
+- **Optional by default.** Every integration is optional. No `features.*` block,
+  or an explicit `"none"` provider, means the integration is intentionally
+  disabled: no directions link, no booking CTA, no analytics, and the site works
+  unchanged. There is no forced third-party account.
+- **Misconfiguration fails loudly, never silently to `none`.** A configured-but-
+  invalid provider (e.g. `features.booking` with `provider: "external-url"` but
+  no url) is rejected by the schema at build time and, at the factory, throws a
+  typed domain `MisconfigurationError` (analogous to
+  `ContactInquiryMisconfigurationError`). It is never silently downgraded to the
+  disabled adapter, so a deployment error is caught immediately.
+- **Provider replacement is a local change.** Switching `maps: google` to a
+  future `maps: apple` (or booking to another scheduler, or analytics to another
+  provider) is an adapter + configuration change — never a rewrite of
+  `src/app`, `src/components`, `src/core`, or `src/application`.
+- **Static links vs interactive embeds.** Maps and booking are currently
+  **static external actions** (keyless directions deep links; a public booking
+  URL). An interactive embed (Calendly inline, a map iframe with a keyed tile
+  provider, a hypothetical analytics widget) is a separate future capability
+  and is explicitly deferred; the seam accommodates it additively.
+
+### Locale integration (Phase G composing)
+
+Maps composes with the Phase G locale resolution — there is no second
+localization mechanism:
+
+```
+locale
+  ↓
+resolveLocationForLocale(location, locale)
+  ↓
+resolved BusinessLocation (address / geo / phone)
+  ↓
+DirectionLinkResolver.resolve(resolvedLocation)
+  ↓
+provider directions URL
+```
+
+No geography is inferred from a locale anywhere in platform code
+(`de` → Germany or `ja` → Japan never appears in `src/`); the locale merely
+selects a configuration entry. The visible footer address, the structured-data
+`PostalAddress`/`GeoCoordinates`, and the directions link all derive from the
+**same** resolved location, preserving the Phase G invariant that visible
+business data and structured data can never diverge.
+
 ## Offerings catalog (Phase C)
 
 A single type-agnostic offering primitive (services, products, packages,
