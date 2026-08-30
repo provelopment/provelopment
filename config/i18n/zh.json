@@ -6,7 +6,7 @@
   "sections": {
     "about": "关于",
     "contact": "联系我们",
-    "connect": "关注我们",
+    "connect": "联系",
     "navigate": "浏览"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "营业中",
     "closed": "已打烊",
     "noHours": "暂无营业时间",
-    "hoursLabel": "营业时间"
+    "hoursLabel": "营业时间",
+    "hoursTimeZoneLabel": "时区"
   },
   "a11y": {
     "skipToContent": "跳到主要内容"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "联系",
     "demoNotice": "这些联系方式是模板演示。这里没有任何内容连接到真实的商家或服务。",
-    "demoBadge": "演示"
+    "demoBadge": "演示",
+    "methods": {
+      "message": "发送消息",
+      "email": "电子邮件",
+      "phone": "电话"
+    }
   }
 }

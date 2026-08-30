@@ -427,3 +427,65 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
     expect(page).not.toContain("resolveTimezone");
   });
 });
+
+describe("Phase M refinement — footer Connect UX boundaries", () => {
+  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
+
+  function readComponent(name: string): string {
+    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+  }
+
+  it("the footer delegates ALL resolution to the shared resolver components (no duplicate logic)", () => {
+    const footer = readComponent("site-footer.tsx");
+    // The Connect heading link + method links go through the shared
+    // URL-authoritative components; the footer itself never parses the URL or
+    // constructs regional hrefs.
+    expect(footer).toContain("ContextConnectHeading");
+    expect(footer).toContain("context-connect-heading");
+    expect(footer).toContain("ContextNavLinks");
+    expect(footer).toContain("connectMethodLabel");
+    expect(footer).not.toContain("usePathname");
+    expect(footer).not.toContain("parseRegionalPath");
+    expect(footer).not.toContain("resolveNavHref");
+    expect(footer).not.toContain("${locale}${");
+  });
+
+  it("the footer has no /connect or /contact list items (heading IS the link; Message Us is the method)", () => {
+    const footer = readComponent("site-footer.tsx");
+    expect(footer).not.toContain('href: "/connect"');
+    expect(footer).not.toContain('href: "/contact"');
+    expect(footer).toContain('href: method.href');
+  });
+
+  it("the Connect heading resolves through the same core resolver the header uses", () => {
+    const heading = readComponent("context-connect-heading.tsx");
+    expect(heading).toContain("resolveNavHref");
+    expect(heading).toContain("parseRegionalPath");
+    expect(heading).toContain("@/core/regional-pages");
+    // No hand-constructed regional URL building in the heading component.
+    expect(heading).not.toContain("regionalPath(");
+    expect(heading).not.toContain("unspecifiedDestination");
+  });
+
+  it("connection-method labels come from ONE shared helper (same source for page + footer)", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+      "utf8",
+    );
+    const footer = readComponent("site-footer.tsx");
+    for (const source of [page, footer]) {
+      expect(source).toContain("connectMethodLabel");
+    }
+  });
+
+  it("the language switcher uses the shared display-name helper (never English (English))", () => {
+    const switcher = readComponent("language-switcher.tsx");
+    expect(switcher).toContain("displayNameWithEnglish");
+    expect(switcher).toContain("@/core/display-labels");
+  });
+
+  it("the location selector receives display names (never duplicates English)", () => {
+    const switcher = readComponent("location-switcher.tsx");
+    expect(switcher).toContain("regionLabels");
+  });
+});

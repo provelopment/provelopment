@@ -6,7 +6,7 @@
   "sections": {
     "about": "À propos",
     "contact": "Contact",
-    "connect": "Nous suivre",
+    "connect": "Connecter",
     "navigate": "Naviguer"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "Ouvert maintenant",
     "closed": "Fermé",
     "noHours": "Horaires non disponibles",
-    "hoursLabel": "Heures d'ouverture"
+    "hoursLabel": "Heures d'ouverture",
+    "hoursTimeZoneLabel": "Fuseau horaire"
   },
   "a11y": {
     "skipToContent": "Aller au contenu"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "Connecter",
     "demoNotice": "Ces options de connexion sont des démonstrations du modèle. Rien ici n'est connecté à une vraie entreprise ou un vrai service.",
-    "demoBadge": "Démo"
+    "demoBadge": "Démo",
+    "methods": {
+      "message": "Envoyer un message",
+      "email": "Courriel",
+      "phone": "Téléphone"
+    }
   }
 }

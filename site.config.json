@@ -10,35 +10,43 @@
     "locales": [
       {
         "code": "en",
-        "label": "English"
+        "label": "English",
+        "englishLabel": "English"
       },
       {
         "code": "es",
-        "label": "Español"
+        "label": "Español",
+        "englishLabel": "Spanish"
       },
       {
         "code": "fr",
-        "label": "Français"
+        "label": "Français",
+        "englishLabel": "French"
       },
       {
         "code": "de",
-        "label": "Deutsch"
+        "label": "Deutsch",
+        "englishLabel": "German"
       },
       {
         "code": "ja",
-        "label": "日本語"
+        "label": "日本語",
+        "englishLabel": "Japanese"
       },
       {
         "code": "zh",
-        "label": "简体中文"
+        "label": "简体中文",
+        "englishLabel": "Chinese"
       },
       {
         "code": "ko",
-        "label": "한국어"
+        "label": "한국어",
+        "englishLabel": "Korean"
       },
       {
         "code": "id",
-        "label": "Bahasa Indonesia"
+        "label": "Bahasa Indonesia",
+        "englishLabel": "Indonesian"
       }
     ]
   },
@@ -224,7 +232,7 @@
       "montreal": {
         "timezone": "America/Toronto",
         "name": "Montréal Atelier",
-        "label": "Montréal",
+        "label": "Montreal",
         "defaultLocale": "en",
         "address": {
           "street": "120 Rue Saint-Paul Ouest",
@@ -289,6 +297,9 @@
               "closed": true
             }
           ]
+        },
+        "labels": {
+          "fr": "Montréal"
         }
       },
       "berlin": {
@@ -581,6 +592,9 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "ja": "東京"
         }
       },
       "seoul": {
@@ -634,6 +648,9 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "ko": "서울"
         }
       },
       "shanghai": {
@@ -687,6 +704,9 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "zh": "上海"
         }
       },
       "jakarta": {
@@ -911,7 +931,7 @@
     "methods": [
       {
         "id": "message",
-        "label": "Message form",
+        "label": "Message Us",
         "href": "/contact"
       },
       {
@@ -936,6 +956,12 @@
         "id": "telegram",
         "label": "Telegram",
         "href": "https://t.me/yourbusinesssite",
+        "demoOnly": true
+      },
+      {
+        "id": "viber",
+        "label": "Viber",
+        "href": "viber://chat?number=%2B14165550142",
         "demoOnly": true
       }
     ]

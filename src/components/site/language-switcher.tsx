@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 
 import { siteConfig } from "@/config";
+import { displayNameWithEnglish } from "@/core/display-labels";
 import { replaceLocaleSegment } from "@/core/locale";
 import {
   parseRegionalPath,
@@ -89,7 +90,7 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
     >
       {offeredLocales.map((entry) => (
         <option key={entry.code} value={entry.code}>
-          {entry.label}
+          {displayNameWithEnglish(entry.label, entry.englishLabel)}
         </option>
       ))}
     </select>

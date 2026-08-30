@@ -6,7 +6,7 @@
   "sections": {
     "about": "Tentang",
     "contact": "Kontak",
-    "connect": "Ikuti",
+    "connect": "Terhubung",
     "navigate": "Jelajah"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "Buka sekarang",
     "closed": "Tutup",
     "noHours": "Jam operasional tidak tersedia",
-    "hoursLabel": "Jam operasional"
+    "hoursLabel": "Jam operasional",
+    "hoursTimeZoneLabel": "Zona waktu"
   },
   "a11y": {
     "skipToContent": "Langsung ke konten"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "Terhubung",
     "demoNotice": "Opsi koneksi ini adalah demonstrasi templat. Tidak ada yang terhubung ke bisnis atau layanan nyata.",
-    "demoBadge": "Demo"
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Kirim pesan",
+      "email": "Surel",
+      "phone": "Telepon"
+    }
   }
 }

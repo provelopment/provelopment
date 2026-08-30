@@ -41,6 +41,12 @@ describe("Phase K — regional consumers", () => {
     expect(html).toContain("Christmas Eve");
     // Closed days say so structurally.
     expect(html).toContain("Closed");
+
+    // Phase M refinement: the timezone is INSIDE the Business Hours heading as
+    // one unit (localized (English) — IANA), never a standalone element.
+    expect(html).toMatch(/Business hours \(Time Zone:/);
+    expect(html).toContain("— America/Toronto");
+    expect((html.match(/America\/Toronto/g) ?? []).length).toBe(1);
   });
 
   it("cross-region isolation: a toronto page contains no vancouver/jakarta operational data", () => {
@@ -76,6 +82,13 @@ describe("Phase K — regional consumers", () => {
     expect(frHtml).toContain("America/Toronto");
     expect(enHtml).toContain("Monday");
     expect(frHtml).toContain("lundi");
+    // Phase M refinement: each locale gets its own localized timezone display
+    // inside the same heading (values come from the platform ICU table; the
+    // apostrophe in the French heading is HTML-escaped by SSR as &#x27;).
+    expect(frHtml).toMatch(/ouverture &#x27;|&#x27;ouverture/);
+    expect(frHtml).toContain("Fuseau horaire:");
+    expect(frHtml).toContain("America/Toronto");
+    expect(enHtml).toMatch(/Business hours \(Time Zone:/);
   });
 
   it("JSON-LD describes ONLY the resolved region (never any other region's streets)", () => {

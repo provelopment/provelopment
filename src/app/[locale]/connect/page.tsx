@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { connectMethodLabel } from "@/components/site/connect-method-label";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -63,35 +64,38 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
       </div>
 
       <ul className="mt-8 grid gap-4 sm:grid-cols-2">
-        {siteConfig.connect?.methods.map((method) => (
-          <li
-            key={method.id}
-            className="flex items-center justify-between rounded-lg border border-border bg-accent/50 p-4"
-          >
-            <span className="font-medium">
-              {method.label}
-              {method.demoOnly ? (
-                <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                  {dictionary.connect.demoBadge}
-                </span>
-              ) : null}
-            </span>
-            {isInternalHref(method.href) ? (
-              <a href={method.href} className="text-sm font-medium text-primary hover:underline">
-                {method.label}
-              </a>
-            ) : (
-              <a
-                href={method.href}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-medium text-primary hover:underline"
-              >
-                {method.label}
-              </a>
-            )}
-          </li>
-        ))}
+        {siteConfig.connect?.methods.map((method) => {
+          const label = connectMethodLabel(dictionary, method);
+          return (
+            <li
+              key={method.id}
+              className="flex items-center justify-between rounded-lg border border-border bg-accent/50 p-4"
+            >
+              <span className="font-medium">
+                {label}
+                {method.demoOnly ? (
+                  <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                    {dictionary.connect.demoBadge}
+                  </span>
+                ) : null}
+              </span>
+              {isInternalHref(method.href) ? (
+                <a href={method.href} className="text-sm font-medium text-primary hover:underline">
+                  {label}
+                </a>
+              ) : (
+                <a
+                  href={method.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  {label}
+                </a>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       <p className="mt-8 rounded-lg border border-border bg-accent p-4 text-sm text-muted-foreground">

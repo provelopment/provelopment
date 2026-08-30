@@ -6,8 +6,14 @@ import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
   readonly code: string;
-  /** Human-readable name of the locale, for language switchers. */
+  /** Human-readable name of the locale (native form), for language switchers. */
   readonly label: string;
+  /**
+   * Phase M refinement — canonical English name of the language. The Language
+   * selector shows `label` followed by `englishLabel` in brackets when they
+   * differ (`Français (French)`); never `English (English)`.
+   */
+  readonly englishLabel?: string;
 }
 
 export interface SocialLink {
