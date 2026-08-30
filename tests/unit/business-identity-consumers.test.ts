@@ -78,7 +78,8 @@ describe("Phase K — regional consumers", () => {
     expect(frHtml).toContain("lundi");
   });
 
-  it("JSON-LD describes ONLY the resolved region (never all regions, never Jakarta)", () => {
+  it("JSON-LD describes ONLY the resolved region (never any other region's streets)", () => {
+    const allStreets = Object.values(siteConfig.regions).map((region) => region.address.street);
     for (const regionId of new Set(siteConfig.pageBindings.map((binding) => binding.region))) {
       const region = regionFor(regionId);
       const html = renderToStaticMarkup(RegionStructuredData({ region }));
@@ -87,7 +88,11 @@ describe("Phase K — regional consumers", () => {
       const json = html.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "");
       const node = JSON.parse(json) as { address?: { addressLocality?: string } };
       expect(node.address?.addressLocality).toBe(region.address.city);
-      expect(html).not.toContain("Jakarta");
+      for (const street of allStreets) {
+        if (street !== region.address.street) {
+          expect(html, `${region.id} leaks ${street}`).not.toContain(street);
+        }
+      }
       expect(html).not.toContain("1 Demo Street");
     }
   });

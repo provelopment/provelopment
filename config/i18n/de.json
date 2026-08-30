@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "Eine schnelle, mehrsprachige Website für Ihr kleines Unternehmen",
-    "description": "Ersetzen Sie diese Beschreibung durch Ihre eigene. My Site ist eine Demonstration der Vorlage Provelopment Foundation: Bearbeiten Sie site.config.json, die Markdown-Inhalte und Ihre Assets, um sie zu Ihrer eigenen zu machen."
+    "description": "Ersetzen Sie diese Beschreibung durch Ihre eigene. Your Business Site ist eine Demonstration der Vorlage Provelopment Foundation: Bearbeiten Sie site.config.json, die Markdown-Inhalte und Ihre Assets, um sie zu Ihrer eigenen zu machen."
   },
   "sections": {
     "about": "Über uns",
@@ -16,8 +16,8 @@
       "/": "Startseite",
       "/about": "Über uns",
       "/resources": "Ressourcen",
-      "/contact": "Kontakt",
-      "/offerings": "Angebote"
+      "/offerings": "Angebote",
+      "/connect": "Verbinden"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "Sprache"
   },
   "location": {
-    "label": "Standort"
+    "label": "Standort",
+    "unspecified": "Nicht angegeben"
   },
   "business": {
     "open": "Jetzt geöffnet",
@@ -53,35 +54,40 @@
     "subjectLabel": "Betreff",
     "messageLabel": "Nachricht",
     "submit": "Anfrage senden",
-    "sending": "Wird gesendet\u2026",
+    "sending": "Wird gesendet…",
     "honeypotLabel": "Website",
-    "success": "Ihre Anfrage wurde erfolgreich \u00fcbermittelt.",
+    "success": "Ihre Anfrage wurde erfolgreich übermittelt.",
     "demoNotice": "Demomodus: Es wurde nichts gesendet. Verbinden Sie einen Webhook, um Anfragen zu empfangen.",
     "unconfigured": "Das Kontaktformular ist auf dieser Website noch nicht konfiguriert.",
     "configError": "Das Kontaktformular ist nicht korrekt konfiguriert. Bitte kontaktieren Sie den Website-Betreiber direkt.",
-    "sendError": "Ihre Anfrage konnte nicht \u00fcbermittelt werden. Bitte versuchen Sie es erneut.",
+    "sendError": "Ihre Anfrage konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
     "errors": {
       "name": "Bitte geben Sie Ihren Namen ein.",
-      "email": "Bitte geben Sie eine g\u00fcltige E-Mail-Adresse ein.",
-      "subject": "Bitte k\u00fcrzen Sie den Betreff.",
+      "email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+      "subject": "Bitte kürzen Sie den Betreff.",
       "message": "Bitte geben Sie eine Nachricht ein (max. 5000 Zeichen)."
     }
   },
   "offerings": {
     "heading": "Angebote",
     "emptyState": "Wir zeigen hier bald unsere Angebote.",
-    "backToOfferings": "Zur\u00fcck zu den Angeboten"
+    "backToOfferings": "Zurück zu den Angeboten"
   },
   "booking": {
     "book": "Buchen"
   },
   "legal": {
     "heading": "Rechtliches",
-    "disclaimer": "Diese Dokumente sind Vorlagen zu Demonstrationszwecken und stellen keine Rechtsberatung dar. Fragen Sie eine qualifizierte Fachkraft f\u00fcr Ihre Rechtsordnung.",
+    "disclaimer": "Diese Dokumente sind Vorlagen zu Demonstrationszwecken und stellen keine Rechtsberatung dar. Fragen Sie eine qualifizierte Fachkraft für Ihre Rechtsordnung.",
     "labels": {
-      "privacy": "Datenschutzerkl\u00e4rung",
+      "privacy": "Datenschutzerklärung",
       "terms": "Nutzungsbedingungen",
       "cookies": "Cookie-Richtlinie"
     }
+  },
+  "connect": {
+    "heading": "Verbinden",
+    "demoNotice": "Diese Kontaktoptionen sind Vorlagen-Demonstrationen. Nichts davon ist mit einem echten Unternehmen oder Dienst verbunden.",
+    "demoBadge": "Demo"
   }
 }

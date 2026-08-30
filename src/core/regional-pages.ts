@@ -10,12 +10,21 @@
  *   - the deterministic destination when switching language,
  *   - hreflang alternates for genuinely existing (locale, region, page).
  *
+ * Phase M adds the two independent inventory concerns:
+ *
+ *   - `configuredRegionIds` — the LOCATION SELECTOR's inventory, derived from
+ *     `business.regions` (configured operating locations), independent of
+ *     locale and page bindings;
+ *   - `resolveNavHref` / `unspecifiedDestination` — region-aware navigation
+ *     links (a regional context only exposes pages that exist there, never a
+ *     silent redirect) and the explicit unspecified-location destination.
+ *
  * Framework-free and pure so both server routes and the thin client switchers
  * share exactly one behavior. No component performs selection logic; no
  * `RegionalService<T>`-style abstraction is introduced.
  */
 
-import type { PageRegionBinding } from "./region";
+import type { OperationalRegion, PageRegionBinding } from "./region";
 
 /** Whether the exact (locale, region, slug) combination is configured. */
 export function hasPageEntry(
@@ -51,6 +60,62 @@ export function regionsForLocale(
   return ordered;
 }
 
+/**
+ * Phase M — the LOCATION SELECTOR's inventory: every CONFIGURED operating
+ * location, in `business.regions` insertion (configuration) order, regardless
+ * of locale or page bindings. `business.regions` answers "which operating
+ * locations exist"; `business.pages` answers "which locale + region + page
+ * combinations exist" — two separate concerns that must not be merged.
+ *
+ * A region may legitimately have only a landing (or no bindings yet) and still
+ * be selectable.
+ */
+export function configuredRegionIds(
+  regions: Readonly<Record<string, OperationalRegion>>,
+): readonly string[] {
+  return Object.keys(regions);
+}
+
+/** Distinct locales bound to a region, in configuration order. */
+export function localesForRegion(
+  entries: readonly PageRegionBinding[],
+  region: string,
+): readonly string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (entry.region !== region || seen.has(entry.locale)) continue;
+    seen.add(entry.locale);
+    ordered.push(entry.locale);
+  }
+  return ordered;
+}
+
+/** Whether an href is a site-internal route (starts with `/`). */
+export function isInternalHref(href: string): boolean {
+  return href.startsWith("/");
+}
+
+/**
+ * Phase M — the deterministic locale a region uses when the visitor's current
+ * locale is NOT bound to it. Explicit `region.defaultLocale` wins; otherwise
+ * the locale of the region's first landing binding in configuration order.
+ * Pure so the LocationSwitcher and tests share exactly one rule.
+ */
+export function regionDefaultLocale(
+  regions: Readonly<Record<string, OperationalRegion>>,
+  entries: readonly PageRegionBinding[],
+  regionId: string,
+): string | null {
+  const explicit = regions[regionId]?.defaultLocale;
+  if (explicit) return explicit;
+
+  const landing = entries.find(
+    (entry) => entry.region === regionId && entry.slug === null,
+  );
+  return landing?.locale ?? null;
+}
+
 /** Ordered page slugs (null = landing) configured for (locale, region). */
 export function pagesForRegion(
   entries: readonly PageRegionBinding[],
@@ -62,32 +127,104 @@ export function pagesForRegion(
     .map((entry) => entry.slug);
 }
 
+export interface ResolveLocationDestinationOptions {
+  readonly entries: readonly PageRegionBinding[];
+  readonly locale: string;
+  readonly targetRegion: string;
+  readonly currentSlug: string | null;
+  /**
+   * Phase M — the target region's deterministic default locale (`region
+   * defaultLocale` from config). Used ONLY when the current locale is not
+   * bound to the target region at all: the destination becomes that locale's
+   * LANDING (the page is not preserved across a forced locale change).
+   */
+  readonly defaultLocale?: string | null;
+}
+
+export interface LocationDestination {
+  readonly locale: string;
+  readonly region: string;
+  readonly slug: string | null;
+}
+
 /**
- * Deterministic destination for switching LOCATION within the same locale.
+ * Phase M — deterministic destination for switching LOCATION.
  *
- *   1. the same content page under the target region, if configured;
- *   2. the target region's landing page;
- *   3. the target region's first page in configuration order;
- *   4. `null` (the caller hides/omits the option — never a dead link).
- *
- * The current language is NEVER changed by this function.
+ *  - current locale IS bound to the target region:
+ *      1. the same content page under the target region, if configured;
+ *      2. the target region's landing page;
+ *      3. the target region's first page in configuration order;
+ *    (locale is preserved — location and language are independent).
+ *  - current locale is NOT bound to the target region: the destination is the
+ *    target region's configured default locale + its landing (a forced locale
+ *    change ends at the landing; the page is never preserved across it).
+ *  - `null` when no destination exists (caller hides/omits — never a dead
+ *    link, never a silent region/language change).
  */
 export function resolveLocationDestination(
-  entries: readonly PageRegionBinding[],
-  locale: string,
-  targetRegion: string,
-  currentSlug: string | null,
-): { readonly region: string; readonly slug: string | null } | null {
+  options: ResolveLocationDestinationOptions,
+): LocationDestination | null {
+  const { entries, locale, targetRegion, currentSlug, defaultLocale } = options;
+
   if (hasPageEntry(entries, locale, targetRegion, currentSlug)) {
-    return { region: targetRegion, slug: currentSlug };
+    return { locale, region: targetRegion, slug: currentSlug };
   }
   if (hasPageEntry(entries, locale, targetRegion, null)) {
-    return { region: targetRegion, slug: null };
+    return { locale, region: targetRegion, slug: null };
   }
   const firstPage = entries.find(
     (entry) => entry.locale === locale && entry.region === targetRegion && entry.slug !== null,
   );
-  return firstPage ? { region: targetRegion, slug: firstPage.slug } : null;
+  if (firstPage) {
+    return { locale, region: targetRegion, slug: firstPage.slug };
+  }
+
+  if (defaultLocale && hasPageEntry(entries, defaultLocale, targetRegion, null)) {
+    return { locale: defaultLocale, region: targetRegion, slug: null };
+  }
+  return null;
+}
+
+/**
+ * Phase M — NAVIGATION link resolution. In a REGIONAL context a page is only
+ * exposed when it actually exists for (locale, region): a nav item must never
+ * promise one page and silently deliver another. Returns `null` for an
+ * unavailable regional page (the caller filters it out); returns the regional
+ * LANDING for `href === "/"` (Home is always the regional home). In the
+ * generic (unspecified location) context the flat `/{locale}{href}` route is
+ * returned. External hrefs (`mailto:`, `tel:`, `https:`, …) pass through
+ * unchanged — the caller renders them as plain links.
+ */
+export function resolveNavHref(
+  entries: readonly PageRegionBinding[],
+  locale: string,
+  region: string | null,
+  href: string,
+): string | null {
+  if (!isInternalHref(href)) return href;
+
+  if (region === null) {
+    return `/${locale}${href === "/" ? "" : href}`;
+  }
+  if (href === "/") {
+    return regionalPath(locale, region, null);
+  }
+  const slug = href.replace(/^\//, "");
+  if (slug && hasPageEntry(entries, locale, region, slug)) {
+    return regionalPath(locale, region, slug);
+  }
+  return null;
+}
+
+/**
+ * Phase M — the destination of the explicit "unspecified location" option:
+ * the equivalent NON-REGIONAL page where one exists. A regional landing
+ * (`slug === null`) returns to `/{locale}`; a regional page returns to the
+ * flat `/{locale}/{slug}` (its existence is guaranteed by the content model —
+ * regional pages reuse the locale's flat content file).
+ */
+export function unspecifiedDestination(locale: string, slug: string | null): string {
+  return slug ? `/${locale}/${slug}` : `/${locale}`;
 }
 
 /**

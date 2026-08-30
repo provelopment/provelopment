@@ -20,79 +20,120 @@ function regionById(id: string): OperationalRegion {
   return region;
 }
 
-describe("Phase L - page to region resolution (live demo config)", () => {
-  it("EN Toronto - toronto region (America/Toronto)", () => {
-    expect(hasPageEntry(pageBindings, "en", "toronto", null)).toBe(true);
-    expect(regionById("toronto").timezone).toBe("America/Toronto");
+describe("Phase M - page to region resolution (live demo config)", () => {
+  it("the acceptance trio is reachable in English AND French", () => {
+    for (const region of ["toronto", "vancouver", "montreal"]) {
+      expect(hasPageEntry(pageBindings, "en", region, null)).toBe(true);
+      expect(hasPageEntry(pageBindings, "fr", region, null)).toBe(true);
+    }
   });
 
-  it("EN Vancouver - vancouver region (America/Vancouver)", () => {
-    expect(hasPageEntry(pageBindings, "en", "vancouver", null)).toBe(true);
+  it("Toronto = America/Toronto; Vancouver = America/Vancouver (different tz, never locale-inferred)", () => {
+    expect(regionById("toronto").timezone).toBe("America/Toronto");
     expect(regionById("vancouver").timezone).toBe("America/Vancouver");
+    expect(regionById("toronto").timezone).not.toBe(regionById("vancouver").timezone);
   });
 
-  it("FR Toronto - same toronto region as EN Toronto", () => {
-    expect(hasPageEntry(pageBindings, "fr", "toronto", null)).toBe(true);
-    expect(regionById("toronto").timezone).toBe("America/Toronto");
-  });
-
-  it("FR Montreal - montreal region, sharing a timezone with toronto", () => {
-    expect(hasPageEntry(pageBindings, "fr", "montreal", null)).toBe(true);
+  it("Montreal timezone is independently configured (shares America/Toronto by config, not by locale)", () => {
     expect(regionById("montreal").timezone).toBe("America/Toronto");
     expect(regionById("montreal").timezone).toBe(regionById("toronto").timezone);
     expect(regionById("montreal").id).not.toBe(regionById("toronto").id);
   });
 
-  it("DE Berlin - berlin region (Europe/Berlin)", () => {
+  it("single-language regions resolve their own operational identity", () => {
     expect(hasPageEntry(pageBindings, "de", "berlin", null)).toBe(true);
     expect(regionById("berlin").timezone).toBe("Europe/Berlin");
+    expect(hasPageEntry(pageBindings, "en", "london", null)).toBe(true);
+    expect(regionById("london").timezone).toBe("Europe/London");
+    expect(hasPageEntry(pageBindings, "es", "madrid", null)).toBe(true);
+    expect(regionById("madrid").timezone).toBe("Europe/Madrid");
+    expect(hasPageEntry(pageBindings, "ja", "tokyo", null)).toBe(true);
+    expect(regionById("tokyo").timezone).toBe("Asia/Tokyo");
+    expect(regionById("tokyo").defaultLocale).toBe("ja");
   });
 
   it("one locale resolves multiple regions with different timezones", () => {
-    const enRegions = regionsForLocale(pageBindings, "en");
-    expect(enRegions).toEqual(["toronto", "vancouver"]);
+    expect(regionsForLocale(pageBindings, "en")).toEqual([
+      "toronto",
+      "vancouver",
+      "montreal",
+      "london",
+    ]);
     expect(regionById("toronto").timezone).not.toBe(regionById("vancouver").timezone);
   });
 
-  it("one region is presented through multiple locales", () => {
-    const torontoLocales = [
-      ...new Set(
-        pageBindings
-          .filter((binding) => binding.region === "toronto")
-          .map((binding) => binding.locale),
-      ),
-    ].sort();
-    expect(torontoLocales).toEqual(["en", "fr"]);
+  it("one region is presented through multiple locales (en + fr trio)", () => {
+    for (const region of ["toronto", "vancouver", "montreal"]) {
+      const locales = [
+        ...new Set(
+          pageBindings
+            .filter((binding) => binding.region === region)
+            .map((binding) => binding.locale),
+        ),
+      ].sort();
+      expect(locales).toEqual(["en", "fr"]);
+    }
   });
 
-  it("regions have selector labels", () => {
+  it("every region declares its deterministic default audience locale", () => {
+    const expected: Record<string, string> = {
+      toronto: "en", vancouver: "en", montreal: "en", london: "en",
+      berlin: "de", paris: "fr", madrid: "es", tokyo: "ja",
+      seoul: "ko", shanghai: "zh", jakarta: "id",
+    };
+    for (const [id, locale] of Object.entries(expected)) {
+      expect(regionById(id).defaultLocale, id).toBe(locale);
+    }
+  });
+
+  it("regions have selector labels from configuration", () => {
     expect(regionById("toronto").label).toBe("Toronto");
     expect(regionById("vancouver").label).toBe("Vancouver");
     expect(regionById("montreal").label).toBe("Montréal");
+    expect(regionById("london").label).toBe("London");
     expect(regionById("berlin").label).toBe("Berlin");
+    expect(regionById("paris").label).toBe("Paris");
+    expect(regionById("madrid").label).toBe("Madrid");
+    expect(regionById("tokyo").label).toBe("Tokyo");
+    expect(regionById("seoul").label).toBe("Seoul");
+    expect(regionById("shanghai").label).toBe("Shanghai");
+    expect(regionById("jakarta").label).toBe("Jakarta");
   });
 
-  it("a locale with no regional pages has no available regions", () => {
-    expect(regionsForLocale(pageBindings, "ja")).toEqual([]);
-    expect(regionsForLocale(pageBindings, "ko")).toEqual([]);
+  it("every configured locale reaches at least one operating region", () => {
+    for (const { code } of siteConfig.locales) {
+      expect(regionsForLocale(pageBindings, code).length, `locale ${code}`).toBeGreaterThan(0);
+    }
   });
 
   it("different regions can have different page inventories", () => {
-    expect(hasPageEntry(pageBindings, "en", "toronto", null)).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "toronto", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "toronto", "contact")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "vancouver", null)).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "vancouver", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "vancouver", "contact")).toBe(false);
-    expect(hasPageEntry(pageBindings, "fr", "toronto", null)).toBe(true);
-    expect(hasPageEntry(pageBindings, "fr", "toronto", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "fr", "toronto", "contact")).toBe(false);
-    expect(hasPageEntry(pageBindings, "de", "berlin", null)).toBe(true);
+    // Trio: Home + About + Connect in both locales.
+    for (const region of ["toronto", "vancouver", "montreal"]) {
+      expect(hasPageEntry(pageBindings, "en", region, "about")).toBe(true);
+      expect(hasPageEntry(pageBindings, "fr", region, "about")).toBe(true);
+      expect(hasPageEntry(pageBindings, "en", region, "connect")).toBe(true);
+      expect(hasPageEntry(pageBindings, "fr", region, "connect")).toBe(true);
+    }
+    // London/Berlin/Paris: Home + About only.
+    expect(hasPageEntry(pageBindings, "en", "london", "about")).toBe(true);
     expect(hasPageEntry(pageBindings, "de", "berlin", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "montreal", null)).toBe(false);
+    expect(hasPageEntry(pageBindings, "fr", "paris", "about")).toBe(true);
+    // Madrid/Tokyo/Seoul/Shanghai/Jakarta: Home (landing) only.
+    for (const [locale, region] of [
+      ["es", "madrid"], ["ja", "tokyo"], ["ko", "seoul"],
+      ["zh", "shanghai"], ["id", "jakarta"],
+    ]) {
+      expect(hasPageEntry(pageBindings, locale, region, null)).toBe(true);
+      expect(hasPageEntry(pageBindings, locale, region, "about")).toBe(false);
+    }
+    // Regionally unbound pages are NOT exposed.
+    expect(hasPageEntry(pageBindings, "en", "toronto", "resources")).toBe(false);
+    expect(hasPageEntry(pageBindings, "en", "toronto", "contact")).toBe(false);
+    expect(hasPageEntry(pageBindings, "en", "toronto", "offerings")).toBe(false);
+    // Unconfigured combinations must not exist.
+    expect(hasPageEntry(pageBindings, "en", "berlin", null)).toBe(false);
     expect(hasPageEntry(pageBindings, "ja", "toronto", null)).toBe(false);
-    expect(hasPageEntry(pageBindings, "fr", "vancouver", null)).toBe(false);
-    expect(hasPageEntry(pageBindings, "de", "toronto", null)).toBe(false);
+    expect(hasPageEntry(pageBindings, "fr", "berlin", null)).toBe(false);
   });
 });
 describe("Phase L - resolution is pure and region-isolated (custom fixture)", () => {

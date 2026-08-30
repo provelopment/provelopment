@@ -83,6 +83,15 @@ export interface OperationalRegion {
   readonly name?: string;
   /** Short display label for the location selector (`label ?? name ?? id`). */
   readonly label?: string;
+  /**
+   * Phase M — deterministic locale chosen for this region when the visitor's
+   * current locale is NOT bound to the region (location switch across an
+   * unsupported language). Explicit configuration; NEVER inferred from
+   * country/timezone/browser. Must be a configured locale AND bound to this
+   * region (validated at build time). Absent → derived from this region's
+   * first landing binding in `business.pages`.
+   */
+  readonly defaultLocale?: string;
   /** Fictional or real physical address shown as the region's NAP. */
   readonly address: Address;
   readonly addressInternational?: Address;
@@ -113,6 +122,7 @@ export interface PageRegionBinding {
  */
 export const RESERVED_REGION_IDS: readonly string[] = [
   "about",
+  "connect",
   "contact",
   "resources",
   "offerings",
@@ -234,6 +244,39 @@ export function assertRegionsValid(
         `Region "${binding.region}" is used by locale "${binding.locale}" without a landing ` +
           `entry. Add { "locale": "${binding.locale}", "region": "${binding.region}" } to ` +
           `"business.pages".`,
+      );
+    }
+  }
+
+  // Phase M — a region's explicit `defaultLocale` must be a configured locale
+  // AND actually bound to the region (its landing must exist): the location
+  // selector may only fall back to a language the region truly offers. A
+  // region with no landing bindings (legitimate: it is configured but not yet
+  // reachable through any page) has no default usable by the selector.
+  for (const region of Object.values(regions)) {
+    if (!region.defaultLocale) continue;
+
+    if (!configuredLocales.includes(region.defaultLocale)) {
+      throw new Error(
+        `Region "${region.id}" defaultLocale "${region.defaultLocale}" is not a configured ` +
+          `locale. Choose one of: ${configuredLocales.join(", ")}.`,
+      );
+    }
+
+    const boundLocales = new Set(
+      pages.filter((binding) => binding.region === region.id).map((binding) => binding.locale),
+    );
+    if (boundLocales.size === 0) {
+      throw new Error(
+        `Region "${region.id}" declares defaultLocale "${region.defaultLocale}" but has no ` +
+          `page bindings. Add a landing entry for it, or remove defaultLocale.`,
+      );
+    }
+    if (!boundLocales.has(region.defaultLocale)) {
+      throw new Error(
+        `Region "${region.id}" defaultLocale "${region.defaultLocale}" is not among the ` +
+          `locales bound to the region. Add a landing binding for it, or change ` +
+          `defaultLocale (bound: ${[...boundLocales].join(", ")}).`,
       );
     }
   }
