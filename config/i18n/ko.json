@@ -17,7 +17,11 @@
       "/about": "소개",
       "/resources": "리소스",
       "/contact": "문의",
-      "/offerings": "서비스"
+      "/offerings": "서비스",
+      "/toronto": "토론토",
+      "/vancouver": "밴쿠버",
+      "/montreal": "몬트리올",
+      "/berlin": "베를린"
     }
   },
   "notFound": {

@@ -296,3 +296,47 @@ describe("adapter factory boundary (Phase I)", () => {
     expect(violations).toEqual([]);
   });
 });
+
+describe("Phase K — regional page-context boundaries", () => {
+  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
+
+  function readComponent(name: string): string {
+    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+  }
+
+  it("regional pages resolve their page context centrally (never in components)", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "[slug]", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("resolvePageContext");
+    // The page must not resolve timezones or read the global business block.
+    expect(page).not.toContain("resolveTimezone");
+    expect(page).not.toContain(".business.timezone");
+    expect(page).not.toContain("business.locations");
+  });
+
+  it("region components never read the global business block or another region", () => {
+    for (const file of ["region-block.tsx", "region-structured-data.tsx", "region-current-status.tsx"]) {
+      const source = readComponent(file);
+      expect(source, `${file} must not read the global business block`).not.toContain(
+        "siteConfig.business",
+      );
+      expect(source, `${file} must not resolve the legacy business identity`).not.toContain(
+        "resolveBusinessForLocale",
+      );
+      expect(source, `${file} must not resolve timezones directly`).not.toContain(
+        "resolveTimezone",
+      );
+    }
+  });
+
+  it("the dynamic regional page owns the [slug] route and excludes static-route slugs", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "[slug]", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("STATIC_ROUTE_SLUGS");
+    expect(page).toContain('"about"');
+  });
+});

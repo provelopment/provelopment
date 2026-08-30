@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isCalendarDate } from "@/core/region";
 import { isIanaTimeZone } from "@/core/business-hours";
 
 /**
@@ -191,15 +192,104 @@ const businessTypeSchema = z.enum([
   "Store",
 ]);
 
-const businessSchema = z.object({
-  timezone: ianaTimeZoneSchema.optional(),
-  type: businessTypeSchema.optional(),
+/**
+ * Phase K — region operating context. Each region is independently clocked
+ * (required IANA timezone), located, and scheduled; it never inherits
+ * business/location defaults.
+ */
+const regionTimeIntervalSchema = z
+  .object({
+    open: timeSchema,
+    close: timeSchema,
+  })
+  // Same 24h-ambiguity rule as the legacy interval model: a full-day schedule
+  // would be 00:00–24:00 (not expressible here), so `open === close` is
+  // rejected. Overnight (`close < open`) is fully supported.
+  .refine((i) => i.open !== i.close, "open and close must differ");
+
+const regionHolidaySchema = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "must be YYYY-MM-DD")
+      .refine(isCalendarDate, "must be a real calendar date"),
+    name: z.string().min(1, "must not be empty"),
+    closed: z.boolean().optional(),
+    intervals: z.array(regionTimeIntervalSchema).optional(),
+  })
+  // A holiday must be a full override: either an explicit closed flag or one
+  // or more special intervals. A listed holiday with neither is a config error
+  // (and would otherwise silently read as closed).
+  .refine(
+    (entry) => entry.closed === true || (entry.intervals?.length ?? 0) > 0,
+    {
+      message:
+        "a holiday must be either closed: true or provide at least one interval",
+    },
+  );
+
+const regionHoursSchema = z
+  .object({
+    monday: z.array(regionTimeIntervalSchema).optional(),
+    tuesday: z.array(regionTimeIntervalSchema).optional(),
+    wednesday: z.array(regionTimeIntervalSchema).optional(),
+    thursday: z.array(regionTimeIntervalSchema).optional(),
+    friday: z.array(regionTimeIntervalSchema).optional(),
+    saturday: z.array(regionTimeIntervalSchema).optional(),
+    sunday: z.array(regionTimeIntervalSchema).optional(),
+    holidays: z.array(regionHolidaySchema).optional(),
+  })
+  // An unknown key is a config typo that must fail loudly (e.g. a misspelled
+  // weekday would otherwise be silently ignored and render as closed).
+  .strict();
+
+const regionSchema = z.object({
+  timezone: ianaTimeZoneSchema,
   name: z.string().min(1).optional(),
-  tagline: z.string().min(1).optional(),
-  description: z.string().min(1).optional(),
-  contact: contactConfigSchema.optional(),
-  locations: z.array(businessLocationSchema).min(1, "must list at least one location").optional(),
+  address: addressSchema,
+  addressInternational: addressSchema.optional(),
+  addressMode: addressPresentationModeSchema.optional(),
+  geo: geoCoordsSchema.optional(),
+  phone: z.string().min(1).optional(),
+  email: z.email().optional(),
+  hours: regionHoursSchema,
 });
+
+const pageRegionBindingSchema = z.object({
+  locale: localeCode,
+  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "must be a lowercase slug"),
+  region: z.string().min(1, "must not be empty"),
+});
+
+const businessSchema = z
+  .object({
+    timezone: ianaTimeZoneSchema.optional(),
+    type: businessTypeSchema.optional(),
+    name: z.string().min(1).optional(),
+    tagline: z.string().min(1).optional(),
+    description: z.string().min(1).optional(),
+    contact: contactConfigSchema.optional(),
+    locations: z.array(businessLocationSchema).min(1, "must list at least one location").optional(),
+    /**
+     * Phase K — regional operating context. When present, each region is an
+     * independent operational identity (timezone/address/hours/etc.); the
+     * legacy global `locations`/`timezone`/`contact` path is NOT merged with
+     * regions (deterministic precedence, documented in ARCHITECTURE.md).
+     */
+    regions: z.record(z.string().min(1, "must not be empty"), regionSchema).optional(),
+    pages: z.array(pageRegionBindingSchema).optional(),
+  })
+  .superRefine((business, ctx) => {
+    const hasRegions = business.regions !== undefined && Object.keys(business.regions).length > 0;
+    const hasPages = (business.pages?.length ?? 0) > 0;
+    if (hasPages && !hasRegions) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["pages"],
+        message: "page→region bindings require a non-empty \"business.regions\" block",
+      });
+    }
+  });
 
 export const socialLinkSchema = z.object({
   platform: z.string().min(1, "must not be empty"),

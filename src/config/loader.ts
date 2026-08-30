@@ -4,6 +4,8 @@ import type { z } from "zod";
 import { siteConfigFileSchema } from "./schema";
 import type { Business, BusinessContact } from "@/core/business";
 import { assertValidAddressPresentation } from "@/core/business";
+import type { OperationalRegion } from "@/core/region";
+import { assertRegionsValid } from "@/core/region";
 import type { SiteConfig } from "./site-config";
 
 /** The validated shape of `site.config.json`. */
@@ -33,6 +35,17 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
   const json = result.data;
 
   const business = toNormalizedBusiness(json);
+  const regions = toRegions(json);
+  const pageBindings = json.business?.pages ?? [];
+
+  // Phase K — cross-reference validation (page→region, duplicate bindings,
+  // locale membership, address-presentation invariants). Loud at build time so
+  // a regional page never silently falls back to a global/other identity.
+  assertRegionsValid(
+    regions,
+    pageBindings,
+    json.i18n.locales.map((locale) => locale.code),
+  );
 
   return {
     url: json.site.url,
@@ -45,6 +58,8 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     socialLinks: json.socialLinks,
     navigation: json.navigation,
     business,
+    regions,
+    pageBindings,
     analytics: json.features?.analytics,
     mapsFeature: json.features?.maps,
     bookingFeature: json.features?.booking,
@@ -101,6 +116,45 @@ function toNormalizedBusiness(json: SiteConfigFile): Business {
   );
 
   return business;
+}
+
+/**
+ * Builds the normalized phase-K region map (id-injected, complete schedule).
+ *
+ * An absent/empty `business.regions` block yields an empty record — the legacy
+ * global model stays untouched. When regions exist, each region is a complete
+ * operational identity; days/holidays omitted from config default to "closed"
+ * / no holidays.
+ */
+function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalRegion>> {
+  const rawRegions = json.business?.regions ?? {};
+  const regions: Record<string, OperationalRegion> = {};
+
+  for (const [id, raw] of Object.entries(rawRegions)) {
+    regions[id] = {
+      id,
+      timezone: raw.timezone,
+      name: raw.name,
+      address: raw.address,
+      addressInternational: raw.addressInternational,
+      addressMode: raw.addressMode,
+      geo: raw.geo,
+      phone: raw.phone,
+      email: raw.email,
+      hours: {
+        monday: raw.hours.monday ?? [],
+        tuesday: raw.hours.tuesday ?? [],
+        wednesday: raw.hours.wednesday ?? [],
+        thursday: raw.hours.thursday ?? [],
+        friday: raw.hours.friday ?? [],
+        saturday: raw.hours.saturday ?? [],
+        sunday: raw.hours.sunday ?? [],
+        holidays: raw.hours.holidays ?? [],
+      },
+    };
+  }
+
+  return regions;
 }
 
 /**
