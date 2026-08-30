@@ -63,7 +63,7 @@ export interface SiteConfig {
    * global business defaults.
    */
   readonly regions: Readonly<Record<string, OperationalRegion>>;
-  /** Page→region bindings (locale + content slug → region id). Empty when none. */
+  /** Page inventory entries `(locale, region, slug?)`; empty when none. */
   readonly pageBindings: readonly PageRegionBinding[];
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;

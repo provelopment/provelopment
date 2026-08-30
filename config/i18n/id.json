@@ -17,11 +17,7 @@
       "/about": "Tentang",
       "/resources": "Sumber daya",
       "/contact": "Kontak",
-      "/offerings": "Layanan",
-      "/toronto": "Toronto",
-      "/vancouver": "Vancouver",
-      "/montreal": "Montreal",
-      "/berlin": "Berlin"
+      "/offerings": "Layanan"
     }
   },
   "notFound": {
@@ -37,6 +33,9 @@
   },
   "language": {
     "label": "Bahasa"
+  },
+  "location": {
+    "label": "Lokasi"
   },
   "business": {
     "open": "Buka sekarang",

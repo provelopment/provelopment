@@ -1,0 +1,146 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { createDirectionLinkResolver } from "@/adapters/maps";
+import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { MarkdownContent } from "@/components/site/markdown-content";
+import { ResolvedRegionBlock } from "@/components/site/region-block";
+import { RegionStructuredData } from "@/components/site/region-structured-data";
+import { siteConfig } from "@/config";
+import { resolveRegionalPageContext } from "@/application/page-context";
+import { buildLanguageAlternates } from "@/core/locale";
+import { regionsForLocale, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
+
+const pageContentRepository = createFileSystemPageContentRepository({
+  defaultLocale: siteConfig.defaultLocale,
+});
+
+// Composition boundary (identical pattern to the app factories): the maps
+// factory selects the directions adapter from validated configuration.
+const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
+
+const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/**
+ * Content slugs served by their own static routes and therefore never
+ * generated here (`about`, `contact`, `resources`). New static page routes,
+ * when added, must be listed here too so there is exactly one page
+ * architecture: static routes keep precedence; `[item]` serves regional
+ * landings and the remaining flat content pages.
+ */
+const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set(["about", "contact", "resources"]);
+
+/**
+ * Phase L — segment two dispatch: `/{locale}/{item}`.
+ *
+ *  - When `item` is a configured REGION LANDING for the locale (a landing
+ *    entry `{ locale, region }`), this renders the regional home: the locale's
+ *    flat content file for the region (`content/pages/{locale}/{region}.md`)
+ *    plus the region's complete operational identity.
+ *  - Otherwise it is the flat non-regional content page (Phase K behavior):
+ *    `content/pages/{locale}/{item}.md` with no operational identity.
+ *
+ * Region availability is configuration-driven; an unknown `item` renders the
+ * 404 (`dynamicParams`).
+ */
+export const dynamicParams = false;
+
+interface ItemPageProps {
+  readonly params: Promise<{ readonly locale: string; readonly item: string }>;
+}
+
+export async function generateStaticParams(): Promise<{ locale: string; item: string }[]> {
+  const params: { locale: string; item: string }[] = [];
+  for (const locale of siteConfig.locales) {
+    // Flat non-regional content pages (Phase K behavior).
+    const slugs = await pageContentRepository.listSlugs(locale.code);
+    for (const slug of slugs) {
+      if (STATIC_ROUTE_SLUGS.has(slug)) continue;
+      if (regionsForLocale(siteConfig.pageBindings, locale.code).includes(slug)) continue;
+      params.push({ locale: locale.code, item: slug });
+    }
+
+    // Regional landing pages `/{locale}/{region}`.
+    for (const region of regionsForLocale(siteConfig.pageBindings, locale.code)) {
+      params.push({ locale: locale.code, item: region });
+    }
+  }
+  return params;
+}
+
+function isRegionalLanding(locale: string, item: string): boolean {
+  return regionsForLocale(siteConfig.pageBindings, locale).includes(item);
+}
+
+export async function generateMetadata({ params }: ItemPageProps): Promise<Metadata> {
+  const { locale, item } = await params;
+  const content = await pageContentRepository.findBySlug(item, locale);
+  if (!content) return {};
+
+  if (isRegionalLanding(locale, item)) {
+    const alternates = buildRegionalLanguageAlternates({
+      baseUrl: siteConfig.url,
+      locales: localeCodes,
+      defaultLocale: siteConfig.defaultLocale,
+      entries: siteConfig.pageBindings,
+      region: item,
+      slug: null,
+    });
+    return {
+      title: content.title,
+      alternates: {
+        canonical: `${siteConfig.url}/${regionalPath(locale, item, null)}`,
+        languages: Object.keys(alternates).length > 0 ? alternates : undefined,
+      },
+    };
+  }
+
+  // Flat content page: content falls back to the default locale, so every
+  // configured locale that renders this slug is a valid alternate.
+  return {
+    title: content.title,
+    alternates: {
+      canonical: `${siteConfig.url}/${locale}/${item}`,
+      languages: buildLanguageAlternates({
+        baseUrl: siteConfig.url,
+        locales: localeCodes,
+        defaultLocale: siteConfig.defaultLocale,
+        path: `/${item}`,
+      }),
+    },
+  };
+}
+
+export default async function ItemPage({ params }: ItemPageProps) {
+  const { locale, item } = await params;
+  const content = await pageContentRepository.findBySlug(item, locale);
+  if (!content) notFound();
+
+  const regionId = isRegionalLanding(locale, item) ? item : null;
+  const context = resolveRegionalPageContext(
+    { regions: siteConfig.regions },
+    locale,
+    regionId,
+    null,
+  );
+
+  return (
+    <article className="mx-auto max-w-4xl px-4 py-12">
+      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <div className="mt-6">
+        <MarkdownContent markdown={content.body} />
+      </div>
+
+      {context.region ? (
+        <>
+          <ResolvedRegionBlock
+            region={context.region}
+            locale={locale}
+            directionLinkResolver={directionLinkResolver}
+          />
+          <RegionStructuredData region={context.region} />
+        </>
+      ) : null}
+    </article>
+  );
+}

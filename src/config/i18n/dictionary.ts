@@ -46,6 +46,10 @@ export const dictionarySchema = z.object({
   language: z.object({
     label: z.string(),
   }),
+  /** Accessible label for the location (region) selector (Phase L). */
+  location: z.object({
+    label: z.string(),
+  }),
   /** Business-profile labels (open/closed/hours display). */
   business: z.object({
     open: z.string(),

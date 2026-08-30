@@ -442,6 +442,55 @@ Region = timezone + address + geo + contact + seven-day hours + holidays
   (page inventories may differ), so `/ja/toronto` is never emitted and a
   regional page only appears where it exists.
 
+## Locale + Location as first-class page context (Phase L)
+
+Locations are **not** ordinary navigation links. A rendered page is the
+product of two independent selectors — **Language** and **Location** — plus the
+content page:
+
+```text
+Page = locale + region + page      (e.g. /en/toronto/about)
+```
+
+- **URL model.** `/{locale}` (site home), `/{locale}/{region}` (regional
+  landing), `/{locale}/{region}/{page}` (regional page). Site-level static
+  routes (`about`, `contact`, `resources`, `offerings*`, `legal*`) keep
+  deterministic precedence. The dynamic route `[locale]/[item]/page.tsx`
+  dispatches segment two (regional landing vs flat content page) and
+  `[locale]/[item]/[slug]/page.tsx` renders configured regional pages; both
+  `dynamicParams = false`, so an unconfigured combination is a proper 404
+  (e.g. `/ja/toronto`, `/en/montreal/contact`).
+- **Config shape (`business.pages`).** Entries are `{ locale, region }`
+  (landing) or `{ locale, region, slug }` (regional page). Every bound
+  `(locale, region)` MUST have a landing entry (validated at build time);
+  duplicate `(locale, region, slug)` entries fail; region ids may not collide
+  with static route slugs. The Phase K form `{ locale, slug, region }` with
+  `slug === region` is migrated automatically by the loader.
+- **Pure resolution (`src/core/regional-pages.ts`).** `regionsForLocale`,
+  `pagesForRegion`, `hasPageEntry`, `resolveLocationDestination`,
+  `resolveLocaleDestination`, `regionalPath`, `parseRegionalPath`, and
+  `buildRegionalLanguageAlternates` answer every inventory + navigation
+  question. Components receive resolved options/destinations; there is no
+  `RegionalService<T>`-style abstraction.
+- **Deterministic switching.** Switching LOCATION keeps the locale: same page
+  → landing → (defensively) first configured page → option omitted (never a
+  dead link). Switching LANGUAGE keeps the region: same page → landing → first
+  page → the locale simply is not offered (never a silent region change).
+  The header renders a Location `<select>` beside the Language `<select>`;
+  both are config-driven, show the active selection, and produce real URLs
+  (no client-side state determines the current location).
+- **Page independence (per locale × region).** Any region may expose any page
+  inventory under any locale (EN/Toronto {landing, about, contact};
+  EN/Vancouver {landing, about}; FR/Montreal {landing, about}; …). The demo
+  proves same locale → different timezones (en/toronto vs en/vancouver), same
+  region → multiple locales (en+fr toronto), and per-locale region sets
+  (ja/ko/zh/es/id have no regions and no selector).
+- **SEO.** Regional pages emit canonical URLs, hreflang only for genuinely
+  configured `(locale, region, page)` equivalents (with landing fallback for
+  a region that lacks the exact page), and `x-default` only when the default
+  locale has a destination. The sitemap contains only real configured
+  combinations — regional content slugs are not double-emitted as flat routes.
+
 ## Contact inquiry (Phase B)
 
 The inquiry capability is a frontend + integration seam: `/contact` renders a
