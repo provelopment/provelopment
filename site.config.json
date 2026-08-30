@@ -66,133 +66,155 @@
     {
       "label": "Offerings",
       "href": "/offerings"
+    },
+    {
+      "label": "Toronto",
+      "href": "/toronto"
+    },
+    {
+      "label": "Vancouver",
+      "href": "/vancouver"
+    },
+    {
+      "label": "Montréal",
+      "href": "/montreal"
+    },
+    {
+      "label": "Berlin",
+      "href": "/berlin"
     }
   ],
-  "business": {
-    "timezone": "Asia/Jakarta",
+"business": {
     "type": "LocalBusiness",
-    "contact": {
-      "email": "hello@example.com",
-      "locales": {
-        "id": { "phone": "+62 21 4000 0101", "email": "halo@jakarta.example" },
-        "en": { "phone": "+44 20 7946 0000", "email": "hello@london.example" },
-        "de": { "phone": "+49 30 0000 0102", "email": "hallo@berlin.example" },
-        "fr": { "phone": "+33 1 84 80 00 00", "email": "bonjour@paris.example" },
-        "es": { "phone": "+34 91 000 01 03", "email": "hola@madrid.example" },
-        "ja": { "phone": "+81 3 5555 0104", "email": "konnichiwa@tokyo.example" },
-        "ko": { "phone": "+82 2 0000 0105", "email": "annyeong@seoul.example" },
-        "zh": { "phone": "+86 21 0000 0106", "email": "nihao@shanghai.example" }
-      }
-    },
-    "locations": [
-      {
-        "id": "main",
-        "name": "My Site HQ",
+    "regions": {
+      "toronto": {
+        "timezone": "America/Toronto",
+        "name": "Toronto Studio",
         "address": {
-          "street": "1 Demo Street",
-          "city": "Jakarta",
-          "country": "Indonesia"
+          "street": "410 Queen Street West, Suite 2",
+          "city": "Toronto",
+          "region": "ON",
+          "postalCode": "M5V 2A5",
+          "country": "Canada"
         },
-        "timezone": "Asia/Jakarta",
+        "geo": { "lat": 43.6473, "lng": -79.3963 },
+        "phone": "+1 416 555 0142",
+        "email": "toronto@example.com",
         "hours": {
-          "intervals": [
+          "monday": [{ "open": "09:00", "close": "17:00" }],
+          "tuesday": [{ "open": "09:00", "close": "17:00" }],
+          "wednesday": [{ "open": "09:00", "close": "17:00" }],
+          "thursday": [{ "open": "09:00", "close": "17:00" }],
+          "friday": [{ "open": "09:00", "close": "17:00" }],
+          "saturday": [{ "open": "10:00", "close": "14:00" }],
+          "sunday": [],
+          "holidays": [
+            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
             {
-              "days": ["mon", "tue", "wed", "thu", "fri"],
-              "open": "09:00",
-              "close": "17:00"
+              "date": "2026-12-24",
+              "name": "Christmas Eve",
+              "intervals": [{ "open": "09:00", "close": "13:00" }]
             }
-          ],
-          "exceptional": []
+          ]
+        }
+      },
+      "vancouver": {
+        "timezone": "America/Vancouver",
+        "name": "Vancouver Workshop",
+        "address": {
+          "street": "22 Waterfront Way",
+          "city": "Vancouver",
+          "region": "BC",
+          "postalCode": "V6B 1A1",
+          "country": "Canada"
         },
-        "locales": {
-          "id": {
-            "address": {
-              "street": "Jalan Medan Merdeka Barat, Gambir",
-              "city": "Jakarta",
-              "country": "Indonesia"
-            },
-            "geo": { "lat": -6.1754, "lng": 106.8272 }
-          },
-          "en": {
-            "address": {
-              "street": "Westminster",
-              "city": "London",
-              "postalCode": "SW1A 0AA",
-              "country": "United Kingdom"
-            },
-            "geo": { "lat": 51.5007, "lng": -0.1245 }
-          },
-          "de": {
-            "address": {
-              "street": "Pariser Platz",
-              "city": "Berlin",
-              "country": "Germany"
-            },
-            "geo": { "lat": 52.5163, "lng": 13.3777 }
-          },
-          "fr": {
-            "address": {
-              "street": "Champ de Mars, 5 Avenue Anatole France",
-              "city": "Paris",
-              "country": "France"
-            },
-            "geo": { "lat": 48.8584, "lng": 2.2945 }
-          },
-          "es": {
-            "address": {
-              "street": "Puerta del Sol",
-              "city": "Madrid",
-              "country": "Spain"
-            },
-            "geo": { "lat": 40.4168, "lng": -3.7038 }
-          },
-          "ja": {
-            "address": {
-              "street": "東京都港区芝公園4丁目2-8",
-              "city": "東京都港区",
-              "country": "日本"
-            },
-            "addressInternational": {
-              "street": "4-2-8 Shibakoen, Minato City",
-              "city": "Tokyo",
-              "country": "Japan"
-            },
-            "addressMode": "local-international",
-            "geo": { "lat": 35.6586, "lng": 139.7454 }
-          },
-          "ko": {
-            "address": {
-              "street": "서울특별시 종로구 사직로 161",
-              "city": "서울특별시 종로구",
-              "country": "대한민국"
-            },
-            "addressInternational": {
-              "street": "161 Sajik-ro, Jongno-gu",
-              "city": "Seoul",
-              "country": "South Korea"
-            },
-            "addressMode": "local-international",
-            "geo": { "lat": 37.5796, "lng": 126.977 }
-          },
-          "zh": {
-            "address": {
-              "street": "上海市黄浦区中山东一路",
-              "city": "上海市黄浦区",
-              "country": "中国"
-            },
-            "addressInternational": {
-              "street": "Zhongshan East 1st Road, Huangpu",
-              "city": "Shanghai",
-              "country": "China"
-            },
-            "addressMode": "local-international",
-            "geo": { "lat": 31.24, "lng": 121.49 }
-          }
+        "geo": { "lat": 49.2827, "lng": -123.1207 },
+        "phone": "+1 604 555 0188",
+        "email": "vancouver@example.com",
+        "hours": {
+          "monday": [{ "open": "08:00", "close": "16:00" }],
+          "tuesday": [{ "open": "08:00", "close": "16:00" }],
+          "wednesday": [{ "open": "08:00", "close": "16:00" }],
+          "thursday": [{ "open": "08:00", "close": "16:00" }],
+          "friday": [{ "open": "08:00", "close": "16:00" }],
+          "saturday": [],
+          "sunday": [{ "open": "11:00", "close": "15:00" }],
+          "holidays": [
+            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+            {
+              "date": "2026-12-26",
+              "name": "Boxing Day",
+              "intervals": [{ "open": "10:00", "close": "14:00" }]
+            }
+          ]
+        }
+      },
+      "montreal": {
+        "timezone": "America/Toronto",
+        "name": "Montr\u00e9al Atelier",
+        "address": {
+          "street": "120 Rue Saint-Paul Ouest",
+          "city": "Montr\u00e9al",
+          "region": "QC",
+          "postalCode": "H2Y 1Z7",
+          "country": "Canada"
+        },
+        "geo": { "lat": 45.505, "lng": -73.554 },
+        "phone": "+1 514 555 0199",
+        "email": "montreal@example.com",
+        "hours": {
+          "monday": [{ "open": "10:00", "close": "18:00" }],
+          "tuesday": [{ "open": "10:00", "close": "18:00" }],
+          "wednesday": [{ "open": "10:00", "close": "18:00" }],
+          "thursday": [{ "open": "10:00", "close": "18:00" }],
+          "friday": [{ "open": "10:00", "close": "18:00" }],
+          "saturday": [{ "open": "10:00", "close": "16:00" }],
+          "sunday": [],
+          "holidays": [
+            { "date": "2026-07-01", "name": "Canada Day", "closed": true },
+            { "date": "2026-12-25", "name": "Christmas Day", "closed": true }
+          ]
+        }
+      },
+      "berlin": {
+        "timezone": "Europe/Berlin",
+        "name": "Berlin B\u00fcro",
+        "address": {
+          "street": "12 Lindenallee",
+          "city": "Berlin",
+          "postalCode": "10117",
+          "country": "Germany"
+        },
+        "geo": { "lat": 52.52, "lng": 13.405 },
+        "phone": "+49 30 555 0100",
+        "email": "berlin@example.com",
+        "hours": {
+          "monday": [{ "open": "09:00", "close": "17:00" }],
+          "tuesday": [{ "open": "09:00", "close": "17:00" }],
+          "wednesday": [{ "open": "09:00", "close": "17:00" }],
+          "thursday": [{ "open": "09:00", "close": "17:00" }],
+          "friday": [{ "open": "09:00", "close": "17:00" }],
+          "saturday": [],
+          "sunday": [],
+          "holidays": [
+            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+            {
+              "date": "2026-12-24",
+              "name": "Christmas Eve",
+              "intervals": [{ "open": "09:00", "close": "13:00" }]
+            }
+          ]
         }
       }
+    },
+    "pages": [
+      { "locale": "en", "slug": "toronto", "region": "toronto" },
+      { "locale": "en", "slug": "vancouver", "region": "vancouver" },
+      { "locale": "fr", "slug": "toronto", "region": "toronto" },
+      { "locale": "fr", "slug": "montreal", "region": "montreal" },
+      { "locale": "de", "slug": "berlin", "region": "berlin" }
     ]
-  },
-  "features": {
+  },  "features": {
     "analytics": {
       "provider": "vercel"
     },

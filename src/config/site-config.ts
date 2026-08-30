@@ -1,6 +1,7 @@
 import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
+import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
@@ -55,6 +56,15 @@ export interface SiteConfig {
   readonly navigation: readonly NavigationItem[];
   /** Normalized business profile (from `business` block or legacy contact). */
   readonly business: Business;
+  /**
+   * Phase K operating regions, keyed by region id. Empty when the legacy
+   * (global `business`/`locations`) model is in use. When non-empty, regional
+   * pages resolve their operational identity from a region — never merged with
+   * global business defaults.
+   */
+  readonly regions: Readonly<Record<string, OperationalRegion>>;
+  /** Page→region bindings (locale + content slug → region id). Empty when none. */
+  readonly pageBindings: readonly PageRegionBinding[];
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;
   /** Maps directions provider configuration (`features.maps`). */

@@ -88,19 +88,20 @@ function shiftISODate(iso: string, days: number): string {
  * Weekday index implied by a `YYYY-MM-DD` wall-clock date, in WEEKDAY_ORDER
  * space (0=Mon..6=Sun). JS `getUTCDay()` is 0=Sun..6=Sat, so convert.
  */
-function weekdayOfISODate(iso: string): number {
+export function weekdayOfISODate(iso: string): number {
   const [y, m, d] = iso.split("-").map(Number);
   return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
 }
 
 /** Parsed open interval (minutes past midnight + overnight flag). */
-interface ParsedInterval {
+export interface ParsedInterval {
   readonly open: number;
   readonly close: number;
   readonly overnight: boolean;
 }
 
-function parseIntervals(
+/** Parses `HH:mm` interval strings into minute-based `ParsedInterval`s. */
+export function parseIntervals(
   intervals: readonly { open: string; close: string }[],
 ): ParsedInterval[] {
   return intervals.map((i) => {
@@ -145,35 +146,40 @@ export type OpenStatus =
   | { open: true; minutesRemaining: number }
   | { open: false };
 
+/** Feeds the shared status algorithm with a timezone and a date-keyed schedule. */
+export interface ScheduleIntervalsSource {
+  /** IANA timezone the wall-clock is resolved in (authority, never inferred). */
+  readonly timeZone: string;
+  /** Effective intervals that START on the given wall-clock `YYYY-MM-DD`. */
+  readonly intervalsStartingOnDay: (isoDate: string) => readonly ParsedInterval[];
+}
+
 /**
- * Status at a moment in the location's timezone. Handles:
+ * The shared open/closed algorithm (locations and regions both use it). Handles:
  *  - regular intervals (single-day, multi-interval, days without hours),
  *  - overnight intervals — regular or exceptional — carried into the next day,
- *  - exceptional-date overrides (closure or opening) for that day, while still
- *    honoring an overnight interval that began the day before.
+ *  - date overrides (closure or opening) for that day, while still honoring an
+ *    overnight interval that began the day before.
+ * There is exactly ONE implementation of this status logic in the codebase;
+ * `openStatusAt` and the region evaluator are thin wrappers over it.
  */
-export function openStatusAt(
-  location: BusinessLocation,
+export function openStatusFromIntervalsStartingOnDay(
+  source: ScheduleIntervalsSource,
   date: Date,
-  options?: { businessTimezone?: string },
 ): OpenStatus | "noSchedule" {
-  const hours = location.hours;
-  if (!hours) return "noSchedule";
-
-  const timeZone = resolveTimezone(location, options?.businessTimezone);
-  const { minutes } = zonedDayMinutes(date, timeZone);
-  const today = zonedISODate(date, timeZone);
+  const { minutes } = zonedDayMinutes(date, source.timeZone);
+  const today = zonedISODate(date, source.timeZone);
 
   // An overnight interval begun yesterday (e.g. 22:00 on the prior day) that
   // is still running today. Never revoked by today's schedule.
   const yesterday = shiftISODate(today, -1);
-  for (const iv of intervalsStartingOnDay(hours, yesterday)) {
+  for (const iv of source.intervalsStartingOnDay(yesterday)) {
     if (iv.overnight && minutes < iv.close) {
       return { open: true, minutesRemaining: iv.close - minutes };
     }
   }
 
-  for (const iv of intervalsStartingOnDay(hours, today)) {
+  for (const iv of source.intervalsStartingOnDay(today)) {
     if (iv.overnight) {
       // Covers [open, midnight); the [00:00, close) part of the same interval
       // is handled by the next day's carry-over loop above.
@@ -186,6 +192,28 @@ export function openStatusAt(
   }
 
   return { open: false };
+}
+
+/**
+ * Status at a moment in the location's timezone. Delegates to the shared
+ * schedule algorithm (`openStatusFromIntervalsStartingOnDay`) with the
+ * location's resolved timezone and schedule.
+ */
+export function openStatusAt(
+  location: BusinessLocation,
+  date: Date,
+  options?: { businessTimezone?: string },
+): OpenStatus | "noSchedule" {
+  const hours = location.hours;
+  if (!hours) return "noSchedule";
+
+  return openStatusFromIntervalsStartingOnDay(
+    {
+      timeZone: resolveTimezone(location, options?.businessTimezone),
+      intervalsStartingOnDay: (isoDate) => intervalsStartingOnDay(hours, isoDate),
+    },
+    date,
+  );
 }
 
 /** True when `date` falls on an exceptional (overridden) date for the location. */

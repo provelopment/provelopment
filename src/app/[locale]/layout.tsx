@@ -23,6 +23,11 @@ const geistMono = Geist_Mono({
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
+// Phase K: when operating regions are configured, the legacy global business
+// block is NOT merged into rendered pages. The layout suppresses the global
+// footer NAP + JSON-LD; regional pages render their own region's identity.
+const hasRegions = Object.keys(siteConfig.regions).length > 0;
+
 // Composition boundary (the ONLY place providers become concrete): the factories
 // select adapters from validated configuration; the layout below renders the
 // already-composed integrations without any provider-specific conditional.
@@ -92,7 +97,7 @@ export default async function LocaleLayout({
           </ErrorMessagesProvider>
         </main>
         <SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />
-        <StructuredData locale={locale} />
+        {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}
       </body>
     </html>

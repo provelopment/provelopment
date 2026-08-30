@@ -387,6 +387,61 @@ inference exists anywhere in `src/`.
   naming the offending locales instead of silently hiding an enabled CTA.
   Disabled/absent booking requires no label.
 
+## Regionalized pages & operating context (Phase K)
+
+Phase K separates **Locale** (how the site communicates) from **Region**
+(where and under what operational conditions the business operates) from
+**Page** (which content/route the customer sees):
+
+```text
+Page = locale + content slug + optional region
+Region = timezone + address + geo + contact + seven-day hours + holidays
+```
+
+- **Model (`src/core/region.ts`).** `OperationalRegion` carries its own
+  required IANA `timezone`, address (+ optional international), geo, phone,
+  email, and a seven-day `RegionSchedule` (monday…sunday, each an array of
+  `HH:mm` intervals) plus structured `holidays` (`date` + `name` + `closed` /
+  `intervals`). `PageRegionBinding` maps `(locale, slug) → region id`. Pure
+  `resolvePageRegionBinding` / `resolveRegion` never throw; `assertRegionsValid`
+  (build time, from the loader) rejects unknown regions, duplicate bindings,
+  unconfigured locales, `local-international` without an international address,
+  and invalid holiday dates/names.
+- **Evaluation (`src/core/region-hours.ts`).** Regions reuse the ONE
+  DST-safe time engine: `openStatusFromIntervalsStartingOnDay` in
+  `src/core/business-hours.ts` (extracted so locations and regions share one
+  algorithm). Holiday precedence is *weekly schedule → date override → resolved
+  hours* — a listed holiday without intervals is closed. Overnight intervals
+  (`close < open`) carry into the next day, including from a holiday.
+- **Page context (`src/application/page-context.ts`).** The single, pure
+  compositor: `resolvePageContext(regions, bindings, locale, slug)` yields the
+  page's optional region. The dynamic route `app/[locale]/[slug]/page.tsx` is
+  the ONLY consumer of page→region resolution; it statically lists per-locale
+  content slugs minus those owned by static routes (`about`, `contact`,
+  `resources`), so page existence stays content-driven and per-locale.
+- **Route/timezone authority.** A regional page's timezone, address, phone,
+  email, geo, hours, holidays, status, directions, and JSON-LD come ONLY from
+  its resolved region — never inferred from locale, and never merged with the
+  legacy global `business` block. `locale → timezone` is not a rule: `/en/toronto`
+  (America/Toronto) and `/en/vancouver` (America/Vancouver) are different
+  timezones for one locale; `/en/toronto` and `/fr/toronto` share one region.
+- **Consumers.** `components/site/region-block.tsx` renders the resolved
+  region's visible identity (address, phone/email, IANA timezone, all seven
+  days individually with locale-localized names, holidays, live open/closed
+  status, directions via the existing maps seam — `regionToLocation` adapts a
+  region to the `BusinessLocation` port without giving the adapter region
+  awareness). `components/site/region-structured-data.tsx` emits ONE
+  `LocalBusiness` node for the resolved region. Non-regional pages render no
+  operational NAP/JSON-LD — they must not invent an identity.
+- **Deterministic modal precedence.** `business.regions` present (non-empty)
+  → the site is in regional mode: the layout/footer suppress the legacy global
+  `BusinessInfo`/`StructuredData` so nothing can leak. `business.regions`
+  absent → the legacy global model renders exactly as before (Phase G/I
+  behavior). The two are never merged.
+- **Sitemap.** Routes are derived per locale from that locale's content
+  (page inventories may differ), so `/ja/toronto` is never emitted and a
+  regional page only appears where it exists.
+
 ## Contact inquiry (Phase B)
 
 The inquiry capability is a frontend + integration seam: `/contact` renders a
