@@ -878,3 +878,140 @@ describe("Phase L — region configuration validation", () => {
     ).not.toThrow();
   });
 });
+
+describe("Phase M — connect config + region defaultLocale", () => {
+  const connectConfig = {
+    methods: [
+      { id: "message", label: "Message form", href: "/contact" },
+      { id: "email", label: "Email", href: "mailto:hello@example.com", demoOnly: true },
+      { id: "whatsapp", label: "WhatsApp", href: "https://wa.me/15550100", demoOnly: true },
+    ],
+  };
+
+  it("parses the connect methods and passes them through the loader", () => {
+    const config = parseSiteConfig({ ...validConfig, connect: connectConfig });
+    expect(config.connect?.methods).toHaveLength(3);
+    expect(config.connect?.methods[1].demoOnly).toBe(true);
+    expect(config.connect?.methods.map((m) => m.id)).toEqual([
+      "message",
+      "email",
+      "whatsapp",
+    ]);
+  });
+
+  it("rejects a connect block without any methods", () => {
+    expect(() => parseSiteConfig({ ...validConfig, connect: { methods: [] } })).toThrow(
+      /at least one connection method/,
+    );
+  });
+
+  it("rejects duplicate connect method ids", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        connect: {
+          methods: [
+            { id: "x", label: "X", href: "mailto:a@b.c" },
+            { id: "x", label: "X2", href: "mailto:d@e.f" },
+          ],
+        },
+      }),
+    ).toThrow(/unique/);
+  });
+
+  it("rejects a connect href that is neither internal nor a deep link", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        connect: { methods: [{ id: "x", label: "X", href: "not-a-href" }] },
+      }),
+    ).toThrow(/internal route/);
+  });
+
+  it("passes a region's explicit defaultLocale through the loader", () => {
+    const config = parseSiteConfig({
+      ...regionConfigData(),
+      business: {
+        regions: {
+          toronto: { ...regionBaseData(), label: "Toronto", defaultLocale: "fr" },
+        },
+        pages: [
+          { locale: "en", region: "toronto" },
+          { locale: "fr", region: "toronto" },
+        ],
+      },
+    });
+    expect(config.regions.toronto.defaultLocale).toBe("fr");
+  });
+
+  it("rejects a region defaultLocale that is not a configured locale", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfigData(),
+        business: {
+          regions: { toronto: { ...regionBaseData(), defaultLocale: "zz" } },
+          pages: [{ locale: "en", region: "toronto" }],
+        },
+      }),
+    ).toThrow(/not a configured locale/);
+  });
+
+  it("rejects a region defaultLocale that is not bound to the region", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfigData(),
+        business: {
+          regions: { toronto: { ...regionBaseData(), defaultLocale: "fr" } },
+          pages: [{ locale: "en", region: "toronto" }],
+        },
+      }),
+    ).toThrow(/not among the locales bound/);
+  });
+
+  it("accepts a region without an explicit defaultLocale", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfigData(),
+        business: {
+          regions: { toronto: { ...regionBaseData() } },
+          pages: [{ locale: "en", region: "toronto" }],
+        },
+      }),
+    ).not.toThrow();
+  });
+});
+
+function regionBaseData(): Record<string, unknown> {
+  return {
+    timezone: "America/Toronto",
+    address: { street: "1 Demo St", city: "Toronto", country: "Canada" },
+    hours: { monday: [{ open: "09:00", close: "17:00" }] },
+  };
+}
+
+function regionConfigData(): Record<string, unknown> {
+  return {
+    ...validConfig,
+    i18n: {
+      defaultLocale: "en",
+      locales: [
+        { code: "en", label: "English" },
+        { code: "fr", label: "Français" },
+      ],
+    },
+    business: {
+      regions: {
+        toronto: regionBaseData(),
+        vancouver: {
+          timezone: "America/Vancouver",
+          address: { street: "2 Demo Ave", city: "Vancouver", country: "Canada" },
+          hours: {},
+        },
+      },
+      pages: [
+        { locale: "en", region: "toronto" },
+        { locale: "en", region: "vancouver" },
+      ],
+    },
+  };
+}

@@ -1,9 +1,9 @@
 {
   "site": {
     "url": "https://www.example.com",
-    "name": "My Site",
+    "name": "Your Business Site",
     "tagline": "A fast, multilingual website for your small business",
-    "description": "Replace this description with your own. My Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
+    "description": "Replace this description with your own. Your Business Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
   },
   "i18n": {
     "defaultLocale": "en",
@@ -60,21 +60,22 @@
       "href": "/resources"
     },
     {
-      "label": "Contact",
-      "href": "/contact"
+      "label": "Connect",
+      "href": "/connect"
     },
     {
       "label": "Offerings",
       "href": "/offerings"
     }
   ],
-"business": {
+  "business": {
     "type": "LocalBusiness",
     "regions": {
       "toronto": {
         "timezone": "America/Toronto",
         "name": "Toronto Studio",
         "label": "Toronto",
+        "defaultLocale": "en",
         "address": {
           "street": "410 Queen Street West, Suite 2",
           "city": "Toronto",
@@ -82,23 +83,65 @@
           "postalCode": "M5V 2A5",
           "country": "Canada"
         },
-        "geo": { "lat": 43.6473, "lng": -79.3963 },
+        "geo": {
+          "lat": 43.6473,
+          "lng": -79.3963
+        },
         "phone": "+1 416 555 0142",
         "email": "toronto@example.com",
         "hours": {
-          "monday": [{ "open": "09:00", "close": "17:00" }],
-          "tuesday": [{ "open": "09:00", "close": "17:00" }],
-          "wednesday": [{ "open": "09:00", "close": "17:00" }],
-          "thursday": [{ "open": "09:00", "close": "17:00" }],
-          "friday": [{ "open": "09:00", "close": "17:00" }],
-          "saturday": [{ "open": "10:00", "close": "14:00" }],
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "10:00",
+              "close": "14:00"
+            }
+          ],
           "sunday": [],
           "holidays": [
-            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+            {
+              "date": "2026-12-25",
+              "name": "Christmas Day",
+              "closed": true
+            },
             {
               "date": "2026-12-24",
               "name": "Christmas Eve",
-              "intervals": [{ "open": "09:00", "close": "13:00" }]
+              "intervals": [
+                {
+                  "open": "09:00",
+                  "close": "13:00"
+                }
+              ]
             }
           ]
         }
@@ -107,6 +150,7 @@
         "timezone": "America/Vancouver",
         "name": "Vancouver Workshop",
         "label": "Vancouver",
+        "defaultLocale": "en",
         "address": {
           "street": "22 Waterfront Way",
           "city": "Vancouver",
@@ -114,101 +158,726 @@
           "postalCode": "V6B 1A1",
           "country": "Canada"
         },
-        "geo": { "lat": 49.2827, "lng": -123.1207 },
+        "geo": {
+          "lat": 49.2827,
+          "lng": -123.1207
+        },
         "phone": "+1 604 555 0188",
         "email": "vancouver@example.com",
         "hours": {
-          "monday": [{ "open": "08:00", "close": "16:00" }],
-          "tuesday": [{ "open": "08:00", "close": "16:00" }],
-          "wednesday": [{ "open": "08:00", "close": "16:00" }],
-          "thursday": [{ "open": "08:00", "close": "16:00" }],
-          "friday": [{ "open": "08:00", "close": "16:00" }],
+          "monday": [
+            {
+              "open": "08:00",
+              "close": "16:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "08:00",
+              "close": "16:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "08:00",
+              "close": "16:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "08:00",
+              "close": "16:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "08:00",
+              "close": "16:00"
+            }
+          ],
           "saturday": [],
-          "sunday": [{ "open": "11:00", "close": "15:00" }],
+          "sunday": [
+            {
+              "open": "11:00",
+              "close": "15:00"
+            }
+          ],
           "holidays": [
-            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+            {
+              "date": "2026-12-25",
+              "name": "Christmas Day",
+              "closed": true
+            },
             {
               "date": "2026-12-26",
               "name": "Boxing Day",
-              "intervals": [{ "open": "10:00", "close": "14:00" }]
+              "intervals": [
+                {
+                  "open": "10:00",
+                  "close": "14:00"
+                }
+              ]
             }
           ]
         }
       },
       "montreal": {
         "timezone": "America/Toronto",
-        "name": "Montr\u00e9al Atelier",
-        "label": "Montr\u00e9al",
+        "name": "Montréal Atelier",
+        "label": "Montréal",
+        "defaultLocale": "en",
         "address": {
           "street": "120 Rue Saint-Paul Ouest",
-          "city": "Montr\u00e9al",
+          "city": "Montréal",
           "region": "QC",
           "postalCode": "H2Y 1Z7",
           "country": "Canada"
         },
-        "geo": { "lat": 45.505, "lng": -73.554 },
+        "geo": {
+          "lat": 45.505,
+          "lng": -73.554
+        },
         "phone": "+1 514 555 0199",
         "email": "montreal@example.com",
         "hours": {
-          "monday": [{ "open": "10:00", "close": "18:00" }],
-          "tuesday": [{ "open": "10:00", "close": "18:00" }],
-          "wednesday": [{ "open": "10:00", "close": "18:00" }],
-          "thursday": [{ "open": "10:00", "close": "18:00" }],
-          "friday": [{ "open": "10:00", "close": "18:00" }],
-          "saturday": [{ "open": "10:00", "close": "16:00" }],
+          "monday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "10:00",
+              "close": "18:00"
+            }
+          ],
+          "saturday": [
+            {
+              "open": "10:00",
+              "close": "16:00"
+            }
+          ],
           "sunday": [],
           "holidays": [
-            { "date": "2026-07-01", "name": "Canada Day", "closed": true },
-            { "date": "2026-12-25", "name": "Christmas Day", "closed": true }
+            {
+              "date": "2026-07-01",
+              "name": "Canada Day",
+              "closed": true
+            },
+            {
+              "date": "2026-12-25",
+              "name": "Christmas Day",
+              "closed": true
+            }
           ]
         }
       },
       "berlin": {
         "timezone": "Europe/Berlin",
-        "name": "Berlin B\u00fcro",
+        "name": "Berlin Büro",
         "label": "Berlin",
+        "defaultLocale": "de",
         "address": {
           "street": "12 Lindenallee",
           "city": "Berlin",
           "postalCode": "10117",
           "country": "Germany"
         },
-        "geo": { "lat": 52.52, "lng": 13.405 },
+        "geo": {
+          "lat": 52.52,
+          "lng": 13.405
+        },
         "phone": "+49 30 555 0100",
         "email": "berlin@example.com",
         "hours": {
-          "monday": [{ "open": "09:00", "close": "17:00" }],
-          "tuesday": [{ "open": "09:00", "close": "17:00" }],
-          "wednesday": [{ "open": "09:00", "close": "17:00" }],
-          "thursday": [{ "open": "09:00", "close": "17:00" }],
-          "friday": [{ "open": "09:00", "close": "17:00" }],
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
           "saturday": [],
           "sunday": [],
           "holidays": [
-            { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+            {
+              "date": "2026-12-25",
+              "name": "Christmas Day",
+              "closed": true
+            },
             {
               "date": "2026-12-24",
               "name": "Christmas Eve",
-              "intervals": [{ "open": "09:00", "close": "13:00" }]
+              "intervals": [
+                {
+                  "open": "09:00",
+                  "close": "13:00"
+                }
+              ]
             }
           ]
+        }
+      },
+      "london": {
+        "timezone": "Europe/London",
+        "name": "London Office",
+        "label": "London",
+        "defaultLocale": "en",
+        "address": {
+          "street": "9 Baker Street",
+          "city": "London",
+          "postalCode": "NW1 6XE",
+          "country": "United Kingdom"
+        },
+        "geo": {
+          "lat": 51.5207,
+          "lng": -0.158
+        },
+        "phone": "+44 20 5555 0177",
+        "email": "london@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": [
+            {
+              "date": "2026-12-25",
+              "name": "Christmas Day",
+              "closed": true
+            },
+            {
+              "date": "2026-12-26",
+              "name": "Boxing Day",
+              "closed": true
+            }
+          ]
+        }
+      },
+      "paris": {
+        "timezone": "Europe/Paris",
+        "name": "Paris Atelier",
+        "label": "Paris",
+        "defaultLocale": "fr",
+        "address": {
+          "street": "8 Rue de Rivoli",
+          "city": "Paris",
+          "postalCode": "75004",
+          "country": "France"
+        },
+        "geo": {
+          "lat": 48.8566,
+          "lng": 2.3522
+        },
+        "phone": "+33 1 55 55 01 00",
+        "email": "paris@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
+        }
+      },
+      "madrid": {
+        "timezone": "Europe/Madrid",
+        "name": "Madrid Oficina",
+        "label": "Madrid",
+        "defaultLocale": "es",
+        "address": {
+          "street": "5 Calle de Alcalá",
+          "city": "Madrid",
+          "postalCode": "28014",
+          "country": "Spain"
+        },
+        "geo": {
+          "lat": 40.4168,
+          "lng": -3.7038
+        },
+        "phone": "+34 91 555 0101",
+        "email": "madrid@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
+        }
+      },
+      "tokyo": {
+        "timezone": "Asia/Tokyo",
+        "name": "東京オフィス",
+        "label": "Tokyo",
+        "defaultLocale": "ja",
+        "address": {
+          "street": "东京都千代田区丸の内 1-1-1",
+          "city": "東京",
+          "postalCode": "100-0005",
+          "country": "Japan"
+        },
+        "geo": {
+          "lat": 35.6762,
+          "lng": 139.6503
+        },
+        "phone": "+81 3 5555 0102",
+        "email": "tokyo@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
+        }
+      },
+      "seoul": {
+        "timezone": "Asia/Seoul",
+        "name": "서울 오피스",
+        "label": "Seoul",
+        "defaultLocale": "ko",
+        "address": {
+          "street": "서울 특별시 중구 세종대로 110",
+          "city": "서울",
+          "postalCode": "04524",
+          "country": "South Korea"
+        },
+        "geo": {
+          "lat": 37.5665,
+          "lng": 126.978
+        },
+        "phone": "+82 2 5555 0103",
+        "email": "seoul@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
+        }
+      },
+      "shanghai": {
+        "timezone": "Asia/Shanghai",
+        "name": "上海办公室",
+        "label": "Shanghai",
+        "defaultLocale": "zh",
+        "address": {
+          "street": "上海市黄浦区南京东路100号",
+          "city": "上海",
+          "postalCode": "200001",
+          "country": "China"
+        },
+        "geo": {
+          "lat": 31.2304,
+          "lng": 121.4737
+        },
+        "phone": "+86 21 5555 0104",
+        "email": "shanghai@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
+        }
+      },
+      "jakarta": {
+        "timezone": "Asia/Jakarta",
+        "name": "Jakarta Office",
+        "label": "Jakarta",
+        "defaultLocale": "id",
+        "address": {
+          "street": "Jl. Jenderal Sudirman Kav. 1",
+          "city": "Jakarta",
+          "postalCode": "10220",
+          "country": "Indonesia"
+        },
+        "geo": {
+          "lat": -6.2088,
+          "lng": 106.8456
+        },
+        "phone": "+62 21 5555 0105",
+        "email": "jakarta@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": []
         }
       }
     },
     "pages": [
-      { "locale": "en", "region": "toronto" },
-      { "locale": "en", "region": "toronto", "slug": "about" },
-      { "locale": "en", "region": "toronto", "slug": "contact" },
-      { "locale": "en", "region": "vancouver" },
-      { "locale": "en", "region": "vancouver", "slug": "about" },
-      { "locale": "fr", "region": "toronto" },
-      { "locale": "fr", "region": "toronto", "slug": "about" },
-      { "locale": "fr", "region": "montreal" },
-      { "locale": "fr", "region": "montreal", "slug": "about" },
-      { "locale": "de", "region": "berlin" },
-      { "locale": "de", "region": "berlin", "slug": "about" }
+      {
+        "locale": "en",
+        "region": "toronto"
+      },
+      {
+        "locale": "en",
+        "region": "toronto",
+        "slug": "about"
+      },
+      {
+        "locale": "en",
+        "region": "toronto",
+        "slug": "connect"
+      },
+      {
+        "locale": "fr",
+        "region": "toronto"
+      },
+      {
+        "locale": "fr",
+        "region": "toronto",
+        "slug": "about"
+      },
+      {
+        "locale": "fr",
+        "region": "toronto",
+        "slug": "connect"
+      },
+      {
+        "locale": "en",
+        "region": "vancouver"
+      },
+      {
+        "locale": "en",
+        "region": "vancouver",
+        "slug": "about"
+      },
+      {
+        "locale": "en",
+        "region": "vancouver",
+        "slug": "connect"
+      },
+      {
+        "locale": "fr",
+        "region": "vancouver"
+      },
+      {
+        "locale": "fr",
+        "region": "vancouver",
+        "slug": "about"
+      },
+      {
+        "locale": "fr",
+        "region": "vancouver",
+        "slug": "connect"
+      },
+      {
+        "locale": "en",
+        "region": "montreal"
+      },
+      {
+        "locale": "en",
+        "region": "montreal",
+        "slug": "about"
+      },
+      {
+        "locale": "en",
+        "region": "montreal",
+        "slug": "connect"
+      },
+      {
+        "locale": "fr",
+        "region": "montreal"
+      },
+      {
+        "locale": "fr",
+        "region": "montreal",
+        "slug": "about"
+      },
+      {
+        "locale": "fr",
+        "region": "montreal",
+        "slug": "connect"
+      },
+      {
+        "locale": "en",
+        "region": "london"
+      },
+      {
+        "locale": "en",
+        "region": "london",
+        "slug": "about"
+      },
+      {
+        "locale": "de",
+        "region": "berlin"
+      },
+      {
+        "locale": "de",
+        "region": "berlin",
+        "slug": "about"
+      },
+      {
+        "locale": "fr",
+        "region": "paris"
+      },
+      {
+        "locale": "fr",
+        "region": "paris",
+        "slug": "about"
+      },
+      {
+        "locale": "es",
+        "region": "madrid"
+      },
+      {
+        "locale": "ja",
+        "region": "tokyo"
+      },
+      {
+        "locale": "ko",
+        "region": "seoul"
+      },
+      {
+        "locale": "zh",
+        "region": "shanghai"
+      },
+      {
+        "locale": "id",
+        "region": "jakarta"
+      }
     ]
-  },  "features": {
+  },
+  "features": {
     "analytics": {
       "provider": "vercel"
     },
@@ -237,5 +906,38 @@
       "slug": "cookies",
       "label": "Cookie Policy"
     }
-  ]
+  ],
+  "connect": {
+    "methods": [
+      {
+        "id": "message",
+        "label": "Message form",
+        "href": "/contact"
+      },
+      {
+        "id": "email",
+        "label": "Email",
+        "href": "mailto:hello@example.com",
+        "demoOnly": true
+      },
+      {
+        "id": "phone",
+        "label": "Phone",
+        "href": "tel:+14165550142",
+        "demoOnly": true
+      },
+      {
+        "id": "whatsapp",
+        "label": "WhatsApp",
+        "href": "https://wa.me/14165550142",
+        "demoOnly": true
+      },
+      {
+        "id": "telegram",
+        "label": "Telegram",
+        "href": "https://t.me/yourbusinesssite",
+        "demoOnly": true
+      }
+    ]
+  }
 }

@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "Situs web cepat dan multibahasa untuk bisnis kecil Anda",
-    "description": "Ganti deskripsi ini dengan milik Anda. My Site adalah demonstrasi templat Provelopment Foundation: edit site.config.json, konten Markdown, dan aset Anda untuk menjadikannya milik Anda."
+    "description": "Ganti deskripsi ini dengan milik Anda. Your Business Site adalah demonstrasi templat Provelopment Foundation: edit site.config.json, konten Markdown, dan aset Anda untuk menjadikannya milik Anda."
   },
   "sections": {
     "about": "Tentang",
@@ -16,8 +16,8 @@
       "/": "Beranda",
       "/about": "Tentang",
       "/resources": "Sumber daya",
-      "/contact": "Kontak",
-      "/offerings": "Layanan"
+      "/offerings": "Layanan",
+      "/connect": "Terhubung"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "Bahasa"
   },
   "location": {
-    "label": "Lokasi"
+    "label": "Lokasi",
+    "unspecified": "Tidak ditentukan"
   },
   "business": {
     "open": "Buka sekarang",
@@ -83,5 +84,10 @@
       "terms": "Ketentuan Layanan",
       "cookies": "Kebijakan Cookie"
     }
+  },
+  "connect": {
+    "heading": "Terhubung",
+    "demoNotice": "Opsi koneksi ini adalah demonstrasi templat. Tidak ada yang terhubung ke bisnis atau layanan nyata.",
+    "demoBadge": "Demo"
   }
 }

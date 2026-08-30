@@ -28,7 +28,12 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
  * architecture: static routes keep precedence; `[item]` serves regional
  * landings and the remaining flat content pages.
  */
-const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set(["about", "contact", "resources"]);
+const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
+  "about",
+  "connect",
+  "contact",
+  "resources",
+]);
 
 /**
  * Phase L — segment two dispatch: `/{locale}/{item}`.
