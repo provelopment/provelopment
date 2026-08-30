@@ -81,6 +81,8 @@ export interface OperationalRegion {
   /** Valid IANA timezone identifier (authoritative for this region). */
   readonly timezone: string;
   readonly name?: string;
+  /** Short display label for the location selector (`label ?? name ?? id`). */
+  readonly label?: string;
   /** Fictional or real physical address shown as the region's NAP. */
   readonly address: Address;
   readonly addressInternational?: Address;
@@ -91,13 +93,32 @@ export interface OperationalRegion {
   readonly hours: RegionSchedule;
 }
 
-/** Maps a page (locale + content slug) to a region id. */
+/**
+ * Maps a page inventory entry to a region: `(locale, region, slug)` where
+ * `slug: null` is the regional landing `/{locale}/{region}`. Every bound
+ * `(locale, region)` MUST have a landing entry (validated at build time).
+ */
 export interface PageRegionBinding {
   readonly locale: string;
-  readonly slug: string;
   /** Must reference an existing region (validated at build time). */
   readonly region: string;
+  /** Content page slug within the region; null = regional landing. */
+  readonly slug: string | null;
 }
+
+/**
+ * Region ids that would collide with a static site route at `/{locale}/…`
+ * (static routes keep deterministic precedence over the dynamic `[item]`
+ * segment). Configured region ids must avoid these.
+ */
+export const RESERVED_REGION_IDS: readonly string[] = [
+  "about",
+  "contact",
+  "resources",
+  "offerings",
+  "legal",
+  "home",
+];
 
 /** Resolves a region id to its configured region, or null. */
 export function resolveRegion(
@@ -105,15 +126,6 @@ export function resolveRegion(
   regionId: string,
 ): OperationalRegion | null {
   return regions[regionId] ?? null;
-}
-
-/** Resolves a region id bound to a page, or null when not mapped. */
-export function resolvePageRegionBinding(
-  pages: readonly PageRegionBinding[],
-  locale: string,
-  slug: string,
-): string | null {
-  return pages.find((binding) => binding.locale === locale && binding.slug === slug)?.region ?? null;
 }
 
 /** True when `iso` is a real calendar date (leap years handled). */
@@ -141,8 +153,10 @@ export function isCalendarDate(iso: string): boolean {
  *    dates/names (structural `HH:mm`/shape checks live in the Zod schema);
  *  - `local-international` regions require an international address (same
  *    invariant as legacy locations);
+ *  - region ids do not collide with static site routes (`RESERVED_REGION_IDS`);
  *  - every page binding references an existing region;
- *  - no duplicate (locale, slug) page binding;
+ *  - no duplicate (locale, region, slug) page binding;
+ *  - every bound (locale, region) has a LANDING entry (slug null);
  *  - bound locales are among the configured locales.
  */
 export function assertRegionsValid(
@@ -153,6 +167,13 @@ export function assertRegionsValid(
   for (const region of Object.values(regions)) {
     if (region.timezone.trim().length === 0) {
       throw new Error(`Region "${region.id}" has an empty timezone.`);
+    }
+
+    if (RESERVED_REGION_IDS.includes(region.id)) {
+      throw new Error(
+        `Region id "${region.id}" is reserved: it would collide with the static ` +
+          `route "/${region.id}". Choose a different region id.`,
+      );
     }
 
     if (region.addressMode === "local-international" && !region.addressInternational) {
@@ -176,27 +197,43 @@ export function assertRegionsValid(
   }
 
   const seen = new Set<string>();
+  const boundPairs = new Set<string>();
   for (const binding of pages) {
-    const key = `${binding.locale}:${binding.slug}`;
+    const key = `${binding.locale}:${binding.region}:${binding.slug ?? ""}`;
     if (seen.has(key)) {
       throw new Error(
-        `Duplicate page→region binding for locale "${binding.locale}" / slug "${binding.slug}". ` +
-          `Each page maps to at most one region.`,
+        `Duplicate page→region binding for locale "${binding.locale}" / region ` +
+          `"${binding.region}" / ${binding.slug === null ? "landing" : `slug "${binding.slug}"`}. ` +
+          `Each (locale, region, page) combination maps at most once.`,
       );
     }
     seen.add(key);
 
+    const pairKey = `${binding.locale}:${binding.region}`;
+    if (binding.slug === null) boundPairs.add(pairKey);
+
     if (!configuredLocales.includes(binding.locale)) {
       throw new Error(
-        `Page binding for slug "${binding.slug}" uses locale "${binding.locale}", but that ` +
+        `Page binding for region "${binding.region}" uses locale "${binding.locale}", but that ` +
           `locale is not configured.`,
       );
     }
 
     if (!regions[binding.region]) {
       throw new Error(
-        `Page binding for locale "${binding.locale}" / slug "${binding.slug}" references ` +
+        `Page binding for locale "${binding.locale}" / region "${binding.region}" references ` +
           `unknown region "${binding.region}". Add it to "business.regions".`,
+      );
+    }
+  }
+
+  for (const binding of pages) {
+    const pairKey = `${binding.locale}:${binding.region}`;
+    if (!boundPairs.has(pairKey)) {
+      throw new Error(
+        `Region "${binding.region}" is used by locale "${binding.locale}" without a landing ` +
+          `entry. Add { "locale": "${binding.locale}", "region": "${binding.region}" } to ` +
+          `"business.pages".`,
       );
     }
   }

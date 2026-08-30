@@ -66,22 +66,6 @@
     {
       "label": "Offerings",
       "href": "/offerings"
-    },
-    {
-      "label": "Toronto",
-      "href": "/toronto"
-    },
-    {
-      "label": "Vancouver",
-      "href": "/vancouver"
-    },
-    {
-      "label": "Montréal",
-      "href": "/montreal"
-    },
-    {
-      "label": "Berlin",
-      "href": "/berlin"
     }
   ],
 "business": {
@@ -90,6 +74,7 @@
       "toronto": {
         "timezone": "America/Toronto",
         "name": "Toronto Studio",
+        "label": "Toronto",
         "address": {
           "street": "410 Queen Street West, Suite 2",
           "city": "Toronto",
@@ -121,6 +106,7 @@
       "vancouver": {
         "timezone": "America/Vancouver",
         "name": "Vancouver Workshop",
+        "label": "Vancouver",
         "address": {
           "street": "22 Waterfront Way",
           "city": "Vancouver",
@@ -152,6 +138,7 @@
       "montreal": {
         "timezone": "America/Toronto",
         "name": "Montr\u00e9al Atelier",
+        "label": "Montr\u00e9al",
         "address": {
           "street": "120 Rue Saint-Paul Ouest",
           "city": "Montr\u00e9al",
@@ -179,6 +166,7 @@
       "berlin": {
         "timezone": "Europe/Berlin",
         "name": "Berlin B\u00fcro",
+        "label": "Berlin",
         "address": {
           "street": "12 Lindenallee",
           "city": "Berlin",
@@ -208,11 +196,17 @@
       }
     },
     "pages": [
-      { "locale": "en", "slug": "toronto", "region": "toronto" },
-      { "locale": "en", "slug": "vancouver", "region": "vancouver" },
-      { "locale": "fr", "slug": "toronto", "region": "toronto" },
-      { "locale": "fr", "slug": "montreal", "region": "montreal" },
-      { "locale": "de", "slug": "berlin", "region": "berlin" }
+      { "locale": "en", "region": "toronto" },
+      { "locale": "en", "region": "toronto", "slug": "about" },
+      { "locale": "en", "region": "toronto", "slug": "contact" },
+      { "locale": "en", "region": "vancouver" },
+      { "locale": "en", "region": "vancouver", "slug": "about" },
+      { "locale": "fr", "region": "toronto" },
+      { "locale": "fr", "region": "toronto", "slug": "about" },
+      { "locale": "fr", "region": "montreal" },
+      { "locale": "fr", "region": "montreal", "slug": "about" },
+      { "locale": "de", "region": "berlin" },
+      { "locale": "de", "region": "berlin", "slug": "about" }
     ]
   },  "features": {
     "analytics": {

@@ -17,11 +17,7 @@
       "/about": "About",
       "/resources": "Resources",
       "/contact": "Contact",
-      "/offerings": "Offerings",
-      "/toronto": "Toronto",
-      "/vancouver": "Vancouver",
-      "/montreal": "Montréal",
-      "/berlin": "Berlin"
+      "/offerings": "Offerings"
     }
   },
   "notFound": {
@@ -37,6 +33,9 @@
   },
   "language": {
     "label": "Language"
+  },
+  "location": {
+    "label": "Location"
   },
   "business": {
     "open": "Open now",

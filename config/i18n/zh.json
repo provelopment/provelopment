@@ -17,11 +17,7 @@
       "/about": "关于",
       "/resources": "资源",
       "/contact": "联系",
-      "/offerings": "服务内容",
-      "/toronto": "多伦多",
-      "/vancouver": "温哥华",
-      "/montreal": "蒙特利尔",
-      "/berlin": "柏林"
+      "/offerings": "服务内容"
     }
   },
   "notFound": {
@@ -37,6 +33,9 @@
   },
   "language": {
     "label": "语言"
+  },
+  "location": {
+    "label": "位置"
   },
   "business": {
     "open": "营业中",
