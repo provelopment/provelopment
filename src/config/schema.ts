@@ -246,6 +246,8 @@ const regionHoursSchema = z
 const regionSchema = z.object({
   timezone: ianaTimeZoneSchema,
   name: z.string().min(1).optional(),
+  /** Short display label for the location selector (falls back to name/id). */
+  label: z.string().min(1).optional(),
   address: addressSchema,
   addressInternational: addressSchema.optional(),
   addressMode: addressPresentationModeSchema.optional(),
@@ -255,10 +257,20 @@ const regionSchema = z.object({
   hours: regionHoursSchema,
 });
 
+/**
+ * A page-inventory entry: `{ locale, region }` is the regional landing
+ * `/{locale}/{region}`; `{ locale, region, slug }` is a regional page
+ * `/{locale}/{region}/{slug}`. Accepts the Phase K form `{ locale, slug,
+ * region }` as well (slug === region is normalized to a landing by the
+ * loader).
+ */
 const pageRegionBindingSchema = z.object({
   locale: localeCode,
-  slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "must be a lowercase slug"),
   region: z.string().min(1, "must not be empty"),
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "must be a lowercase slug")
+    .optional(),
 });
 
 const businessSchema = z

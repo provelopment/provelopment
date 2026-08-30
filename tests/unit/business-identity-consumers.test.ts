@@ -7,21 +7,19 @@ import { RegionStructuredData } from "@/components/site/region-structured-data";
 import type { SiteConfigFile } from "@/config/loader";
 import { parseSiteConfig, siteConfig } from "@/config/loader";
 import type { OperationalRegion } from "@/core/region";
-import { regionToLocation, resolvePageRegionBinding, resolveRegion } from "@/core/region";
+import { regionToLocation, resolveRegion } from "@/core/region";
 
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
 
-function regionFor(locale: string, slug: string): OperationalRegion {
-  const id = resolvePageRegionBinding(siteConfig.pageBindings, locale, slug);
-  if (!id) throw new Error(`no region bound to ${locale}/${slug}`);
-  const region = resolveRegion(siteConfig.regions, id);
-  if (!region) throw new Error(`no region "${id}"`);
+function regionFor(regionId: string): OperationalRegion {
+  const region = resolveRegion(siteConfig.regions, regionId);
+  if (!region) throw new Error(`no region "${regionId}"`);
   return region;
 }
 
 describe("Phase K — regional consumers", () => {
   it("the region block renders the resolved region's complete operational identity", () => {
-    const region = regionFor("en", "toronto");
+    const region = regionFor("toronto");
     const html = renderToStaticMarkup(
       RegionBlock({
         region,
@@ -46,8 +44,8 @@ describe("Phase K — regional consumers", () => {
   });
 
   it("cross-region isolation: a toronto page contains no vancouver/jakarta operational data", () => {
-    const toronto = regionFor("en", "toronto");
-    const vancouver = regionFor("en", "vancouver");
+    const toronto = regionFor("toronto");
+    const vancouver = regionFor("vancouver");
 
     for (const region of [toronto, vancouver]) {
       const html = renderToStaticMarkup(
@@ -68,10 +66,10 @@ describe("Phase K — regional consumers", () => {
 
   it("the same region renders through multiple locales with the same operational identity", () => {
     const enHtml = renderToStaticMarkup(
-      RegionBlock({ region: regionFor("en", "toronto"), locale: "en", direction: { kind: "none" } }),
+      RegionBlock({ region: regionFor("toronto"), locale: "en", direction: { kind: "none" } }),
     );
     const frHtml = renderToStaticMarkup(
-      RegionBlock({ region: regionFor("fr", "toronto"), locale: "fr", direction: { kind: "none" } }),
+      RegionBlock({ region: regionFor("toronto"), locale: "fr", direction: { kind: "none" } }),
     );
     // Same region → same timezone and hours in both languages; content differs.
     expect(enHtml).toContain("America/Toronto");
@@ -81,8 +79,8 @@ describe("Phase K — regional consumers", () => {
   });
 
   it("JSON-LD describes ONLY the resolved region (never all regions, never Jakarta)", () => {
-    for (const binding of siteConfig.pageBindings) {
-      const region = regionFor(binding.locale, binding.slug);
+    for (const regionId of new Set(siteConfig.pageBindings.map((binding) => binding.region))) {
+      const region = regionFor(regionId);
       const html = renderToStaticMarkup(RegionStructuredData({ region }));
       expect(html).toContain(region.address.street);
 
@@ -95,7 +93,7 @@ describe("Phase K — regional consumers", () => {
   });
 
   it("JSON-LD opening hours come from the region's seven-day schedule", () => {
-    const region = regionFor("de", "berlin");
+    const region = regionFor("berlin");
     const html = renderToStaticMarkup(RegionStructuredData({ region }));
     expect(html).toContain("Monday");
     expect(html).toContain("09:00");
@@ -103,10 +101,10 @@ describe("Phase K — regional consumers", () => {
   });
 
   it("directions resolve for the resolved region through the provider seam (geo wins)", () => {
-    for (const binding of siteConfig.pageBindings) {
-      const region = regionFor(binding.locale, binding.slug);
+    for (const regionId of new Set(siteConfig.pageBindings.map((binding) => binding.region))) {
+      const region = regionFor(regionId);
       const action = directionLinkResolver.resolve(regionToLocation(region));
-      expect(action.kind, `${binding.locale}/${binding.slug}`).toBe("link");
+      expect(action.kind, regionId).toBe("link");
       if (region.geo && action.kind === "link") {
         expect(action.href).toContain(String(region.geo.lat));
       }

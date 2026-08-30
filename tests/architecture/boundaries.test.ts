@@ -297,7 +297,7 @@ describe("adapter factory boundary (Phase I)", () => {
   });
 });
 
-describe("Phase K — regional page-context boundaries", () => {
+describe("Phase L — regional page-context boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
 
   function readComponent(name: string): string {
@@ -305,19 +305,25 @@ describe("Phase K — regional page-context boundaries", () => {
   }
 
   it("regional pages resolve their page context centrally (never in components)", () => {
-    const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "[slug]", "page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("resolvePageContext");
-    // The page must not resolve timezones or read the global business block.
-    expect(page).not.toContain("resolveTimezone");
-    expect(page).not.toContain(".business.timezone");
-    expect(page).not.toContain("business.locations");
+    const pages = ["[locale]/[item]/page.tsx", "[locale]/[item]/[slug]/page.tsx"];
+    for (const relative of pages) {
+      const page = readFileSync(path.join(APP_DIRECTORY, relative), "utf8");
+      expect(page).toContain("resolveRegionalPageContext");
+      // The pages must not resolve timezones or read the global business block.
+      expect(page).not.toContain("resolveTimezone");
+      expect(page).not.toContain(".business.timezone");
+      expect(page).not.toContain("business.locations");
+    }
   });
 
-  it("region components never read the global business block or another region", () => {
-    for (const file of ["region-block.tsx", "region-structured-data.tsx", "region-current-status.tsx"]) {
+  it("region components and switchers never read the global business block or another region", () => {
+    for (const file of [
+      "region-block.tsx",
+      "region-structured-data.tsx",
+      "region-current-status.tsx",
+      "location-switcher.tsx",
+      "language-switcher.tsx",
+    ]) {
       const source = readComponent(file);
       expect(source, `${file} must not read the global business block`).not.toContain(
         "siteConfig.business",
@@ -331,9 +337,28 @@ describe("Phase K — regional page-context boundaries", () => {
     }
   });
 
-  it("the dynamic regional page owns the [slug] route and excludes static-route slugs", () => {
+  it("switchers delegate destination resolution to the pure core resolver", () => {
+    for (const file of ["location-switcher.tsx", "language-switcher.tsx"]) {
+      const source = readComponent(file);
+      expect(source, `${file} must use the shared regional-pages resolver`).toContain(
+        "@/core/regional-pages",
+      );
+    }
+  });
+
+  it("no location navigation links remain in config navigation or dictionaries", () => {
+    const config = JSON.parse(
+      readFileSync(path.join(process.cwd(), "site.config.json"), "utf8"),
+    ) as { navigation?: { href: string }[] };
+    const hrefs = (config.navigation ?? []).map((entry) => entry.href);
+    for (const forbidden of ["/toronto", "/vancouver", "/montreal", "/berlin"]) {
+      expect(hrefs, `nav must not contain ${forbidden}`).not.toContain(forbidden);
+    }
+  });
+
+  it("the dynamic regional page owns the [item]/[slug] routes and excludes static-route slugs", () => {
     const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "[slug]", "page.tsx"),
+      path.join(APP_DIRECTORY, "[locale]", "[item]", "page.tsx"),
       "utf8",
     );
     expect(page).toContain("STATIC_ROUTE_SLUGS");

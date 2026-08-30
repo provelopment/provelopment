@@ -4,7 +4,7 @@ import type { z } from "zod";
 import { siteConfigFileSchema } from "./schema";
 import type { Business, BusinessContact } from "@/core/business";
 import { assertValidAddressPresentation } from "@/core/business";
-import type { OperationalRegion } from "@/core/region";
+import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import { assertRegionsValid } from "@/core/region";
 import type { SiteConfig } from "./site-config";
 
@@ -36,7 +36,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
 
   const business = toNormalizedBusiness(json);
   const regions = toRegions(json);
-  const pageBindings = json.business?.pages ?? [];
+  const pageBindings = toPageBindings(json.business?.pages);
 
   // Phase K — cross-reference validation (page→region, duplicate bindings,
   // locale membership, address-presentation invariants). Loud at build time so
@@ -135,6 +135,7 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
       id,
       timezone: raw.timezone,
       name: raw.name,
+      label: raw.label,
       address: raw.address,
       addressInternational: raw.addressInternational,
       addressMode: raw.addressMode,
@@ -155,6 +156,27 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
   }
 
   return regions;
+}
+
+/**
+ * Normalizes the raw `business.pages` entries to canonical
+ * `{ locale, region, slug: string | null }`:
+ *
+ *  - `{ locale, region }`                      → landing (slug null);
+ *  - `{ locale, region, slug }`                → regional page;
+ *  - Phase K `{ locale, slug, region }` where `slug === region` → landing
+ *    (back-compat: Phase K regional landing pages used their region id as the
+ *    content slug).
+ */
+function toPageBindings(
+  raw: readonly { locale: string; region: string; slug?: string }[] | undefined,
+): readonly PageRegionBinding[] {
+  return (raw ?? []).map((entry) => {
+    if (entry.slug === undefined || entry.slug === entry.region) {
+      return { locale: entry.locale, region: entry.region, slug: null };
+    }
+    return { locale: entry.locale, region: entry.region, slug: entry.slug };
+  });
 }
 
 /**

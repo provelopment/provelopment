@@ -20,6 +20,7 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
     notFound: { title: "n", message: "m", returnHome: "r" },
     error: { title: "e", message: "e", tryAgain: "e", returnHome: "e" },
     language: { label: "l" },
+    location: { label: "lo" },
     business: { open: "o", closed: "c", noHours: "h", hoursLabel: "hh" },
     a11y: { skipToContent: "s" },
     contact: {

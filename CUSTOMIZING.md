@@ -283,6 +283,50 @@ Key rules:
   `open === close` are all rejected at configuration time.
 - All demonstration region data is **fictional** — replace it before go-live.
 
+### Locale + Location selectors and regional page URLs (`business.pages`) — Phase L
+
+Locations are **selectors**, not navigation links. The location selector sits
+beside the language selector in the header; together they determine which
+page/footprint you are viewing. This removes the old location entries from the
+main menu.
+
+```jsonc
+"business": {
+  "regions": { "toronto": { …, "label": "Toronto" }, "vancouver": { … } },
+  "pages": [
+    { "locale": "en", "region": "toronto" },                // /en/toronto
+    { "locale": "en", "region": "toronto", "slug": "about" },  // /en/toronto/about
+    { "locale": "en", "region": "vancouver" },              // /en/vancouver
+    { "locale": "de", "region": "berlin" }                  // /de/berlin
+  ]
+}
+```
+
+Key points:
+
+- **URL model:** `/{locale}` (home), `/{locale}/{region}` (regional landing),
+  `/{locale}/{region}/{page}` (regional page). Static routes (About/Contact/
+  Resources/Offerings/Legal) stay where they are; a region whose id collides
+  with a static route is rejected at build time.
+- **Every bound `(locale, region)` needs a landing entry** (the bare `{
+  locale, region }` line). A page entry without its landing fails the build.
+  The Phase K `{ locale, slug: "toronto", region: "toronto" }` form is still
+  accepted and migrated automatically.
+- **Inventories are per locale × region.** Toronto and Vancouver may expose
+  different pages; one region may exist in several locales; locales may have
+  no regions at all (then the location selector is hidden).
+- **Switching behavior (deterministic, pure core):**
+  - Location: keep the language; go to the same page in the target region, or
+    its landing, or (as a defensive fallback) its first configured page.
+  - Language: keep the region; go to the same page in the target locale, or
+    its landing; locales that have no page for the current region are simply
+    not offered (never a silent region change, never a dead link).
+- **`region.label`** (falls back to `name`, then the id) is what the location
+  selector shows. The selector is hidden for locales with no configured
+  regions.
+- **SEO:** canonical URLs, hreflang only for existing locale/region/page
+  combinations, and the sitemap lists only configured routes.
+
 ### Locale-specific business address, phone & geo (`locations[].locales`)
 
 By default a location's address, phone and geo are **global** — the same for

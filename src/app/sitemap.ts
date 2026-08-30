@@ -4,6 +4,7 @@ import { createFileSystemPageContentRepository } from "@/adapters/content/fs-pag
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { resolveLegalDocs } from "@/core/legal";
+import { regionsForLocale, regionalPath } from "@/core/regional-pages";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pagesRepository = createFileSystemPageContentRepository({
@@ -18,11 +19,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     collection: "legal",
   });
 
-  // Route ownership: routes derive from the CONTENT MODEL per locale (page,
-  // offering, and legal slugs that exist for that locale) plus feature/config
-  // enablement — never from navigation config. Because page inventories may
-  // differ per locale (Phase K regional pages), every locale's routes are its
-  // own: a page that only exists in one locale is only emitted there.
+  // Route ownership: routes derive from the CONTENT MODEL + configured page
+  // inventory per locale — never from navigation config. Because page
+  // inventories differ per locale/region (Phase K/L regional pages), every
+  // locale's routes are its own: a page that only exists in one locale/region
+  // is only emitted there.
   const canonicalOfferings = siteConfig.offeringsFeature
     ? await offeringsRepository.listSlugs(siteConfig.defaultLocale)
     : [];
@@ -37,7 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const localizedEntries: MetadataRoute.Sitemap = [];
   for (const { code } of siteConfig.locales) {
-    const pages = await pagesRepository.listSlugs(code);
+    // Content slugs that are regional landings for this locale are emitted by
+    // the regional loop below, not as flat `/locale/slug` routes.
+    const regional = regionsForLocale(siteConfig.pageBindings, code);
+    const pages = (await pagesRepository.listSlugs(code)).filter(
+      (slug) => !regional.includes(slug),
+    );
     const routes = buildSitemapRoutes({
       offeringsEnabled: siteConfig.offeringsFeature === true,
       pages,
@@ -47,6 +53,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const route of routes) {
       localizedEntries.push({ url: `${siteConfig.url}/${code}${route}`, lastModified });
+    }
+
+    // Regional landings `/{locale}/{region}` (only configured for this locale).
+    for (const region of regionsForLocale(siteConfig.pageBindings, code)) {
+      localizedEntries.push({
+        url: `${siteConfig.url}/${regionalPath(code, region, null)}`,
+        lastModified,
+      });
+    }
+    // Regional pages `/{locale}/{region}/{slug}` (only configured combos).
+    for (const binding of siteConfig.pageBindings) {
+      if (binding.locale === code && binding.slug !== null) {
+        localizedEntries.push({
+          url: `${siteConfig.url}/${regionalPath(code, binding.region, binding.slug)}`,
+          lastModified,
+        });
+      }
     }
   }
 

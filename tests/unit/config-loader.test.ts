@@ -660,7 +660,7 @@ describe("business contact + address identity (Phase I)", () => {
   });
 });
 
-describe("Phase K — region configuration validation", () => {
+describe("Phase L — region configuration validation", () => {
   const regionBase = {
     timezone: "America/Toronto",
     address: { street: "1 Demo St", city: "Toronto", country: "Canada" },
@@ -679,19 +679,61 @@ describe("Phase K — region configuration validation", () => {
         },
       },
       pages: [
-        { locale: "en", slug: "toronto", region: "toronto" },
-        { locale: "en", slug: "vancouver", region: "vancouver" },
+        { locale: "en", region: "toronto" },
+        { locale: "en", region: "vancouver" },
       ],
     },
   };
 
-  it("parses a valid regions + pages configuration", () => {
+  it("parses a valid regions + pages configuration (landing bindings)", () => {
     const config = parseSiteConfig(regionConfig);
     expect(Object.keys(config.regions)).toEqual(["toronto", "vancouver"]);
     expect(config.regions.toronto.timezone).toBe("America/Toronto");
     expect(config.regions.toronto.hours.monday[0].open).toBe("09:00");
-    expect(config.pageBindings).toHaveLength(2);
+    expect(config.pageBindings).toEqual([
+      { locale: "en", region: "toronto", slug: null },
+      { locale: "en", region: "vancouver", slug: null },
+    ]);
     expect(config.business.locations).toEqual([]); // legacy path untouched
+  });
+
+  it("maps region labels through the loader", () => {
+    const config = parseSiteConfig({
+      ...regionConfig,
+      business: {
+        regions: { toronto: { ...regionBase, label: "Toronto" } },
+        pages: [{ locale: "en", region: "toronto" }],
+      },
+    });
+    expect(config.regions.toronto.label).toBe("Toronto");
+  });
+
+  it("migrates the Phase K binding form (slug === region) to a landing", () => {
+    const config = parseSiteConfig({
+      ...regionConfig,
+      business: {
+        regions: regionConfig.business.regions,
+        pages: [{ locale: "en", slug: "toronto", region: "toronto" }],
+      },
+    });
+    expect(config.pageBindings).toEqual([{ locale: "en", region: "toronto", slug: null }]);
+  });
+
+  it("keeps a regional page binding where slug differs from the region", () => {
+    const config = parseSiteConfig({
+      ...regionConfig,
+      business: {
+        regions: regionConfig.business.regions,
+        pages: [
+          { locale: "en", region: "toronto" },
+          { locale: "en", region: "toronto", slug: "about" },
+        ],
+      },
+    });
+    expect(config.pageBindings).toEqual([
+      { locale: "en", region: "toronto", slug: null },
+      { locale: "en", region: "toronto", slug: "about" },
+    ]);
   });
 
   it("rejects an invalid IANA timezone in a region", () => {
@@ -774,31 +816,55 @@ describe("Phase K — region configuration validation", () => {
     expect(() =>
       parseSiteConfig({
         ...regionConfig,
-        business: { regions: regionConfig.business.regions, pages: [{ locale: "en", slug: "toronto", region: "nope" }] },
+        business: { regions: regionConfig.business.regions, pages: [{ locale: "en", region: "nope" }] },
       }),
     ).toThrow(/unknown region/);
   });
 
-  it("rejects duplicate page bindings for the same (locale, slug)", () => {
+  it("rejects duplicate page bindings for the same (locale, region, slug)", () => {
     expect(() =>
       parseSiteConfig({
         ...regionConfig,
         business: {
           regions: regionConfig.business.regions,
           pages: [
-            { locale: "en", slug: "toronto", region: "toronto" },
-            { locale: "en", slug: "toronto", region: "vancouver" },
+            { locale: "en", region: "toronto" },
+            { locale: "en", region: "toronto" },
           ],
         },
       }),
     ).toThrow(/Duplicate page/);
   });
 
+  it("rejects region pages without a landing entry for the (locale, region)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: {
+          regions: regionConfig.business.regions,
+          pages: [{ locale: "en", region: "toronto", slug: "about" }],
+        },
+      }),
+    ).toThrow(/landing/);
+  });
+
+  it("rejects a region id reserved for a static route", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: {
+          regions: { about: { ...regionBase, timezone: "America/Toronto" } },
+          pages: [{ locale: "en", region: "about" }],
+        },
+      }),
+    ).toThrow(/reserved/);
+  });
+
   it("rejects page bindings without a regions block", () => {
     expect(() =>
       parseSiteConfig({
         ...validConfig,
-        business: { pages: [{ locale: "en", slug: "toronto", region: "toronto" }] },
+        business: { pages: [{ locale: "en", region: "toronto" }] },
       }),
     ).toThrow(/regions/);
   });
