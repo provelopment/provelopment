@@ -1,5 +1,6 @@
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
@@ -15,6 +16,14 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
     // (`business.regions` is authoritative), so once any region is configured
     // the Location selector is available for every locale.
     const hasLocations = configuredRegionIds(siteConfig.regions).length > 0;
+    const configuredRegionIdsList = configuredRegionIds(siteConfig.regions);
+    // Phase M refinement — localized + English display names (pure helper).
+    const regionLabels = Object.fromEntries(
+        configuredRegionIdsList.map((regionId) => [
+            regionId,
+            regionDisplayName(locale, siteConfig.regions[regionId]),
+        ]),
+    );
 
     const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item) => ({
         href: item.href,
@@ -46,6 +55,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                                 locale={locale}
                                 label={dictionary.location.label}
                                 unspecifiedLabel={dictionary.location.unspecified}
+                                regionLabels={regionLabels}
                             />
                         ) : null}
                         <LanguageSwitcher

@@ -6,7 +6,7 @@
   "sections": {
     "about": "概要",
     "contact": "お問い合わせ",
-    "connect": "フォロー",
+    "connect": "つながる",
     "navigate": "ナビゲーション"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "営業中",
     "closed": "閉店",
     "noHours": "営業時間はありません",
-    "hoursLabel": "営業時間"
+    "hoursLabel": "営業時間",
+    "hoursTimeZoneLabel": "タイムゾーン"
   },
   "a11y": {
     "skipToContent": "コンテンツへスキップ"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "つながる",
     "demoNotice": "これらの連絡手段はテンプレートのデモです。実際のビジネスやサービスには接続されていません。",
-    "demoBadge": "デモ"
+    "demoBadge": "デモ",
+    "methods": {
+      "message": "メッセージを送る",
+      "email": "メール",
+      "phone": "電話"
+    }
   }
 }

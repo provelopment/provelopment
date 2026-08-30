@@ -882,21 +882,32 @@ describe("Phase L — region configuration validation", () => {
 describe("Phase M — connect config + region defaultLocale", () => {
   const connectConfig = {
     methods: [
-      { id: "message", label: "Message form", href: "/contact" },
+      { id: "message", label: "Message Us", href: "/contact" },
       { id: "email", label: "Email", href: "mailto:hello@example.com", demoOnly: true },
       { id: "whatsapp", label: "WhatsApp", href: "https://wa.me/15550100", demoOnly: true },
+      { id: "viber", label: "Viber", href: "viber://chat?number=%2B15550100", demoOnly: true },
     ],
   };
 
   it("parses the connect methods and passes them through the loader", () => {
     const config = parseSiteConfig({ ...validConfig, connect: connectConfig });
-    expect(config.connect?.methods).toHaveLength(3);
+    expect(config.connect?.methods).toHaveLength(4);
     expect(config.connect?.methods[1].demoOnly).toBe(true);
-    expect(config.connect?.methods.map((m) => m.id)).toEqual([
+    expect(config.connect?.methods?.map((m) => m.id)).toEqual([
       "message",
       "email",
       "whatsapp",
+      "viber",
     ]);
+    // Viber is demo-only/configuration-only with its URI preserved.
+    expect(config.connect?.methods?.[3]).toMatchObject({
+      id: "viber",
+      href: "viber://chat?number=%2B15550100",
+      demoOnly: true,
+    });
+    // The message action is named "Message Us" (route stays /contact).
+    expect(config.connect?.methods?.[0].label).toBe("Message Us");
+    expect(config.connect?.methods?.[0].href).toBe("/contact");
   });
 
   it("rejects a connect block without any methods", () => {
@@ -978,6 +989,54 @@ describe("Phase M — connect config + region defaultLocale", () => {
         },
       }),
     ).not.toThrow();
+  });
+
+  it("passes through each locale's explicit englishLabel", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      i18n: {
+        defaultLocale: "en",
+        locales: [
+          { code: "en", label: "English", englishLabel: "English" },
+          { code: "fr", label: "Français", englishLabel: "French" },
+        ],
+      },
+    });
+    expect(config.locales[0].englishLabel).toBe("English");
+    expect(config.locales[1].englishLabel).toBe("French");
+  });
+
+  it("passes through a region's localized display labels", () => {
+    const config = parseSiteConfig({
+      ...regionConfigData(),
+      business: {
+        regions: {
+          tokyo: {
+            ...regionBaseData(),
+            timezone: "Asia/Tokyo",
+            label: "Tokyo",
+            labels: { ja: "東京" },
+          },
+        },
+        pages: [{ locale: "en", region: "tokyo" }],
+      },
+    });
+    expect(config.regions.tokyo.label).toBe("Tokyo");
+    expect(config.regions.tokyo.labels).toEqual({ ja: "東京" });
+  });
+
+  it("rejects a non-locale key in a region's localized labels", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfigData(),
+        business: {
+          regions: {
+            tokyo: { ...regionBaseData(), labels: { notALocale: "x" } },
+          },
+          pages: [{ locale: "en", region: "tokyo" }],
+        },
+      }),
+    ).toThrow(/Invalid key in record/);
   });
 });
 

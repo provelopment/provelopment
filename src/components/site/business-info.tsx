@@ -4,6 +4,7 @@ import type { DirectionLinkResolver, DirectionsAction } from "@/application/dire
 import type { BusinessLocation, ExceptionalHours, Weekday } from "@/core/business";
 import { formatAddress, resolveBusinessForLocale } from "@/core/business";
 import { resolveTimezone } from "@/core/business-hours";
+import { timezoneDisplayLabel } from "@/core/display-labels";
 import { CurrentStatus } from "./current-status";
 
 const WEEKDAY_ORDER: readonly Weekday[] = [
@@ -99,12 +100,12 @@ function LocationBlock({ location, locale, direction }: LocationBlockProps) {
 
       {hasHours ? (
         <div className="mt-3">
-          <div className="flex items-center justify-between gap-2">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {dictionary.business.hoursLabel}
-            </h4>
-            <span className="text-xs text-muted-foreground">{timeZone}</span>
-          </div>
+          {/* Phase M refinement — Business Hours + timezone are ONE heading
+              unit (`localized (English) — IANA`); the IANA id is always shown. */}
+          <h4 className="break-words text-xs font-semibold tracking-wide text-muted-foreground">
+            {dictionary.business.hoursLabel} (
+            {dictionary.business.hoursTimeZoneLabel}: {timezoneDisplayLabel(locale, timeZone)})
+          </h4>
 
           <CurrentStatus
             location={location}

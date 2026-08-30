@@ -137,6 +137,7 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
       timezone: raw.timezone,
       name: raw.name,
       label: raw.label,
+      labels: raw.labels,
       defaultLocale: raw.defaultLocale,
       address: raw.address,
       addressInternational: raw.addressInternational,

@@ -535,6 +535,51 @@ redesigning the Phase K/L model.
   (name, header, metadata, demo copy); "My Site" is gone from visitor-facing
   output. Adopters keep their own brand.
 
+## Presentation localization & Connect UX (Phase M refinement)
+
+A focused consistency pass over Phase M — no architecture redesign, no new
+service layer, no changes to the hours/DST engine or the region authority
+model. All presentation data is explicit configuration or the platform's
+`Intl` table; nothing is inferred from country/browser/timezone.
+
+- **Display-name helpers (`src/core/display-labels.ts`, framework-free).**
+  `displayNameWithEnglish(localized, english)` shows `Localized (English)`
+  only when the two differ (never `English (English)` / `Toronto (Toronto)`).
+  `regionDisplayName(locale, region)` renders the **location selector** names:
+  `region.labels[locale]` where configured, else the canonical English
+  `region.label ?? name ?? id`, with the English suffix when different
+  (`東京 (Tokyo)`, `Montréal (Montreal)`). `locale`'s are nothing more than
+  labels; region ids stay language-neutral.
+- **Language selector.** `i18n.locales[].englishLabel` (explicit config) +
+  `displayNameWithEnglish`: `Français (French)`, `Deutsch (German)`, …
+  applied in the one shared switch, on every page and regional context.
+- **Timezone in the Business Hours heading.** The timezone is no longer a
+  standalone element beside the hours block. Both `RegionBlock` and the
+  legacy `BusinessInfo` render `Hours (Time Zone: <localized (<English>) —
+  <IANA>)` as ONE heading unit. Human names come from
+  `Intl.DateTimeFormat(...).timeZoneName` (the platform ICU table) against a
+  fixed reference date for determinism; the English parenthetical is omitted
+  when identical; the authoritative IANA identifier is always present. The
+  DST/hours engine is untouched.
+- **Footer Connect section = pure gateway.** The section **heading IS the
+  `/connect` link** (`ContextConnectHeading`, resolved via the same
+  URL-authoritative `resolveNavHref` the header uses — regional contexts get
+  `/{locale}/{region}/connect`, absent regional pages render no link). Beneath
+  it sit ONLY the configured connection methods through `ContextNavLinks` (no
+  duplicate Connect item, no separate Contact item). Method labels come from
+  ONE shared helper **`connectMethodLabel`** (`dictionary.connect.methods[id]`
+  → config fallback), used identically by the Connect page and the footer.
+  The `/contact`-backed **Message Us** action is the single message-form
+  action and is omitted in regional contexts where `/contact` is not a
+  regional page (no invented URLs, no silent locale/location reset — external
+  deep links can never reset context).
+- **Viber.** Added to the demo as a configured `connect.methods` entry
+  (`viber://chat?number=…`, `demoOnly: true`) — Connect page + footer both
+  derive it purely from configuration. No provider/SDK/backend.
+- **Message Us naming.** The connection action is consistently "Message Us"
+  (config label + `dictionary.connect.methods.message`); the technical route
+  stays `/contact`; the Contact page keeps its explicit demo-only notice.
+
 ## Contact inquiry (Phase B)
 
 The inquiry capability is a frontend + integration seam: `/contact` renders a

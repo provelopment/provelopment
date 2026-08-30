@@ -21,6 +21,8 @@ interface LocationSwitcherProps {
    * bare "Location" option would read like a real configured location.
    */
   readonly unspecifiedLabel: string;
+  /** Computed display names (localized + English) for every configured region. */
+  readonly regionLabels: Readonly<Record<string, string>>;
 }
 
 /**
@@ -45,6 +47,7 @@ export function LocationSwitcher({
   locale,
   label,
   unspecifiedLabel,
+  regionLabels,
 }: LocationSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -86,14 +89,11 @@ export function LocationSwitcher({
       <option key="" value="">
         {unspecifiedLabel}
       </option>
-      {availableRegions.map((regionId) => {
-        const region = siteConfig.regions[regionId];
-        return (
-          <option key={regionId} value={regionId}>
-            {region?.label ?? region?.name ?? regionId}
-          </option>
-        );
-      })}
+      {availableRegions.map((regionId) => (
+        <option key={regionId} value={regionId}>
+          {regionLabels[regionId]}
+        </option>
+      ))}
     </select>
   );
 }
