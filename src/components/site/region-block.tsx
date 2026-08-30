@@ -74,7 +74,7 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
       <div className="mt-4 grid gap-8 sm:grid-cols-2">
         <div>
           {hasAddress ? (
-            <address className="not-italic text-muted-foreground">
+            <address className="break-words not-italic text-muted-foreground">
               {direction.kind === "link" ? (
                 <a
                   href={direction.href}
@@ -88,7 +88,7 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
                 <span>{addressText}</span>
               )}
               {internationalText && region.addressInternational ? (
-                <span className="mt-1 block">{internationalText}</span>
+                <span className="mt-1 block break-words">{internationalText}</span>
               ) : null}
             </address>
           ) : null}

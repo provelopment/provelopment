@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "为小型企业打造的快速多语言网站",
-    "description": "请将此描述替换为您自己的内容。My Site 是 Provelopment Foundation 模板的演示：编辑 site.config.json、Markdown 内容和您的资源，让它成为您自己的网站。"
+    "description": "请将此描述替换为您自己的内容。Your Business Site 是 Provelopment Foundation 模板的演示：编辑 site.config.json、Markdown 内容和您的资源，让它成为您自己的网站。"
   },
   "sections": {
     "about": "关于",
@@ -16,8 +16,8 @@
       "/": "首页",
       "/about": "关于",
       "/resources": "资源",
-      "/contact": "联系",
-      "/offerings": "服务内容"
+      "/offerings": "服务内容",
+      "/connect": "联系"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "语言"
   },
   "location": {
-    "label": "位置"
+    "label": "位置",
+    "unspecified": "未指定"
   },
   "business": {
     "open": "营业中",
@@ -83,5 +84,10 @@
       "terms": "服务条款",
       "cookies": "Cookie政策"
     }
+  },
+  "connect": {
+    "heading": "联系",
+    "demoNotice": "这些联系方式是模板演示。这里没有任何内容连接到真实的商家或服务。",
+    "demoBadge": "演示"
   }
 }

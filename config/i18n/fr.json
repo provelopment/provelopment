@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "Un site web rapide et multilingue pour votre petite entreprise",
-    "description": "Remplacez cette description par la vôtre. My Site est une démonstration du modèle Provelopment Foundation : modifiez site.config.json, le contenu Markdown et vos ressources pour vous l'approprier."
+    "description": "Remplacez cette description par la vôtre. Your Business Site est une démonstration du modèle Provelopment Foundation : modifiez site.config.json, le contenu Markdown et vos ressources pour vous l'approprier."
   },
   "sections": {
     "about": "À propos",
@@ -16,8 +16,8 @@
       "/": "Accueil",
       "/about": "À propos",
       "/resources": "Ressources",
-      "/contact": "Contact",
-      "/offerings": "Offres"
+      "/offerings": "Offres",
+      "/connect": "Connecter"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "Langue"
   },
   "location": {
-    "label": "Lieu"
+    "label": "Lieu",
+    "unspecified": "Non spécifié"
   },
   "business": {
     "open": "Ouvert maintenant",
@@ -53,35 +54,40 @@
     "subjectLabel": "Objet",
     "messageLabel": "Message",
     "submit": "Envoyer la demande",
-    "sending": "Envoi\u2026",
+    "sending": "Envoi…",
     "honeypotLabel": "Site web",
-    "success": "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e.",
-    "demoNotice": "Mode d\u00e9mo : rien n'a \u00e9t\u00e9 envoy\u00e9. Connectez un webhook pour recevoir les demandes.",
-    "unconfigured": "Le formulaire de contact n'est pas encore configur\u00e9 sur ce site.",
-    "configError": "Le formulaire de contact n'est pas configur\u00e9 correctement. Veuillez contacter directement le propri\u00e9taire du site.",
-    "sendError": "Votre demande n'a pas pu \u00eatre envoy\u00e9e. Veuillez r\u00e9essayer.",
+    "success": "Votre demande a bien été envoyée.",
+    "demoNotice": "Mode démo : rien n'a été envoyé. Connectez un webhook pour recevoir les demandes.",
+    "unconfigured": "Le formulaire de contact n'est pas encore configuré sur ce site.",
+    "configError": "Le formulaire de contact n'est pas configuré correctement. Veuillez contacter directement le propriétaire du site.",
+    "sendError": "Votre demande n'a pas pu être envoyée. Veuillez réessayer.",
     "errors": {
       "name": "Veuillez saisir votre nom.",
       "email": "Veuillez saisir une adresse e-mail valide.",
       "subject": "Veuillez raccourcir l'objet.",
-      "message": "Veuillez saisir un message (5000 caract\u00e8res maximum)."
+      "message": "Veuillez saisir un message (5000 caractères maximum)."
     }
   },
   "offerings": {
     "heading": "Offres",
-    "emptyState": "Nos offres seront bient\u00f4t disponibles ici.",
+    "emptyState": "Nos offres seront bientôt disponibles ici.",
     "backToOfferings": "Retour aux offres"
   },
   "booking": {
-    "book": "R\u00e9server"
+    "book": "Réserver"
   },
   "legal": {
-    "heading": "Informations l\u00e9gales",
-    "disclaimer": "Ces documents sont des mod\u00e8les de d\u00e9monstration uniquement et ne constituent pas un conseil juridique. Consultez un professionnel qualifi\u00e9 pour votre juridiction.",
+    "heading": "Informations légales",
+    "disclaimer": "Ces documents sont des modèles de démonstration uniquement et ne constituent pas un conseil juridique. Consultez un professionnel qualifié pour votre juridiction.",
     "labels": {
-      "privacy": "Politique de confidentialit\u00e9",
+      "privacy": "Politique de confidentialité",
       "terms": "Conditions d'utilisation",
       "cookies": "Politique de cookies"
     }
+  },
+  "connect": {
+    "heading": "Connecter",
+    "demoNotice": "Ces options de connexion sont des démonstrations du modèle. Rien ici n'est connecté à une vraie entreprise ou un vrai service.",
+    "demoBadge": "Démo"
   }
 }

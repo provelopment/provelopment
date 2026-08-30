@@ -248,6 +248,14 @@ const regionSchema = z.object({
   name: z.string().min(1).optional(),
   /** Short display label for the location selector (falls back to name/id). */
   label: z.string().min(1).optional(),
+  /**
+   * Phase M — deterministic locale chosen for this region when the visitor's
+   * current locale is not bound to it (a location switch across an unsupported
+   * language). Explicit configuration; never inferred from country/timezone/
+   * browser. Validated at build time to be a configured locale AND bound to
+   * the region.
+   */
+  defaultLocale: localeCode.optional(),
   address: addressSchema,
   addressInternational: addressSchema.optional(),
   addressMode: addressPresentationModeSchema.optional(),
@@ -313,6 +321,43 @@ export const navigationItemSchema = z.object({
   label: z.string().min(1, "must not be empty"),
   href: z.string().min(1, "must not be empty"),
 });
+
+/** Safe method id for the `connect.methods` list (must be URL-friendly). */
+const connectMethodIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * Phase M — a single connection mode exposed by the Connect page. Labels and
+ * hrefs are adopter-provided (a `mailto:`/`tel:`/`https:` external deep link,
+ * or an internal page such as the Message form). `demoOnly` marks template
+ * demonstration entries with a visible badge — the page never pretends an
+ * integration exists.
+ */
+const connectMethodSchema = z
+  .object({
+    id: z
+      .string()
+      .regex(connectMethodIdPattern, "must be a lowercase slug, e.g. 'whatsapp'"),
+    label: z.string().min(1, "must not be empty"),
+    href: z.string().min(1, "must not be empty"),
+    demoOnly: z.boolean().optional(),
+  })
+  .refine(
+    (method) => method.href.startsWith("/") || /^[a-z]+:/i.test(method.href),
+    {
+      message: "href must be an internal route ('/...') or an absolute deep link ('mailto:', 'tel:', 'https:', ...)",
+    },
+  );
+
+export const connectConfigSchema = z
+  .object({
+    methods: z.array(connectMethodSchema).min(1, "must list at least one connection method"),
+  })
+  .refine(
+    (connect) => new Set(connect.methods.map((method) => method.id)).size === connect.methods.length,
+    {
+      message: "connect.methods ids must be unique",
+    },
+  );
 
 /** Safe slug for a legal document (must match a `content/legal/` file). */
 const legalSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -403,6 +448,8 @@ export const siteConfigFileSchema = z.object({
   navigation: z.array(navigationItemSchema),
   business: businessSchema.optional(),
   features: featuresConfigSchema.optional(),
+  /** Phase M — configurable connection modes exposed on the Connect page. */
+  connect: connectConfigSchema.optional(),
   /**
    * Optional legal documents (Phase D). Each entry must have canonical content
    * under `content/legal/<defaultLocale>/<slug>.md` to be exposed; content

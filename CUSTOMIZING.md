@@ -327,6 +327,60 @@ Key points:
 - **SEO:** canonical URLs, hreflang only for existing locale/region/page
   combinations, and the sitemap lists only configured routes.
 
+### Selector semantics, region-aware navigation, Connect & identity (`connect` + region `defaultLocale`) — Phase M
+
+Locations are **selectors**: the Location dropdown shows every configured
+operating location (from `business.regions`) plus an explicit **Unspecified**
+option — the list is never filtered by the current language and is never lost
+after selecting a region.
+
+```jsonc
+"business": {
+  "regions": {
+    "toronto": { …, "defaultLocale": "en" },   // the default audience language
+    "vancouver": { … }
+  },
+  "pages": [
+    { "locale": "en", "region": "toronto" },
+    { "locale": "fr", "region": "toronto" },
+    { "locale": "fr", "region": "toronto", "slug": "about" },
+    { "locale": "fr", "region": "toronto", "slug": "connect" }
+  ]
+},
+"connect": {
+  "methods": [
+    { "id": "message", "label": "Message form", "href": "/contact" },
+    { "id": "whatsapp", "label": "WhatsApp", "href": "https://wa.me/…", "demoOnly": true }
+  ]
+}
+```
+
+Key behavior:
+
+- **`region.defaultLocale` (optional).** The deterministic locale chosen when a
+  location switch arrives from an unsupported language (`/de` → Toronto →
+  `/en/toronto`). Must be a configured locale AND bound to the region (build
+  error otherwise). Absent → derived from the region's first landing binding.
+  Never inferred from country/timezone/browser.
+- **Unspecified returns you to generic:** `/en/toronto/about` → *Location:
+  Unspecified* → `/en/about`; `/de/berlin` → `/de`. Generic pages have no
+  operating identity (no invented address/timezone/JSON-LD).
+- **Region-aware navigation.** Inside a region, primary/footer navigation shows
+  only pages that exist for that locale + region (e.g. Home/About/Connect, no
+  fake Resources). Home always means **this region's home**. A nav item never
+  silently redirects.
+- **Connect first-class.** Primary nav exposes **Connect** (not Contact). The
+  `/connect` page renders the configured `connect.methods` (internal page or
+  `mailto:`/`tel:`/`https:` deep link), badges `demoOnly` entries, and always
+  shows a visible demo notice. The Contact page (`/contact`) remains, with a
+  visible "not connected to a real backend" notice. Footer: **Contact** lives
+  under a dedicated **Connect** column (never under Navigate).
+- **`connect.methods`** are the adopter's configurable connection inventory —
+  no provider integrations; `demoOnly` = template demonstration.
+- **Template identity.** The Foundation demo names itself **Your Business
+  Site**; keep or replace it. The old "My Site" placeholder is gone from
+  visitor-facing copy.
+
 ### Locale-specific business address, phone & geo (`locations[].locales`)
 
 By default a location's address, phone and geo are **global** — the same for

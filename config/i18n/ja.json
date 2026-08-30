@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "小規模ビジネスのための高速で多言語対応のウェブサイト",
-    "description": "この説明文はご自身の内容に差し替えてください。My Site は Provelopment Foundation テンプレートのデモです。site.config.json、Markdown コンテンツ、アセットを編集して自分のものにしましょう。"
+    "description": "この説明文はご自身の内容に差し替えてください。Your Business Site は Provelopment Foundation テンプレートのデモです。site.config.json、Markdown コンテンツ、アセットを編集して自分のものにしましょう。"
   },
   "sections": {
     "about": "概要",
@@ -16,8 +16,8 @@
       "/": "ホーム",
       "/about": "概要",
       "/resources": "リソース",
-      "/contact": "お問い合わせ",
-      "/offerings": "サービス内容"
+      "/offerings": "サービス内容",
+      "/connect": "つながる"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "言語"
   },
   "location": {
-    "label": "地域"
+    "label": "地域",
+    "unspecified": "未指定"
   },
   "business": {
     "open": "営業中",
@@ -83,5 +84,10 @@
       "terms": "利用規約",
       "cookies": "Cookieポリシー"
     }
+  },
+  "connect": {
+    "heading": "つながる",
+    "demoNotice": "これらの連絡手段はテンプレートのデモです。実際のビジネスやサービスには接続されていません。",
+    "demoBadge": "デモ"
   }
 }
