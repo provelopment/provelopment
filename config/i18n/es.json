@@ -42,7 +42,8 @@
     "open": "Abierto ahora",
     "closed": "Cerrado",
     "noHours": "Horario no disponible",
-    "hoursLabel": "Horario de atención"
+    "hoursLabel": "Horario de atención",
+    "hoursTimeZoneLabel": "Zona horaria"
   },
   "a11y": {
     "skipToContent": "Saltar al contenido"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "Conectar",
     "demoNotice": "Estas opciones de conexion son demostraciones de la plantilla. Nada aqui esta conectado a un negocio o servicio real.",
-    "demoBadge": "Demo"
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Enviar un mensaje",
+      "email": "Correo electrónico",
+      "phone": "Teléfono"
+    }
   }
 }

@@ -5,6 +5,8 @@ import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { legalLabel, resolveLegalDocs } from "@/core/legal";
 import { BusinessInfo } from "./business-info";
+import { connectMethodLabel } from "./connect-method-label";
+import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 
 interface SiteFooterProps {
@@ -35,14 +37,24 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
         label: dictionary.navigation.items[item.href] ?? item.label,
     }));
 
-    // Phase M — the footer's Connect section is contact-centric: the Connect
-    // page, the Contact page, and the configured connection methods. Page
-    // links are region-aware (only exposed where the page actually exists);
-    // external methods always render as plain links.
-    const connectLinks: readonly ContextNavLink[] = [
-        { href: "/connect", label: dictionary.navigation.items["/connect"] ?? "Connect" },
-        { href: "/contact", label: dictionary.sections.contact },
-    ];
+    // Phase M refinement — the footer Connect section is a pure gateway:
+    //  - the section HEADING is the Connect-page link (ContextConnectHeading,
+    //    resolved by the same URL-authoritative core resolver the header uses);
+    //  - beneath it sit ONLY the configured connection methods (localized via
+    //    the same connectMethodLabel helper the Connect page uses), so there is
+    //    no duplicate Connect item and no separate Contact item — Message Us
+    //    (the `/contact` method) is the single message-form action;
+    //  - methods are region-aware: an internal one (`/contact`) is only shown
+    //    where the (locale, region) context actually has it; external deep
+    //    links (mailto/tel/https/viber) never reset locale or location.
+    const methodLinks: readonly ContextNavLink[] = (siteConfig.connect?.methods ?? []).map(
+        (method) => ({
+            href: method.href,
+            label: connectMethodLabel(dictionary, method),
+            key: method.id,
+            demoOnly: method.demoOnly,
+        }),
+    );
 
     return (
         <footer className="mt-16 border-t border-border">
@@ -52,35 +64,20 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                 )}
 
                 <div>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        {dictionary.sections.connect}
-                    </h2>
+                    <ContextConnectHeading
+                        locale={locale}
+                        label={dictionary.sections.connect}
+                    />
 
                     <ContextNavLinks
                         locale={locale}
-                        links={connectLinks}
+                        links={methodLinks}
                         className="mt-3 space-y-2"
                         linkClassName="hover:text-primary"
+                        demoBadgeLabel={dictionary.connect.demoBadge}
                     />
 
                     <ul className="mt-3 space-y-2">
-                        {siteConfig.connect?.methods.map((method) => (
-                            <li key={method.id}>
-                                <a
-                                    href={method.href}
-                                    rel="noreferrer"
-                                    target={method.href.startsWith("/") ? undefined : "_blank"}
-                                    className="hover:text-primary"
-                                >
-                                    {method.label}
-                                    {method.demoOnly ? (
-                                        <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">
-                                            {dictionary.connect.demoBadge}
-                                        </span>
-                                    ) : null}
-                                </a>
-                            </li>
-                        ))}
                         {siteConfig.socialLinks.map((socialLink) => (
                             <li key={socialLink.platform}>
                                 <a

@@ -3,6 +3,7 @@ import type { DirectionLinkResolver, DirectionsAction } from "@/application/dire
 import type { DayOfWeek, OperationalRegion } from "@/core/region";
 import { DAYS_OF_WEEK, regionToLocation } from "@/core/region";
 import { formatAddress } from "@/core/business";
+import { timezoneDisplayLabel } from "@/core/display-labels";
 import { RegionCurrentStatus } from "./region-current-status";
 
 /** Localized day names in Monday..Sunday order via `Intl`, locale-derived. */
@@ -58,6 +59,10 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
       ? formatAddress(region.addressInternational)
       : null;
   const hasAddress = Boolean(region.address.street || region.address.city);
+  // Phase M refinement — the timezone lives INSIDE the Business Hours heading
+  // as one contextual unit (`localized (English) — IANA`); the IANA id
+  // remains authoritative and always visible.
+  const hoursHeading = `${dictionary.business.hoursLabel} (${dictionary.business.hoursTimeZoneLabel}: ${timezoneDisplayLabel(locale, region.timezone)})`;
 
   return (
     <section
@@ -107,13 +112,11 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
               </a>
             </p>
           ) : null}
-
-          <p className="mt-2 text-sm text-muted-foreground">{region.timezone}</p>
         </div>
 
         <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {dictionary.business.hoursLabel}
+          <h3 className="break-words text-xs font-semibold tracking-wide text-muted-foreground">
+            {hoursHeading}
           </h3>
 
           <RegionCurrentStatus

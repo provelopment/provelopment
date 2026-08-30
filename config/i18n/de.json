@@ -6,7 +6,7 @@
   "sections": {
     "about": "Über uns",
     "contact": "Kontakt",
-    "connect": "Folgen",
+    "connect": "Verbinden",
     "navigate": "Navigation"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "Jetzt geöffnet",
     "closed": "Geschlossen",
     "noHours": "Öffnungszeiten nicht verfügbar",
-    "hoursLabel": "Öffnungszeiten"
+    "hoursLabel": "Öffnungszeiten",
+    "hoursTimeZoneLabel": "Zeitzone"
   },
   "a11y": {
     "skipToContent": "Zum Inhalt springen"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "Verbinden",
     "demoNotice": "Diese Kontaktoptionen sind Vorlagen-Demonstrationen. Nichts davon ist mit einem echten Unternehmen oder Dienst verbunden.",
-    "demoBadge": "Demo"
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Nachricht senden",
+      "email": "E-Mail",
+      "phone": "Telefon"
+    }
   }
 }

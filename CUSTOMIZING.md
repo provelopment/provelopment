@@ -349,8 +349,10 @@ after selecting a region.
 },
 "connect": {
   "methods": [
-    { "id": "message", "label": "Message form", "href": "/contact" },
-    { "id": "whatsapp", "label": "WhatsApp", "href": "https://wa.me/…", "demoOnly": true }
+    { "id": "message", "label": "Message Us", "href": "/contact" },
+    { "id": "email", "label": "Email", "href": "mailto:…", "demoOnly": true },
+    { "id": "whatsapp", "label": "WhatsApp", "href": "https://wa.me/…", "demoOnly": true },
+    { "id": "viber", "label": "Viber", "href": "viber://chat?number=…", "demoOnly": true }
   ]
 }
 ```
@@ -380,6 +382,36 @@ Key behavior:
 - **Template identity.** The Foundation demo names itself **Your Business
   Site**; keep or replace it. The old "My Site" placeholder is gone from
   visitor-facing copy.
+
+### Presentation localization, timezone heading & Connect gateway (Phase M refinement)
+
+- **Localized + English display names.** Add `englishLabel` to each
+  `i18n.locales[]` entry (`Français` + `englishLabel: "French"` → the Language
+  selector shows `Français (French)`; never `English (English)`). Add
+  `region.labels[locale]` for localized **location** names — canonical English
+  stays `region.label ?? name ?? id` (`labels: { "ja": "東京" }` shows
+  `東京 (Tokyo)`; `Montréal` + `labels: { "fr": "Montréal" }` shows
+  `Montréal (Montreal)` in French and `Montreal` in English). Presentation
+  only — region ids remain language-neutral.
+- **Timezone inside the Business Hours heading.** `RegionBlock`/`BusinessInfo`
+  render `Hours (Time Zone: <localized (<English>) — <IANA>)` as ONE heading.
+  Human names come from the platform `Intl` table (no translation data); the
+  English parenthetical is omitted when identical; the IANA identifier is
+  always shown. Requires `dictionary.business.hoursTimeZoneLabel` per locale.
+- **Footer Connect = gateway.** The section heading IS the `/connect` link
+  (resolved exactly like the header). Beneath it only the configured
+  connection methods appear — no duplicate Connect, no separate Contact item.
+  The `/contact`-backed action is called **Message Us** (`connect.methods`
+  label + `dictionary.connect.methods.message` override); the route stays
+  `/contact`. Internal actions are omitted in regional contexts where `/contact`
+  is not a regional page; external deep links (mailto/tel/https/viber) never
+  reset locale or location.
+- **`getDictionary(locale).connect.methods`** optionally override method labels
+  per locale (the footer and Connect page share `connectMethodLabel`); proper
+  nouns (WhatsApp, Telegram, Viber) typically keep the config label.
+- **Viber.** Add it like any other method: `{ "id": "viber", "label": "Viber",
+  "href": "viber://chat?number=…", "demoOnly": true }`. Configuration-only —
+  no SDK/API/backend.
 
 ### Locale-specific business address, phone & geo (`locations[].locales`)
 

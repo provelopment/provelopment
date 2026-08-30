@@ -13,6 +13,10 @@ import {
 export interface ContextNavLink {
   readonly href: string;
   readonly label: string;
+  /** Stable React key (defaults to the resolved href when omitted). */
+  readonly key?: string;
+  /** Marks configured demonstration entries with a badge (Phase M refinement). */
+  readonly demoOnly?: boolean;
 }
 
 interface ContextNavLinksProps {
@@ -23,6 +27,8 @@ interface ContextNavLinksProps {
   readonly className?: string;
   /** Extra classes applied to every link (brand vs nav vs footer styling). */
   readonly linkClassName?: string;
+  /** Localized demo badge label (rendered for `demoOnly` links). */
+  readonly demoBadgeLabel?: string;
 }
 
 /**
@@ -44,6 +50,7 @@ export function ContextNavLinks({
   ariaLabel,
   className,
   linkClassName,
+  demoBadgeLabel,
 }: ContextNavLinksProps) {
   const pathname = usePathname();
   const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
@@ -57,23 +64,37 @@ export function ContextNavLinks({
   const listClassName = className ?? "space-y-2";
   const linkClass = linkClassName ?? "hover:text-primary";
 
+  function renderLabel(label: string, demoOnly?: boolean) {
+    return (
+      <span className="inline-flex items-center gap-1.5">
+        {label}
+        {demoBadgeLabel && demoOnly ? (
+          <span className="rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">
+            {demoBadgeLabel}
+          </span>
+        ) : null}
+      </span>
+    );
+  }
+
   return (
     <ul aria-label={ariaLabel} className={listClassName}>
-      {resolved.map((link) =>
-        link.external ? (
-          <li key={link.href}>
+      {resolved.map((link) => {
+        const key = link.key ?? link.href;
+        return link.external ? (
+          <li key={key}>
             <a href={link.href} rel="noreferrer" target="_blank" className={linkClass}>
-              {link.label}
+              {renderLabel(link.label, link.demoOnly)}
             </a>
           </li>
         ) : (
-          <li key={link.href}>
+          <li key={key}>
             <Link href={link.href} className={linkClass}>
-              {link.label}
+              {renderLabel(link.label, link.demoOnly)}
             </Link>
           </li>
-        ),
-      )}
+        );
+      })}
     </ul>
   );
 }

@@ -23,6 +23,12 @@ const localeCode = z
 export const localeConfigSchema = z.object({
   code: localeCode,
   label: z.string().min(1, "must not be empty"),
+  /**
+   * Phase M refinement — the language's canonical English name, shown
+   * in bracket after the native `label` in the Language selector when they
+   * differ. Explicit configuration; never inferred.
+   */
+  englishLabel: z.string().min(1, "must not be empty").optional(),
 });
 
 export const siteSettingsSchema = z.object({
@@ -245,9 +251,16 @@ const regionHoursSchema = z
 
 const regionSchema = z.object({
   timezone: ianaTimeZoneSchema,
+  /** Canonical English display name (falls back to id when absent). */
   name: z.string().min(1).optional(),
   /** Short display label for the location selector (falls back to name/id). */
   label: z.string().min(1).optional(),
+  /**
+   * Phase M refinement — localized display names keyed by BCP-47 locale code.
+   * `label`/`name` remain the canonical English display names; `labels[locale]`
+   * is presentation data only (region identity/ids are language-neutral).
+   */
+  labels: z.record(localeCode, z.string().min(1)).optional(),
   /**
    * Phase M — deterministic locale chosen for this region when the visitor's
    * current locale is not bound to it (a location switch across an unsupported

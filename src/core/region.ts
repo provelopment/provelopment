@@ -84,6 +84,13 @@ export interface OperationalRegion {
   /** Short display label for the location selector (`label ?? name ?? id`). */
   readonly label?: string;
   /**
+   * Phase M refinement — localized display names keyed by BCP-47 locale code.
+   * Presentation data only: the canonical English name remains `label`/`name`,
+   * and region ids stay language-neutral. The selector shows
+   * `labels[locale] (English name)` when they differ.
+   */
+  readonly labels?: Readonly<Record<string, string>>;
+  /**
    * Phase M — deterministic locale chosen for this region when the visitor's
    * current locale is NOT bound to the region (location switch across an
    * unsupported language). Explicit configuration; NEVER inferred from
