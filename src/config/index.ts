@@ -3,6 +3,8 @@ export type { SiteConfigFile } from "./loader";
 export type {
   AnalyticsConfig,
   BookingConfig,
+  ConnectConfig,
+  ConnectMethod,
   ContactConfig,
   LocaleConfig,
   MapsConfig,

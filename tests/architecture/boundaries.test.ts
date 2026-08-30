@@ -365,3 +365,65 @@ describe("Phase L — regional page-context boundaries", () => {
     expect(page).toContain('"about"');
   });
 });
+
+describe("Phase M — location selector + region-aware navigation boundaries", () => {
+  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
+
+  function readComponent(name: string): string {
+    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+  }
+
+  it("the Location selector derives its inventory from configured regions, never by locale", () => {
+    const source = readComponent("location-switcher.tsx");
+    expect(source).toContain("configuredRegionIds");
+    // The inventory must NOT be page-binding/locale-scoped for the selector.
+    expect(source).not.toContain("regionsForLocale");
+  });
+
+  it("the Location selector delegates routing to the pure core resolver (locale jump + unspecified)", () => {
+    const source = readComponent("location-switcher.tsx");
+    expect(source).toContain("resolveLocationDestination");
+    expect(source).toContain("regionDefaultLocale");
+    expect(source).toContain("unspecifiedDestination");
+  });
+
+  it("region-aware navigation is a shared client component delegating to the core resolver", () => {
+    const source = readComponent("context-nav-links.tsx");
+    expect(source).toContain("resolveNavHref");
+    expect(source).toContain("@/core/regional-pages");
+    // No component may inline a hard-coded `/${locale}${item.href}` rewrite.
+    expect(source).not.toContain("item.href === \"/\"");
+  });
+
+  it("primary navigation uses Connect, never Contact", () => {
+    const config = JSON.parse(
+      readFileSync(path.join(process.cwd(), "site.config.json"), "utf8"),
+    ) as { navigation?: { href: string }[] };
+    const hrefs = (config.navigation ?? []).map((entry) => entry.href);
+    expect(hrefs).toContain("/connect");
+    expect(hrefs).not.toContain("/contact");
+    // Locations remain selectors, not navigation links.
+    for (const forbidden of ["/toronto", "/vancouver", "/montreal", "/london"]) {
+      expect(hrefs, `nav must not contain ${forbidden}`).not.toContain(forbidden);
+    }
+  });
+
+  it("the dynamic [item] route excludes the static Connect route slug", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "[item]", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("STATIC_ROUTE_SLUGS");
+    expect(page).toContain('"connect"');
+  });
+
+  it("the Connect page and switchers never read global business contact location data", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("siteConfig.connect");
+    expect(page).not.toContain("siteConfig.business");
+    expect(page).not.toContain("resolveTimezone");
+  });
+});

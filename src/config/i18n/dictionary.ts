@@ -49,6 +49,22 @@ export const dictionarySchema = z.object({
   /** Accessible label for the location (region) selector (Phase L). */
   location: z.object({
     label: z.string(),
+    /**
+     * Phase M — explicit label for the unspecified/default location option in
+     * the Location selector (never a bare "Location" that could read like a
+     * real configured location).
+     */
+    unspecified: z.string(),
+  }),
+  /**
+   * Phase M — Connect page strings (configurable connection modes). The page
+   * is a template demonstration of connection options; `demoNotice` and
+   * `demoBadge` make that explicit to a visitor.
+   */
+  connect: z.object({
+    heading: z.string(),
+    demoNotice: z.string(),
+    demoBadge: z.string(),
   }),
   /** Business-profile labels (open/closed/hours display). */
   business: z.object({

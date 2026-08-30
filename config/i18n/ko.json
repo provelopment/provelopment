@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "소규모 비즈니스를 위한 빠르고 다국어를 지원하는 웹사이트",
-    "description": "이 설명을 여러분의 내용으로 교체하세요. My Site는 Provelopment Foundation 템플릿의 데모입니다. site.config.json, 마크다운 콘텐츠, 에셋을 편집하여 자신만의 사이트로 만들어 보세요."
+    "description": "이 설명을 여러분의 내용으로 교체하세요. Your Business Site는 Provelopment Foundation 템플릿의 데모입니다. site.config.json, 마크다운 콘텐츠, 에셋을 편집하여 자신만의 사이트로 만들어 보세요."
   },
   "sections": {
     "about": "소개",
@@ -16,8 +16,8 @@
       "/": "홈",
       "/about": "소개",
       "/resources": "리소스",
-      "/contact": "문의",
-      "/offerings": "서비스"
+      "/offerings": "서비스",
+      "/connect": "연결"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "언어"
   },
   "location": {
-    "label": "지역"
+    "label": "지역",
+    "unspecified": "지정되지 않음"
   },
   "business": {
     "open": "영업 중",
@@ -83,5 +84,10 @@
       "terms": "이용약관",
       "cookies": "쿠키 정책"
     }
+  },
+  "connect": {
+    "heading": "연결",
+    "demoNotice": "이 연락 수단은 템플릿 데모입니다. 실제 비즈니스나 서비스에 연결되어 있지 않습니다.",
+    "demoBadge": "데모"
   }
 }

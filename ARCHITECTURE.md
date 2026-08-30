@@ -491,6 +491,50 @@ Page = locale + region + page      (e.g. /en/toronto/about)
   locale has a destination. The sitemap contains only real configured
   combinations — regional content slugs are not double-emitted as flat routes.
 
+## Selector semantics, Connect & template identity (Phase M)
+
+Phase M makes the two-dimensional UX explicit and unambiguous without
+redesigning the Phase K/L model.
+
+- **Location selector inventory.** The **Location** selector lists every
+  CONFIGURED operating location (`business.regions` is authoritative; page
+  bindings only decide which combinations exist) regardless of the current
+  language, plus a permanent **Unspecified** option. A region may exist with
+  only a landing (or no bindings yet) and still be selectable. `configuredRegionIds`
+  is the single inventory source; the generic context is never lost.
+- **Unspecified location.** Explicitly labeled (never a bare "Location" that
+  reads like a real location). Selecting it returns to the equivalent
+  non-regional page: `/en/toronto/about` → `/en/about`, `/de/berlin` → `/de`
+  (`unspecifiedDestination`). Generic pages still invent no operational
+  identity.
+- **Deterministic locale on a location switch.** When the current locale is
+  not bound to the target region, the destination becomes the region's
+  configured **`defaultLocale`** + its landing (a forced locale change ends at
+  the landing; the page is never preserved across it). `defaultLocale` is
+  explicit per region (validated at build time: it must be a configured locale
+  AND bound to the region); absent, it derives from the region's first landing
+  binding. Never inferred from country/browser/timezone.
+- **Region-aware navigation.** Primary/footer navigation is resolved through
+  the URL-authoritative `ContextNavLinks` client component + the pure
+  `resolveNavHref` core function. In a regional context only pages that
+  actually exist for `(locale, region)` are exposed — a nav item never
+  promises one page and silently delivers another, and never silently drops
+  the visitor into the generic context. `href === "/"` always resolves to the
+  regional landing: **Home means home for the currently selected location**.
+  Global pages reachable from regional contexts are an explicit future
+  configuration concept, not an implicit fallback.
+- **Connect page + configuration.** `site.config.json` gains a small
+  domain-specific `connect.methods` array (`{ id, label, href, demoOnly? }`).
+  The Connect page (`/{locale}/connect`, static route like About) renders each
+  mode + a visible demo notice; `demoOnly` entries carry a demo badge. The
+  Contact page stays at `/contact` with a visible "not connected to a real
+  backend" notice (no fake backend, no provider). The footer's **Connect**
+  column carries the Connect/Contact page links + methods + `socialLinks`;
+  Contact no longer appears under **Navigate**.
+- **Template identity.** The Foundation demo brand is "Your Business Site"
+  (name, header, metadata, demo copy); "My Site" is gone from visitor-facing
+  output. Adopters keep their own brand.
+
 ## Contact inquiry (Phase B)
 
 The inquiry capability is a frontend + integration seam: `/contact` renders a

@@ -1,7 +1,7 @@
 {
   "home": {
     "tagline": "A fast, multilingual website for your small business",
-    "description": "Replace this description with your own. My Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
+    "description": "Replace this description with your own. Your Business Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
   },
   "sections": {
     "about": "About",
@@ -16,8 +16,8 @@
       "/": "Home",
       "/about": "About",
       "/resources": "Resources",
-      "/contact": "Contact",
-      "/offerings": "Offerings"
+      "/offerings": "Offerings",
+      "/connect": "Connect"
     }
   },
   "notFound": {
@@ -35,7 +35,8 @@
     "label": "Language"
   },
   "location": {
-    "label": "Location"
+    "label": "Location",
+    "unspecified": "Unspecified"
   },
   "business": {
     "open": "Open now",
@@ -53,7 +54,7 @@
     "subjectLabel": "Subject",
     "messageLabel": "Message",
     "submit": "Send inquiry",
-    "sending": "Sending\u2026",
+    "sending": "Sending…",
     "honeypotLabel": "Website",
     "success": "Your inquiry was submitted successfully.",
     "demoNotice": "Demo mode: nothing was sent. Connect a webhook to receive inquiries.",
@@ -83,5 +84,10 @@
       "terms": "Terms of Service",
       "cookies": "Cookie Policy"
     }
+  },
+  "connect": {
+    "heading": "Connect",
+    "demoNotice": "These connection options are template demonstrations. Nothing here is connected to a real business or service.",
+    "demoBadge": "Demo"
   }
 }

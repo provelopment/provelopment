@@ -21,6 +21,23 @@ export interface NavigationItem {
   readonly href: string;
 }
 
+/** Phase M — a single connection mode exposed on the Connect page. */
+export interface ConnectMethod {
+  /** Stable slug id (unique within `connect.methods`). */
+  readonly id: string;
+  /** Adopter-provided human label, e.g. "WhatsApp". */
+  readonly label: string;
+  /** Internal route (`/contact`) or absolute deep link (`mailto:`, `tel:`, `https:`…). */
+  readonly href: string;
+  /** Marks template demonstration entries with a visible badge. */
+  readonly demoOnly?: boolean;
+}
+
+/** Phase M — the Connect page's configurable connection inventory. */
+export interface ConnectConfig {
+  readonly methods: readonly ConnectMethod[];
+}
+
 export interface ContactConfig {
   readonly email?: string;
   readonly phone?: string;
@@ -54,6 +71,8 @@ export interface SiteConfig {
   readonly contact: ContactConfig;
   readonly socialLinks: readonly SocialLink[];
   readonly navigation: readonly NavigationItem[];
+  /** Phase M — configuration-driven connection modes for the Connect page. */
+  readonly connect?: ConnectConfig;
   /** Normalized business profile (from `business` block or legacy contact). */
   readonly business: Business;
   /**

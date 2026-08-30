@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
-import { regionsForLocale } from "@/core/regional-pages";
+import { configuredRegionIds } from "@/core/regional-pages";
+import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
 
@@ -11,34 +11,33 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ locale }: SiteHeaderProps) {
     const dictionary = getDictionary(locale);
-    const hasLocations = regionsForLocale(siteConfig.pageBindings, locale).length > 0;
+    // Phase M: the selector inventory is every CONFIGURED operating location
+    // (`business.regions` is authoritative), so once any region is configured
+    // the Location selector is available for every locale.
+    const hasLocations = configuredRegionIds(siteConfig.regions).length > 0;
+
+    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item) => ({
+        href: item.href,
+        label: dictionary.navigation.items[item.href] ?? item.label,
+    }));
 
     return (
         <header className="border-b border-border">
             <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
-                <div>
-                    <Link
-                        href={`/${locale}`}
-                        className="font-semibold tracking-tight hover:text-primary"
-                    >
-                        {siteConfig.name}
-                    </Link>
-                </div>
+                <ContextNavLinks
+                    locale={locale}
+                    links={[{ href: "/", label: siteConfig.name }]}
+                    className="font-semibold tracking-tight"
+                />
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <nav aria-label={dictionary.navigation.primaryLabel}>
-                        <ul className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                            {siteConfig.navigation.map((item) => (
-                                <li key={item.href}>
-                                    <Link
-                                        href={`/${locale}${item.href === "/" ? "" : item.href}`}
-                                        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-                                    >
-                                        {dictionary.navigation.items[item.href] ?? item.label}
-                                    </Link>
-                                </li>
-                            ))}
-                        </ul>
+                        <ContextNavLinks
+                            locale={locale}
+                            links={navLinks}
+                            className="flex flex-wrap items-center gap-x-4 gap-y-2"
+                            linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        />
                     </nav>
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -46,6 +45,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                             <LocationSwitcher
                                 locale={locale}
                                 label={dictionary.location.label}
+                                unspecifiedLabel={dictionary.location.unspecified}
                             />
                         ) : null}
                         <LanguageSwitcher

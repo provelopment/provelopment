@@ -5,6 +5,7 @@ import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { legalLabel, resolveLegalDocs } from "@/core/legal";
 import { BusinessInfo } from "./business-info";
+import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 
 interface SiteFooterProps {
     readonly locale: string;
@@ -29,6 +30,20 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
     const legalLinks = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs);
 
+    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item) => ({
+        href: item.href,
+        label: dictionary.navigation.items[item.href] ?? item.label,
+    }));
+
+    // Phase M — the footer's Connect section is contact-centric: the Connect
+    // page, the Contact page, and the configured connection methods. Page
+    // links are region-aware (only exposed where the page actually exists);
+    // external methods always render as plain links.
+    const connectLinks: readonly ContextNavLink[] = [
+        { href: "/connect", label: dictionary.navigation.items["/connect"] ?? "Connect" },
+        { href: "/contact", label: dictionary.sections.contact },
+    ];
+
     return (
         <footer className="mt-16 border-t border-border">
             <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
@@ -41,7 +56,31 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                         {dictionary.sections.connect}
                     </h2>
 
+                    <ContextNavLinks
+                        locale={locale}
+                        links={connectLinks}
+                        className="mt-3 space-y-2"
+                        linkClassName="hover:text-primary"
+                    />
+
                     <ul className="mt-3 space-y-2">
+                        {siteConfig.connect?.methods.map((method) => (
+                            <li key={method.id}>
+                                <a
+                                    href={method.href}
+                                    rel="noreferrer"
+                                    target={method.href.startsWith("/") ? undefined : "_blank"}
+                                    className="hover:text-primary"
+                                >
+                                    {method.label}
+                                    {method.demoOnly ? (
+                                        <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">
+                                            {dictionary.connect.demoBadge}
+                                        </span>
+                                    ) : null}
+                                </a>
+                            </li>
+                        ))}
                         {siteConfig.socialLinks.map((socialLink) => (
                             <li key={socialLink.platform}>
                                 <a
@@ -62,18 +101,12 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                         {dictionary.sections.navigate}
                     </h2>
 
-                    <ul className="mt-3 space-y-2">
-                        {siteConfig.navigation.map((item) => (
-                            <li key={item.href}>
-                                <Link
-                                    href={`/${locale}${item.href === "/" ? "" : item.href}`}
-                                    className="hover:text-primary"
-                                >
-                                    {dictionary.navigation.items[item.href] ?? item.label}
-                                </Link>
-                            </li>
-                        ))}
-                    </ul>
+                    <ContextNavLinks
+                        locale={locale}
+                        links={navLinks}
+                        className="mt-3 space-y-2"
+                        linkClassName="hover:text-primary"
+                    />
                 </nav>
 
                 {legalLinks.length > 0 ? (

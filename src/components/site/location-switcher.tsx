@@ -4,37 +4,53 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { siteConfig } from "@/config";
 import {
+  configuredRegionIds,
   parseRegionalPath,
+  regionDefaultLocale,
   regionalPath,
-  regionsForLocale,
   resolveLocationDestination,
+  unspecifiedDestination,
 } from "@/core/regional-pages";
 
 interface LocationSwitcherProps {
   readonly locale: string;
   /** Accessible label, localized via the active locale's dictionary. */
   readonly label: string;
+  /**
+   * Distinct label for the unspecified/default location option (Phase M): a
+   * bare "Location" option would read like a real configured location.
+   */
+  readonly unspecifiedLabel: string;
 }
 
 /**
  * Location (region) selector shown beside the language selector.
  *
- * Configuration-driven: the offered locations are exactly the regions with a
- * configured landing for the current locale — never a hard-coded list and
- * never a conventional navigation menu. The active location is read from the
- * current URL (server-resolved page context), not client-side guessing.
+ * Phase M semantics:
+ *  - the inventory is every CONFIGURED operating location (`business.regions`
+ *    is authoritative; page bindings only decide which combinations exist), so
+ *    the list never shrinks to "locations compatible with my language" and is
+ *    never lost after selecting a region;
+ *  - an explicit **Unspecified** (default) option is ALWAYS present, returning
+ *    to the equivalent non-regional page (`/en/toronto/about` → `/en/about`);
+ *  - switching to a region preserves the current locale + page when that
+ *    combination exists; when the current locale is not bound to the region,
+ *    the region's configured `defaultLocale` + landing is chosen
+ *    deterministically (never inferred from country/browser/timezone).
  *
- * Switching location preserves the current language; when the target region
- * lacks the current page the deterministic fallback is used (landing → first
- * configured page), so a destination is always a real URL — never a 404 and
- * never a silent language change.
+ * The active location is read from the current URL (server-resolved page
+ * context), never client-side state.
  */
-export function LocationSwitcher({ locale, label }: LocationSwitcherProps) {
+export function LocationSwitcher({
+  locale,
+  label,
+  unspecifiedLabel,
+}: LocationSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
 
   const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
-  const availableRegions = regionsForLocale(siteConfig.pageBindings, locale);
+  const availableRegions = configuredRegionIds(siteConfig.regions);
   const activeRegion = parsed.region ?? "";
 
   function handleChange(nextRegion: string) {
@@ -42,14 +58,20 @@ export function LocationSwitcher({ locale, label }: LocationSwitcherProps) {
       return;
     }
 
-    const destination = resolveLocationDestination(
-      siteConfig.pageBindings,
+    if (nextRegion === "") {
+      router.push(unspecifiedDestination(locale, parsed.slug));
+      return;
+    }
+
+    const destination = resolveLocationDestination({
+      entries: siteConfig.pageBindings,
       locale,
-      nextRegion,
-      parsed.slug,
-    );
+      targetRegion: nextRegion,
+      currentSlug: parsed.slug,
+      defaultLocale: regionDefaultLocale(siteConfig.regions, siteConfig.pageBindings, nextRegion),
+    });
     if (destination) {
-      router.push(regionalPath(locale, destination.region, destination.slug));
+      router.push(regionalPath(destination.locale, destination.region, destination.slug));
     }
   }
 
@@ -61,7 +83,9 @@ export function LocationSwitcher({ locale, label }: LocationSwitcherProps) {
       onChange={(event) => handleChange(event.target.value)}
       className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
     >
-      {activeRegion === "" ? <option value="">{label}</option> : null}
+      <option key="" value="">
+        {unspecifiedLabel}
+      </option>
       {availableRegions.map((regionId) => {
         const region = siteConfig.regions[regionId];
         return (
