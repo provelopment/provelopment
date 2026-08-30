@@ -17,11 +17,7 @@
       "/about": "概要",
       "/resources": "リソース",
       "/contact": "お問い合わせ",
-      "/offerings": "サービス内容",
-      "/toronto": "トロント",
-      "/vancouver": "バンクーバー",
-      "/montreal": "モントリオール",
-      "/berlin": "ベルリン"
+      "/offerings": "サービス内容"
     }
   },
   "notFound": {
@@ -37,6 +33,9 @@
   },
   "language": {
     "label": "言語"
+  },
+  "location": {
+    "label": "地域"
   },
   "business": {
     "open": "営業中",

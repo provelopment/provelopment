@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import { regionsForLocale } from "@/core/regional-pages";
 import { LanguageSwitcher } from "./language-switcher";
+import { LocationSwitcher } from "./location-switcher";
 
 interface SiteHeaderProps {
     readonly locale: string;
@@ -9,6 +11,7 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ locale }: SiteHeaderProps) {
     const dictionary = getDictionary(locale);
+    const hasLocations = regionsForLocale(siteConfig.pageBindings, locale).length > 0;
 
     return (
         <header className="border-b border-border">
@@ -38,10 +41,18 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
                         </ul>
                     </nav>
 
-                    <LanguageSwitcher
-                        locale={locale}
-                        label={dictionary.language.label}
-                    />
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                        {hasLocations ? (
+                            <LocationSwitcher
+                                locale={locale}
+                                label={dictionary.location.label}
+                            />
+                        ) : null}
+                        <LanguageSwitcher
+                            locale={locale}
+                            label={dictionary.language.label}
+                        />
+                    </div>
                 </div>
             </div>
         </header>
