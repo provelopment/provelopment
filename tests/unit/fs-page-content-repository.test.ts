@@ -90,7 +90,9 @@ describe("createFileSystemPageContentRepository", () => {
 
   it("lists page slugs for a locale", async () => {
     const slugs = await repository.listSlugs(defaultLocale);
-    expect(slugs).toEqual(["about", "contact", "resources"]);
+    // The en locale now also hosts the Phase K regional pages (toronto,
+    // vancouver) — page inventories are per-locale.
+    expect(slugs).toEqual(["about", "contact", "resources", "toronto", "vancouver"]);
   });
 
   it("returns an empty list for a locale with no content", async () => {

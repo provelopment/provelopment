@@ -17,7 +17,11 @@
       "/about": "Acerca de",
       "/resources": "Recursos",
       "/contact": "Contacto",
-      "/offerings": "Ofertas"
+      "/offerings": "Ofertas",
+      "/toronto": "Toronto",
+      "/vancouver": "Vancouver",
+      "/montreal": "Montreal",
+      "/berlin": "Berlín"
     }
   },
   "notFound": {

@@ -17,7 +17,11 @@
       "/about": "Tentang",
       "/resources": "Sumber daya",
       "/contact": "Kontak",
-      "/offerings": "Layanan"
+      "/offerings": "Layanan",
+      "/toronto": "Toronto",
+      "/vancouver": "Vancouver",
+      "/montreal": "Montreal",
+      "/berlin": "Berlin"
     }
   },
   "notFound": {
