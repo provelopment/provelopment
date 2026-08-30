@@ -212,6 +212,77 @@ Current feature flags:
 - **Structured data:** the JSON-LD `LocalBusiness`/`Organization` block
   includes an `openingHoursSpecification` built from the configured intervals.
 
+### Regionalized pages & operating context (`business.regions` + `business.pages`) — Phase K
+
+When a business operates in more than one place — or wants different pages to
+show different operational identities — configure **regions** instead of (or
+alongside) the global model. A **Page** is `locale + content slug + optional
+region`; a **Region** is the complete operational identity of that page.
+
+```jsonc
+"business": {
+  "regions": {
+    "toronto": {
+      "timezone": "America/Toronto",          // required, valid IANA
+      "name": "Toronto Studio",
+      "address": { "street": "…", "city": "Toronto", "country": "Canada" },
+      "geo": { "lat": 43.6473, "lng": -79.3963 },
+      "phone": "+1 416 555 0142",
+      "email": "toronto@example.com",
+      "hours": {
+        "monday":  [{ "open": "09:00", "close": "17:00" }],
+        "tuesday": [{ "open": "09:00", "close": "17:00" }],
+        // … every day is independently configurable …
+        "saturday": [{ "open": "10:00", "close": "14:00" }],
+        "sunday": [],                          // [] = closed, structurally
+        "holidays": [
+          { "date": "2026-12-25", "name": "Christmas Day", "closed": true },
+          { "date": "2026-12-24", "name": "Christmas Eve",
+            "intervals": [{ "open": "09:00", "close": "13:00" }] }
+        ]
+      }
+    },
+    "vancouver": { /* America/Vancouver, its own address/hours/holidays */ }
+  },
+  "pages": [
+    { "locale": "en", "slug": "toronto",   "region": "toronto" },
+    { "locale": "en", "slug": "vancouver", "region": "vancouver" },
+    { "locale": "fr", "slug": "toronto",   "region": "toronto" }   // one region, many locales
+  ]
+}
+```
+
+Key rules:
+
+- **Seven explicit days.** Hours are `monday` … `sunday`, each a list of
+  `HH:mm` intervals. `[]` or an omitted day = closed (no fake times). Multiple
+  intervals per day (e.g. split lunch hours) are supported; `close < open` is
+  overnight and carries into the next day.
+- **Holidays are structured overrides.** Precedence:
+  *weekly schedule → holiday/special-date → resolved hours*. A holiday with
+  `closed: true`, or one listed with only a `name`, closes the date; special
+  `intervals` replace the weekly schedule for that date.
+- **Timezone is region-authoritative.** Each region requires a valid IANA
+  identifier. It is used for visible timezone text, hours evaluation, open/
+  closed status, overnight carry, DST, and holiday evaluation. The timezone is
+  NEVER inferred from locale, address, or any global/default value.
+- **Isolation.** A regional page shows ONLY its region's address, phone, email,
+  timezone, hours, holidays, status, directions, and JSON-LD. Other regions'
+  data and any legacy global `business`/`locations` values never appear.
+- **Deterministic modal precedence.** `business.regions` non-empty → regional
+  mode (legacy footer NAP + global JSON-LD are suppressed). `business.regions`
+  absent → the legacy global model renders exactly as before. The two never mix.
+- **Pages are independent.** Create `content/pages/<locale>/<slug>.md` for each
+  page (its existence makes the route real), add a `pages` binding to attach a
+  region, and add navigation entries for discoverability. Locales may have
+  different page sets; one locale may host several regional pages; one region
+  may be reached from several locales.
+- **Page→region errors fail the build:** a binding to a missing region, a
+  duplicate `(locale, slug)`, an unconfigured locale, `local-international`
+  without `addressInternational`, invalid holiday dates/names, bad `HH:mm`, or
+  `open === close` are all rejected at configuration time.
+- All demonstration region data is **fictional** — replace it before go-live.
+
 ### Locale-specific business address, phone & geo (`locations[].locales`)
 
 By default a location's address, phone and geo are **global** — the same for

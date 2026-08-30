@@ -659,3 +659,156 @@ describe("business contact + address identity (Phase I)", () => {
     ).not.toThrow();
   });
 });
+
+describe("Phase K — region configuration validation", () => {
+  const regionBase = {
+    timezone: "America/Toronto",
+    address: { street: "1 Demo St", city: "Toronto", country: "Canada" },
+    hours: { monday: [{ open: "09:00", close: "17:00" }] },
+  };
+
+  const regionConfig = {
+    ...validConfig,
+    business: {
+      regions: {
+        toronto: regionBase,
+        vancouver: {
+          timezone: "America/Vancouver",
+          address: { street: "2 Demo Ave", city: "Vancouver", country: "Canada" },
+          hours: {},
+        },
+      },
+      pages: [
+        { locale: "en", slug: "toronto", region: "toronto" },
+        { locale: "en", slug: "vancouver", region: "vancouver" },
+      ],
+    },
+  };
+
+  it("parses a valid regions + pages configuration", () => {
+    const config = parseSiteConfig(regionConfig);
+    expect(Object.keys(config.regions)).toEqual(["toronto", "vancouver"]);
+    expect(config.regions.toronto.timezone).toBe("America/Toronto");
+    expect(config.regions.toronto.hours.monday[0].open).toBe("09:00");
+    expect(config.pageBindings).toHaveLength(2);
+    expect(config.business.locations).toEqual([]); // legacy path untouched
+  });
+
+  it("rejects an invalid IANA timezone in a region", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: {
+          regions: { toronto: { ...regionBase, timezone: "Not/AZone" } },
+        },
+      }),
+    ).toThrow(/timezone/i);
+  });
+
+  it("rejects an unknown day key in a region schedule", () => {
+    const bad = {
+      ...regionBase,
+      hours: { funday: [{ open: "09:00", close: "17:00" }] },
+    };
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: { toronto: bad } },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an invalid interval time format", () => {
+    const bad = {
+      ...regionBase,
+      hours: { monday: [{ open: "9am", close: "17:00" }] },
+    };
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: { toronto: bad } },
+      }),
+    ).toThrow(/HH:mm/);
+  });
+
+  it("rejects an open === close interval (24h ambiguity)", () => {
+    const bad = {
+      ...regionBase,
+      hours: { monday: [{ open: "09:00", close: "09:00" }] },
+    };
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: { toronto: bad } },
+      }),
+    ).toThrow(/open and close must differ/);
+  });
+
+  it("rejects a holiday with a missing name", () => {
+    const bad = {
+      ...regionBase,
+      hours: { monday: [], holidays: [{ date: "2026-12-25", closed: true }] },
+    };
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: { toronto: bad } },
+      }),
+    ).toThrow(/name/);
+  });
+
+  it("rejects a holiday with an invalid date", () => {
+    const bad = {
+      ...regionBase,
+      hours: { monday: [], holidays: [{ date: "2026-02-30", name: "X", closed: true }] },
+    };
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: { toronto: bad } },
+      }),
+    ).toThrow(/real calendar date/);
+  });
+
+  it("rejects a page binding referencing a missing region", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: regionConfig.business.regions, pages: [{ locale: "en", slug: "toronto", region: "nope" }] },
+      }),
+    ).toThrow(/unknown region/);
+  });
+
+  it("rejects duplicate page bindings for the same (locale, slug)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: {
+          regions: regionConfig.business.regions,
+          pages: [
+            { locale: "en", slug: "toronto", region: "toronto" },
+            { locale: "en", slug: "toronto", region: "vancouver" },
+          ],
+        },
+      }),
+    ).toThrow(/Duplicate page/);
+  });
+
+  it("rejects page bindings without a regions block", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        business: { pages: [{ locale: "en", slug: "toronto", region: "toronto" }] },
+      }),
+    ).toThrow(/regions/);
+  });
+
+  it("accepts a region without pages (regional mode with no regional pages yet)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...regionConfig,
+        business: { regions: regionConfig.business.regions },
+      }),
+    ).not.toThrow();
+  });
+});

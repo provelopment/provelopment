@@ -2,67 +2,159 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
-import { BusinessInfo } from "@/components/site/business-info";
-import { StructuredData } from "@/components/site/structured-data";
-import { siteConfig } from "@/config";
-import { formatAddress, resolveBusinessForLocale } from "@/core/business";
+import { RegionBlock } from "@/components/site/region-block";
+import { RegionStructuredData } from "@/components/site/region-structured-data";
+import type { SiteConfigFile } from "@/config/loader";
+import { parseSiteConfig, siteConfig } from "@/config/loader";
+import type { OperationalRegion } from "@/core/region";
+import { regionToLocation, resolvePageRegionBinding, resolveRegion } from "@/core/region";
 
-const localeCodes = siteConfig.locales.map((locale) => locale.code);
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
 
-describe("business identity consumers (Phase I)", () => {
-  it("the visible footer renders locale-resolved contact and per-mode address", () => {
-    for (const locale of localeCodes) {
-      const resolved = resolveBusinessForLocale(siteConfig.business, locale);
-      const html = renderToStaticMarkup(BusinessInfo({ locale, directionLinkResolver }));
+function regionFor(locale: string, slug: string): OperationalRegion {
+  const id = resolvePageRegionBinding(siteConfig.pageBindings, locale, slug);
+  if (!id) throw new Error(`no region bound to ${locale}/${slug}`);
+  const region = resolveRegion(siteConfig.regions, id);
+  if (!region) throw new Error(`no region "${id}"`);
+  return region;
+}
 
-      // Locale-resolved customer-facing contact appears.
-      expect(resolved.contact.phone, `phone for ${locale}`).toBeTruthy();
-      expect(html).toContain(resolved.contact.phone!);
-      expect(resolved.contact.email, `email for ${locale}`).toBeTruthy();
-      expect(html).toContain(resolved.contact.email!);
+describe("Phase K — regional consumers", () => {
+  it("the region block renders the resolved region's complete operational identity", () => {
+    const region = regionFor("en", "toronto");
+    const html = renderToStaticMarkup(
+      RegionBlock({
+        region,
+        locale: "en",
+        direction: directionLinkResolver.resolve(regionToLocation(region)),
+      }),
+    );
 
-      // The native/local address line appears.
-      const location = resolved.locations[0];
-      expect(html).toContain(formatAddress(location.address));
+    expect(html).toContain("America/Toronto");
+    expect(html).toContain(region.address.city); // Toronto
+    expect(html).toContain(region.phone!);
+    expect(html).toContain(region.email!);
+    // All seven days render individually (no Mon–Fri collapse).
+    for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]) {
+      expect(html).toContain(day);
+    }
+    // Holidays are shown separately.
+    expect(html).toContain("Christmas Day");
+    expect(html).toContain("Christmas Eve");
+    // Closed days say so structurally.
+    expect(html).toContain("Closed");
+  });
 
-      // In local-international mode the Latin representation is also shown.
-      if (location.addressMode === "local-international" && location.addressInternational) {
-        expect(html, `international address for ${locale}`).toContain(
-          formatAddress(location.addressInternational),
-        );
+  it("cross-region isolation: a toronto page contains no vancouver/jakarta operational data", () => {
+    const toronto = regionFor("en", "toronto");
+    const vancouver = regionFor("en", "vancouver");
+
+    for (const region of [toronto, vancouver]) {
+      const html = renderToStaticMarkup(
+        RegionBlock({
+          region,
+          locale: "en",
+          direction: directionLinkResolver.resolve(regionToLocation(region)),
+        }),
+      );
+      const ownCity = region.address.city;
+      const otherCity = ownCity === "Toronto" ? "Vancouver" : "Toronto";
+      expect(html).toContain(ownCity);
+      expect(html).not.toContain(otherCity);
+      expect(html).not.toContain("Jakarta");
+      expect(html).not.toContain("London");
+    }
+  });
+
+  it("the same region renders through multiple locales with the same operational identity", () => {
+    const enHtml = renderToStaticMarkup(
+      RegionBlock({ region: regionFor("en", "toronto"), locale: "en", direction: { kind: "none" } }),
+    );
+    const frHtml = renderToStaticMarkup(
+      RegionBlock({ region: regionFor("fr", "toronto"), locale: "fr", direction: { kind: "none" } }),
+    );
+    // Same region → same timezone and hours in both languages; content differs.
+    expect(enHtml).toContain("America/Toronto");
+    expect(frHtml).toContain("America/Toronto");
+    expect(enHtml).toContain("Monday");
+    expect(frHtml).toContain("lundi");
+  });
+
+  it("JSON-LD describes ONLY the resolved region (never all regions, never Jakarta)", () => {
+    for (const binding of siteConfig.pageBindings) {
+      const region = regionFor(binding.locale, binding.slug);
+      const html = renderToStaticMarkup(RegionStructuredData({ region }));
+      expect(html).toContain(region.address.street);
+
+      const json = html.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "");
+      const node = JSON.parse(json) as { address?: { addressLocality?: string } };
+      expect(node.address?.addressLocality).toBe(region.address.city);
+      expect(html).not.toContain("Jakarta");
+      expect(html).not.toContain("1 Demo Street");
+    }
+  });
+
+  it("JSON-LD opening hours come from the region's seven-day schedule", () => {
+    const region = regionFor("de", "berlin");
+    const html = renderToStaticMarkup(RegionStructuredData({ region }));
+    expect(html).toContain("Monday");
+    expect(html).toContain("09:00");
+    expect(html).toContain("17:00");
+  });
+
+  it("directions resolve for the resolved region through the provider seam (geo wins)", () => {
+    for (const binding of siteConfig.pageBindings) {
+      const region = regionFor(binding.locale, binding.slug);
+      const action = directionLinkResolver.resolve(regionToLocation(region));
+      expect(action.kind, `${binding.locale}/${binding.slug}`).toBe("link");
+      if (region.geo && action.kind === "link") {
+        expect(action.href).toContain(String(region.geo.lat));
       }
     }
   });
+});
 
-  it("JSON-LD uses the international address when available, else the native address", () => {
-    for (const locale of localeCodes) {
-      const resolved = resolveBusinessForLocale(siteConfig.business, locale);
-      const html = renderToStaticMarkup(StructuredData({ locale }));
-      const location = resolved.locations[0];
-      const expectedStreet = location.addressInternational?.street ?? location.address.street;
-      expect(html, `JSON-LD street for ${locale}`).toContain(expectedStreet);
-    }
+describe("Phase K — legacy configuration remains functional (no regions)", () => {
+  const legacyConfig: SiteConfigFile = {
+    site: {
+      url: "https://example.com",
+      name: "Example",
+      tagline: "An example site",
+      description: "A site used for testing.",
+    },
+    i18n: { defaultLocale: "en", locales: [{ code: "en", label: "English" }] },
+    contact: { email: "hello@example.com" },
+    socialLinks: [],
+    navigation: [{ label: "Home", href: "/" }],
+  };
+
+  it("a legacy config yields no regions and no page bindings", () => {
+    const config = parseSiteConfig(legacyConfig);
+    expect(config.regions).toEqual({});
+    expect(config.pageBindings).toEqual([]);
+    // Legacy global business identity still normalizes exactly as before.
+    expect(config.business.locations).toEqual([]);
+    expect(config.business.contact.email).toBe("hello@example.com");
   });
 
-  it("directions resolve through the provider-neutral seam (coordinates win)", () => {
-    for (const locale of localeCodes) {
-      const resolved = resolveBusinessForLocale(siteConfig.business, locale);
-      const action = directionLinkResolver.resolve(resolved.locations[0]);
-      expect(action.kind, `directions for ${locale}`).toBe("link");
-    }
-  });
-
-  it("a Latin-script locale shows no artificial international duplicate", () => {
-    // EN/DE/FR/ES/ID use default local-only presentation: the footer must not
-    // invent a second address line for them.
-    const html = renderToStaticMarkup(
-      BusinessInfo({ locale: "de", directionLinkResolver }),
-    );
-    const resolved = resolveBusinessForLocale(siteConfig.business, "de");
-    const international = resolved.locations[0].addressInternational;
-    expect(international).toBeUndefined();
-    // Exactly one <address> block contains the single native line; no second line.
-    expect(html.match(/<address/g)).toHaveLength(1);
+  it("a legacy config with locations keeps the global business identity", () => {
+    const config = parseSiteConfig({
+      ...legacyConfig,
+      business: {
+        timezone: "Asia/Jakarta",
+        type: "LocalBusiness",
+        locations: [
+          {
+            id: "main",
+            name: "HQ",
+            address: { street: "1 Main St", city: "Jakarta", country: "Indonesia" },
+            hours: { intervals: [{ days: ["mon"], open: "09:00", close: "17:00" }], exceptional: [] },
+          },
+        ],
+      },
+    });
+    expect(config.regions).toEqual({});
+    expect(config.business.timezone).toBe("Asia/Jakarta");
+    expect(config.business.locations[0].name).toBe("HQ");
   });
 });

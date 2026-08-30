@@ -14,6 +14,10 @@ interface SiteFooterProps {
 
 export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterProps) {
     const dictionary = getDictionary(locale);
+    // Phase K: the legacy global footer NAP is suppressed when operating
+    // regions are configured — regional pages expose their own region's
+    // identity, and the global block must never leak into them.
+    const hasRegions = Object.keys(siteConfig.regions).length > 0;
 
     // Legal documents: exposed only at the intersection of the `legal[]`
     // config block and canonical (default-locale) content. Resolved with the
@@ -28,7 +32,9 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     return (
         <footer className="mt-16 border-t border-border">
             <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
-                <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
+                {hasRegions ? null : (
+                    <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
+                )}
 
                 <div>
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
