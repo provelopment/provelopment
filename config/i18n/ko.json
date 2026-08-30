@@ -6,7 +6,7 @@
   "sections": {
     "about": "소개",
     "contact": "연락처",
-    "connect": "팔로우",
+    "connect": "연결",
     "navigate": "둘러보기"
   },
   "navigation": {
@@ -42,7 +42,8 @@
     "open": "영업 중",
     "closed": "영업 종료",
     "noHours": "영업 시간 없음",
-    "hoursLabel": "영업 시간"
+    "hoursLabel": "영업 시간",
+    "hoursTimeZoneLabel": "시간대"
   },
   "a11y": {
     "skipToContent": "본문으로 건너뛰기"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "연결",
     "demoNotice": "이 연락 수단은 템플릿 데모입니다. 실제 비즈니스나 서비스에 연결되어 있지 않습니다.",
-    "demoBadge": "데모"
+    "demoBadge": "데모",
+    "methods": {
+      "message": "메시지 보내기",
+      "email": "이메일",
+      "phone": "전화"
+    }
   }
 }

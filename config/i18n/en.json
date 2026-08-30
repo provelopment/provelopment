@@ -42,7 +42,8 @@
     "open": "Open now",
     "closed": "Closed",
     "noHours": "Hours not available",
-    "hoursLabel": "Business hours"
+    "hoursLabel": "Business hours",
+    "hoursTimeZoneLabel": "Time Zone"
   },
   "a11y": {
     "skipToContent": "Skip to content"
@@ -88,6 +89,11 @@
   "connect": {
     "heading": "Connect",
     "demoNotice": "These connection options are template demonstrations. Nothing here is connected to a real business or service.",
-    "demoBadge": "Demo"
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Message Us",
+      "email": "Email",
+      "phone": "Phone"
+    }
   }
 }

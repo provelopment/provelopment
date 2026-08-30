@@ -59,12 +59,16 @@ export const dictionarySchema = z.object({
   /**
    * Phase M — Connect page strings (configurable connection modes). The page
    * is a template demonstration of connection options; `demoNotice` and
-   * `demoBadge` make that explicit to a visitor.
+   * `demoBadge` make that explicit to a visitor. `methods` are localized
+   * label overrides keyed by method id (`connect.methods[].id`); absent → the
+   * configured `method.label` is used. Proper nouns (WhatsApp, Telegram,
+   * Viber) typically need no override.
    */
   connect: z.object({
     heading: z.string(),
     demoNotice: z.string(),
     demoBadge: z.string(),
+    methods: z.record(z.string(), z.string()).optional(),
   }),
   /** Business-profile labels (open/closed/hours display). */
   business: z.object({
@@ -72,6 +76,12 @@ export const dictionarySchema = z.object({
     closed: z.string(),
     noHours: z.string(),
     hoursLabel: z.string(),
+    /**
+     * Phase M refinement — label for the time zone shown inside the Business
+     * Hours heading (`"Time Zone"` / `"Fuseau horaire"` / …). The heading is
+     * presented as one contextual unit: `hoursLabel` + timezone display.
+     */
+    hoursTimeZoneLabel: z.string(),
   }),
   /** Generic accessibility UI strings. */
   a11y: z.object({

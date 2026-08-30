@@ -70,4 +70,18 @@ describe("i18n dictionaries (registry-backed, config-derived)", () => {
     const result = dictionarySchema.safeParse(withoutBooking);
     expect(result.success, JSON.stringify(result.error?.issues)).toBe(true);
   });
+
+  it("every locale has the Phase M refinement presentation keys", () => {
+    for (const code of configuredCodes) {
+      const dict = getDictionary(code);
+      expect(dict.business.hoursTimeZoneLabel.trim().length, `${code}.hoursTimeZoneLabel`).toBeGreaterThan(0);
+      // Localized labels for every configured message method id (proper nouns
+      // like WhatsApp/Telegram/Viber may legitimately be absent — the config
+      // label is the fallback) plus the message form itself.
+      const methodIds = siteConfig.connect?.methods.map((m) => m.id) ?? [];
+      expect(Object.keys(dict.connect.methods ?? {}), `${code}.connect.methods`).toEqual(
+        expect.arrayContaining(methodIds.filter((id) => id !== "whatsapp" && id !== "telegram" && id !== "viber")),
+      );
+    }
+  });
 });

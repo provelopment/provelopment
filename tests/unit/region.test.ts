@@ -89,14 +89,21 @@ describe("Phase M - page to region resolution (live demo config)", () => {
   it("regions have selector labels from configuration", () => {
     expect(regionById("toronto").label).toBe("Toronto");
     expect(regionById("vancouver").label).toBe("Vancouver");
-    expect(regionById("montreal").label).toBe("Montréal");
+    // Montréal: the label is the canonical English display name ("Montreal");
+    // the French form lives in `labels`. (Refinement: the selector shows
+    // "Montréal (Montreal)" for French visitors via regionDisplayName.)
+    expect(regionById("montreal").label).toBe("Montreal");
+    expect(regionById("montreal").labels?.fr).toBe("Montréal");
     expect(regionById("london").label).toBe("London");
     expect(regionById("berlin").label).toBe("Berlin");
     expect(regionById("paris").label).toBe("Paris");
     expect(regionById("madrid").label).toBe("Madrid");
     expect(regionById("tokyo").label).toBe("Tokyo");
+    expect(regionById("tokyo").labels?.ja).toBe("東京");
     expect(regionById("seoul").label).toBe("Seoul");
+    expect(regionById("seoul").labels?.ko).toBe("서울");
     expect(regionById("shanghai").label).toBe("Shanghai");
+    expect(regionById("shanghai").labels?.zh).toBe("上海");
     expect(regionById("jakarta").label).toBe("Jakarta");
   });
 
