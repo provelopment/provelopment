@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "サービスと商品",
     "emptyState": "近日中に提供内容を掲載します。",
+    "featured": "注目",
+    "deliverables": "含まれるもの",
+    "faq": "よくある質問",
+    "externalCta": "詳しく見る",
     "backToOfferings": "一覧に戻る"
   },
   "booking": {

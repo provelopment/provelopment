@@ -4,6 +4,8 @@ blurb: "A practical package of essentials to get you started quickly."
 order: 1
 price: "From $150"
 featured: true
+action:
+  intent: book
 ---
 
 This is a demo offering that ships with the Provelopment Foundation template.

@@ -114,6 +114,14 @@ export const dictionarySchema = z.object({
     heading: z.string(),
     emptyState: z.string(),
     backToOfferings: z.string(),
+    /** Phase C — featured badge label on offering cards/detail. */
+    featured: z.string(),
+    /** Phase C — "What's included" section heading on the detail page. */
+    deliverables: z.string(),
+    /** Phase C — FAQ section heading on the detail page. */
+    faq: z.string(),
+    /** Phase C — default label for `intent: "external"` offering actions. */
+    externalCta: z.string(),
   }),
   /**
    * Booking action strings (Phase H). OPTIONAL: the booking capability is a

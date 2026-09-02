@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "서비스 및 상품",
     "emptyState": "곧 여기에서 서비스를 소개하겠습니다.",
+    "featured": "추천",
+    "deliverables": "포함 사항",
+    "faq": "자주 묻는 질문",
+    "externalCta": "자세히 보기",
     "backToOfferings": "서비스 목록으로"
   },
   "booking": {
