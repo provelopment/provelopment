@@ -58,7 +58,7 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
 
     return (
         <footer className="mt-16 border-t border-border">
-            <div className="mx-auto grid max-w-4xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mx-auto grid max-w-page gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 {hasRegions ? null : (
                     <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
                 )}

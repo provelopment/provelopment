@@ -42,7 +42,7 @@ export default async function HomePage({
 
   return (
     <>
-      <header className="mx-auto max-w-4xl px-4 pt-16 pb-10">
+      <header className="mx-auto max-w-page px-4 pt-16 pb-10">
         <p className="text-sm font-medium uppercase tracking-widest text-primary">
           {siteConfig.name}
         </p>
@@ -64,9 +64,9 @@ export default async function HomePage({
 
       <section
         aria-labelledby="home-about-heading"
-        className="mx-auto max-w-4xl px-4 pb-16"
+        className="mx-auto max-w-page px-4 pb-16"
       >
-        <div className="rounded-lg border border-border bg-accent p-6">
+        <div className="rounded-lg border border-border bg-muted p-6">
           <h2 id="home-about-heading" className="text-xl font-semibold">
             {dictionary.sections.about}
           </h2>

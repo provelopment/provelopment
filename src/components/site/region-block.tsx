@@ -129,8 +129,8 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
               const intervals = region.hours[day];
               const name = dayNames[index];
               return (
-                <li key={day} className="flex items-baseline justify-between gap-4">
-                  <span className="text-foreground">{name}</span>
+                <li key={day} className="flex min-w-0 items-baseline justify-between gap-4">
+                  <span className="break-words text-foreground">{name}</span>
                   <span>
                     {intervals.length > 0
                       ? formatDayIntervals(intervals)

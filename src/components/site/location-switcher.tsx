@@ -84,7 +84,7 @@ export function LocationSwitcher({
       data-selector="location"
       value={activeRegion}
       onChange={(event) => handleChange(event.target.value)}
-      className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+      className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
       <option key="" value="">
         {unspecifiedLabel}

@@ -24,7 +24,7 @@ export function OfferingCard({ offering, href, featuredLabel }: OfferingCardProp
   return (
     <Link
       href={href}
-      className="block rounded-lg border border-border bg-accent p-6 transition-colors hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+      className="block rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
     >
       {offering.image ? (
         <div className="relative mb-4 h-40 w-full overflow-hidden rounded">

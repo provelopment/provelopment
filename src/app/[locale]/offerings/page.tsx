@@ -59,7 +59,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
 
   if (canonicalSlugs.length === 0) {
     return (
-      <article className="mx-auto max-w-4xl px-4 py-12">
+      <article className="mx-auto max-w-page px-4 py-12">
         <h1 className="text-3xl font-bold tracking-tight">
           {dictionary.offerings.heading}
         </h1>
@@ -79,7 +79,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
   const sorted = sortOfferings(items);
 
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
+    <article className="mx-auto max-w-page px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">
         {dictionary.offerings.heading}
       </h1>

@@ -86,7 +86,7 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
       data-selector="language"
       value={locale}
       onChange={(event) => handleChange(event.target.value)}
-      className="rounded border border-border bg-background px-2 py-1 text-sm text-foreground"
+      className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
       {offeredLocales.map((entry) => (
         <option key={entry.code} value={entry.code}>
