@@ -8,6 +8,7 @@ import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import {
   isCanonicalOffering,
+  resolveOfferingAction,
   sortOfferings,
   type OfferingsListItem,
 } from "@/core/offerings";
@@ -70,6 +71,100 @@ Body here.
     expect(parsed.featured).toBeUndefined();
     expect(parsed.image).toBeUndefined();
   });
+
+  it("parses Phase C structured fields (deliverables, faq, action)", () => {
+    const raw = `---
+title: "Starter"
+blurb: "A blurb."
+deliverables:
+  - "One"
+  - "Two"
+faq:
+  - question: "Q1?"
+    answer: "A1."
+  - question: "Q2?"
+    answer: "A2."
+action:
+  intent: external
+  label: "View details"
+  href: "https://example.com/offerings/starter"
+---
+Body
+`;
+    const parsed = parseOfferingsFile(raw, "starter", "en");
+    expect(parsed.deliverables).toEqual(["One", "Two"]);
+    expect(parsed.faq).toEqual([
+      { question: "Q1?", answer: "A1." },
+      { question: "Q2?", answer: "A2." },
+    ]);
+    expect(parsed.action).toEqual({
+      intent: "external",
+      label: "View details",
+      href: "https://example.com/offerings/starter",
+    });
+    expect(parsed.body).toBe("Body\n");
+  });
+
+  it("keeps book/contact actions shallow (no href allowed)", () => {
+    const parsed = parseOfferingsFile(
+      "---\ntitle: X\nblurb: Y\naction:\n  intent: book\n---\nB\n",
+      "x",
+      "en",
+    );
+    expect(parsed.action).toEqual({ intent: "book" });
+  });
+
+  it("rejects external actions without a href", () => {
+    expect(() =>
+      parseOfferingsFile(
+        "---\ntitle: X\nblurb: Y\naction:\n  intent: external\n---\nB\n",
+        "x",
+        "en",
+      ),
+    ).toThrow(/href/);
+  });
+
+  it("rejects an action href on book/contact intents (platform resolves those)", () => {
+    expect(() =>
+      parseOfferingsFile(
+        "---\ntitle: X\nblurb: Y\naction:\n  intent: contact\n  href: \"https://example.com\"\n---\nB\n",
+        "x",
+        "en",
+      ),
+    ).toThrow(/must not define its own href/);
+  });
+
+  it("rejects unsupported action intents", () => {
+    expect(() =>
+      parseOfferingsFile(
+        "---\ntitle: X\nblurb: Y\naction:\n  intent: buy\n---\nB\n",
+        "x",
+        "en",
+      ),
+    ).toThrow(/intent/);
+  });
+
+  it("rejects empty or malformed deliverables/faq blocks", () => {
+    expect(() =>
+      parseOfferingsFile("---\ntitle: X\nblurb: Y\ndeliverables:\n  - \"\"\n---\nB\n", "x", "en"),
+    ).toThrow(/deliverables/);
+    expect(() =>
+      parseOfferingsFile("---\ntitle: X\nblurb: Y\nfaq:\n  - question: \"Q?\"\n---\nB\n", "x", "en"),
+    ).toThrow(/answer/);
+    expect(() =>
+      parseOfferingsFile("---\ntitle: X\nblurb: Y\nfaq: not-a-list\n---\nB\n", "x", "en"),
+    ).toThrow(/faq/);
+  });
+
+  it("rejects mixed list item styles (string + keyed)", () => {
+    expect(() =>
+      parseOfferingsFile(
+        "---\ntitle: X\nblurb: Y\ndeliverables:\n  - \"One\"\n  - two: three\n---\nB\n",
+        "x",
+        "en",
+      ),
+    ).toThrow(/mixed/);
+  });
 });
 
 describe("sortOfferings (listing order)", () => {
@@ -93,6 +188,55 @@ describe("sortOfferings (listing order)", () => {
 
   it("handles an empty list and is stable", () => {
     expect(sortOfferings([])).toEqual([]);
+  });
+});
+
+describe("resolveOfferingAction (pure core resolver, provider- and i18n-neutral)", () => {
+  const bookingHref = "https://cal.example.com/book";
+  const contactHref = "/en/contact";
+
+  it("resolves book → external link when the booking seam is available", () => {
+    expect(resolveOfferingAction({ intent: "book" }, { bookingHref, contactHref })).toEqual({
+      kind: "link",
+      href: bookingHref,
+      external: true,
+    });
+  });
+
+  it("resolves book → none when the booking seam is unavailable (never a broken link)", () => {
+    expect(resolveOfferingAction({ intent: "book" }, { bookingHref: null, contactHref })).toEqual({
+      kind: "none",
+    });
+  });
+
+  it("resolves contact → internal link to the boundary-supplied contact route", () => {
+    expect(resolveOfferingAction({ intent: "contact" }, { bookingHref, contactHref })).toEqual({
+      kind: "link",
+      href: contactHref,
+      external: false,
+    });
+  });
+
+  it("resolves external → the literal deep link", () => {
+    expect(
+      resolveOfferingAction(
+        { intent: "external", href: "viber://chat?number=%2B1" },
+        { bookingHref, contactHref },
+      ),
+    ).toEqual({ kind: "link", href: "viber://chat?number=%2B1", external: true });
+  });
+
+  it("resolves an explicit label override through unchanged", () => {
+    expect(
+      resolveOfferingAction(
+        { intent: "external", label: "Open", href: "https://example.com/x" },
+        { bookingHref, contactHref },
+      ),
+    ).toEqual({ kind: "link", href: "https://example.com/x", external: true });
+  });
+
+  it("resolves no action → none", () => {
+    expect(resolveOfferingAction(undefined, { bookingHref, contactHref })).toEqual({ kind: "none" });
   });
 });
 

@@ -44,6 +44,10 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
       heading: "c",
       emptyState: "c",
       backToOfferings: "c",
+      featured: "c",
+      deliverables: "c",
+      faq: "c",
+      externalCta: "c",
     },
     legal: {
       heading: "c",

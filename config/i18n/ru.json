@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "Услуги",
     "emptyState": "Скоро мы опубликуем наши услуги здесь.",
+    "featured": "Рекомендуемое",
+    "deliverables": "Что входит",
+    "faq": "Частые вопросы",
+    "externalCta": "Подробнее",
     "backToOfferings": "Назад к услугам"
   },
   "booking": {

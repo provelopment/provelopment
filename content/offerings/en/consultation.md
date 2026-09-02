@@ -4,6 +4,8 @@ blurb: "A short session to talk through your needs and the options available to 
 order: 2
 price: "From $40"
 featured: false
+action:
+  intent: contact
 ---
 
 This is a demo offering that ships with the Provelopment Foundation template.
