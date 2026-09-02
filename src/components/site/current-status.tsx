@@ -67,7 +67,7 @@ export function CurrentStatus({ location, timeZone, labels }: CurrentStatusProps
     <p className="mt-2 text-sm" data-open={isOpen ? "true" : "false"}>
       <span
         className={
-          isOpen ? "font-medium text-emerald-600" : "text-muted-foreground"
+          isOpen ? "font-medium text-success" : "text-muted-foreground"
         }
       >
         {isOpen ? labels.open : labels.closed}

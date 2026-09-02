@@ -490,6 +490,51 @@ describe("Phase M refinement — footer Connect UX boundaries", () => {
   });
 });
 
+describe("Phase D — design-system boundaries", () => {
+  it("presentational code consumes semantic tokens only (no raw color literals)", () => {
+    // Components and pages must never carry raw color values or hardcoded
+    // status-color utilities; globals.css is the single source. Exemptions are
+    // deliberate assets/mirrors:
+    //  - opengraph-image.tsx  → generated brand image (fixed brand colors);
+    //  - [locale]/layout.tsx  → viewport theme-color mirrors the --background
+    //    token per scheme (must be static literals for the metadata API).
+    const forbidden = [
+      /#[0-9a-fA-F]{3,8}\b/,
+      /text-red-|border-red-|bg-red-|text-emerald-|bg-accent\/50/,
+      /focus-visible:outline/,
+    ];
+    const exempt = new Set([
+      path.join(APP_DIRECTORY, "[locale]", "opengraph-image.tsx"),
+      path.join(APP_DIRECTORY, "[locale]", "layout.tsx"),
+    ]);
+
+    for (const directory of [path.join(srcDirectory, "components"), APP_DIRECTORY]) {
+      for (const file of listTypeScriptFiles(directory)) {
+        if (exempt.has(file)) continue;
+        const source = readFileSync(file, "utf8");
+        const relative = path.relative(process.cwd(), file);
+        for (const pattern of forbidden) {
+          expect(
+            pattern.test(source),
+            `${relative} matches ${pattern}; raw colors belong in src/app/globals.css`,
+          ).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("the theme stays CSS/system-only (no client toggle contract)", () => {
+    const globals = readFileSync(path.join(srcDirectory, "app", "globals.css"), "utf8");
+    expect(globals).toContain("@media (prefers-color-scheme: dark)");
+    expect(globals).not.toContain("data-theme");
+    // No new client-side theme surface: the layout remains a Server Component.
+    const layout = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "layout.tsx"),
+      "utf8",
+    );
+    expect(layout).not.toContain('"use client"');
+  });
+});
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
 

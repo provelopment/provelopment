@@ -2,7 +2,7 @@ import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createAnalyticsProvider } from "@/adapters/analytics";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StructuredData } from "@/components/site/structured-data";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
@@ -40,6 +40,18 @@ export function generateStaticParams() {
 
 /** Unknown locales render the 404 instead of being rendered on demand. */
 export const dynamicParams = false;
+
+/**
+ * Mobile-browser chrome theme colors, mirroring the semantic `--background`
+ * token for each scheme (Phase D). Keep in step with the token section of
+ * globals.css when re-theming.
+ */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

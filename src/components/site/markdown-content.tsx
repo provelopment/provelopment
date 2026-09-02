@@ -18,5 +18,5 @@ interface MarkdownContentProps {
 export function MarkdownContent({ markdown }: MarkdownContentProps) {
   const html = marked.parse(markdown, { async: false });
 
-  return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className="prose" dangerouslySetInnerHTML={{ __html: html }} />;
 }

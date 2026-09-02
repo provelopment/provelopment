@@ -57,7 +57,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
   const dictionary = getDictionary(locale);
 
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
+    <article className="mx-auto max-w-page px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">{dictionary.connect.heading}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
@@ -69,7 +69,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
           return (
             <li
               key={method.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-accent/50 p-4"
+              className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
             >
               <span className="font-medium">
                 {label}
@@ -98,7 +98,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
         })}
       </ul>
 
-      <p className="mt-8 rounded-lg border border-border bg-accent p-4 text-sm text-muted-foreground">
+      <p className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
         {dictionary.connect.demoNotice}
       </p>
     </article>
