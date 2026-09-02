@@ -71,7 +71,7 @@ function LocationBlock({ location, locale, direction }: LocationBlockProps) {
       </h3>
 
       {hasAddress ? (
-        <address className="mt-2 not-italic text-muted-foreground">
+        <address className="mt-2 break-words not-italic text-muted-foreground">
           {direction.kind === "link" ? (
             <a
               href={direction.href}

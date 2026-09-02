@@ -42,7 +42,7 @@ interface OfferingDetailProps {
  */
 export function OfferingDetail({ offering, action, backHref, labels }: OfferingDetailProps) {
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
+    <article className="mx-auto max-w-page px-4 py-12">
       {offering.image ? (
         <div className="relative mb-8 h-64 w-full overflow-hidden rounded">
           <Image
@@ -92,7 +92,7 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
             {offering.faq.map((item) => (
               <details
                 key={item.question}
-                className="rounded-lg border border-border bg-background p-4"
+                className="rounded-lg border border-border bg-card p-4"
               >
                 <summary className="cursor-pointer font-medium">{item.question}</summary>
                 <p className="mt-2 text-muted-foreground">{item.answer}</p>
@@ -107,7 +107,7 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
           <a
             href={action.href}
             {...(action.external ? { target: "_blank", rel: "noreferrer" } : {})}
-            className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+            className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
           >
             {labels.actionLabel}
           </a>

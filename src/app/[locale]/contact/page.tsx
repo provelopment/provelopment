@@ -58,13 +58,13 @@ export default async function ContactPage({ params }: ContactPageProps) {
   const demoMode = config?.provider === "stub";
 
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
+    <article className="mx-auto max-w-page px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">
         {dictionary.contact.heading}
       </h1>
 
       {demoMode ? (
-        <p className="mt-4 rounded-lg border border-border bg-accent p-4 text-sm text-muted-foreground">
+        <p className="mt-4 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
           {dictionary.contact.demoNotice}
         </p>
       ) : null}
