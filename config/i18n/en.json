@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "Offerings",
     "emptyState": "We will share our offerings here soon.",
+    "featured": "Featured",
+    "deliverables": "What's included",
+    "faq": "Frequently asked questions",
+    "externalCta": "Learn more",
     "backToOfferings": "Back to offerings"
   },
   "booking": {

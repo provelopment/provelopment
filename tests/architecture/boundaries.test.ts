@@ -489,3 +489,55 @@ describe("Phase M refinement — footer Connect UX boundaries", () => {
     expect(switcher).toContain("regionLabels");
   });
 });
+
+describe("Phase C — offerings boundaries", () => {
+  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
+
+  function readOfferingsComponent(name: string): string {
+    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+  }
+
+  it("offering presentation components are provider- and config-neutral", () => {
+    // They receive resolved actions + localized labels as props; they must not
+    // import adapters, read validated config, or know provider names.
+    for (const name of [
+      "offering-card.tsx",
+      "offering-list.tsx",
+      "offering-detail.tsx",
+      "offering-action-label.ts",
+    ]) {
+      const source = readOfferingsComponent(name);
+      expect(source, name).not.toMatch(/from "@\/adapters/);
+      expect(source, name).not.toMatch(/siteConfig/);
+      expect(source, name).not.toMatch(/external-url|webhook|createBooking/i);
+    }
+  });
+
+  it("the action-label helper localizes at the presentation boundary only (defaults + override)", () => {
+    const helper = readOfferingsComponent("offering-action-label.ts");
+    expect(helper).toContain("dictionary.booking?.book");
+    expect(helper).toContain("dictionary.connect.methods?.message");
+    expect(helper).toContain("dictionary.offerings.externalCta");
+    expect(helper).not.toContain("siteConfig");
+  });
+
+  it("the core offering resolver is locale- and provider-independent", () => {
+    const core = readFileSync(path.join(process.cwd(), "src", "core", "offerings.ts"), "utf8");
+    expect(core).toContain("export function resolveOfferingAction");
+    expect(core).toContain("interface OfferingActionResolution");
+    expect(core).not.toContain("@/config");
+    expect(core).not.toContain("@/adapters");
+    expect(core).not.toMatch(/locale:/);
+  });
+
+  it("the offerings detail page composes the booking seam + core resolver at the boundary", () => {
+    const page = readFileSync(
+      path.join(APP_DIRECTORY, "[locale]", "offerings", "[slug]", "page.tsx"),
+      "utf8",
+    );
+    expect(page).toContain("createBookingActionResolver");
+    expect(page).toContain("resolveOfferingAction");
+    expect(page).toContain("offeringActionLabel");
+    expect(page).toContain("contactHref");
+  });
+});
