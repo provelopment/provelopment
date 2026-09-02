@@ -96,7 +96,7 @@ describe("Phase M — configured operating-location inventory (configuredRegionI
   it("the live demo exposes all configured regions on every locale (never filtered by language)", () => {
     // `/en`, `/fr`, `/de`, `/ja`, ... ALL show every operating location.
     siteConfig.locales.forEach(() => {
-      expect(configuredRegionIds(siteConfig.regions).length).toBeGreaterThanOrEqual(11);
+      expect(configuredRegionIds(siteConfig.regions).length).toBeGreaterThanOrEqual(12);
     });
   });
 });
@@ -323,30 +323,39 @@ describe("Phase M — live demo config smoke (site.config.json)", () => {
   const entries = siteConfig.pageBindings;
 
   it("exposes the full operating-location inventory to every locale", () => {
-    expect(configuredRegionIds(siteConfig.regions)).toHaveLength(11);
+    expect(configuredRegionIds(siteConfig.regions)).toHaveLength(12);
   });
 
   it("resolves the demo inventory the same way the routes/switchers do", () => {
-    // en lands: toronto, vancouver, montreal, london
-    expect(regionsForLocale(entries, "en")).toEqual(["toronto", "vancouver", "montreal", "london"]);
-    // fr lands: toronto, vancouver, montreal, paris
-    expect(regionsForLocale(entries, "fr")).toEqual(["toronto", "vancouver", "montreal", "paris"]);
+    // en lands: toronto, new-york, los-angeles, london
+    expect(regionsForLocale(entries, "en")).toEqual(["toronto", "new-york", "los-angeles", "london"]);
+    // fr lands: toronto, paris (vancouver/montreal pruned)
+    expect(regionsForLocale(entries, "fr")).toEqual(["toronto", "paris"]);
     expect(regionsForLocale(entries, "de")).toEqual(["berlin"]);
     expect(regionsForLocale(entries, "es")).toEqual(["madrid"]);
     expect(regionsForLocale(entries, "ja")).toEqual(["tokyo"]);
     expect(regionsForLocale(entries, "ko")).toEqual(["seoul"]);
     expect(regionsForLocale(entries, "zh")).toEqual(["shanghai"]);
     expect(regionsForLocale(entries, "id")).toEqual(["jakarta"]);
+    expect(regionsForLocale(entries, "ru")).toEqual(["moscow"]);
   });
 
-  it("Toronto, Vancouver and Montreal are each reachable in EN and FR", () => {
-    for (const region of ["toronto", "vancouver", "montreal"]) {
+  it("Toronto is the sole Canadian region, reachable in EN and FR; the new regions stay in their locale", () => {
+    for (const locale of ["en", "fr"]) {
+      expect(hasPageEntry(siteConfig.pageBindings, locale, "toronto", null)).toBe(true);
+      expect(hasPageEntry(siteConfig.pageBindings, locale, "toronto", "about")).toBe(true);
+      expect(hasPageEntry(siteConfig.pageBindings, locale, "toronto", "connect")).toBe(true);
+    }
+    expect(regionDefaultLocale(siteConfig.regions, siteConfig.pageBindings, "toronto")).toBe("en");
+    // New York / Los Angeles are EN-only; Moscow is RU-only.
+    for (const region of ["new-york", "los-angeles"]) {
       expect(hasPageEntry(siteConfig.pageBindings, "en", region, null)).toBe(true);
-      expect(hasPageEntry(siteConfig.pageBindings, "fr", region, null)).toBe(true);
-      expect(hasPageEntry(siteConfig.pageBindings, "fr", region, "about")).toBe(true);
-      expect(hasPageEntry(siteConfig.pageBindings, "fr", region, "connect")).toBe(true);
+      expect(hasPageEntry(siteConfig.pageBindings, "fr", region, null)).toBe(false);
       expect(regionDefaultLocale(siteConfig.regions, siteConfig.pageBindings, region)).toBe("en");
     }
+    expect(hasPageEntry(siteConfig.pageBindings, "ru", "moscow", null)).toBe(true);
+    expect(hasPageEntry(siteConfig.pageBindings, "en", "moscow", null)).toBe(false);
+    expect(regionDefaultLocale(siteConfig.regions, siteConfig.pageBindings, "moscow")).toBe("ru");
   });
 
   it("a region with an unsupported current locale resolves to its configured default", () => {

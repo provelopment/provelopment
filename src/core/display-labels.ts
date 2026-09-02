@@ -45,9 +45,9 @@ export function displayNameWithEnglish(
  * name (`label ?? name ?? id`), with the English name appended in brackets
  * when the two differ.
  *
- *   en toronto → `Toronto`;          fr montreal → `Montréal (Montreal)`
+ *   en toronto → `Toronto`;          ru moscow → `Москва (Moscow)`
  *   ja tokyo → `東京 (Tokyo)`;        ko seoul → `서울 (Seoul)`
- *   zh shanghai → `上海 (Shanghai)`;  en montreal → `Montreal`
+ *   zh shanghai → `上海 (Shanghai)`;  en new-york → `New York`
  */
 export function regionDisplayName(locale: string, region: OperationalRegion): string {
   const english = region.label ?? region.name ?? region.id;
