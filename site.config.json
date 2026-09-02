@@ -47,6 +47,11 @@
         "code": "id",
         "label": "Bahasa Indonesia",
         "englishLabel": "Indonesian"
+      },
+      {
+        "code": "ru",
+        "label": "Русский",
+        "englishLabel": "Russian"
       }
     ]
   },
@@ -154,141 +159,126 @@
           ]
         }
       },
-      "vancouver": {
-        "timezone": "America/Vancouver",
-        "name": "Vancouver Workshop",
-        "label": "Vancouver",
+      "new-york": {
+        "timezone": "America/New_York",
+        "name": "New York Studio",
+        "label": "New York",
         "defaultLocale": "en",
         "address": {
-          "street": "22 Waterfront Way",
-          "city": "Vancouver",
-          "region": "BC",
-          "postalCode": "V6B 1A1",
-          "country": "Canada"
+          "street": "350 5th Ave",
+          "city": "New York",
+          "region": "NY",
+          "postalCode": "10118",
+          "country": "United States"
         },
         "geo": {
-          "lat": 49.2827,
-          "lng": -123.1207
+          "lat": 40.7484,
+          "lng": -73.9857
         },
-        "phone": "+1 604 555 0188",
-        "email": "vancouver@example.com",
+        "phone": "+1 212 555 0188",
+        "email": "newyork@example.com",
         "hours": {
           "monday": [
             {
-              "open": "08:00",
-              "close": "16:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "tuesday": [
             {
-              "open": "08:00",
-              "close": "16:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "wednesday": [
             {
-              "open": "08:00",
-              "close": "16:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "thursday": [
             {
-              "open": "08:00",
-              "close": "16:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "friday": [
             {
-              "open": "08:00",
-              "close": "16:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "saturday": [],
-          "sunday": [
-            {
-              "open": "11:00",
-              "close": "15:00"
-            }
-          ],
+          "sunday": [],
           "holidays": [
+            {
+              "date": "2026-07-04",
+              "name": "Independence Day",
+              "closed": true
+            },
             {
               "date": "2026-12-25",
               "name": "Christmas Day",
               "closed": true
-            },
-            {
-              "date": "2026-12-26",
-              "name": "Boxing Day",
-              "intervals": [
-                {
-                  "open": "10:00",
-                  "close": "14:00"
-                }
-              ]
             }
           ]
         }
       },
-      "montreal": {
-        "timezone": "America/Toronto",
-        "name": "Montréal Atelier",
-        "label": "Montreal",
+      "los-angeles": {
+        "timezone": "America/Los_Angeles",
+        "name": "Los Angeles Studio",
+        "label": "Los Angeles",
         "defaultLocale": "en",
         "address": {
-          "street": "120 Rue Saint-Paul Ouest",
-          "city": "Montréal",
-          "region": "QC",
-          "postalCode": "H2Y 1Z7",
-          "country": "Canada"
+          "street": "633 W 5th St",
+          "city": "Los Angeles",
+          "region": "CA",
+          "postalCode": "90071",
+          "country": "United States"
         },
         "geo": {
-          "lat": 45.505,
-          "lng": -73.554
+          "lat": 34.051,
+          "lng": -118.2544
         },
-        "phone": "+1 514 555 0199",
-        "email": "montreal@example.com",
+        "phone": "+1 213 555 0177",
+        "email": "losangeles@example.com",
         "hours": {
           "monday": [
             {
-              "open": "10:00",
-              "close": "18:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "tuesday": [
             {
-              "open": "10:00",
-              "close": "18:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "wednesday": [
             {
-              "open": "10:00",
-              "close": "18:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "thursday": [
             {
-              "open": "10:00",
-              "close": "18:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
           "friday": [
             {
-              "open": "10:00",
-              "close": "18:00"
+              "open": "09:00",
+              "close": "17:00"
             }
           ],
-          "saturday": [
-            {
-              "open": "10:00",
-              "close": "16:00"
-            }
-          ],
+          "saturday": [],
           "sunday": [],
           "holidays": [
             {
-              "date": "2026-07-01",
-              "name": "Canada Day",
+              "date": "2026-07-04",
+              "name": "Independence Day",
               "closed": true
             },
             {
@@ -297,9 +287,6 @@
               "closed": true
             }
           ]
-        },
-        "labels": {
-          "fr": "Montréal"
         }
       },
       "berlin": {
@@ -761,6 +748,68 @@
           "sunday": [],
           "holidays": []
         }
+      },
+      "moscow": {
+        "timezone": "Europe/Moscow",
+        "name": "Moscow Studio",
+        "label": "Moscow",
+        "defaultLocale": "ru",
+        "address": {
+          "street": "Tverskaya Street 12, Building 1",
+          "city": "Moscow",
+          "postalCode": "125009",
+          "country": "Russia"
+        },
+        "geo": {
+          "lat": 55.7558,
+          "lng": 37.6173
+        },
+        "phone": "+7 495 555 0199",
+        "email": "moscow@example.com",
+        "hours": {
+          "monday": [
+            {
+              "open": "09:00",
+              "close": "18:00"
+            }
+          ],
+          "tuesday": [
+            {
+              "open": "09:00",
+              "close": "18:00"
+            }
+          ],
+          "wednesday": [
+            {
+              "open": "09:00",
+              "close": "18:00"
+            }
+          ],
+          "thursday": [
+            {
+              "open": "09:00",
+              "close": "18:00"
+            }
+          ],
+          "friday": [
+            {
+              "open": "09:00",
+              "close": "17:00"
+            }
+          ],
+          "saturday": [],
+          "sunday": [],
+          "holidays": [
+            {
+              "date": "2027-01-01",
+              "name": "New Year's Day",
+              "closed": true
+            }
+          ]
+        },
+        "labels": {
+          "ru": "Москва"
+        }
       }
     },
     "pages": [
@@ -794,58 +843,44 @@
       },
       {
         "locale": "en",
-        "region": "vancouver"
+        "region": "new-york"
       },
       {
         "locale": "en",
-        "region": "vancouver",
+        "region": "new-york",
         "slug": "about"
       },
       {
         "locale": "en",
-        "region": "vancouver",
-        "slug": "connect"
-      },
-      {
-        "locale": "fr",
-        "region": "vancouver"
-      },
-      {
-        "locale": "fr",
-        "region": "vancouver",
-        "slug": "about"
-      },
-      {
-        "locale": "fr",
-        "region": "vancouver",
+        "region": "new-york",
         "slug": "connect"
       },
       {
         "locale": "en",
-        "region": "montreal"
+        "region": "los-angeles"
       },
       {
         "locale": "en",
-        "region": "montreal",
+        "region": "los-angeles",
         "slug": "about"
       },
       {
         "locale": "en",
-        "region": "montreal",
+        "region": "los-angeles",
         "slug": "connect"
       },
       {
-        "locale": "fr",
-        "region": "montreal"
+        "locale": "ru",
+        "region": "moscow"
       },
       {
-        "locale": "fr",
-        "region": "montreal",
+        "locale": "ru",
+        "region": "moscow",
         "slug": "about"
       },
       {
-        "locale": "fr",
-        "region": "montreal",
+        "locale": "ru",
+        "region": "moscow",
         "slug": "connect"
       },
       {
