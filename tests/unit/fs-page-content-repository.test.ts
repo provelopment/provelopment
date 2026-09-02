@@ -91,17 +91,17 @@ describe("createFileSystemPageContentRepository", () => {
   it("lists page slugs for a locale", async () => {
     const slugs = await repository.listSlugs(defaultLocale);
     // The en locale's inventory: generic pages + connect + Phase M regional
-    // landing files (london, montreal, toronto, vancouver) — page inventories
-    // are per-locale.
+    // landing files (london, los-angeles, new-york, toronto) — page
+    // inventories are per-locale. Vancouver/Montreal were pruned.
     expect(slugs).toEqual([
       "about",
       "connect",
       "contact",
       "london",
-      "montreal",
+      "los-angeles",
+      "new-york",
       "resources",
       "toronto",
-      "vancouver",
     ]);
   });
 

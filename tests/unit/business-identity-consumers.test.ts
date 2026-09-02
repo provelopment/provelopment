@@ -49,11 +49,11 @@ describe("Phase K — regional consumers", () => {
     expect((html.match(/America\/Toronto/g) ?? []).length).toBe(1);
   });
 
-  it("cross-region isolation: a toronto page contains no vancouver/jakarta operational data", () => {
+  it("cross-region isolation: a toronto page contains no new-york or other-region operational data", () => {
     const toronto = regionFor("toronto");
-    const vancouver = regionFor("vancouver");
+    const newYork = regionFor("new-york");
 
-    for (const region of [toronto, vancouver]) {
+    for (const region of [toronto, newYork]) {
       const html = renderToStaticMarkup(
         RegionBlock({
           region,
@@ -62,7 +62,7 @@ describe("Phase K — regional consumers", () => {
         }),
       );
       const ownCity = region.address.city;
-      const otherCity = ownCity === "Toronto" ? "Vancouver" : "Toronto";
+      const otherCity = ownCity === "Toronto" ? "New York" : "Toronto";
       expect(html).toContain(ownCity);
       expect(html).not.toContain(otherCity);
       expect(html).not.toContain("Jakarta");
