@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "服务与产品",
     "emptyState": "我们很快将在这里展示服务内容。",
+    "featured": "精选",
+    "deliverables": "包含内容",
+    "faq": "常见问题",
+    "externalCta": "了解更多",
     "backToOfferings": "返回服务列表"
   },
   "booking": {

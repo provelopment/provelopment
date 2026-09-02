@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "Angebote",
     "emptyState": "Wir zeigen hier bald unsere Angebote.",
+    "featured": "Empfohlen",
+    "deliverables": "Was enthalten ist",
+    "faq": "Häufige Fragen",
+    "externalCta": "Mehr erfahren",
     "backToOfferings": "Zurück zu den Angeboten"
   },
   "booking": {

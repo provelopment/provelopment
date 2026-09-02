@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { OfferingList } from "@/components/site/offering-list";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -85,33 +84,11 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
         {dictionary.offerings.heading}
       </h1>
 
-      <ul className="mt-8 grid gap-6 sm:grid-cols-2">
-        {sorted.map((offering) => (
-          <li key={offering.slug}>
-            <Link
-              href={`/${locale}/offerings/${offering.slug}`}
-              className="block rounded-lg border border-border bg-accent p-6 transition-colors hover:border-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              {offering.image ? (
-                <div className="relative mb-4 h-40 w-full overflow-hidden rounded">
-                  <Image
-                    src={offering.image}
-                    alt={offering.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, 320px"
-                    className="object-cover"
-                  />
-                </div>
-              ) : null}
-              <h2 className="text-xl font-semibold">{offering.title}</h2>
-              <p className="mt-2 text-muted-foreground">{offering.blurb}</p>
-              {offering.price ? (
-                <p className="mt-3 text-sm font-medium text-foreground">{offering.price}</p>
-              ) : null}
-            </Link>
-          </li>
-        ))}
-      </ul>
+      <OfferingList
+        offerings={sorted}
+        baseHref={`/${locale}/offerings`}
+        featuredLabel={dictionary.offerings.featured}
+      />
     </article>
   );
 }

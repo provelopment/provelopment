@@ -71,15 +71,55 @@ type-agnostic model) live at `content/offerings/<locale>/<slug>.md`:
 
 ```markdown
 ---
-title: "Web design"            # required
-blurb: "A short one-liner."    # required
-order: 1                       # optional, listing sort
-featured: true                 # optional, listed first
-price: "From $180"             # optional display-only text (no currency math)
+title: "Web design"               # required
+blurb: "A short one-liner."       # required
+order: 1                          # optional, listing sort
+featured: true                    # optional, listed first
+price: "From $180"                # optional display-only text (no currency math)
 image: "/images/offerings/x.jpg"  # optional, file under public/
+deliverables:                     # optional "What's included" checklist
+  - "Wireframe"
+  - "Design review"
+faq:                              # optional Q&A (native <details> disclosure)
+  - question: "How long does it take?"
+    answer: "Outcome summary."
+action:                           # optional single call-to-action
+  intent: book                    # book | contact | external
+  # label: "Book a call"          # optional label override
+  # href: "https://.../book"    # required ONLY for intent: external
 ---
 Long-form detail body.
 ```
+
+**An Offering is descriptive visitor-facing content, not an operational
+entity.** Prices are display-only strings (no currency math); ordering is
+display ordering; actions are outbound provider-neutral links — never booking,
+scheduling, cart, checkout, payment, inventory, ordering/fulfillment, CRM, or
+account logic.
+
+**The `action` block (Phase C) is strict:**
+
+- `book` → the platform's booking seam (`features.booking`). Never set `href`;
+  the platform resolves the destination. When booking is disabled the detail
+  page shows no CTA (never a broken link).
+- `contact` → the Foundation contact route. Never set `href`; the platform
+  resolves `/{locale}/contact`.
+- `external` → an explicit external/deep link; `href` is **required** and is
+  validated syntactically only (an internal `/route`, or a scheme link such as
+  `https:`, `mailto:`, `viber:`). No ownership/reachability checks are made.
+- `label` is an optional override; the default comes from the localized
+  dictionary (`booking.book`, `connect.methods.message`,
+  `offerings.externalCta`).
+
+The frontmatter parser accepts a deliberately constrained block subset
+(string lists, `question`/`answer` object lists, and the fixed `action` object)
+and fails the build with an actionable message naming the offering/field for
+anything outside it — malformed content never silently misparses.
+
+Offering interfaces are localized in `config/i18n/<locale>.json` under
+`offerings` (`heading`, `emptyState`, `backToOfferings`, plus the Phase C keys
+`featured`, `deliverables`, `faq`, `externalCta` — all required across every
+configured locale).
 
 Three independent controls:
 

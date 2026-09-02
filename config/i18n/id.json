@@ -72,6 +72,10 @@
   "offerings": {
     "heading": "Layanan & produk",
     "emptyState": "Kami akan menampilkan layanan kami di sini segera.",
+    "featured": "Unggulan",
+    "deliverables": "Yang termasuk",
+    "faq": "Pertanyaan umum",
+    "externalCta": "Pelajari lebih lanjut",
     "backToOfferings": "Kembali ke layanan"
   },
   "booking": {

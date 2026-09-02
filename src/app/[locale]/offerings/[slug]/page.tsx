@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { createBookingActionResolver } from "@/adapters/booking";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
-import { MarkdownContent } from "@/components/site/markdown-content";
+import { OfferingDetail } from "@/components/site/offering-detail";
+import { offeringActionLabel } from "@/components/site/offering-action-label";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
-import { isCanonicalOffering } from "@/core/offerings";
+import { isCanonicalOffering, resolveOfferingAction } from "@/core/offerings";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -17,6 +17,10 @@ const offeringsRepository = createFileSystemPageContentRepository<OfferingsConte
 });
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+// Composition boundary (identical pattern to the home page): the booking
+// factory selects the booking adapter from validated configuration.
+const bookingActionResolver = createBookingActionResolver(siteConfig.bookingFeature);
 
 interface OfferingsDetailPageProps {
   readonly params: Promise<{ readonly locale: string; readonly slug: string }>;
@@ -96,39 +100,36 @@ export default async function OfferingsDetailPage({
 
   const dictionary = getDictionary(locale);
 
+  // Composition boundary: resolve the booking seam + the localized internal
+  // contact destination, then run the pure core resolver. Core never sees the
+  // locale or the booking provider.
+  const bookingAction = bookingActionResolver.resolve({ locale });
+  const bookingHref = bookingAction.kind === "link" ? bookingAction.href : null;
+
+  const resolvedAction = resolveOfferingAction(content.action, {
+    bookingHref,
+    contactHref: `/${locale}/contact`,
+  });
+
+  // The CTA label is localized at the boundary: an explicit `action.label`
+  // override wins, otherwise the intent's dictionary default.
+  const actionLabel =
+    resolvedAction.kind === "link" && content.action
+      ? content.action.label?.trim() || offeringActionLabel(content.action.intent, dictionary)
+      : null;
+
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
-      {content.image ? (
-        <div className="relative mb-8 h-64 w-full overflow-hidden rounded">
-          <Image
-            src={content.image}
-            alt={content.title}
-            fill
-            sizes="100vw"
-            className="object-cover"
-          />
-        </div>
-      ) : null}
-
-      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
-      <p className="mt-2 text-lg text-muted-foreground">{content.blurb}</p>
-
-      {content.price ? (
-        <p className="mt-3 text-sm font-medium text-foreground">{content.price}</p>
-      ) : null}
-
-      <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
-      </div>
-
-      <p className="mt-10">
-        <Link
-          href={`/${locale}/offerings`}
-          className="text-sm text-primary hover:underline"
-        >
-          {dictionary.offerings.backToOfferings}
-        </Link>
-      </p>
-    </article>
+    <OfferingDetail
+      offering={content}
+      action={resolvedAction}
+      backHref={`/${locale}/offerings`}
+      labels={{
+        deliverablesHeading: dictionary.offerings.deliverables,
+        faqHeading: dictionary.offerings.faq,
+        featuredBadge: dictionary.offerings.featured,
+        actionLabel,
+        backToListing: dictionary.offerings.backToOfferings,
+      }}
+    />
   );
 }
