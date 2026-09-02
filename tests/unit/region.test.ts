@@ -21,23 +21,33 @@ function regionById(id: string): OperationalRegion {
 }
 
 describe("Phase M - page to region resolution (live demo config)", () => {
-  it("the acceptance trio is reachable in English AND French", () => {
-    for (const region of ["toronto", "vancouver", "montreal"]) {
-      expect(hasPageEntry(pageBindings, "en", region, null)).toBe(true);
-      expect(hasPageEntry(pageBindings, "fr", region, null)).toBe(true);
-    }
+  it("Toronto is the single Canadian region, reachable in English AND French", () => {
+    // Vancouver and Montreal were pruned: EN+FR regional reachability is now
+    // Toronto-exclusive, and the new North American/Russian regions stay in
+    // their own locale.
+    expect(hasPageEntry(pageBindings, "en", "toronto", null)).toBe(true);
+    expect(hasPageEntry(pageBindings, "fr", "toronto", null)).toBe(true);
+    expect(hasPageEntry(pageBindings, "fr", "new-york", null)).toBe(false);
+    expect(hasPageEntry(pageBindings, "fr", "los-angeles", null)).toBe(false);
+    expect(hasPageEntry(pageBindings, "fr", "moscow", null)).toBe(false);
   });
 
-  it("Toronto = America/Toronto; Vancouver = America/Vancouver (different tz, never locale-inferred)", () => {
+  it("the North American trio spans three independent timezones, never locale-inferred", () => {
     expect(regionById("toronto").timezone).toBe("America/Toronto");
-    expect(regionById("vancouver").timezone).toBe("America/Vancouver");
-    expect(regionById("toronto").timezone).not.toBe(regionById("vancouver").timezone);
+    expect(regionById("new-york").timezone).toBe("America/New_York");
+    expect(regionById("los-angeles").timezone).toBe("America/Los_Angeles");
+    expect(regionById("toronto").timezone).not.toBe(regionById("new-york").timezone);
+    expect(regionById("new-york").timezone).not.toBe(regionById("los-angeles").timezone);
   });
 
-  it("Montreal timezone is independently configured (shares America/Toronto by config, not by locale)", () => {
-    expect(regionById("montreal").timezone).toBe("America/Toronto");
-    expect(regionById("montreal").timezone).toBe(regionById("toronto").timezone);
-    expect(regionById("montreal").id).not.toBe(regionById("toronto").id);
+  it("Moscow resolves its own Russian operational identity", () => {
+    expect(hasPageEntry(pageBindings, "ru", "moscow", null)).toBe(true);
+    expect(regionById("moscow").timezone).toBe("Europe/Moscow");
+    expect(regionById("moscow").defaultLocale).toBe("ru");
+    expect(regionById("moscow").labels?.ru).toBe("Москва");
+    // Moscow is RU-only.
+    expect(hasPageEntry(pageBindings, "en", "moscow", null)).toBe(false);
+    expect(hasPageEntry(pageBindings, "fr", "moscow", null)).toBe(false);
   });
 
   it("single-language regions resolve their own operational identity", () => {
@@ -50,36 +60,46 @@ describe("Phase M - page to region resolution (live demo config)", () => {
     expect(hasPageEntry(pageBindings, "ja", "tokyo", null)).toBe(true);
     expect(regionById("tokyo").timezone).toBe("Asia/Tokyo");
     expect(regionById("tokyo").defaultLocale).toBe("ja");
+    expect(hasPageEntry(pageBindings, "en", "new-york", null)).toBe(true);
+    expect(regionById("new-york").timezone).toBe("America/New_York");
+    expect(hasPageEntry(pageBindings, "en", "los-angeles", null)).toBe(true);
+    expect(regionById("los-angeles").timezone).toBe("America/Los_Angeles");
   });
 
   it("one locale resolves multiple regions with different timezones", () => {
     expect(regionsForLocale(pageBindings, "en")).toEqual([
       "toronto",
-      "vancouver",
-      "montreal",
+      "new-york",
+      "los-angeles",
       "london",
     ]);
-    expect(regionById("toronto").timezone).not.toBe(regionById("vancouver").timezone);
+    expect(regionById("toronto").timezone).not.toBe(regionById("new-york").timezone);
+    expect(regionById("new-york").timezone).not.toBe(regionById("los-angeles").timezone);
   });
 
-  it("one region is presented through multiple locales (en + fr trio)", () => {
-    for (const region of ["toronto", "vancouver", "montreal"]) {
-      const locales = [
+  it("a region is presented through its configured locales only", () => {
+    const localesFor = (region: string) =>
+      [
         ...new Set(
           pageBindings
             .filter((binding) => binding.region === region)
             .map((binding) => binding.locale),
         ),
       ].sort();
-      expect(locales).toEqual(["en", "fr"]);
-    }
+    // Toronto remains the sole Canadian region and stays bilingual (EN + FR).
+    expect(localesFor("toronto")).toEqual(["en", "fr"]);
+    // New York / Los Angeles are EN-only.
+    expect(localesFor("new-york")).toEqual(["en"]);
+    expect(localesFor("los-angeles")).toEqual(["en"]);
+    // Moscow is RU-only.
+    expect(localesFor("moscow")).toEqual(["ru"]);
   });
 
   it("every region declares its deterministic default audience locale", () => {
     const expected: Record<string, string> = {
-      toronto: "en", vancouver: "en", montreal: "en", london: "en",
-      berlin: "de", paris: "fr", madrid: "es", tokyo: "ja",
-      seoul: "ko", shanghai: "zh", jakarta: "id",
+      toronto: "en", "new-york": "en", "los-angeles": "en", moscow: "ru",
+      london: "en", berlin: "de", paris: "fr", madrid: "es",
+      tokyo: "ja", seoul: "ko", shanghai: "zh", jakarta: "id",
     };
     for (const [id, locale] of Object.entries(expected)) {
       expect(regionById(id).defaultLocale, id).toBe(locale);
@@ -88,12 +108,14 @@ describe("Phase M - page to region resolution (live demo config)", () => {
 
   it("regions have selector labels from configuration", () => {
     expect(regionById("toronto").label).toBe("Toronto");
-    expect(regionById("vancouver").label).toBe("Vancouver");
-    // Montréal: the label is the canonical English display name ("Montreal");
-    // the French form lives in `labels`. (Refinement: the selector shows
-    // "Montréal (Montreal)" for French visitors via regionDisplayName.)
-    expect(regionById("montreal").label).toBe("Montreal");
-    expect(regionById("montreal").labels?.fr).toBe("Montréal");
+    // New York / Los Angeles: canonical English display names (EN-only regions).
+    expect(regionById("new-york").label).toBe("New York");
+    expect(regionById("los-angeles").label).toBe("Los Angeles");
+    // Moscow: the label is the canonical English display name; the Russian form
+    // lives in `labels`. The selector shows "Москва (Moscow)" for Russian
+    // visitors via regionDisplayName.
+    expect(regionById("moscow").label).toBe("Moscow");
+    expect(regionById("moscow").labels?.ru).toBe("Москва");
     expect(regionById("london").label).toBe("London");
     expect(regionById("berlin").label).toBe("Berlin");
     expect(regionById("paris").label).toBe("Paris");
@@ -114,13 +136,18 @@ describe("Phase M - page to region resolution (live demo config)", () => {
   });
 
   it("different regions can have different page inventories", () => {
-    // Trio: Home + About + Connect in both locales.
-    for (const region of ["toronto", "vancouver", "montreal"]) {
-      expect(hasPageEntry(pageBindings, "en", region, "about")).toBe(true);
-      expect(hasPageEntry(pageBindings, "fr", region, "about")).toBe(true);
-      expect(hasPageEntry(pageBindings, "en", region, "connect")).toBe(true);
-      expect(hasPageEntry(pageBindings, "fr", region, "connect")).toBe(true);
+    // Toronto (the sole Canadian region): Home + About + Connect in EN and FR.
+    for (const locale of ["en", "fr"]) {
+      expect(hasPageEntry(pageBindings, locale, "toronto", "about")).toBe(true);
+      expect(hasPageEntry(pageBindings, locale, "toronto", "connect")).toBe(true);
     }
+    // New York / Los Angeles / Moscow: Home + About + Connect (single locale).
+    expect(hasPageEntry(pageBindings, "en", "new-york", "about")).toBe(true);
+    expect(hasPageEntry(pageBindings, "en", "new-york", "connect")).toBe(true);
+    expect(hasPageEntry(pageBindings, "en", "los-angeles", "about")).toBe(true);
+    expect(hasPageEntry(pageBindings, "en", "los-angeles", "connect")).toBe(true);
+    expect(hasPageEntry(pageBindings, "ru", "moscow", "about")).toBe(true);
+    expect(hasPageEntry(pageBindings, "ru", "moscow", "connect")).toBe(true);
     // London/Berlin/Paris: Home + About only.
     expect(hasPageEntry(pageBindings, "en", "london", "about")).toBe(true);
     expect(hasPageEntry(pageBindings, "de", "berlin", "about")).toBe(true);

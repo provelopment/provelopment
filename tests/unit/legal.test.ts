@@ -111,7 +111,7 @@ describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
         );
         // Every localized body preserves the template's generic, replaceable
         // nature and the "not legal advice" notice.
-        expect(content?.body).toMatch(/not legal advice|no es asesoramiento|conseil juridique|Rechtsberatung|法的助言|法律建议|법적 조언|nasihat hukum/i);
+        expect(content?.body).toMatch(/not legal advice|no es asesoramiento|conseil juridique|Rechtsberatung|法的助言|法律建议|법적 조언|nasihat hukum|не является юридической консультацией/i);
       }
     }
   });

@@ -21,6 +21,7 @@ const contactTitles: Record<string, string> = {
   zh: "联系我们",
   ko: "문의",
   id: "Kontak",
+  ru: "Контакты",
 };
 
 describe("contact page localization", () => {
@@ -53,6 +54,7 @@ describe("contact page localization", () => {
       zh: "关于",
       ko: "소개",
       id: "Tentang",
+      ru: "О нас",
     };
     const resourceTitles: Record<string, string> = {
       es: "Recursos",
@@ -62,6 +64,7 @@ describe("contact page localization", () => {
       zh: "资源",
       ko: "리소스",
       id: "Sumber daya",
+      ru: "Ресурсы",
     };
 
     for (const [locale, expectedTitle] of Object.entries(aboutTitles)) {
