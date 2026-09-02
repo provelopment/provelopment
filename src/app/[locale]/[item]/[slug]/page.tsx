@@ -96,7 +96,7 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
   if (!context.region) notFound();
 
   return (
-    <article className="mx-auto max-w-4xl px-4 py-12">
+    <article className="mx-auto max-w-page px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />

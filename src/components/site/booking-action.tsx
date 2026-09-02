@@ -25,7 +25,7 @@ export function BookingAction({ action, label }: BookingActionProps) {
       href={action.href}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:border-primary hover:text-primary"
+      className="inline-flex items-center justify-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
     >
       {label}
     </a>

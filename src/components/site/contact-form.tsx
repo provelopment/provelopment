@@ -50,7 +50,7 @@ function isContactField(value: unknown): value is ContactField {
 export function ContactForm({ config, locale, dict }: ContactFormProps) {
   if (!config) {
     return (
-      <div className="rounded-lg border border-border bg-accent p-6">
+      <div className="rounded-lg border border-border bg-muted p-6">
         <h2 className="text-lg font-semibold">{dict.unconfigured}</h2>
       </div>
     );
@@ -111,8 +111,8 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
     Boolean(clientErrors[field] || serverErrors[field]);
 
   const fieldClassName = (field: ContactField) =>
-    `w-full rounded border bg-background px-3 py-2 text-sm text-foreground ${
-      errorFor(field) ? "border-red-500" : "border-border"
+    `w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground ${
+      errorFor(field) ? "border-destructive" : "border-input"
     }`;
 
   return (
@@ -137,7 +137,7 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           className={fieldClassName("name")}
         />
         {errorFor("name") ? (
-          <p id="contact-name-error" className="mt-1 text-sm text-red-600">
+          <p id="contact-name-error" className="mt-1 text-sm text-destructive">
             {dict.errors.name}
           </p>
         ) : null}
@@ -161,7 +161,7 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           className={fieldClassName("email")}
         />
         {errorFor("email") ? (
-          <p id="contact-email-error" className="mt-1 text-sm text-red-600">
+          <p id="contact-email-error" className="mt-1 text-sm text-destructive">
             {dict.errors.email}
           </p>
         ) : null}
@@ -185,7 +185,7 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
             className={fieldClassName("subject")}
           />
           {errorFor("subject") ? (
-            <p id="contact-subject-error" className="mt-1 text-sm text-red-600">
+            <p id="contact-subject-error" className="mt-1 text-sm text-destructive">
               {dict.errors.subject}
             </p>
           ) : null}
@@ -209,7 +209,7 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           className={fieldClassName("message")}
         />
         {errorFor("message") ? (
-          <p id="contact-message-error" className="mt-1 text-sm text-red-600">
+          <p id="contact-message-error" className="mt-1 text-sm text-destructive">
             {dict.errors.message}
           </p>
         ) : null}
@@ -243,7 +243,7 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           type="submit"
           disabled={isPending}
           aria-busy={isPending}
-          className="rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-60"
+          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           {isPending ? dict.sending : dict.submit}
         </button>

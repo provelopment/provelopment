@@ -32,7 +32,7 @@ export function SiteHeader({ locale }: SiteHeaderProps) {
 
     return (
         <header className="border-b border-border">
-            <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
+            <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
                 <ContextNavLinks
                     locale={locale}
                     links={[{ href: "/", label: siteConfig.name }]}
