@@ -95,7 +95,9 @@ describe("Phase K — regional consumers", () => {
     const allStreets = Object.values(siteConfig.regions).map((region) => region.address.street);
     for (const regionId of new Set(siteConfig.pageBindings.map((binding) => binding.region))) {
       const region = regionFor(regionId);
-      const html = renderToStaticMarkup(RegionStructuredData({ region }));
+      const html = renderToStaticMarkup(
+        RegionStructuredData({ region, canonicalUrl: `${siteConfig.url}/en/${region.id}` }),
+      );
       expect(html).toContain(region.address.street);
 
       const json = html.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "");
@@ -112,7 +114,9 @@ describe("Phase K — regional consumers", () => {
 
   it("JSON-LD opening hours come from the region's seven-day schedule", () => {
     const region = regionFor("berlin");
-    const html = renderToStaticMarkup(RegionStructuredData({ region }));
+    const html = renderToStaticMarkup(
+      RegionStructuredData({ region, canonicalUrl: `${siteConfig.url}/de/berlin` }),
+    );
     expect(html).toContain("Monday");
     expect(html).toContain("09:00");
     expect(html).toContain("17:00");
