@@ -715,3 +715,49 @@ describe("Phase S — SEO & structured-data boundaries", () => {
     expect(source).not.toMatch(/cart|checkout|payment/i);
   });
 });
+
+describe("Phase T — trust & publishing primitive boundaries", () => {
+  const CORE_DIRECTORY = path.join(srcDirectory, "core");
+  const COMPONENTS_DIRECTORY = path.join(srcDirectory, "components", "site");
+  const NEW_CORE_MODULES = ["testimonials.ts", "portfolio.ts", "posts.ts"];
+  const NEW_PRESENTATION_COMPONENTS = [
+    "testimonial-card.tsx",
+    "testimonial-list.tsx",
+    "portfolio-card.tsx",
+    "portfolio-list.tsx",
+    "portfolio-detail.tsx",
+    "post-card.tsx",
+    "post-list.tsx",
+    "post-detail.tsx",
+  ];
+
+  it("new core modules are framework-, config-, and adapter-free", () => {
+    for (const name of NEW_CORE_MODULES) {
+      const source = readFileSync(path.join(CORE_DIRECTORY, name), "utf8");
+      expect(source, name).not.toMatch(/from ["']next/);
+      expect(source, name).not.toMatch(/from ["']react/);
+      expect(source, name).not.toMatch(/from ["']@\/adapters/);
+      expect(source, name).not.toMatch(/from ["']@\/config/);
+      expect(source, name).not.toContain("siteConfig");
+    }
+  });
+
+  it("trust/publishing presentation components are provider- and config-neutral", () => {
+    for (const name of NEW_PRESENTATION_COMPONENTS) {
+      const source = readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+      expect(source, name).not.toMatch(/from ["']@\/adapters/);
+      expect(source, name).not.toContain("siteConfig");
+      expect(source, name).not.toMatch(/provider\s*===/);
+    }
+  });
+
+  it("portfolio and blog detail render the Markdown body through the shared trust boundary", () => {
+    const portfolioDetail = readFileSync(
+      path.join(COMPONENTS_DIRECTORY, "portfolio-detail.tsx"),
+      "utf8",
+    );
+    expect(portfolioDetail).toContain("<MarkdownContent");
+    const postDetail = readFileSync(path.join(COMPONENTS_DIRECTORY, "post-detail.tsx"), "utf8");
+    expect(postDetail).toContain("<MarkdownContent");
+  });
+});

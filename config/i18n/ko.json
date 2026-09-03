@@ -17,7 +17,10 @@
       "/about": "소개",
       "/resources": "리소스",
       "/offerings": "서비스",
-      "/connect": "연결"
+      "/connect": "연결",
+      "/testimonials": "고객 후기",
+      "/portfolio": "포트폴리오",
+      "/blog": "블로그"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "이메일",
       "phone": "전화"
     }
+  },
+  "testimonials": {
+    "heading": "고객 후기",
+    "emptyState": "아직 후기가 없습니다.",
+    "featured": "추천",
+    "ratingAria": "{rating} / 5"
+  },
+  "portfolio": {
+    "heading": "포트폴리오",
+    "emptyState": "아직 작품이 없습니다.",
+    "featured": "추천",
+    "tags": "태그",
+    "backToPortfolio": "포트폴리오로 돌아가기"
+  },
+  "blog": {
+    "heading": "블로그",
+    "emptyState": "아직 글이 없습니다.",
+    "backToBlog": "블로그로 돌아가기",
+    "readingTime": "읽는 시간 {count}분",
+    "rss": "RSS 피드"
   }
 }

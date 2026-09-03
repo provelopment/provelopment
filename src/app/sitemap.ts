@@ -4,6 +4,8 @@ import { createFileSystemPageContentRepository } from "@/adapters/content/fs-pag
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { resolveLegalDocs } from "@/core/legal";
+import { isDraft } from "@/core/posts";
+import type { PostContent } from "@/core/posts";
 import { regionsForLocale, regionalPath } from "@/core/regional-pages";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -18,6 +20,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     defaultLocale: siteConfig.defaultLocale,
     collection: "legal",
   });
+  const portfolioRepository = createFileSystemPageContentRepository({
+    defaultLocale: siteConfig.defaultLocale,
+    collection: "portfolio",
+  });
+  const postsRepository = createFileSystemPageContentRepository<PostContent>({
+    defaultLocale: siteConfig.defaultLocale,
+    collection: "posts",
+  });
 
   // Route ownership: routes derive from the CONTENT MODEL + configured page
   // inventory per locale — never from navigation config. Because page
@@ -31,6 +41,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const legalSlugs = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs).map(
     (doc) => doc.slug,
   );
+
+  // Phase T: canonical portfolio slugs + PUBLISHED blog slugs (drafts excluded).
+  const canonicalPortfolio = siteConfig.portfolioFeature
+    ? await portfolioRepository.listSlugs(siteConfig.defaultLocale)
+    : [];
+  const publishedBlogSlugs = new Array<string>();
+  if (siteConfig.blogFeature) {
+    for (const slug of await postsRepository.listSlugs(siteConfig.defaultLocale)) {
+      const post = await postsRepository.findBySlug(slug, siteConfig.defaultLocale);
+      if (post && !isDraft(post)) {
+        publishedBlogSlugs.push(slug);
+      }
+    }
+  }
 
   const lastModified = new Date();
 
@@ -49,6 +73,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       pages,
       canonicalOfferings,
       legalSlugs,
+      testimonialsEnabled: siteConfig.testimonialsFeature === true,
+      portfolioEnabled: siteConfig.portfolioFeature === true,
+      canonicalPortfolio,
+      blogEnabled: siteConfig.blogFeature === true,
+      publishedBlogSlugs,
     });
 
     for (const route of routes) {

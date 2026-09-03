@@ -142,6 +142,45 @@ export const dictionarySchema = z.object({
     /** Localized footer labels keyed by legal slug. */
     labels: z.record(z.string(), z.string()),
   }),
+  /**
+   * Testimonials chrome (Phase T). OPTIONAL: only required when
+   * `features.testimonials` is enabled (enforced by an F1-style lock at module
+   * load). `ratingAria` is a template with a `{rating}` placeholder.
+   */
+  testimonials: z
+    .object({
+      heading: z.string(),
+      emptyState: z.string(),
+      featured: z.string(),
+      ratingAria: z.string(),
+    })
+    .optional(),
+  /**
+   * Portfolio / case-studies chrome (Phase T). OPTIONAL: only required when
+   * `features.portfolio` is enabled.
+   */
+  portfolio: z
+    .object({
+      heading: z.string(),
+      emptyState: z.string(),
+      featured: z.string(),
+      tags: z.string(),
+      backToPortfolio: z.string(),
+    })
+    .optional(),
+  /**
+   * Blog chrome (Phase T). OPTIONAL: only required when `features.blog` is
+   * enabled. `readingTime` is a template with a `{count}` placeholder.
+   */
+  blog: z
+    .object({
+      heading: z.string(),
+      emptyState: z.string(),
+      backToBlog: z.string(),
+      readingTime: z.string(),
+      rss: z.string(),
+    })
+    .optional(),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;
