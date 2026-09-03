@@ -50,7 +50,7 @@ export interface ContactConfig {
 }
 
 export interface AnalyticsConfig {
-  readonly provider: "vercel";
+  readonly provider: "vercel" | "none";
 }
 
 /** `features.maps` — a keyless directions-deep-link provider. */
