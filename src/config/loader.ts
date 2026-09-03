@@ -149,6 +149,8 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
       geo: raw.geo,
       phone: raw.phone,
       email: raw.email,
+      currency: raw.currency,
+      currencySymbol: raw.currencySymbol,
       hours: {
         monday: raw.hours.monday ?? [],
         tuesday: raw.hours.tuesday ?? [],

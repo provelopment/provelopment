@@ -620,10 +620,15 @@ Key points:
   locale, region }` line). A page entry without its landing fails the build.
   The Phase K `{ locale, slug: "toronto", region: "toronto" }` form is still
   accepted and migrated automatically.
-- **Standardized 3-page layout & inventories:** The shipped template binds
-  `Home` (landing), `About`, and `Connect` for every configured operating city.
+- **Standardized 4-page layout & inventories:** The shipped template binds
+  `Home` (landing), `About`, `Connect`, and `Offerings` for every configured operating city.
   Downstream adopters may configure different page inventories per locale × region;
   one region may exist in several locales.
+- **Regional currency & offerings presentation:** Each region in `business.regions` can configure
+  an ISO 4217 `currency` (e.g. `"AUD"`, `"GBP"`, `"EUR"`, `"JPY"`) and `currencySymbol` (e.g. `"A$"`,
+  `"£"`, `"€"`, `"¥"`). The offerings catalog (`/{locale}/{region}/offerings`) automatically displays
+  amounts in the selected city's currency, with an explicit demonstration disclaimer banner clarifying
+  that the catalog items are template placeholders.
 - **Switching behavior (deterministic, pure core):**
   - Location: keep the language; go to the same page in the target region, or
     its landing, or (as a defensive fallback) its first configured page.

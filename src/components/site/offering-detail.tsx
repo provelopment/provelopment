@@ -16,6 +16,10 @@ export interface OfferingDetailLabels {
   readonly actionLabel: string | null;
   /** "Back to offerings" link label. */
   readonly backToListing: string;
+  /** Demonstration disclaimer title. */
+  readonly disclaimerTitle?: string;
+  /** Demonstration disclaimer body. */
+  readonly disclaimerBody?: string;
 }
 
 interface OfferingDetailProps {
@@ -64,6 +68,18 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
       <p className="mt-2 text-lg text-muted-foreground">{offering.blurb}</p>
       {offering.price ? (
         <p className="mt-3 text-sm font-medium text-foreground">{offering.price}</p>
+      ) : null}
+
+      {labels.disclaimerBody ? (
+        <aside
+          aria-label={labels.disclaimerTitle ?? "Demonstration Disclaimer"}
+          className="mt-6 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground"
+        >
+          {labels.disclaimerTitle ? (
+            <p className="mb-1 font-semibold text-foreground">{labels.disclaimerTitle}</p>
+          ) : null}
+          <p>{labels.disclaimerBody}</p>
+        </aside>
       ) : null}
 
       <div className="mt-6">

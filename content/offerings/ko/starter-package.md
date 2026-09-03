@@ -6,6 +6,8 @@ price: "$150부터"
 featured: true
 ---
 
+> **데모 안내:** 본 상품/서비스는 템플릿 기능 시연을 위한 샘플이며, Provelopment Foundation에서 실제로 제공하는 것이 아닙니다. 실제 서비스 및 상품으로 변경하려면 이 파일을 편집하세요.
+
 이것은 Provelopment Foundation 테마에 포함된 데모 상품입니다. 직접 만든
 상품으로 교체하세요.
 

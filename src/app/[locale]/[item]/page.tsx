@@ -40,6 +40,7 @@ const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
   "testimonials",
   "portfolio",
   "blog",
+  "offerings",
 ]);
 
 /**

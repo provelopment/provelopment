@@ -479,12 +479,19 @@ Page = locale + region + page      (e.g. /en/toronto/about)
   The header renders a Location `<select>` beside the Language `<select>`;
   both are config-driven, show the active selection, and produce real URLs
   (no client-side state determines the current location).
-- **Page independence & standardized 3-page layout.** Any region may expose any page
+- **Page independence & standardized 4-page layout.** Any region may expose any page
   inventory under any locale. In the shipped demo, all 13 operating regions (Berlin,
   Jakarta, London, Los Angeles, Madrid, Moscow, New York, Paris, Seoul, Shanghai, Sydney,
-  Tokyo, Toronto) uniformly expose `Home`, `About`, and `Connect`. The demo proves same
-  locale → different timezones (en/toronto, en/new-york, en/los-angeles, en/sydney, en/london),
-  and same region → multiple locales (en+fr toronto).
+  Tokyo, Toronto) uniformly expose `Home`, `About`, `Connect`, and `Offerings`.
+  The demo proves same locale → different timezones and currencies (e.g. en/sydney with AUD,
+  en/london with GBP, en/toronto with CAD, en/new-york with USD), and same region → multiple
+  locales (en+fr toronto).
+- **Regional offerings & currency resolution.** Regional offerings routes (`/{locale}/{region}/offerings`
+  and `/{locale}/{region}/offerings/[slug]`) resolve pricing contextually through `resolveOfferingPrice(offering, region)`:
+  each region defines its ISO 4217 `currency` and `currencySymbol` in `site.config.json` (e.g. AUD `A$`,
+  GBP `£`, EUR `€`, JPY `¥`). The offering catalog and detail views also render a prominent demonstration
+  disclaimer banner stating that items are template placeholders. Selecting a city in the header Location
+  Switcher smoothly transitions the user between regional offerings URLs and displays prices in that city's currency.
 - **SEO.** Regional pages emit canonical URLs, hreflang only for genuinely
   configured `(locale, region, page)` equivalents (with landing fallback for
   a region that lacks the exact page), and `x-default` only when the default

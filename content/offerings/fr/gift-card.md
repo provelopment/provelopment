@@ -6,6 +6,8 @@ price: "25 $ - 200 $"
 featured: false
 ---
 
+> **Avis de démonstration :** Cette offre est un exemple fourni à des fins de démonstration uniquement. Elle n'est pas proposée par la Provelopment Foundation. Modifiez ce fichier pour décrire vos services réels.
+
 Ceci est une offre de démonstration incluse avec le thème Provelopment
 Foundation. Remplacez-la par la vôtre.
 
