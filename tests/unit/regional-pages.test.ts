@@ -96,7 +96,7 @@ describe("Phase M — configured operating-location inventory (configuredRegionI
   it("the live demo exposes all configured regions on every locale (never filtered by language)", () => {
     // `/en`, `/fr`, `/de`, `/ja`, ... ALL show every operating location.
     siteConfig.locales.forEach(() => {
-      expect(configuredRegionIds(siteConfig.regions).length).toBeGreaterThanOrEqual(12);
+      expect(configuredRegionIds(siteConfig.regions).length).toBeGreaterThanOrEqual(13);
     });
   });
 });
@@ -323,14 +323,20 @@ describe("Phase M — live demo config smoke (site.config.json)", () => {
   const entries = siteConfig.pageBindings;
 
   it("exposes the full operating-location inventory to every locale", () => {
-    expect(configuredRegionIds(siteConfig.regions)).toHaveLength(12);
+    expect(configuredRegionIds(siteConfig.regions)).toHaveLength(13);
   });
 
   it("resolves the demo inventory the same way the routes/switchers do", () => {
-    // en lands: toronto, new-york, los-angeles, london
-    expect(regionsForLocale(entries, "en")).toEqual(["toronto", "new-york", "los-angeles", "london"]);
-    // fr lands: toronto, paris (vancouver/montreal pruned)
-    expect(regionsForLocale(entries, "fr")).toEqual(["toronto", "paris"]);
+    // en lands: london, los-angeles, new-york, sydney, toronto
+    expect(regionsForLocale(entries, "en")).toEqual([
+      "london",
+      "los-angeles",
+      "new-york",
+      "sydney",
+      "toronto",
+    ]);
+    // fr lands: paris, toronto
+    expect(regionsForLocale(entries, "fr")).toEqual(["paris", "toronto"]);
     expect(regionsForLocale(entries, "de")).toEqual(["berlin"]);
     expect(regionsForLocale(entries, "es")).toEqual(["madrid"]);
     expect(regionsForLocale(entries, "ja")).toEqual(["tokyo"]);
@@ -385,5 +391,48 @@ describe("Phase M — live demo config smoke (site.config.json)", () => {
     expect(unspecifiedDestination("en", "about")).toBe("/en/about");
     expect(unspecifiedDestination("fr", null)).toBe("/fr");
     expect(unspecifiedDestination("de", null)).toBe("/de");
+  });
+
+  it("sorts regions in alphabetical order and locales with default English first", () => {
+    const sortedRegions = [...configuredRegionIds(siteConfig.regions)].sort((a, b) => {
+      const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
+      const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;
+      return labelA.localeCompare(labelB, "en", { sensitivity: "base" });
+    });
+    expect(sortedRegions).toEqual([
+      "berlin",
+      "jakarta",
+      "london",
+      "los-angeles",
+      "madrid",
+      "moscow",
+      "new-york",
+      "paris",
+      "seoul",
+      "shanghai",
+      "sydney",
+      "tokyo",
+      "toronto",
+    ]);
+
+    const defaultLocale = siteConfig.defaultLocale;
+    const sortedLocales = [...siteConfig.locales].sort((a, b) => {
+      if (a.code === defaultLocale) return -1;
+      if (b.code === defaultLocale) return 1;
+      const nameA = a.englishLabel ?? a.label;
+      const nameB = b.englishLabel ?? b.label;
+      return nameA.localeCompare(nameB, "en", { sensitivity: "base" });
+    });
+    expect(sortedLocales.map((l) => l.code)).toEqual([
+      "en",
+      "zh",
+      "fr",
+      "de",
+      "id",
+      "ja",
+      "ko",
+      "ru",
+      "es",
+    ]);
   });
 });

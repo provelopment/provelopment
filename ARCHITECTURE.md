@@ -479,12 +479,12 @@ Page = locale + region + page      (e.g. /en/toronto/about)
   The header renders a Location `<select>` beside the Language `<select>`;
   both are config-driven, show the active selection, and produce real URLs
   (no client-side state determines the current location).
-- **Page independence (per locale × region).** Any region may expose any page
-  inventory under any locale (EN/Toronto {landing, about, contact};
-  EN/Vancouver {landing, about}; FR/Montreal {landing, about}; …). The demo
-  proves same locale → different timezones (en/toronto vs en/los-angeles), same
-  region → multiple locales (en+fr toronto), and per-locale region sets
-  (ja/ko/zh/es/id have no regions and no selector).
+- **Page independence & standardized 3-page layout.** Any region may expose any page
+  inventory under any locale. In the shipped demo, all 13 operating regions (Berlin,
+  Jakarta, London, Los Angeles, Madrid, Moscow, New York, Paris, Seoul, Shanghai, Sydney,
+  Tokyo, Toronto) uniformly expose `Home`, `About`, and `Connect`. The demo proves same
+  locale → different timezones (en/toronto, en/new-york, en/los-angeles, en/sydney, en/london),
+  and same region → multiple locales (en+fr toronto).
 - **SEO.** Regional pages emit canonical URLs, hreflang only for genuinely
   configured `(locale, region, page)` equivalents (with landing fallback for
   a region that lacks the exact page), and `x-default` only when the default
@@ -496,12 +496,12 @@ Page = locale + region + page      (e.g. /en/toronto/about)
 Phase M makes the two-dimensional UX explicit and unambiguous without
 redesigning the Phase K/L model.
 
-- **Location selector inventory.** The **Location** selector lists every
-  CONFIGURED operating location (`business.regions` is authoritative; page
-  bindings only decide which combinations exist) regardless of the current
-  language, plus a permanent **Unspecified** option. A region may exist with
-  only a landing (or no bindings yet) and still be selectable. `configuredRegionIds`
-  is the single inventory source; the generic context is never lost.
+- **Location selector inventory & alphabetical sorting.** The **Location** selector lists
+  every CONFIGURED operating location (`business.regions` is authoritative) in strict
+  alphabetical order (Berlin, Jakarta, London, Los Angeles, Madrid, Moscow, New York,
+  Paris, Seoul, Shanghai, Sydney, Tokyo, Toronto) plus a permanent leading **Unspecified** option.
+  The **Language** selector lists locales with the default locale (English) pinned first,
+  followed by all remaining locales in alphabetical order.
 - **Unspecified location.** Explicitly labeled (never a bare "Location" that
   reads like a real location). Selecting it returns to the equivalent
   non-regional page: `/en/toronto/about` → `/en/about`, `/de/berlin` → `/de`
