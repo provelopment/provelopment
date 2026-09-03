@@ -8,6 +8,7 @@ import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import {
   isCanonicalOffering,
+  parseDisplayPrice,
   resolveOfferingAction,
   sortOfferings,
   type OfferingsListItem,
@@ -164,6 +165,29 @@ Body
         "en",
       ),
     ).toThrow(/mixed/);
+  });
+});
+
+describe("parseDisplayPrice — Phase S conservative display-price rule", () => {
+  it("extracts a bare numeric price (optionally stripping ONE leading currency symbol)", () => {
+    expect(parseDisplayPrice("150")).toBe("150");
+    expect(parseDisplayPrice("$150")).toBe("150");
+    expect(parseDisplayPrice("€40")).toBe("40");
+    expect(parseDisplayPrice("1,200.50")).toBe("1,200.50");
+    expect(parseDisplayPrice("  99 ")).toBe("99");
+  });
+
+  it("never guesses: returns null for ranges, suffixed text, words, or blank", () => {
+    expect(parseDisplayPrice("From $150")).toBeNull();
+    expect(parseDisplayPrice("$2,500 / month")).toBeNull();
+    expect(parseDisplayPrice("150 USD")).toBeNull();
+    expect(parseDisplayPrice("Custom Quote")).toBeNull();
+    expect(parseDisplayPrice("150$")).toBeNull(); // trailing symbol is not a bare number
+  });
+
+  it("returns null when the price is absent", () => {
+    expect(parseDisplayPrice(undefined)).toBeNull();
+    expect(parseDisplayPrice("")).toBeNull();
   });
 });
 

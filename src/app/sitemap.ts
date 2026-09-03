@@ -58,7 +58,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Regional landings `/{locale}/{region}` (only configured for this locale).
     for (const region of regionsForLocale(siteConfig.pageBindings, code)) {
       localizedEntries.push({
-        url: `${siteConfig.url}/${regionalPath(code, region, null)}`,
+        url: `${siteConfig.url}${regionalPath(code, region, null)}`,
         lastModified,
       });
     }
@@ -66,7 +66,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     for (const binding of siteConfig.pageBindings) {
       if (binding.locale === code && binding.slug !== null) {
         localizedEntries.push({
-          url: `${siteConfig.url}/${regionalPath(code, binding.region, binding.slug)}`,
+          url: `${siteConfig.url}${regionalPath(code, binding.region, binding.slug)}`,
           lastModified,
         });
       }

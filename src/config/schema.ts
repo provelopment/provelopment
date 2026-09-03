@@ -38,6 +38,13 @@ export const siteSettingsSchema = z.object({
   name: z.string().min(1, "must not be empty"),
   tagline: z.string().min(1, "must not be empty"),
   description: z.string().min(1, "must not be empty"),
+  /**
+   * Phase S — optional brand logo (absolute URL). Consumed by JSON-LD
+   * structured data (`logo`). Does NOT replace the generated OpenGraph image.
+   */
+  logo: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/logo.png")
+    .optional(),
 });
 
 export const i18nConfigSchema = z

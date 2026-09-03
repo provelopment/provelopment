@@ -17,7 +17,7 @@ fail the build with actionable error messages.
 
 | Section | What it controls |
 | --- | --- |
-| `site` | Production URL, site name, tagline, meta description |
+| `site` | Production URL, site name, tagline, meta description, optional logo |
 | `i18n` | Locales and the default locale |
 | `contact` | Public contact email |
 | `socialLinks` | Footer/header social links |
@@ -326,7 +326,42 @@ above.
 --destructive:#f87171; --destructive-foreground:#450a0a; --ring:#a5b4fc;
 ```
 
+### SEO & social preview
+
+Every page is search-, crawler-, and social-ready **by default** — there is no
+per-page SEO configuration to fill in:
+
+- **Metadata** — each route emits `title`, `description`, canonical URL,
+  `hreflang` alternates, OpenGraph (`og:title`, `og:description`, `og:url`,
+  `og:type`, `og:site_name`, `og:locale`, `og:locale:alternate`,
+  `og:image`) and Twitter card metadata. All of it is derived deterministically
+  from `site.config.json`, the localized content, and the regional page
+  bindings — never hardcoded.
+- **Social preview image** — the generated `/{locale}/opengraph-image` route is
+  referenced automatically by every page's `og:image`/`twitter:image`. It is
+  generated from your config values (site name, localized tagline) by
+  `src/app/[locale]/opengraph-image.tsx`; edit that file's fixed brand colors
+  only if you want the preview to match your palette.
+- **Sitemap & robots** — `sitemap.xml` covers every configured locale, content
+  page, offering, legal document, and regional page (only genuinely configured
+  combinations — never a 404); `robots.txt` references your absolute sitemap
+  URL. Both derive from `site.url`.
+- **Structured data (JSON-LD)** — global `Organization`/`LocalBusiness`,
+  regional `LocalBusiness`, and per-offering `Service` are emitted
+  automatically from the same resolved business/region data the visible UI
+  uses, so machine-readable and human-readable data never drift.
+  - Optional `site.logo` (an absolute URL, validated) feeds the JSON-LD `logo`.
+  - `sameAs` comes from your configured `socialLinks` (never invented).
+  - An offering's `Service.offers.price` is emitted ONLY when its `price`
+    display string is a bare parseable number (an optional leading currency
+    symbol is stripped but never recorded); `priceCurrency` is never emitted.
+    Prices like `From $150` or `Custom Quote` simply omit `offers` — the
+    Foundation never guesses a price or implies commerce semantics.
+- **When you change `site.url`** (before go-live), every canonical, hreflang,
+  sitemap, and robots reference updates automatically.
+
 ### Favicon & social preview
+### Favicon & app icon
 
 - Favicon / app icon: replace `src/app/icon.svg`.
 - Social preview image: generated at build time by

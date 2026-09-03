@@ -586,3 +586,42 @@ describe("Phase C — offerings boundaries", () => {
     expect(page).toContain("contactHref");
   });
 });
+describe("Phase S — SEO & structured-data boundaries", () => {
+  it("the pure SEO metadata helpers are framework- and config-free", () => {
+    const source = readFileSync(
+      path.join(srcDirectory, "core", "seo-metadata.ts"),
+      "utf8",
+    );
+    expect(source).not.toMatch(/from ["']next/);
+    expect(source).not.toMatch(/from ["']react/);
+    expect(source).not.toMatch(/from ["']@\/adapters/);
+    expect(source).not.toMatch(/from ["']@\/config/);
+  });
+
+  it("structured data consumes the same business-resolution seam as the visible UI", () => {
+    const globalData = readFileSync(
+      path.join(srcDirectory, "components", "site", "structured-data.tsx"),
+      "utf8",
+    );
+    const businessInfo = readFileSync(
+      path.join(srcDirectory, "components", "site", "business-info.tsx"),
+      "utf8",
+    );
+    // Global JSON-LD and the footer NAP share the SAME resolver — no
+    // independent copy that could drift from the visible identity.
+    expect(globalData).toContain("resolveBusinessForLocale");
+    expect(businessInfo).toContain("resolveBusinessForLocale");
+  });
+
+  it("offering structured data is provider-neutral and never implies commerce", () => {
+    const source = readFileSync(
+      path.join(srcDirectory, "components", "site", "offering-structured-data.tsx"),
+      "utf8",
+    );
+    expect(source).not.toMatch(/from ["']@\/adapters/);
+    expect(source).not.toContain("siteConfig");
+    // The emitted `offers` object never carries a `priceCurrency` assignment.
+    expect(source).not.toMatch(/priceCurrency\s*:/);
+    expect(source).not.toMatch(/cart|checkout|payment/i);
+  });
+});
