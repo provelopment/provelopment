@@ -33,3 +33,16 @@ export type {
 
 export { uiPresetProfiles } from "./presets";
 export type { UiCapabilityLevel, UiPresetCapabilities, UiPresetProfile } from "./presets";
+
+export { FOUNDATION_UI_DEFAULTS } from "./defaults";
+export type { UiFoundationDefaults } from "./defaults";
+
+export {
+  assertResolvedUiConfigComplete,
+  UiConfigResolutionError,
+  resolveUiConfig,
+} from "./resolve";
+export type {
+  ResolvedUiConfig,
+  UiConfigResolutionIssue,
+} from "./resolve";

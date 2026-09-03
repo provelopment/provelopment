@@ -974,18 +974,62 @@ values fail the build with an actionable message.
 ### Precedence model
 
 ```text
-Foundation defaults
+Explicit developer override (ui.* leaf)
+        ↓        (only when an explicit preset is present)
+Preset profile leaf (uiPresetProfiles[preset])
         ↓
-Preset defaults
+Foundation default (FOUNDATION_UI_DEFAULTS)
         ↓
-Developer overrides
+Completeness invariant (assertResolvedUiConfigComplete)
         ↓
-Resolved UI configuration
+Resolved UI configuration (ResolvedUiConfig)
 ```
 
-UI-01 fixes the **model and the types only**. UI-02 implements the machinery:
-defaults application, preset inheritance, override merging, and
-developer-facing configuration errors.
+UI-01 fixed the model and the types. **UI-02 delivers the single resolution
+machinery** — `src/core/ui/resolve.ts` (`resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig`,
+pure, deterministic, framework-free, with the exported completeness guard
+`assertResolvedUiConfigComplete`). The resolver never depends on the
+configuration layer: the input shape `UiConfigInput` mirrors the validated
+`UiConfig` surface structurally and lives in core (`siteConfig.ui` is directly
+assignable to it).
+
+### Foundation-level defaults (UI-02, owner-approved)
+
+`src/core/ui/defaults.ts` — neutral platform defaults; no business action is
+ever invented:
+
+| Leaf | Foundation default |
+| --- | --- |
+| `shell.header` / `shell.footer` | `standard` |
+| `navigation.desktop` | `top` |
+| `navigation.tablet` | `top-compact` |
+| `navigation.mobile` | `drawer` |
+| `density` | `comfortable` |
+| `content.width` | `standard` |
+| `cta.enabled` | `false` |
+| `cta.action` / `cta.label` | `undefined` (adopter-only business strings) |
+| `cta.style` | preset profile → `standard` |
+| `theme.mode` | `system` |
+| `theme.radius` | `medium` |
+
+### No preset is ever selected by resolution (transitional decision, preserved)
+
+`preset` is the ONLY leaf with a different rule: an explicit `ui.preset` is
+preserved; when omitted, `resolveUiConfig` yields `preset === undefined` — no
+constant, no schema default, no loader inference, no resolver fallback. The
+Foundation-defaults layer contains no preset selection. The resolved default
+preset remains a **UI-05 policy decision** (UI-02 establishes the resolution
+mechanism; UI-05 establishes the Adaptive default policy — it may make a small,
+intentional evolution to the mechanism then, reviewed as part of UI-05).
+
+### Completeness & error behavior
+
+The completeness invariant guarantees a fully-determined resolved config:
+every leaf that must resolve is defined (the adopter-only `cta.action`/`cta.label`
+legitimately stay `undefined`), and vocab-backed leaves stay within the shipped
+`src/core/ui/vocabulary` enums. Violations throw `UiConfigResolutionError`
+listing exact leaf paths — future preset-profile or Foundation-default additions
+fail loudly at resolution time rather than silently resolving to `undefined`.
 
 ### The five presets are composable configurations, not implementations
 
@@ -1025,13 +1069,13 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 
 ### Boundaries
 
-| Concern | Owner |
-| --- | --- |
-| Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 |
-| Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 |
-| Shared UI primitives | UI-03 |
-| Shell orchestration & responsive shell behavior | UI-04 |
-| Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 |
+| Concern | Owner | Status |
+| --- | --- | --- |
+| Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 | ✅ shipped |
+| Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 | ✅ shipped (`resolveUiConfig` / `FOUNDATION_UI_DEFAULTS`) |
+| Shared UI primitives | UI-03 | not started |
+| Shell orchestration & responsive shell behavior | UI-04 | not started (will consume the resolved configuration) |
+| Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 | not started (the deliberate default decision point) |
 
 ## AI Development
 
