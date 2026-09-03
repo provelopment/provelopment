@@ -2,6 +2,19 @@ import { z } from "zod";
 
 import { isCalendarDate } from "@/core/region";
 import { isIanaTimeZone } from "@/core/business-hours";
+import {
+  CONTENT_WIDTHS,
+  CTA_ACTIONS,
+  CTA_STYLES,
+  DESKTOP_NAVIGATION_PATTERNS,
+  MOBILE_NAVIGATION_PATTERNS,
+  SHELL_VARIANTS,
+  TABLET_NAVIGATION_PATTERNS,
+  THEME_MODES,
+  THEME_RADII,
+  UI_DENSITIES,
+  UI_PRESETS,
+} from "@/core/ui";
 
 /**
  * Schema contract for `site.config.json`.
@@ -483,6 +496,108 @@ export const featuresConfigSchema = z.object({
   blog: z.boolean().optional(),
 });
 
+/**
+ * UI system configuration namespace (UI-01 — Architecture & Contract).
+ *
+ * Optional, intent-level configuration (roadmap §11). Every single value is
+ * OPTIONAL: an absent `ui` block, an empty `{}` block, and a block with
+ * `preset` omitted all parse successfully. The contract fixes NO default
+ * preset and nothing injects one — resolution (defaults, overrides, merging)
+ * is a UI-02 responsibility and the resolved default is fixed at UI-05.
+ *
+ * The allowed values derive from `src/core/ui/vocabulary.ts`. Unknown keys are
+ * rejected loudly (a config typo must never be silently ignored — same
+ * convention as the region schedule), and unknown enum values fail with the
+ * full expected list in the message.
+ *
+ * The block is validated here but NOT consumed by rendering until later
+ * phases; during the UI-01 transition an absent or partial block changes
+ * nothing at runtime.
+ */
+
+const shellVariantMessage = `must be one of: ${SHELL_VARIANTS.join(", ")}`;
+
+const uiShellSchema = z
+  .object({
+    header: z.enum(SHELL_VARIANTS, { message: shellVariantMessage }).optional(),
+    footer: z.enum(SHELL_VARIANTS, { message: shellVariantMessage }).optional(),
+  })
+  .strict();
+
+const uiNavigationSchema = z
+  .object({
+    desktop: z
+      .enum(DESKTOP_NAVIGATION_PATTERNS, {
+        message: `must be one of: ${DESKTOP_NAVIGATION_PATTERNS.join(", ")}`,
+      })
+      .optional(),
+    tablet: z
+      .enum(TABLET_NAVIGATION_PATTERNS, {
+        message: `must be one of: ${TABLET_NAVIGATION_PATTERNS.join(", ")}`,
+      })
+      .optional(),
+    mobile: z
+      .enum(MOBILE_NAVIGATION_PATTERNS, {
+        message: `must be one of: ${MOBILE_NAVIGATION_PATTERNS.join(", ")}`,
+      })
+      .optional(),
+  })
+  .strict();
+
+const uiContentSchema = z
+  .object({
+    width: z
+      .enum(CONTENT_WIDTHS, {
+        message: `must be one of: ${CONTENT_WIDTHS.join(", ")}`,
+      })
+      .optional(),
+  })
+  .strict();
+
+const uiCtaSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    action: z
+      .enum(CTA_ACTIONS, { message: `must be one of: ${CTA_ACTIONS.join(", ")}` })
+      .optional(),
+    label: z.string().min(1, "must not be empty").optional(),
+    style: z
+      .enum(CTA_STYLES, { message: `must be one of: ${CTA_STYLES.join(", ")}` })
+      .optional(),
+  })
+  .strict();
+
+const uiThemeSchema = z
+  .object({
+    mode: z
+      .enum(THEME_MODES, { message: `must be one of: ${THEME_MODES.join(", ")}` })
+      .optional(),
+    radius: z
+      .enum(THEME_RADII, { message: `must be one of: ${THEME_RADII.join(", ")}` })
+      .optional(),
+  })
+  .strict();
+
+export const uiConfigSchema = z
+  .object({
+    /**
+     * Explicit preset selection. Optional: NO default is injected — the
+     * resolved default preset is decided by UI-05, not by this contract.
+     */
+    preset: z
+      .enum(UI_PRESETS, { message: `must be one of: ${UI_PRESETS.join(", ")}` })
+      .optional(),
+    shell: uiShellSchema.optional(),
+    navigation: uiNavigationSchema.optional(),
+    density: z
+      .enum(UI_DENSITIES, { message: `must be one of: ${UI_DENSITIES.join(", ")}` })
+      .optional(),
+    content: uiContentSchema.optional(),
+    cta: uiCtaSchema.optional(),
+    theme: uiThemeSchema.optional(),
+  })
+  .strict();
+
 export const siteConfigFileSchema = z.object({
   site: siteSettingsSchema,
   i18n: i18nConfigSchema,
@@ -499,4 +614,11 @@ export const siteConfigFileSchema = z.object({
    * alone never exposes a route.
    */
   legal: z.array(legalEntrySchema).optional(),
+  /**
+   * UI system configuration (UI-01). Optional, intent-level contract
+   * namespace; see ARCHITECTURE.md — UI System Architecture & Configuration
+   * Contract. Validated here, consumed from UI-02 onwards; an absent block
+   * changes nothing at runtime.
+   */
+  ui: uiConfigSchema.optional(),
 });

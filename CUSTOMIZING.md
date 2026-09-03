@@ -23,12 +23,25 @@ fail the build with actionable error messages.
 | `socialLinks` | Footer/header social links |
 | `navigation` | Header navigation entries (label + href) |
 | `features` | Feature flags, e.g. `analytics.provider` |
+| `ui` (reserved, UI-01) | Intent-level UI namespace — validated, **not yet consumed**; see below |
 
 Set `site.url` to your final production origin before go-live — it drives
 the sitemap, canonical URLs, and hreflang alternates.
 
 Read configuration only through the loader exports from `src/config`; never
 import the JSON file directly from components.
+
+### The `ui` namespace (UI-01 — contract only, not yet consumed)
+
+The optional top-level `ui` key reserves the intent-level UI configuration
+namespace (preset, shell, navigation, density, content width, CTA, theme).
+Values are validated at build time, so a typo still fails loudly. **As of
+UI-01, nothing reads `ui` yet** — adding or editing it has no visual effect
+until later phases consume the contract (`plan/master-ui-phase.md`). No
+default preset is fixed: omitting `preset` leaves it undefined, and the
+Foundation's resolved default is decided when the Adaptive preset ships
+(UI-05). The shipped example block describes the current experience
+semantically, with `preset` intentionally omitted.
 
 ## 2. Content — Markdown Pages
 

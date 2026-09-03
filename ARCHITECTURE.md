@@ -935,6 +935,104 @@ at **`src/app/[locale]/global-error.tsx`** — it still renders its own
 remains intentionally minimal and unlocalized because the root layout (and with
 it the header, footer, and known locale) is exactly what failed.
 
+## UI System Architecture & Configuration Contract (UI program)
+
+The Foundation UI system is governed by `plan/foundation_ui_roadmap.md` (what)
+and `plan/master-ui-phase.md` (the sequential implementation phases). UI-01
+(this milestone) establishes the **contract layer only**: the `ui`
+configuration namespace, the five-preset model, the precedence model (types
+only), and the boundaries later phases build against. It introduces no new
+rendering, no shell, and no responsive behavior; the existing classic-style
+composition in `src/app/[locale]/layout.tsx` is the pre-UI rendering and
+remains untouched until later phases consume the contract.
+
+### Configuration namespace
+
+Intent-level configuration lives under the optional top-level `ui` key in
+`site.config.json` (roadmap §11). Configuration describes intent; the
+Foundation handles implementation — the namespace contains no pixel-level
+switches.
+
+| Key | Vocabulary | Meaning |
+| --- | --- | --- |
+| `preset` | `classic` \| `adaptive` \| `focus` \| `workspace` \| `immersive` | Explicit preset selection |
+| `shell.header` / `shell.footer` | `standard` \| `minimal` | Page-frame intent |
+| `navigation.desktop` | `top` \| `sidebar` \| `minimal` \| `floating` | Desktop composition override |
+| `navigation.tablet` | `top-compact` \| `collapsed-sidebar` \| `minimal` \| `floating` | Tablet composition override |
+| `navigation.mobile` | `drawer` \| `bottom-bar` \| `top` \| `overlay` | Mobile composition override |
+| `density` | `compact` \| `comfortable` \| `spacious` | Overall density intent |
+| `content.width` | `narrow` \| `standard` \| `wide` \| `full` | Content area width intent |
+| `cta.enabled/action/label/style` | boolean / semantic action / string / `standard` \| `prominent` | Primary CTA intent |
+| `theme.mode` / `theme.radius` | `system` \| `light` \| `dark` / `none` \| `small` \| `medium` \| `large` | Visual theme intent |
+
+Every value is validated by `src/config/schema.ts` (`uiConfigSchema`) and flows
+through the single validated loader path as `siteConfig.ui`. The allowed values
+derive from `src/core/ui/vocabulary.ts` (framework-neutral) — the single source
+of truth shared by the schema and the preset profiles. Unknown keys and invalid
+values fail the build with an actionable message.
+
+### Precedence model
+
+```text
+Foundation defaults
+        ↓
+Preset defaults
+        ↓
+Developer overrides
+        ↓
+Resolved UI configuration
+```
+
+UI-01 fixes the **model and the types only**. UI-02 implements the machinery:
+defaults application, preset inheritance, override merging, and
+developer-facing configuration errors.
+
+### The five presets are composable configurations, not implementations
+
+Each preset (`classic`, `adaptive`, `focus`, `workspace`, `immersive`) is a
+semantic profile in `src/core/ui/presets.ts`: its per-viewport navigation
+composition, shell intent, CTA prominence, and its row of the roadmap §24
+capability matrix. Presets describe what a UX personality means; later phases
+compose shared primitives (UI-03) under a shell engine (UI-04). No preset gets
+a bespoke implementation.
+
+### No UI-01 default preset (transitional architectural decision)
+
+The resolved default preset is **intentionally undefined at the UI-01 contract
+level**. `ui.preset` is optional, no constant or loader injects a value, and
+`{}` as well as `{ "ui": { "density": "comfortable" } }` parse with
+`preset === undefined`. UI-05 is the phase that delivers Adaptive and fixes it
+as the resolved/recommended Foundation default, recording it there. This is an
+intentional, transitional state, not uncertainty about the Foundation's
+eventual direction: during the transition the existing classic-style rendering
+stays in place because the contract is not yet consumed.
+
+### Theme/layout separation
+
+`preset` selects layout & interaction personality; `theme` selects visual
+styling. Visual styling stays token-driven in `src/app/globals.css` (Phase D).
+A client-side theme controller for explicit `light`/`dark` modes is a
+later-phase concern and is not introduced by the contract.
+
+### Accessibility contract
+
+Every later UI phase ships accessibility as part of the implementation
+(master-ui-phase §22): semantic landmarks, full keyboard operability, the
+single `--ring` focus contract, correct focus management for drawer/overlay/
+bottom-bar patterns, adequate touch targets, `prefers-reduced-motion` support,
+and WCAG 2.1 AA contrast (existing token pairs remain enforced by
+`tests/unit/design-tokens.test.ts`).
+
+### Boundaries
+
+| Concern | Owner |
+| --- | --- |
+| Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 |
+| Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 |
+| Shared UI primitives | UI-03 |
+| Shell orchestration & responsive shell behavior | UI-04 |
+| Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 |
+
 ## AI Development
 
 The repository is intentionally designed to provide strong context for AI
