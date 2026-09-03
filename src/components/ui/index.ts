@@ -1,0 +1,48 @@
+/**
+ * Shared UI primitives (UI-03).
+ *
+ * Barrel for the preset-agnostic, prop-driven presentation primitives the
+ * Shell Engine (UI-04) will compose and the presets (UI-05+) will reuse.
+ *
+ * IMPORTANT: importing from this barrel is allowed at the FRAMEWORK/UI layer
+ * only. These components never import configuration, core, adapters, the
+ * resolved UI configuration, or any preset — the architectural boundary tests
+ * in `tests/architecture/boundaries.test.ts` enforce this.
+ */
+export { AppShell } from "./app-shell";
+export type { AppShellProps } from "./app-shell";
+
+export { Navigation } from "./navigation";
+export type { NavigationProps } from "./navigation";
+
+export { NavItem } from "./nav-item";
+export type { NavItemModel, NavItemProps } from "./nav-item";
+
+export { NavGroup } from "./nav-group";
+export type { NavGroupProps } from "./nav-group";
+
+export { NavCta } from "./nav-cta";
+export type { NavCtaProps } from "./nav-cta";
+
+export { NavBadge } from "./nav-badge";
+export type { NavBadgeProps } from "./nav-badge";
+
+export { BottomNavigation } from "./bottom-navigation";
+export type { BottomNavigationProps } from "./bottom-navigation";
+
+export { Sidebar } from "./sidebar";
+export type { SidebarProps } from "./sidebar";
+
+export { Drawer } from "./drawer";
+export type { DrawerProps } from "./drawer";
+
+export { OverlayNavigation } from "./overlay-navigation";
+export type { OverlayNavigationProps } from "./overlay-navigation";
+
+export {
+  DISCLOSURE_CLOSED,
+  DISCLOSURE_OPEN,
+  createInitialDisclosure,
+  disclosureReducer,
+} from "./state";
+export type { DisclosureAction, DisclosureState } from "./state";
