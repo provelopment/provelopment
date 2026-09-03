@@ -709,6 +709,42 @@ cross-cutting contract rather than rebuilt:
   milestone ships as **`v2026.09.03-foundation-phase-i-outbound-seams`**.
 
 ### Locale integration (Phase G composing)
+### Trust & publishing primitives (Phase T)
+
+Testimonials, portfolio/case studies, and the filesystem blog extend the SAME
+content/config → pure resolution → boundary → presentation pipeline as the
+foundational collections (pages, offerings, legal) — no new service layer, no
+CMS, no provider.
+
+- **Collections.** `content/testimonials/`, `content/portfolio/`,
+  `content/posts/` are served by the existing `fs-page-content-repository`
+  (dedicated parsers per collection; default-locale fallback; canonical-set =
+  default-locale slugs with offerings-style enforcement). Route directories
+  (`/testimonials`, `/portfolio`, `/blog`) take precedence over the `[item]`
+  dynamic route and are listed in its `STATIC_ROUTE_SLUGS` defensively.
+- **Chrome + feature gating.** `features.testimonials/portfolio/blog` are
+  booleans (content existence, exposure, and `navigation[]` are separate, as
+  with offerings). Optional dictionary sections with an F1-style
+  `assertDictionarySectionPresent` lock: feature on ⇒ every configured locale
+  has the chrome block, else the build fails naming offenders. Article /
+  testimonial / case-study BODIES are never translation-gated (default-locale
+  fallback is the established contract).
+- **Blog + RSS.** `draft: true` posts are excluded from routes, sitemap, and
+  RSS. Reading time is a deterministic pure helper (latin words + CJK chars,
+  ~200 tokens/min). `buildRssXml` produces fully-escaped RSS 2.0; a static
+  per-locale `/blog/rss.xml` route handler is pre-rendered at build time and
+  linked from `/blog` (`alternates.types`). RSS is a publishing primitive, not
+  an SEO mechanism — no `BlogPosting`/`Review`/`AggregateRating` JSON-LD.
+- **Deterministic route accounting.** The demo inventory is locked: 3
+  testimonials (no detail routes), 2 portfolio items, 3 post files (2
+  published). That yields exactly 7 new HTML routes per locale (× 9 = 63;
+  139 → **202** prerendered HTML pages), 63 new sitemap `<loc>` entries
+  (129 → **192**), and 9 static RSS artifacts (2 items each; drafts never
+  present). The build gate asserts these exact numbers.
+- **Demo content is template/demo.** Testimonials use `Demo Client` /
+  `Demo Partner` placeholders and honest template wording; portfolio and blog
+  bodies are clearly marked template. Adopters must replace them before
+  publishing — the template never fabricates real customer evidence.
 ### Locale integration (Phase G composing)
 
 Maps composes with the Phase G locale resolution — there is no second

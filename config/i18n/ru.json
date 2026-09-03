@@ -17,7 +17,10 @@
       "/about": "О нас",
       "/resources": "Ресурсы",
       "/offerings": "Услуги",
-      "/connect": "Связаться"
+      "/connect": "Связаться",
+      "/testimonials": "Отзывы",
+      "/portfolio": "Портфолио",
+      "/blog": "Блог"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "Эл. почта",
       "phone": "Телефон"
     }
+  },
+  "testimonials": {
+    "heading": "Отзывы",
+    "emptyState": "Отзывов пока нет.",
+    "featured": "Избранное",
+    "ratingAria": "Оценка {rating} из 5"
+  },
+  "portfolio": {
+    "heading": "Портфолио",
+    "emptyState": "Проектов пока нет.",
+    "featured": "Избранное",
+    "tags": "Теги",
+    "backToPortfolio": "Вернуться в портфолио"
+  },
+  "blog": {
+    "heading": "Блог",
+    "emptyState": "Записей пока нет.",
+    "backToBlog": "Вернуться в блог",
+    "readingTime": "Чтение: {count} мин",
+    "rss": "RSS-лента"
   }
 }

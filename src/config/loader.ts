@@ -67,6 +67,9 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     bookingFeature: json.features?.booking,
     contactFeature: json.features?.contact,
     offeringsFeature: json.features?.offerings,
+    testimonialsFeature: json.features?.testimonials,
+    portfolioFeature: json.features?.portfolio,
+    blogFeature: json.features?.blog,
     legal: json.legal,
   };
 }

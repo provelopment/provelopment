@@ -346,9 +346,21 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
 describe("buildSitemapRoutes (content-driven, feature-gated)", () => {
   const pages = ["about", "contact", "resources"];
   const canonicalOfferings = ["consultation", "gift-card", "starter-package"];
+  const trustContentDisabled = {
+    testimonialsEnabled: false,
+    portfolioEnabled: false,
+    canonicalPortfolio: [] as readonly string[],
+    blogEnabled: false,
+    publishedBlogSlugs: [] as readonly string[],
+  };
 
   it("includes page routes and, when enabled, the offerings listing + details", () => {
-    const routes = buildSitemapRoutes({ offeringsEnabled: true, pages, canonicalOfferings });
+    const routes = buildSitemapRoutes({
+      offeringsEnabled: true,
+      pages,
+      canonicalOfferings,
+      ...trustContentDisabled,
+    });
     expect(routes).toEqual([
       "",
       "/about",
@@ -362,13 +374,23 @@ describe("buildSitemapRoutes (content-driven, feature-gated)", () => {
   });
 
   it("omits offering routes entirely when the feature is disabled", () => {
-    const routes = buildSitemapRoutes({ offeringsEnabled: false, pages, canonicalOfferings });
+    const routes = buildSitemapRoutes({
+      offeringsEnabled: false,
+      pages,
+      canonicalOfferings,
+      ...trustContentDisabled,
+    });
     expect(routes).not.toContain("/offerings");
     expect(routes).toEqual(["", "/about", "/contact", "/resources"]);
   });
 
   it("still includes the empty listing route when enabled with no offerings", () => {
-    const routes = buildSitemapRoutes({ offeringsEnabled: true, pages, canonicalOfferings: [] });
+    const routes = buildSitemapRoutes({
+      offeringsEnabled: true,
+      pages,
+      canonicalOfferings: [],
+      ...trustContentDisabled,
+    });
     expect(routes).toContain("/offerings");
     expect(routes).not.toContain("/offerings/");
   });

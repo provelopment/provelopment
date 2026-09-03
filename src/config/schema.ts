@@ -459,6 +459,24 @@ export const featuresConfigSchema = z.object({
    * independently of `navigation[]` and of the presence of content.
    */
   offerings: z.boolean().optional(),
+  /**
+   * Testimonials collection (Phase T). Boolean flag: when `true` the
+   * `/testimonials` listing route is enabled and exposed (and included in the
+   * sitemap). Content existence is `content/testimonials/`; discoverability is
+   * `navigation[]` — the same triple separation as offerings.
+   */
+  testimonials: z.boolean().optional(),
+  /**
+   * Portfolio / case studies collection (Phase T). When `true`, `/portfolio`
+   * listing + `/portfolio/[slug]` detail routes are enabled and sitemapped.
+   */
+  portfolio: z.boolean().optional(),
+  /**
+   * Filesystem blog (Phase T). When `true`, `/blog` + `/blog/[slug]` detail +
+   * per-locale static `/blog/rss.xml` are enabled. Draft posts (frontmatter
+   * `draft: true`) are excluded from routes, sitemap, and RSS.
+   */
+  blog: z.boolean().optional(),
 });
 
 export const siteConfigFileSchema = z.object({

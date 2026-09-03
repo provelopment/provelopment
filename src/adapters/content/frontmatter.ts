@@ -1,6 +1,11 @@
 import type { Locale } from "@/core/locale";
 import type { PageContent } from "@/core/page-content";
 import type { OfferingAction, OfferingsContent } from "@/core/offerings";
+import type { PortfolioItem } from "@/core/portfolio";
+import type { PostContent } from "@/core/posts";
+import { POST_DATE_PATTERN } from "@/core/posts";
+import type { TestimonialContent } from "@/core/testimonials";
+import { isValidRating } from "@/core/testimonials";
 
 const frontmatterPattern = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/;
 
@@ -353,4 +358,108 @@ export function parseOfferingsFile(raw: string, slug: string, locale: Locale): O
   const action = parseAction(values, slug);
 
   return { slug, locale, title, blurb, body, order, featured, price, image, deliverables, faq, action };
+}
+
+/** Optional trimmed string helper (undefined when absent). */
+function optionalString(
+  values: Readonly<Record<string, unknown>>,
+  key: string,
+  slug: string,
+): string | undefined {
+  const value = values[key];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error(`Invalid "${key}" in content file "${slug}": expected a non-empty string.`);
+  }
+  return value.trim();
+}
+
+/** Optional string-list helper (validates non-empty string items). */
+function optionalStringList(
+  values: Readonly<Record<string, unknown>>,
+  key: string,
+  slug: string,
+): readonly string[] | undefined {
+  if (values[key] === undefined) return undefined;
+  const raw = values[key];
+  if (!Array.isArray(raw) || raw.some((item) => typeof item !== "string" || item.trim().length === 0)) {
+    throw new Error(
+      `Invalid "${key}" in content file "${slug}": expected a list of non-empty strings.`,
+    );
+  }
+  return raw.map((item) => (item as string).trim());
+}
+
+export function parseTestimonialsFile(
+  raw: string,
+  slug: string,
+  locale: Locale,
+): TestimonialContent {
+  const { values, body } = parseFrontmatter(raw, slug);
+  // The canonical quote lives in frontmatter; the Markdown body is unused.
+  const author = requiredString(values, "author", slug);
+  const quote = requiredString(values, "quote", slug);
+  const role = optionalString(values, "role", slug);
+  const company = optionalString(values, "company", slug);
+
+  let rating: number | undefined;
+  if (values.rating !== undefined) {
+    const value = values.rating;
+    if (typeof value !== "number" || !isValidRating(value)) {
+      throw new Error(
+        `Invalid "rating" in content file "${slug}": expected an integer between 1 and 5.`,
+      );
+    }
+    rating = value;
+  }
+
+  const featured = typeof values.featured === "boolean" ? values.featured : undefined;
+  const order = typeof values.order === "number" ? values.order : undefined;
+
+  return {
+    slug,
+    locale,
+    title: author,
+    body,
+    author,
+    role,
+    company,
+    rating,
+    quote,
+    featured,
+    order,
+  };
+}
+
+export function parsePortfolioFile(raw: string, slug: string, locale: Locale): PortfolioItem {
+  const { values, body } = parseFrontmatter(raw, slug);
+  const title = requiredString(values, "title", slug);
+  const summary = requiredString(values, "summary", slug);
+  const year = typeof values.year === "number" ? values.year : undefined;
+  const tags = optionalStringList(values, "tags", slug);
+  const image = optionalString(values, "image", slug);
+  const featured = typeof values.featured === "boolean" ? values.featured : undefined;
+  const order = typeof values.order === "number" ? values.order : undefined;
+
+  return { slug, locale, title, summary, body, year, tags, featured, order, image };
+}
+
+export function parsePostFile(raw: string, slug: string, locale: Locale): PostContent {
+  const { values, body } = parseFrontmatter(raw, slug);
+  const title = requiredString(values, "title", slug);
+  const excerpt = requiredString(values, "excerpt", slug);
+
+  const dateValue = values.date;
+  if (typeof dateValue !== "string" || !POST_DATE_PATTERN.test(dateValue)) {
+    throw new Error(
+      `Invalid "date" in content file "${slug}": expected an ISO date in YYYY-MM-DD format.`,
+    );
+  }
+  const date = dateValue;
+
+  const tags = optionalStringList(values, "tags", slug);
+  const image = optionalString(values, "image", slug);
+  const draft = typeof values.draft === "boolean" ? values.draft : undefined;
+
+  return { slug, locale, title, excerpt, body, date, tags, image, draft };
 }

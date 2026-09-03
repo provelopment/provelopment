@@ -47,6 +47,25 @@ describe("parseSiteConfig", () => {
     expect(config.analytics).toEqual({ provider: "none" });
   });
 
+  it("maps the Phase T content feature flags through (testimonials/portfolio/blog)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { testimonials: true, portfolio: true, blog: true },
+    });
+
+    expect(config.testimonialsFeature).toBe(true);
+    expect(config.portfolioFeature).toBe(true);
+    expect(config.blogFeature).toBe(true);
+  });
+
+  it("treats absent Phase T feature flags as disabled", () => {
+    const config = parseSiteConfig(validConfig);
+
+    expect(config.testimonialsFeature).toBeUndefined();
+    expect(config.portfolioFeature).toBeUndefined();
+    expect(config.blogFeature).toBeUndefined();
+  });
+
   it("accepts empty contact details", () => {
     const config = parseSiteConfig({ ...validConfig, contact: {} });
 

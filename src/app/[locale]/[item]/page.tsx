@@ -34,6 +34,12 @@ const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
   "connect",
   "contact",
   "resources",
+  // Phase T: dedicated collection routes (dedicated directories already take
+  // precedence; listed here so a future content-page file with the same slug
+  // can never double-route).
+  "testimonials",
+  "portfolio",
+  "blog",
 ]);
 
 /**

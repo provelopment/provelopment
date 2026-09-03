@@ -17,7 +17,10 @@
       "/about": "Über uns",
       "/resources": "Ressourcen",
       "/offerings": "Angebote",
-      "/connect": "Verbinden"
+      "/connect": "Verbinden",
+      "/testimonials": "Erfahrungsberichte",
+      "/portfolio": "Portfolio",
+      "/blog": "Blog"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "E-Mail",
       "phone": "Telefon"
     }
+  },
+  "testimonials": {
+    "heading": "Erfahrungsberichte",
+    "emptyState": "Noch keine Erfahrungsberichte.",
+    "featured": "Empfohlen",
+    "ratingAria": "{rating} von 5"
+  },
+  "portfolio": {
+    "heading": "Portfolio",
+    "emptyState": "Noch keine Projekte.",
+    "featured": "Empfohlen",
+    "tags": "Tags",
+    "backToPortfolio": "Zurück zum Portfolio"
+  },
+  "blog": {
+    "heading": "Blog",
+    "emptyState": "Noch keine Beiträge.",
+    "backToBlog": "Zurück zum Blog",
+    "readingTime": "{count} Min. Lesezeit",
+    "rss": "RSS-Feed"
   }
 }

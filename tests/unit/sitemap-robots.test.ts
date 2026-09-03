@@ -72,3 +72,35 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
     }
   });
 });
+describe("Phase T — trust/publishing sitemap contract (locked exact inventory)", () => {
+  it("emits exactly 7 new Phase T routes per locale (total 192 locs = 129 baseline + 63)", async () => {
+    const entries = await sitemap();
+    const urls = entries.map((entry) => entry.url);
+
+    expect(urls).toHaveLength(192);
+
+    for (const { code } of siteConfig.locales) {
+      // Listings.
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/testimonials`);
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/portfolio`);
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/blog`);
+      // Portfolio details (2 canonical).
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/portfolio/brand-refresh`);
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/portfolio/digital-presence`);
+      // Blog details (2 PUBLISHED — the draft is excluded).
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/blog/launch-checklist`);
+      expect(urls, code).toContain(`${siteConfig.url}/${code}/blog/getting-started`);
+      expect(urls, code).not.toContain(`${siteConfig.url}/${code}/blog/post-draft`);
+      // RSS feeds are NOT part of the XML sitemap.
+      expect(urls, code).not.toContain(`${siteConfig.url}/${code}/blog/rss.xml`);
+    }
+  });
+
+  it("keeps every pre-existing sitemap invariant (robots + locale coverage)", async () => {
+    expect(robots().sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
+    const urls = (await sitemap()).map((entry) => entry.url);
+    for (const { code } of siteConfig.locales) {
+      expect(urls).toContain(`${siteConfig.url}/${code}`);
+    }
+  });
+});
