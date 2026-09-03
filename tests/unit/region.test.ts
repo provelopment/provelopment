@@ -154,11 +154,11 @@ describe("Phase M - page to region resolution (live demo config)", () => {
       expect(hasPageEntry(pageBindings, locale, region, null)).toBe(true);
       expect(hasPageEntry(pageBindings, locale, region, "about")).toBe(true);
       expect(hasPageEntry(pageBindings, locale, region, "connect")).toBe(true);
+      expect(hasPageEntry(pageBindings, locale, region, "offerings")).toBe(true);
     }
     // Regionally unbound pages are NOT exposed.
     expect(hasPageEntry(pageBindings, "en", "toronto", "resources")).toBe(false);
     expect(hasPageEntry(pageBindings, "en", "toronto", "contact")).toBe(false);
-    expect(hasPageEntry(pageBindings, "en", "toronto", "offerings")).toBe(false);
     // Unconfigured combinations must not exist.
     expect(hasPageEntry(pageBindings, "en", "berlin", null)).toBe(false);
     expect(hasPageEntry(pageBindings, "ja", "toronto", null)).toBe(false);

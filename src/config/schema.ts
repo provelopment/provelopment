@@ -283,6 +283,10 @@ const regionSchema = z.object({
   phone: z.string().min(1).optional(),
   email: z.email().optional(),
   hours: regionHoursSchema,
+  /** ISO 4217 currency code for this operating location (e.g. "AUD", "USD", "EUR"). */
+  currency: z.string().min(3).max(3).optional(),
+  /** Display symbol or prefix for the currency (e.g. "A$", "$", "€", "£", "¥"). */
+  currencySymbol: z.string().min(1).optional(),
 });
 
 /**

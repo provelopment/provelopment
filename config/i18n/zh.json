@@ -79,7 +79,10 @@
     "deliverables": "包含内容",
     "faq": "常见问题",
     "externalCta": "了解更多",
-    "backToOfferings": "返回服务列表"
+    "backToOfferings": "返回服务列表",
+    "disclaimerTitle": "模板演示说明",
+    "disclaimerBody": "以下列出的项目仅用于模板功能演示，并非 Provelopment Foundation 实际提供的业务或产品。您可以通过编辑 content/offerings/ 中的文件进行自定义配置，或在 site.config.json 中禁用此模块。",
+    "currencyNotice": "显示货币：{currency} ({symbol})。在位置菜单中选择运营城市可查看本地货币。"
   },
   "booking": {
     "book": "预约"

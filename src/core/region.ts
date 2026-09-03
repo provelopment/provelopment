@@ -107,6 +107,10 @@ export interface OperationalRegion {
   readonly phone?: string;
   readonly email?: string;
   readonly hours: RegionSchedule;
+  /** ISO 4217 currency code for this operating location (e.g. "AUD", "USD", "EUR"). */
+  readonly currency?: string;
+  /** Display symbol or prefix for the currency (e.g. "A$", "$", "€", "£", "¥"). */
+  readonly currencySymbol?: string;
 }
 
 /**

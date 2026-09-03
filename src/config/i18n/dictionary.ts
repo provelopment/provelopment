@@ -122,6 +122,12 @@ export const dictionarySchema = z.object({
     faq: z.string(),
     /** Phase C — default label for `intent: "external"` offering actions. */
     externalCta: z.string(),
+    /** Template demonstration disclaimer title. */
+    disclaimerTitle: z.string(),
+    /** Template demonstration disclaimer body. */
+    disclaimerBody: z.string(),
+    /** Template demonstration currency notice. */
+    currencyNotice: z.string(),
   }),
   /**
    * Booking action strings (Phase H). OPTIONAL: the booking capability is a

@@ -79,7 +79,10 @@
     "deliverables": "Yang termasuk",
     "faq": "Pertanyaan umum",
     "externalCta": "Pelajari lebih lanjut",
-    "backToOfferings": "Kembali ke layanan"
+    "backToOfferings": "Kembali ke layanan",
+    "disclaimerTitle": "Demonstrasi Templat",
+    "disclaimerBody": "Penawaran yang tercantum di bawah ini adalah contoh demonstrasi templat dan tidak ditawarkan oleh Provelopment Foundation. Anda dapat mengonfigurasinya dengan mengedit file di content/offerings/ atau menonaktifkannya di site.config.json.",
+    "currencyNotice": "Harga ditampilkan dalam {currency} ({symbol}). Pilih kota operasional di menu Lokasi untuk melihat mata uang lokal."
   },
   "booking": {
     "book": "Pesan sekarang"

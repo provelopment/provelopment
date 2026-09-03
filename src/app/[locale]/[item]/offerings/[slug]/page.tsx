@@ -9,7 +9,8 @@ import { OfferingStructuredData } from "@/components/site/offering-structured-da
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { resolveBusinessForLocale } from "@/core/business";
-import { buildLanguageAlternates } from "@/core/locale";
+import { regionDisplayName } from "@/core/display-labels";
+import { buildRegionalLanguageAlternates, hasPageEntry } from "@/core/regional-pages";
 import type { OfferingsContent } from "@/core/offerings";
 import { isCanonicalOffering, resolveOfferingAction, resolveOfferingPrice } from "@/core/offerings";
 import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
@@ -21,33 +22,33 @@ const offeringsRepository = createFileSystemPageContentRepository<OfferingsConte
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
-// Composition boundary (identical pattern to the home page): the booking
-// factory selects the booking adapter from validated configuration.
 const bookingActionResolver = createBookingActionResolver(siteConfig.bookingFeature);
 
-interface OfferingsDetailPageProps {
-  readonly params: Promise<{ readonly locale: string; readonly slug: string }>;
+interface RegionalOfferingsDetailPageProps {
+  readonly params: Promise<{ readonly locale: string; readonly item: string; readonly slug: string }>;
 }
 
-/**
- * Statically generates every canonical offering detail page (each locale ×
- * canonical slug). Non-canonical slugs return a 404 via `dynamicParams`.
- */
+export const dynamicParams = false;
+
 export async function generateStaticParams(): Promise<
-  { locale: string; slug: string }[]
+  { locale: string; item: string; slug: string }[]
 > {
   if (!siteConfig.offeringsFeature) return [];
 
   const canonicalSlugs = await offeringsRepository.listSlugs(siteConfig.defaultLocale);
-  return localeCodes.flatMap((locale) =>
-    canonicalSlugs.map((slug) => ({ locale, slug })),
+  const regionalOfferings = siteConfig.pageBindings.filter(
+    (binding) => binding.slug === "offerings",
+  );
+
+  return regionalOfferings.flatMap((binding) =>
+    canonicalSlugs.map((slug) => ({
+      locale: binding.locale,
+      item: binding.region,
+      slug,
+    })),
   );
 }
 
-/** Unknown slugs render the 404 instead of being rendered on demand. */
-export const dynamicParams = false;
-
-/** Canonical offering content for `slug`, or null when it should be a 404. */
 async function findCanonicalOffering(
   slug: string,
   locale: string,
@@ -62,27 +63,37 @@ async function findCanonicalOffering(
 
 export async function generateMetadata({
   params,
-}: OfferingsDetailPageProps): Promise<Metadata> {
-  const { locale, slug } = await params;
-  const content = await findCanonicalOffering(slug, locale);
+}: RegionalOfferingsDetailPageProps): Promise<Metadata> {
+  const { locale, item, slug } = await params;
+  const region = siteConfig.regions[item];
 
+  if (!region || !hasPageEntry(siteConfig.pageBindings, locale, item, "offerings")) {
+    return {};
+  }
+
+  const content = await findCanonicalOffering(slug, locale);
   if (!content) return {};
 
-  const title = content.title;
-  const canonical = `${siteConfig.url}/${locale}/offerings/${slug}`;
+  const regionLabel = regionDisplayName(locale, region);
+  const title = `${content.title} — ${regionLabel}`;
+  const canonical = `${siteConfig.url}/${locale}/${item}/offerings/${slug}`;
   const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
+  const alternates = buildRegionalLanguageAlternates({
+    baseUrl: siteConfig.url,
+    locales: localeCodes,
+    defaultLocale: siteConfig.defaultLocale,
+    entries: siteConfig.pageBindings,
+    region: item,
+    slug: `offerings/${slug}`,
+  });
 
   return {
     title,
     description: content.blurb,
     alternates: {
       canonical,
-      languages: buildLanguageAlternates({
-        baseUrl: siteConfig.url,
-        locales: localeCodes,
-        defaultLocale: siteConfig.defaultLocale,
-        path: `/offerings/${slug}`,
-      }),
+      languages: Object.keys(alternates).length > 0 ? alternates : undefined,
     },
     openGraph: buildOpenGraphData({
       baseUrl: siteConfig.url,
@@ -104,51 +115,50 @@ export async function generateMetadata({
   };
 }
 
-/**
- * `/offerings/[slug]` (Phase C). A requested slug is valid only when it is a
- * canonical (default-locale) offering; a locale-only slug (present in a
- * non-default locale but not in the default) is deliberately NOT rendered —
- * otherwise the slug/content relationship would be ambiguous, silently falling
- * back to English for a page that was never canonical. Disabled feature and
- * missing content both yield a proper 404.
- */
-export default async function OfferingsDetailPage({
+export default async function RegionalOfferingsDetailPage({
   params,
-}: OfferingsDetailPageProps) {
-  const { locale, slug } = await params;
-  const content = await findCanonicalOffering(slug, locale);
+}: RegionalOfferingsDetailPageProps) {
+  const { locale, item, slug } = await params;
 
+  if (!siteConfig.offeringsFeature) {
+    notFound();
+  }
+
+  if (!hasPageEntry(siteConfig.pageBindings, locale, item, "offerings")) {
+    notFound();
+  }
+
+  const region = siteConfig.regions[item];
+  if (!region) {
+    notFound();
+  }
+
+  const content = await findCanonicalOffering(slug, locale);
   if (!content) {
     notFound();
   }
 
   const dictionary = getDictionary(locale);
+  const regionLabel = regionDisplayName(locale, region);
 
-  // Composition boundary: resolve the booking seam + the localized internal
-  // contact destination, then run the pure core resolver. Core never sees the
-  // locale or the booking provider.
   const bookingAction = bookingActionResolver.resolve({ locale });
   const bookingHref = bookingAction.kind === "link" ? bookingAction.href : null;
 
   const resolvedAction = resolveOfferingAction(content.action, {
     bookingHref,
-    contactHref: `/${locale}/contact`,
+    contactHref: `/${locale}/${item}/connect`,
   });
 
-  // The CTA label is localized at the boundary: an explicit `action.label`
-  // override wins, otherwise the intent's dictionary default.
   const actionLabel =
     resolvedAction.kind === "link" && content.action
       ? content.action.label?.trim() || offeringActionLabel(content.action.intent, dictionary)
       : null;
 
-  // Provider identity for the `Service` JSON-LD — the SAME business-resolution
-  // seam the visible UI uses (never an independent copy).
   const business = resolveBusinessForLocale(siteConfig.business, locale);
 
   const offeringWithPrice = {
     ...content,
-    price: resolveOfferingPrice(content, null),
+    price: resolveOfferingPrice(content, region),
   };
 
   return (
@@ -156,21 +166,21 @@ export default async function OfferingsDetailPage({
       <OfferingDetail
         offering={offeringWithPrice}
         action={resolvedAction}
-        backHref={`/${locale}/offerings`}
+        backHref={`/${locale}/${item}/offerings`}
         labels={{
           deliverablesHeading: dictionary.offerings.deliverables,
           faqHeading: dictionary.offerings.faq,
           featuredBadge: dictionary.offerings.featured,
           actionLabel,
-          backToListing: dictionary.offerings.backToOfferings,
+          backToListing: `${dictionary.offerings.backToOfferings} (${regionLabel})`,
           disclaimerTitle: dictionary.offerings.disclaimerTitle,
           disclaimerBody: dictionary.offerings.disclaimerBody,
         }}
       />
       <OfferingStructuredData
         offering={content}
-        canonicalUrl={`${siteConfig.url}/${locale}/offerings/${content.slug}`}
-        providerName={business.name ?? siteConfig.name}
+        canonicalUrl={`${siteConfig.url}/${locale}/${item}/offerings/${content.slug}`}
+        providerName={region.name ?? business.name ?? siteConfig.name}
         providerType={business.type ?? "Organization"}
       />
     </>

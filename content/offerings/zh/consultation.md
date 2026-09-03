@@ -6,6 +6,8 @@ price: "$40起"
 featured: false
 ---
 
+> **演示说明：** 此服务/产品为模板演示样例，并非 Provelopment Foundation 实际提供的业务。如需配置真实服务，请编辑此文件。
+
 这是随 Provelopment Foundation 主题附带的一个演示服务。请替换为您自己的内容。
 
 对于正在探索某项服务或产品的用户来说，咨询是非常好的第一步。

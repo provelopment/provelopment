@@ -79,7 +79,10 @@
     "deliverables": "含まれるもの",
     "faq": "よくある質問",
     "externalCta": "詳しく見る",
-    "backToOfferings": "一覧に戻る"
+    "backToOfferings": "一覧に戻る",
+    "disclaimerTitle": "テンプレートのデモ",
+    "disclaimerBody": "以下に掲載されている商品・サービスはテンプレートのデモ用プレースホルダーであり、Provelopment Foundation が実際に提供しているものではありません。content/offerings/ 内のファイルを編集して独自のものに変更するか、site.config.json で無効化できます。",
+    "currencyNotice": "価格表示: {currency} ({symbol})。地域の通貨を確認するには、上のロケーションメニューから都市を選択してください。"
   },
   "booking": {
     "book": "予約する"
