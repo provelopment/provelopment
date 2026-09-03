@@ -9,6 +9,8 @@ import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
+import { resolveUiConfig } from "@/core/ui";
+import { ShellEngine } from "@/components/shell";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -22,6 +24,12 @@ const geistMono = Geist_Mono({
 });
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+// UI-04: the single resolved UI configuration (UI-02) drives the shell. The
+// shipped config (Foundation defaults) = classic top-bar ≥md + closed mobile
+// drawer <md — visually equivalent on desktop/tablet; the <md drawer is the
+// roadmap Classic mobile pattern the shipped config already declares.
+const resolvedUi = resolveUiConfig(siteConfig.ui ?? {});
 
 // Phase K: when operating regions are configured, the legacy global business
 // block is NOT merged into rendered pages. The layout suppresses the global
@@ -102,13 +110,18 @@ export default async function LocaleLayout({
         >
           {dictionary.a11y.skipToContent}
         </a>
-        <SiteHeader locale={locale} />
-        <main id="main" className="flex-1">
-          <ErrorMessagesProvider messages={dictionary.error}>
-            {children}
-          </ErrorMessagesProvider>
-        </main>
-        <SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />
+        <ShellEngine
+          resolved={resolvedUi}
+          header={<SiteHeader locale={locale} resolved={resolvedUi} />}
+          main={
+            <ErrorMessagesProvider messages={dictionary.error}>
+              {children}
+            </ErrorMessagesProvider>
+          }
+          footer={<SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />}
+          mainId="main"
+          mainClassName="flex-1"
+        />
         {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}
       </body>

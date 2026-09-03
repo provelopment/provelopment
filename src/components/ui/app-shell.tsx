@@ -33,6 +33,8 @@ export interface AppShellProps {
   readonly mobileNavigation?: ReactNode;
   /** Deterministic `id` for the `<main>` landmark (skip-link target). */
   readonly mainId: string;
+  /** Optional class for the `<main>` landmark (layout-fidelity, e.g. `flex-1`). */
+  readonly mainClassName?: string;
   /** Accessible label for the optional navigation landmark slot. */
   readonly navigationLabel?: string;
 }
@@ -46,6 +48,7 @@ export function AppShell({
   secondaryPanel,
   mobileNavigation,
   mainId,
+  mainClassName,
 }: AppShellProps) {
   return (
     <>
@@ -53,7 +56,7 @@ export function AppShell({
       {navigation ? (
         <nav aria-label={navigationLabel}>{navigation}</nav>
       ) : null}
-      <main id={mainId}>{main}</main>
+      <main id={mainId} className={mainClassName}>{main}</main>
       {secondaryPanel ? (
         <aside>{secondaryPanel}</aside>
       ) : null}
