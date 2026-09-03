@@ -16,5 +16,5 @@ All addresses, phones, and emails on this page are **fictional demonstration
 data**. Replace them with the real operating details of your business.
 
 This page is a regional page: `/fr/toronto` presents the same region through a
-French page, while `/en/vancouver` presents a different English region in a
+French page, while `/en/new-york` presents a different English region in a
 different timezone.

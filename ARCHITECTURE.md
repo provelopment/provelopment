@@ -423,7 +423,7 @@ Region = timezone + address + geo + contact + seven-day hours + holidays
   email, geo, hours, holidays, status, directions, and JSON-LD come ONLY from
   its resolved region — never inferred from locale, and never merged with the
   legacy global `business` block. `locale → timezone` is not a rule: `/en/toronto`
-  (America/Toronto) and `/en/vancouver` (America/Vancouver) are different
+  (America/Toronto) and `/en/los-angeles` (America/Los_Angeles) are different
   timezones for one locale; `/en/toronto` and `/fr/toronto` share one region.
 - **Consumers.** `components/site/region-block.tsx` renders the resolved
   region's visible identity (address, phone/email, IANA timezone, all seven
@@ -482,7 +482,7 @@ Page = locale + region + page      (e.g. /en/toronto/about)
 - **Page independence (per locale × region).** Any region may expose any page
   inventory under any locale (EN/Toronto {landing, about, contact};
   EN/Vancouver {landing, about}; FR/Montreal {landing, about}; …). The demo
-  proves same locale → different timezones (en/toronto vs en/vancouver), same
+  proves same locale → different timezones (en/toronto vs en/los-angeles), same
   region → multiple locales (en+fr toronto), and per-locale region sets
   (ja/ko/zh/es/id have no regions and no selector).
 - **SEO.** Regional pages emit canonical URLs, hreflang only for genuinely
@@ -836,7 +836,7 @@ Optional, config-driven legal pages reached from the footer (no index page).
   locale → default fallback (`findBySlug`: locale file first, then `en`). A
   localized body is served when present; otherwise the canonical (default) body
   is served — no Legal-specific translation system. The shipped demo docs are
-  localized to all 8 locales (identically-structured, generic, replaceable
+  localized to all 9 locales (identically-structured, generic, replaceable
   templates; no jurisdiction-specific claims).
 - **Sitemap/SEO:** legal slugs (config ∩ canonical) feed `buildSitemapRoutes`;
   each detail page emits canonical + hreflang. Missing translations use the
@@ -853,7 +853,7 @@ the content files — no per-locale schema, no dictionary involvement for bodies
 This applies uniformly to pages (`about`/`resources`/`contact`), offerings
 (`consultation`/`gift-card`/`starter-package`), and legal
 (`privacy`/`terms`/`cookies`). The shipped template localizes every one of these
-to all 8 locales; adopters who omit a locale still get a working page via the
+to all 9 locales; adopters who omit a locale still get a working page via the
 default-locale fallback. Localized frontmatter fields (e.g. offering
 `title`/`blurb`/`price`) travel in the same files and are served together with
 each locale's body. (Footer **labels** are dictionary-owned and independent —
