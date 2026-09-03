@@ -1046,6 +1046,35 @@ scroll locking, responsive interaction, reduced motion) is a **mandatory UI-10
 browser-validation gate** — UI-03 implements the underlying behavior but does
 not fake browser verification in unit tests.
 
+### Shell Engine (UI-04)
+
+`src/core/ui/shell.ts` + `src/components/shell/*` — the orchestration layer
+that consumes the RESOLVED semantic intent (UI-02) and the shared primitives
+(UI-03) to render the responsive shell.
+
+- **Decision core (`src/core/ui/shell.ts`)** — pure, framework-free:
+  `resolveShellPattern(resolved)` maps the resolved per-viewport navigation
+  patterns + shell/CTA values into a deterministic `ShellPatternDecision`
+  (primitive kind per viewport, slot, CTA placement, density/content-width
+  utility classes). It is a pure function of the VOCABULARY VALUES — never
+  preset identity — so UI-05+ presets need no changes here.
+- **Engine (`shell-engine.tsx`, server)** — composes the `AppShell` frame with
+  content slots; applies density/content classes; renders a primary CTA only
+  when `resolved.cta.enabled` (the Foundation never invents one by default);
+  exposes the optional `<md` mobile slot. The ≥md nav landmark and the <md
+  mobile layer (`ShellMobileNav`: trigger + closed-by-default drawer/overlay)
+  are composed into the header by the content layer (`SiteHeader`), preserving
+  the established header layout (locked zero-visual-delta decision).
+- **Boundaries (master §7):** the engine understands intent, not business
+  content; it imports no configuration/adapters and receives resolved/config
+  values via props. The shared primitives stay breakpoint-free; the only
+  responsive utilities are the Tailwind classes the engine/layout emit.
+- **Wiring (UI-04):** `layout.tsx` computes `resolveUiConfig(siteConfig.ui ??
+  {})` once and renders through `ShellEngine`; the shipped Foundation defaults
+  = classic top bar (≥md) + closed mobile drawer (<md) — desktop/tablet
+  byte-identical to the previous shell; the mobile nav becomes the roadmap
+  Classic drawer pattern the shipped config already declares.
+
 ### No preset is ever selected by resolution (transitional decision, preserved)
 
 `preset` is the ONLY leaf with a different rule: an explicit `ui.preset` is
@@ -1108,6 +1137,7 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 | ✅ shipped |
 | Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 | ✅ shipped (`resolveUiConfig` / `FOUNDATION_UI_DEFAULTS`) |
 | Shared UI primitives | UI-03 | ✅ shipped (`src/components/ui`; unwired until UI-04 — the next consumer) |
+| Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout; UI-05 next) |
 | Shell orchestration & responsive shell behavior | UI-04 | not started (will consume the resolved configuration) |
 | Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 | not started (the deliberate default decision point) |
 
