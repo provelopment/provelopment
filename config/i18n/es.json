@@ -17,7 +17,10 @@
       "/about": "Acerca de",
       "/resources": "Recursos",
       "/offerings": "Ofertas",
-      "/connect": "Conectar"
+      "/connect": "Conectar",
+      "/testimonials": "Testimonios",
+      "/portfolio": "Portafolio",
+      "/blog": "Blog"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "Correo electrónico",
       "phone": "Teléfono"
     }
+  },
+  "testimonials": {
+    "heading": "Testimonios",
+    "emptyState": "Aún no hay testimonios.",
+    "featured": "Destacado",
+    "ratingAria": "Calificación {rating} de 5"
+  },
+  "portfolio": {
+    "heading": "Portafolio",
+    "emptyState": "Aún no hay proyectos.",
+    "featured": "Destacado",
+    "tags": "Etiquetas",
+    "backToPortfolio": "Volver al portafolio"
+  },
+  "blog": {
+    "heading": "Blog",
+    "emptyState": "Aún no hay publicaciones.",
+    "backToBlog": "Volver al blog",
+    "readingTime": "{count} min de lectura",
+    "rss": "Fuente RSS"
   }
 }

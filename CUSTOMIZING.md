@@ -137,6 +137,88 @@ Three independent controls:
 With the feature on and no offerings yet, the page shows a friendly empty
 state. Images for the catalog go in `public/` (e.g. `public/images/offerings/`).
 
+### Testimonials (`features.testimonials` + `content/testimonials/`)
+
+Customer quotes live at `content/testimonials/<locale>/<slug>.md` and render as a
+listing-only grid at `/testimonials` (no per-testimonial detail routes):
+
+```markdown
+---
+author: "Demo Client"               # required
+role: "Founder"                     # optional
+company: "Example"                  # optional
+rating: 5                           # optional integer 1-5 (loud build failure if invalid)
+featured: true                      # optional badge
+order: 1                            # optional listing sort (ascending, then slug)
+quote: "…"                          # required — the canonical quote (body unused)
+---
+```
+
+- Enabled by `features.testimonials: true`; content existence, exposure, and
+  `navigation[]` discoverability are separate, exactly like offerings.
+- Demo content ships on (clearly-worded template quotes with `Demo Client` /
+  `Demo Partner` authors). **Replace it with real, attributable reviews before
+  publishing** — the template never fabricates customer evidence.
+- The listed set is the default-locale slugs; each locale reads its own
+  translation or falls back to the default locale.
+- Chrome (heading/emptyState/featured/ratingAria) is localized under
+  `testimonials` in `config/i18n/<locale>.json` and is REQUIRED in every
+  configured locale while the feature is on (F1-style build lock).
+
+### Portfolio / case studies (`features.portfolio` + `content/portfolio/`)
+
+Projects live at `content/portfolio/<locale>/<slug>.md`; the body is the
+long-form case study rendered through the standard Markdown renderer:
+
+```markdown
+---
+title: "Brand refresh for a growing studio"  # required
+summary: "A short card description."          # required
+year: 2026                                    # optional
+tags:
+  - "Branding"                                # optional display-only tags
+featured: true                                # optional badge
+order: 1                                      # optional listing sort
+image: "/images/portfolio/x.jpg"              # optional, file under public/
+---
+Case-study body (Markdown).
+```
+
+- Routes: `/portfolio` listing + `/portfolio/[slug]` detail. Canonical-slug
+  enforcement matches offerings exactly (a non-default-locale-only slug 404s).
+- Demo content ships on and is clearly marked **template**; replace before
+  publishing. `year`/`tags`/`featured`/`order` are descriptive/presentation
+  metadata only (no tag-index routes).
+- Chrome (`portfolio` block: heading, emptyState, featured, tags,
+  backToPortfolio) is localized in every configured locale while enabled.
+
+### Blog & RSS (`features.blog` + `content/posts/`)
+
+Articles live at `content/posts/<locale>/<slug>.md`; the app routes are
+`/blog`, `/blog/[slug]`, and `/blog/rss.xml`:
+
+```markdown
+---
+title: "Getting started"             # required
+excerpt: "Short card/feed summary."   # required
+date: "2026-08-15"                    # required ISO YYYY-MM-DD
+tags:
+  - "Foundation"                      # optional display-only
+draft: false                          # optional — true EXCLUDES the post
+---
+Article body (Markdown).
+```
+
+- **Drafts** (`draft: true`) are excluded completely from routes, the sitemap,
+  and the RSS feed.
+- Listing sorts date-descending; reading time is a deterministic pure helper
+  (latin words + CJK characters, ~200 tokens/min).
+- **RSS**: a static, per-locale feed is generated at build time
+  (`/blog/rss.xml`, linked from `/blog` via `<link rel="alternate">`). Feeds
+  contain published posts only, excerpt-based descriptions, fully escaped XML.
+  RSS is part of the publishing primitive, not an SEO architecture.
+- Chrome (`blog` block: heading, emptyState, backToBlog, readingTime, rss) is
+  localized in every configured locale while enabled.
 ### Legal documents (`legal` + `content/legal/`)
 
 Optional legal pages (privacy policy, terms, etc.) are reached from the footer.
@@ -415,6 +497,9 @@ Current feature flags:
 - `booking` — static external booking action (e.g. `external-url`).
 - `contact` — contact inquiry provider (`webhook` or the `stub` demo default).
 - `offerings` — enables the offerings catalog routes.
+- `testimonials` — enables the `/testimonials` listing (content-driven). *(Phase T)*
+- `portfolio` — enables the `/portfolio` listing + `/portfolio/[slug]` case studies. *(Phase T)*
+- `blog` — enables `/blog`, `/blog/[slug]`, and the static per-locale `/blog/rss.xml` feed. *(Phase T)*
 
 ### Business profile, locations & hours (`business` in `site.config.json`)
 

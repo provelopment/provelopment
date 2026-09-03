@@ -17,7 +17,10 @@
       "/about": "概要",
       "/resources": "リソース",
       "/offerings": "サービス内容",
-      "/connect": "つながる"
+      "/connect": "つながる",
+      "/testimonials": "お客様の声",
+      "/portfolio": "ポートフォリオ",
+      "/blog": "ブログ"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "メール",
       "phone": "電話"
     }
+  },
+  "testimonials": {
+    "heading": "お客様の声",
+    "emptyState": "まだお客様の声はありません。",
+    "featured": "注目",
+    "ratingAria": "{rating} / 5"
+  },
+  "portfolio": {
+    "heading": "ポートフォリオ",
+    "emptyState": "まだ作品はありません。",
+    "featured": "注目",
+    "tags": "タグ",
+    "backToPortfolio": "ポートフォリオに戻る"
+  },
+  "blog": {
+    "heading": "ブログ",
+    "emptyState": "まだ記事はありません。",
+    "backToBlog": "ブログに戻る",
+    "readingTime": "読了 {count} 分",
+    "rss": "RSSフィード"
   }
 }

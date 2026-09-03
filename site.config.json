@@ -73,6 +73,18 @@
       "href": "/resources"
     },
     {
+      "label": "Testimonials",
+      "href": "/testimonials"
+    },
+    {
+      "label": "Portfolio",
+      "href": "/portfolio"
+    },
+    {
+      "label": "Blog",
+      "href": "/blog"
+    },
+    {
       "label": "Connect",
       "href": "/connect"
     },
@@ -946,7 +958,10 @@
     "contact": {
       "provider": "stub"
     },
-    "offerings": true
+    "offerings": true,
+    "testimonials": true,
+    "portfolio": true,
+    "blog": true
   },
   "legal": [
     {

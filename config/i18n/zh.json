@@ -17,7 +17,10 @@
       "/about": "关于",
       "/resources": "资源",
       "/offerings": "服务内容",
-      "/connect": "联系"
+      "/connect": "联系",
+      "/testimonials": "客户评价",
+      "/portfolio": "作品集",
+      "/blog": "博客"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "电子邮件",
       "phone": "电话"
     }
+  },
+  "testimonials": {
+    "heading": "客户评价",
+    "emptyState": "暂无客户评价。",
+    "featured": "精选",
+    "ratingAria": "{rating} / 5"
+  },
+  "portfolio": {
+    "heading": "作品集",
+    "emptyState": "暂无作品。",
+    "featured": "精选",
+    "tags": "标签",
+    "backToPortfolio": "返回作品集"
+  },
+  "blog": {
+    "heading": "博客",
+    "emptyState": "暂无文章。",
+    "backToBlog": "返回博客",
+    "readingTime": "阅读约 {count} 分钟",
+    "rss": "RSS 订阅"
   }
 }

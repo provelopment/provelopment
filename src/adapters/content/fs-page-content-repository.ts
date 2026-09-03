@@ -4,7 +4,7 @@ import path from "node:path";
 import type { PageContentRepository } from "@/application/page-content-repository";
 import { isWellFormedLocale, type Locale } from "@/core/locale";
 import type { PageContent } from "@/core/page-content";
-import { parseOfferingsFile, parsePageFile } from "./frontmatter";
+import { parseOfferingsFile, parsePageFile, parsePortfolioFile, parsePostFile, parseTestimonialsFile } from "./frontmatter";
 
 /** Slugs are restricted to safe filename characters. */
 const validSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -26,15 +26,34 @@ export interface FileSystemPageContentRepositoryOptions<
    * content) or `offerings` (the offerings catalog). A single port/adapter
    * serves every content collection.
    */
-  readonly collection?: "pages" | "offerings" | "legal";
+  readonly collection?:
+    | "pages"
+    | "offerings"
+    | "legal"
+    | "testimonials"
+    | "portfolio"
+    | "posts";
   /** Override parser (used for the `offerings` collection). */
   readonly parse?: ContentParser<T>;
 }
 
-function resolveParser(collection: "pages" | "offerings" | "legal"): ContentParser {
-  // `offerings` uses its own parser; `pages` and `legal` share the basic
-  // title + body page contract.
-  return collection === "offerings" ? parseOfferingsFile : parsePageFile;
+function resolveParser(
+  collection: "pages" | "offerings" | "legal" | "testimonials" | "portfolio" | "posts",
+): ContentParser {
+  // Each structured collection uses its dedicated parser; `pages` and `legal`
+  // share the basic title + body page contract (Phase T additions).
+  switch (collection) {
+    case "offerings":
+      return parseOfferingsFile as ContentParser;
+    case "testimonials":
+      return parseTestimonialsFile as ContentParser;
+    case "portfolio":
+      return parsePortfolioFile as ContentParser;
+    case "posts":
+      return parsePostFile as ContentParser;
+    default:
+      return parsePageFile;
+  }
 }
 
 /**

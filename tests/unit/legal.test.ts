@@ -123,7 +123,16 @@ describe("legal repository (reuses PageContentRepository + fs adapter)", () => {
 
 describe("buildSitemapRoutes with legalSlugs", () => {
   const pages = ["about"];
-  const base = { offeringsEnabled: false, pages, canonicalOfferings: [] };
+  const base = {
+    offeringsEnabled: false,
+    pages,
+    canonicalOfferings: [],
+    testimonialsEnabled: false,
+    portfolioEnabled: false,
+    canonicalPortfolio: [],
+    blogEnabled: false,
+    publishedBlogSlugs: [],
+  };
 
   it("appends a /legal/<slug> route per configured canonical slug", () => {
     expect(buildSitemapRoutes({ ...base, legalSlugs: ["privacy", "terms"] })).toEqual([
