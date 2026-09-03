@@ -17,4 +17,4 @@ Demonstrationsdaten**. Ersetzen Sie sie durch die echten Betriebsdaten Ihres
 Unternehmens.
 
 Im Gegensatz dazu verwenden die englischen Seiten `/en/toronto` und
-`/en/vancouver` andere Regionen und Zeitzonen.
+`/en/new-york` andere Regionen und Zeitzonen.
