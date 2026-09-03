@@ -865,7 +865,7 @@ Content **bodies** are localized per-collection via the same repository
 default-locale (`en`) file is served. There is **no translation system** beyond
 the content files — no per-locale schema, no dictionary involvement for bodies.
 This applies uniformly to pages (`about`/`resources`/`contact`), offerings
-(`consultation`/`gift-card`/`starter-package`), and legal
+(`consultation`/`starter-package`), and legal
 (`privacy`/`terms`/`cookies`). The shipped template localizes every one of these
 to all 9 locales; adopters who omit a locale still get a working page via the
 default-locale fallback. Localized frontmatter fields (e.g. offering
