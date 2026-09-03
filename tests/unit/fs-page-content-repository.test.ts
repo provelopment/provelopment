@@ -101,6 +101,7 @@ describe("createFileSystemPageContentRepository", () => {
       "los-angeles",
       "new-york",
       "resources",
+      "sydney",
       "toronto",
     ]);
   });

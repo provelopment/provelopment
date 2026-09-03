@@ -53,7 +53,11 @@ export function LocationSwitcher({
   const pathname = usePathname();
 
   const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
-  const availableRegions = configuredRegionIds(siteConfig.regions);
+  const availableRegions = [...configuredRegionIds(siteConfig.regions)].sort((a, b) => {
+    const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
+    const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;
+    return labelA.localeCompare(labelB, "en", { sensitivity: "base" });
+  });
   const activeRegion = parsed.region ?? "";
 
   function handleChange(nextRegion: string) {

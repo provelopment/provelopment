@@ -600,10 +600,12 @@ main menu.
 "business": {
   "regions": { "toronto": { …, "label": "Toronto" }, "new-york": { … } },
   "pages": [
-    { "locale": "en", "region": "toronto" },                // /en/toronto
-    { "locale": "en", "region": "toronto", "slug": "about" },  // /en/toronto/about
-    { "locale": "en", "region": "new-york" },              // /en/new-york
-    { "locale": "de", "region": "berlin" }                  // /de/berlin
+    { "locale": "en", "region": "toronto" },                   // /en/toronto (Home)
+    { "locale": "en", "region": "toronto", "slug": "about" },     // /en/toronto/about
+    { "locale": "en", "region": "toronto", "slug": "connect" },   // /en/toronto/connect
+    { "locale": "en", "region": "new-york" },                 // /en/new-york (Home)
+    { "locale": "en", "region": "new-york", "slug": "about" },
+    { "locale": "en", "region": "new-york", "slug": "connect" }
   ]
 }
 ```
@@ -618,9 +620,10 @@ Key points:
   locale, region }` line). A page entry without its landing fails the build.
   The Phase K `{ locale, slug: "toronto", region: "toronto" }` form is still
   accepted and migrated automatically.
-- **Inventories are per locale × region.** Toronto and Vancouver may expose
-  different pages; one region may exist in several locales; locales may have
-  no regions at all (then the location selector is hidden).
+- **Standardized 3-page layout & inventories:** The shipped template binds
+  `Home` (landing), `About`, and `Connect` for every configured operating city.
+  Downstream adopters may configure different page inventories per locale × region;
+  one region may exist in several locales.
 - **Switching behavior (deterministic, pure core):**
   - Location: keep the language; go to the same page in the target region, or
     its landing, or (as a defensive fallback) its first configured page.
@@ -636,9 +639,11 @@ Key points:
 ### Selector semantics, region-aware navigation, Connect & identity (`connect` + region `defaultLocale`) — Phase M
 
 Locations are **selectors**: the Location dropdown shows every configured
-operating location (from `business.regions`) plus an explicit **Unspecified**
-option — the list is never filtered by the current language and is never lost
-after selecting a region.
+operating location (from `business.regions`) in alphabetical order, plus an
+explicit **Unspecified** option — the list is never filtered by the current
+language and is never lost after selecting a region. The Language dropdown
+lists the default language (English) first, followed by remaining languages
+in alphabetical order.
 
 ```jsonc
 "business": {

@@ -68,13 +68,15 @@ describe("Phase M - page to region resolution (live demo config)", () => {
 
   it("one locale resolves multiple regions with different timezones", () => {
     expect(regionsForLocale(pageBindings, "en")).toEqual([
-      "toronto",
-      "new-york",
-      "los-angeles",
       "london",
+      "los-angeles",
+      "new-york",
+      "sydney",
+      "toronto",
     ]);
     expect(regionById("toronto").timezone).not.toBe(regionById("new-york").timezone);
     expect(regionById("new-york").timezone).not.toBe(regionById("los-angeles").timezone);
+    expect(regionById("sydney").timezone).toBe("Australia/Sydney");
   });
 
   it("a region is presented through its configured locales only", () => {
@@ -141,24 +143,17 @@ describe("Phase M - page to region resolution (live demo config)", () => {
       expect(hasPageEntry(pageBindings, locale, "toronto", "about")).toBe(true);
       expect(hasPageEntry(pageBindings, locale, "toronto", "connect")).toBe(true);
     }
-    // New York / Los Angeles / Moscow: Home + About + Connect (single locale).
-    expect(hasPageEntry(pageBindings, "en", "new-york", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "new-york", "connect")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "los-angeles", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "en", "los-angeles", "connect")).toBe(true);
-    expect(hasPageEntry(pageBindings, "ru", "moscow", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "ru", "moscow", "connect")).toBe(true);
-    // London/Berlin/Paris: Home + About only.
-    expect(hasPageEntry(pageBindings, "en", "london", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "de", "berlin", "about")).toBe(true);
-    expect(hasPageEntry(pageBindings, "fr", "paris", "about")).toBe(true);
-    // Madrid/Tokyo/Seoul/Shanghai/Jakarta: Home (landing) only.
+    // Every configured city now uniformly exposes Home, About, and Connect.
     for (const [locale, region] of [
-      ["es", "madrid"], ["ja", "tokyo"], ["ko", "seoul"],
-      ["zh", "shanghai"], ["id", "jakarta"],
+      ["de", "berlin"], ["id", "jakarta"], ["en", "london"],
+      ["en", "los-angeles"], ["es", "madrid"], ["ru", "moscow"],
+      ["en", "new-york"], ["fr", "paris"], ["ko", "seoul"],
+      ["zh", "shanghai"], ["en", "sydney"], ["ja", "tokyo"],
+      ["en", "toronto"], ["fr", "toronto"],
     ]) {
       expect(hasPageEntry(pageBindings, locale, region, null)).toBe(true);
-      expect(hasPageEntry(pageBindings, locale, region, "about")).toBe(false);
+      expect(hasPageEntry(pageBindings, locale, region, "about")).toBe(true);
+      expect(hasPageEntry(pageBindings, locale, region, "connect")).toBe(true);
     }
     // Regionally unbound pages are NOT exposed.
     expect(hasPageEntry(pageBindings, "en", "toronto", "resources")).toBe(false);

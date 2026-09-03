@@ -80,6 +80,15 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
       )
     : siteConfig.locales;
 
+  const defaultLocale = siteConfig.defaultLocale;
+  const sortedLocales = [...offeredLocales].sort((a, b) => {
+    if (a.code === defaultLocale) return -1;
+    if (b.code === defaultLocale) return 1;
+    const nameA = a.englishLabel ?? a.label;
+    const nameB = b.englishLabel ?? b.label;
+    return nameA.localeCompare(nameB, "en", { sensitivity: "base" });
+  });
+
   return (
     <select
       aria-label={label}
@@ -88,7 +97,7 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
       onChange={(event) => handleChange(event.target.value)}
       className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
-      {offeredLocales.map((entry) => (
+      {sortedLocales.map((entry) => (
         <option key={entry.code} value={entry.code}>
           {displayNameWithEnglish(entry.label, entry.englishLabel)}
         </option>
