@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { OfferingList } from "@/components/site/offering-list";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
-import { buildLanguageAlternates } from "@/core/locale";
+import { regionDisplayName } from "@/core/display-labels";
+import { buildRegionalLanguageAlternates, hasPageEntry } from "@/core/regional-pages";
 import type { OfferingsContent } from "@/core/offerings";
 import { resolveOfferingPrice, sortOfferings } from "@/core/offerings";
 import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
@@ -17,28 +19,56 @@ const offeringsRepository = createFileSystemPageContentRepository<OfferingsConte
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
-interface OfferingsPageProps {
-  readonly params: Promise<{ readonly locale: string }>;
+interface RegionalOfferingsPageProps {
+  readonly params: Promise<{ readonly locale: string; readonly item: string }>;
 }
 
-export async function generateMetadata({ params }: OfferingsPageProps): Promise<Metadata> {
-  const { locale } = await params;
+export const dynamicParams = false;
 
-  const title = getDictionary(locale).offerings.heading;
-  const canonical = `${siteConfig.url}/${locale}/offerings`;
+export async function generateStaticParams(): Promise<
+  { locale: string; item: string }[]
+> {
+  if (!siteConfig.offeringsFeature) return [];
+
+  return siteConfig.pageBindings
+    .filter((binding) => binding.slug === "offerings")
+    .map((binding) => ({
+      locale: binding.locale,
+      item: binding.region,
+    }));
+}
+
+export async function generateMetadata({
+  params,
+}: RegionalOfferingsPageProps): Promise<Metadata> {
+  const { locale, item } = await params;
+  const region = siteConfig.regions[item];
+
+  if (!region || !hasPageEntry(siteConfig.pageBindings, locale, item, "offerings")) {
+    return {};
+  }
+
+  const dictionary = getDictionary(locale);
+  const regionLabel = regionDisplayName(locale, region);
+  const title = `${dictionary.offerings.heading} — ${regionLabel}`;
+  const canonical = `${siteConfig.url}/${locale}/${item}/offerings`;
   const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
+  const alternates = buildRegionalLanguageAlternates({
+    baseUrl: siteConfig.url,
+    locales: localeCodes,
+    defaultLocale: siteConfig.defaultLocale,
+    entries: siteConfig.pageBindings,
+    region: item,
+    slug: "offerings",
+  });
 
   return {
     title,
     description: siteConfig.description,
     alternates: {
       canonical,
-      languages: buildLanguageAlternates({
-        baseUrl: siteConfig.url,
-        locales: localeCodes,
-        defaultLocale: siteConfig.defaultLocale,
-        path: "/offerings",
-      }),
+      languages: Object.keys(alternates).length > 0 ? alternates : undefined,
     },
     openGraph: buildOpenGraphData({
       baseUrl: siteConfig.url,
@@ -58,24 +88,27 @@ export async function generateMetadata({ params }: OfferingsPageProps): Promise<
   };
 }
 
-/**
- * `/offerings` (Phase C). Three independent concerns:
- *  - content (`content/offerings/`) determines which offerings exist;
- *  - `features.offerings` enables/disables the routes (disabled → 404);
- *  - `navigation[]` determines discoverability (config-authoritative).
- */
-export default async function OfferingsPage({ params }: OfferingsPageProps) {
-  const { locale } = await params;
+export default async function RegionalOfferingsPage({
+  params,
+}: RegionalOfferingsPageProps) {
+  const { locale, item } = await params;
 
-  // Feature disabled → the offering catalog is not exposed at all. Strongest
-  // "capability not enabled" semantics: no placeholder page.
   if (!siteConfig.offeringsFeature) {
     notFound();
   }
 
-  const dictionary = getDictionary(locale);
+  if (!hasPageEntry(siteConfig.pageBindings, locale, item, "offerings")) {
+    notFound();
+  }
 
-  // The canonical offering set is the default-locale slugs.
+  const region = siteConfig.regions[item];
+  if (!region) {
+    notFound();
+  }
+
+  const dictionary = getDictionary(locale);
+  const regionLabel = regionDisplayName(locale, region);
+
   const canonicalSlugs = await offeringsRepository.listSlugs(siteConfig.defaultLocale);
 
   if (canonicalSlugs.length === 0) {
@@ -84,6 +117,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
         <h1 className="text-3xl font-bold tracking-tight">
           {dictionary.offerings.heading}
         </h1>
+        <p className="mt-1 text-lg text-muted-foreground">{regionLabel}</p>
         <p className="mt-4 text-muted-foreground">{dictionary.offerings.emptyState}</p>
       </article>
     );
@@ -98,16 +132,20 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
   }
 
   const sorted = sortOfferings(items);
-  const itemsWithPrices = sorted.map((item) => ({
-    ...item,
-    price: resolveOfferingPrice(item, null),
+  const itemsWithPrices = sorted.map((offering) => ({
+    ...offering,
+    price: resolveOfferingPrice(offering, region),
   }));
+
+  const currencyCode = region.currency ?? "USD";
+  const currencySymbol = region.currencySymbol ?? "$";
 
   return (
     <article className="mx-auto max-w-page px-4 py-12">
       <h1 className="text-3xl font-bold tracking-tight">
         {dictionary.offerings.heading}
       </h1>
+      <p className="mt-1 text-lg text-muted-foreground">{regionLabel}</p>
 
       <aside
         aria-label={dictionary.offerings.disclaimerTitle}
@@ -115,16 +153,27 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
       >
         <p className="font-semibold text-foreground">{dictionary.offerings.disclaimerTitle}</p>
         <p className="mt-1">{dictionary.offerings.disclaimerBody}</p>
-        <p className="mt-2 text-xs text-muted-foreground/90">
-          {dictionary.offerings.currencyNotice.replace("{currency}", "USD").replace("{symbol}", "$")}
+        <p className="mt-2 text-xs font-medium text-foreground">
+          {dictionary.offerings.currencyNotice
+            .replace("{currency}", currencyCode)
+            .replace("{symbol}", currencySymbol)}
         </p>
       </aside>
 
       <OfferingList
         offerings={itemsWithPrices}
-        baseHref={`/${locale}/offerings`}
+        baseHref={`/${locale}/${item}/offerings`}
         featuredLabel={dictionary.offerings.featured}
       />
+
+      <p className="mt-8">
+        <Link
+          href={`/${locale}/${item}`}
+          className="text-sm text-primary hover:underline"
+        >
+          &larr; {regionLabel}
+        </Link>
+      </p>
     </article>
   );
 }

@@ -10,6 +10,7 @@ import {
   isCanonicalOffering,
   parseDisplayPrice,
   resolveOfferingAction,
+  resolveOfferingPrice,
   sortOfferings,
   type OfferingsListItem,
 } from "@/core/offerings";
@@ -401,5 +402,100 @@ describe("parsePageFile (unchanged page contract)", () => {
   it("parses a title-only page", () => {
     const page = parsePageFile("---\ntitle: About Us\n---\nBody\n", "about-us", "en");
     expect(page).toMatchObject({ slug: "about-us", title: "About Us", body: "Body\n" });
+  });
+});
+
+describe("resolveOfferingPrice (regional currency presentation)", () => {
+  const starter = { slug: "starter-package", price: "From $150" };
+  const consultation = { slug: "consultation", price: "From $40" };
+  const giftCard = { slug: "gift-card", price: "$25 - $200" };
+
+  it("returns base price when region is unspecified/null", () => {
+    expect(resolveOfferingPrice(starter, null)).toBe("From $150");
+    expect(resolveOfferingPrice(consultation, null)).toBe("From $40");
+    expect(resolveOfferingPrice(giftCard, null)).toBe("$25 - $200");
+  });
+
+  it("resolves Australian Dollars (A$) for Sydney", () => {
+    const sydney = siteConfig.regions["sydney"];
+    expect(resolveOfferingPrice(starter, sydney)).toBe("From A$150");
+    expect(resolveOfferingPrice(consultation, sydney)).toBe("From A$40");
+    expect(resolveOfferingPrice(giftCard, sydney)).toBe("A$25 - A$200");
+  });
+
+  it("resolves British Pounds (£) for London", () => {
+    const london = siteConfig.regions["london"];
+    expect(resolveOfferingPrice(starter, london)).toBe("From £150");
+    expect(resolveOfferingPrice(consultation, london)).toBe("From £40");
+    expect(resolveOfferingPrice(giftCard, london)).toBe("£25 - £200");
+  });
+
+  it("resolves Euros (€) for Berlin, Paris, and Madrid", () => {
+    const berlin = siteConfig.regions["berlin"];
+    const paris = siteConfig.regions["paris"];
+    const madrid = siteConfig.regions["madrid"];
+    expect(resolveOfferingPrice(starter, berlin)).toBe("From €150");
+    expect(resolveOfferingPrice(consultation, paris)).toBe("From €40");
+    expect(resolveOfferingPrice(giftCard, madrid)).toBe("€25 - €200");
+  });
+
+  it("resolves Japanese Yen (¥) for Tokyo with realistic tier", () => {
+    const tokyo = siteConfig.regions["tokyo"];
+    expect(resolveOfferingPrice(starter, tokyo)).toBe("From ¥15,000");
+    expect(resolveOfferingPrice(consultation, tokyo)).toBe("From ¥4,000");
+    expect(resolveOfferingPrice(giftCard, tokyo)).toBe("¥2,500 - ¥20,000");
+  });
+
+  it("resolves Canadian Dollars (CA$) for Toronto", () => {
+    const toronto = siteConfig.regions["toronto"];
+    expect(resolveOfferingPrice(starter, toronto)).toBe("From CA$150");
+    expect(resolveOfferingPrice(consultation, toronto)).toBe("From CA$40");
+    expect(resolveOfferingPrice(giftCard, toronto)).toBe("CA$25 - CA$200");
+  });
+
+  it("resolves Indonesian Rupiah (Rp) for Jakarta with realistic tier", () => {
+    const jakarta = siteConfig.regions["jakarta"];
+    expect(resolveOfferingPrice(starter, jakarta)).toBe("From Rp 1.500.000");
+    expect(resolveOfferingPrice(consultation, jakarta)).toBe("From Rp 400.000");
+    expect(resolveOfferingPrice(giftCard, jakarta)).toBe("Rp 250.000 - Rp 2.000.000");
+  });
+
+  it("resolves Russian Rubles (₽) for Moscow with realistic tier", () => {
+    const moscow = siteConfig.regions["moscow"];
+    expect(resolveOfferingPrice(starter, moscow)).toBe("From 15 000 ₽");
+    expect(resolveOfferingPrice(consultation, moscow)).toBe("From 4 000 ₽");
+    expect(resolveOfferingPrice(giftCard, moscow)).toBe("2 500 ₽ - 20 000 ₽");
+  });
+
+  it("resolves Korean Won (₩) for Seoul with realistic tier", () => {
+    const seoul = siteConfig.regions["seoul"];
+    expect(resolveOfferingPrice(starter, seoul)).toBe("From ₩150,000");
+    expect(resolveOfferingPrice(consultation, seoul)).toBe("From ₩40,000");
+    expect(resolveOfferingPrice(giftCard, seoul)).toBe("₩25,000 - ₩200,000");
+  });
+
+  it("resolves Chinese Yuan (¥) for Shanghai with realistic tier", () => {
+    const shanghai = siteConfig.regions["shanghai"];
+    expect(resolveOfferingPrice(starter, shanghai)).toBe("From ¥1,000");
+    expect(resolveOfferingPrice(consultation, shanghai)).toBe("From ¥300");
+    expect(resolveOfferingPrice(giftCard, shanghai)).toBe("¥200 - ¥1,500");
+  });
+
+  it("honors explicit regionalPrices and pricesByCurrency overrides", () => {
+    const custom = {
+      price: "$100",
+      regionalPrices: { sydney: "A$199 Special" },
+      pricesByCurrency: { EUR: "€89 Promo" },
+    };
+    const sydney = siteConfig.regions["sydney"];
+    const berlin = siteConfig.regions["berlin"];
+    expect(resolveOfferingPrice(custom, sydney)).toBe("A$199 Special");
+    expect(resolveOfferingPrice(custom, berlin)).toBe("€89 Promo");
+  });
+
+  it("dynamically replaces currency symbol when no explicit mapping exists", () => {
+    const genericOffering = { price: "$99" };
+    const london = siteConfig.regions["london"];
+    expect(resolveOfferingPrice(genericOffering, london)).toBe("£99");
   });
 });

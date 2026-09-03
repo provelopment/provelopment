@@ -1,4 +1,5 @@
 import type { PageContent } from "./page-content";
+import type { OperationalRegion } from "./region";
 
 /**
  * Offerings content model (Phase C, Tier 1).
@@ -46,6 +47,10 @@ export interface OfferingsContent extends PageContent {
   readonly blurb: string;
   /** Display-only string (e.g. "From $40"). No currency/financial semantics. */
   readonly price?: string;
+  /** Optional region-specific price overrides (e.g. { sydney: "From A$150", tokyo: "From ¥15,000" }). */
+  readonly regionalPrices?: Readonly<Record<string, string>>;
+  /** Optional currency-specific price overrides (e.g. { AUD: "From A$150", EUR: "From €150" }). */
+  readonly pricesByCurrency?: Readonly<Record<string, string>>;
   /** Listing sort key (ascending). Omitted entries sort last (then by slug). */
   readonly order?: number;
   /** When true the card is shown first in the listing (before any order sort). */
@@ -58,6 +63,90 @@ export interface OfferingsContent extends PageContent {
   readonly faq?: readonly { readonly question: string; readonly answer: string }[];
   /** Optional single outbound call-to-action (see `OfferingActionIntent`). */
   readonly action?: OfferingAction;
+}
+
+const DEMO_CURRENCY_PRICES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  "starter-package": {
+    AUD: "From A$150",
+    CAD: "From CA$150",
+    GBP: "From £150",
+    EUR: "From €150",
+    USD: "From $150",
+    JPY: "From ¥15,000",
+    KRW: "From ₩150,000",
+    CNY: "From ¥1,000",
+    RUB: "From 15 000 ₽",
+    IDR: "From Rp 1.500.000",
+  },
+  consultation: {
+    AUD: "From A$40",
+    CAD: "From CA$40",
+    GBP: "From £40",
+    EUR: "From €40",
+    USD: "From $40",
+    JPY: "From ¥4,000",
+    KRW: "From ₩40,000",
+    CNY: "From ¥300",
+    RUB: "From 4 000 ₽",
+    IDR: "From Rp 400.000",
+  },
+  "gift-card": {
+    AUD: "A$25 - A$200",
+    CAD: "CA$25 - CA$200",
+    GBP: "£25 - £200",
+    EUR: "€25 - €200",
+    USD: "$25 - $200",
+    JPY: "¥2,500 - ¥20,000",
+    KRW: "₩25,000 - ₩200,000",
+    CNY: "¥200 - ¥1,500",
+    RUB: "2 500 ₽ - 20 000 ₽",
+    IDR: "Rp 250.000 - Rp 2.000.000",
+  },
+};
+
+/**
+ * Resolves the display price for an offering given an optional operational region.
+ *
+ * 1. If explicit `regionalPrices[region.id]` is defined, use it.
+ * 2. If explicit `pricesByCurrency[region.currency]` is defined, use it.
+ * 3. If standard demo offering slug matches, use the realistic currency amount.
+ * 4. If a region with a configured currencySymbol is provided, replaces `$` with that symbol.
+ * 5. Otherwise (unspecified region / default), returns `offering.price`.
+ */
+export function resolveOfferingPrice(
+  offering: {
+    readonly slug?: string;
+    readonly price?: string;
+    readonly regionalPrices?: Readonly<Record<string, string>>;
+    readonly pricesByCurrency?: Readonly<Record<string, string>>;
+  },
+  region?: OperationalRegion | null,
+): string | undefined {
+  if (!region) {
+    return offering.price;
+  }
+
+  if (region.id && offering.regionalPrices?.[region.id]) {
+    return offering.regionalPrices[region.id];
+  }
+
+  if (region.currency && offering.pricesByCurrency?.[region.currency]) {
+    return offering.pricesByCurrency[region.currency];
+  }
+
+  if (offering.slug && region.currency && DEMO_CURRENCY_PRICES[offering.slug]?.[region.currency]) {
+    return DEMO_CURRENCY_PRICES[offering.slug][region.currency];
+  }
+
+  if (!offering.price) {
+    return undefined;
+  }
+
+  if (region.currencySymbol) {
+    return offering.price.replace(/\$/g, region.currencySymbol);
+  }
+
+  return offering.price;
 }
 
 /**

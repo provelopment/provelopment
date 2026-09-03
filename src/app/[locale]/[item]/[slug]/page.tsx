@@ -44,7 +44,7 @@ export async function generateStaticParams(): Promise<
   { locale: string; item: string; slug: string }[]
 > {
   return siteConfig.pageBindings
-    .filter((binding) => binding.slug !== null)
+    .filter((binding) => binding.slug !== null && binding.slug !== "offerings")
     .map((binding) => ({
       locale: binding.locale,
       item: binding.region,
@@ -54,6 +54,7 @@ export async function generateStaticParams(): Promise<
 
 export async function generateMetadata({ params }: RegionalPageProps): Promise<Metadata> {
   const { locale, item, slug } = await params;
+  if (slug === "offerings") return {};
   const content = await pageContentRepository.findBySlug(slug, locale);
   if (!content) return {};
 
@@ -101,7 +102,8 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
 
   // The URL's region segment (`item`) must reference a configured region for
   // this locale; a page without a binding is never rendered here.
-  if (!hasPageEntry(siteConfig.pageBindings, locale, item, slug)) {
+  // "offerings" is handled by the dedicated regional offerings route.
+  if (slug === "offerings" || !hasPageEntry(siteConfig.pageBindings, locale, item, slug)) {
     notFound();
   }
 

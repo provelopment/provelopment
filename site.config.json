@@ -174,7 +174,9 @@
           "ko": "베를린",
           "ru": "Берлин",
           "zh": "柏林"
-        }
+        },
+        "currency": "EUR",
+        "currencySymbol": "€"
       },
       "jakarta": {
         "timezone": "Asia/Jakarta",
@@ -238,7 +240,9 @@
           "ko": "자카르타",
           "ru": "Джакарта",
           "zh": "雅加达"
-        }
+        },
+        "currency": "IDR",
+        "currencySymbol": "Rp"
       },
       "london": {
         "timezone": "Europe/London",
@@ -313,7 +317,9 @@
           "ko": "런던",
           "ru": "Лондон",
           "zh": "伦敦"
-        }
+        },
+        "currency": "GBP",
+        "currencySymbol": "£"
       },
       "los-angeles": {
         "timezone": "America/Los_Angeles",
@@ -389,7 +395,9 @@
           "ko": "로스앤젤레스",
           "ru": "Лос-Анджелес",
           "zh": "洛杉矶"
-        }
+        },
+        "currency": "USD",
+        "currencySymbol": "$"
       },
       "madrid": {
         "timezone": "Europe/Madrid",
@@ -453,7 +461,9 @@
           "ko": "마드리드",
           "ru": "Мадрид",
           "zh": "马德里"
-        }
+        },
+        "currency": "EUR",
+        "currencySymbol": "€"
       },
       "moscow": {
         "timezone": "Europe/Moscow",
@@ -523,7 +533,9 @@
           "ko": "모스크바",
           "ru": "Москва",
           "zh": "莫斯科"
-        }
+        },
+        "currency": "RUB",
+        "currencySymbol": "₽"
       },
       "new-york": {
         "timezone": "America/New_York",
@@ -599,7 +611,9 @@
           "ko": "뉴욕",
           "ru": "Нью-Йорк",
           "zh": "纽约"
-        }
+        },
+        "currency": "USD",
+        "currencySymbol": "$"
       },
       "paris": {
         "timezone": "Europe/Paris",
@@ -663,7 +677,9 @@
           "ko": "파리",
           "ru": "Париж",
           "zh": "巴黎"
-        }
+        },
+        "currency": "EUR",
+        "currencySymbol": "€"
       },
       "seoul": {
         "timezone": "Asia/Seoul",
@@ -727,7 +743,9 @@
           "ko": "서울",
           "ru": "Сеул",
           "zh": "首尔"
-        }
+        },
+        "currency": "KRW",
+        "currencySymbol": "₩"
       },
       "shanghai": {
         "timezone": "Asia/Shanghai",
@@ -791,7 +809,9 @@
           "ko": "상하이",
           "ru": "Шанхай",
           "zh": "上海"
-        }
+        },
+        "currency": "CNY",
+        "currencySymbol": "¥"
       },
       "sydney": {
         "timezone": "Australia/Sydney",
@@ -867,7 +887,9 @@
           "ko": "시드니",
           "ru": "Сидней",
           "zh": "悉尼"
-        }
+        },
+        "currency": "AUD",
+        "currencySymbol": "A$"
       },
       "tokyo": {
         "timezone": "Asia/Tokyo",
@@ -931,7 +953,9 @@
           "ko": "도쿄",
           "ru": "Токио",
           "zh": "东京"
-        }
+        },
+        "currency": "JPY",
+        "currencySymbol": "¥"
       },
       "toronto": {
         "timezone": "America/Toronto",
@@ -1017,7 +1041,9 @@
           "ko": "토론토",
           "ru": "Торонто",
           "zh": "多伦多"
-        }
+        },
+        "currency": "CAD",
+        "currencySymbol": "CA$"
       }
     },
     "pages": [
@@ -1036,6 +1062,11 @@
         "slug": "connect"
       },
       {
+        "locale": "de",
+        "region": "berlin",
+        "slug": "offerings"
+      },
+      {
         "locale": "id",
         "region": "jakarta"
       },
@@ -1048,6 +1079,11 @@
         "locale": "id",
         "region": "jakarta",
         "slug": "connect"
+      },
+      {
+        "locale": "id",
+        "region": "jakarta",
+        "slug": "offerings"
       },
       {
         "locale": "en",
@@ -1065,6 +1101,11 @@
       },
       {
         "locale": "en",
+        "region": "london",
+        "slug": "offerings"
+      },
+      {
+        "locale": "en",
         "region": "los-angeles"
       },
       {
@@ -1076,6 +1117,11 @@
         "locale": "en",
         "region": "los-angeles",
         "slug": "connect"
+      },
+      {
+        "locale": "en",
+        "region": "los-angeles",
+        "slug": "offerings"
       },
       {
         "locale": "es",
@@ -1092,6 +1138,11 @@
         "slug": "connect"
       },
       {
+        "locale": "es",
+        "region": "madrid",
+        "slug": "offerings"
+      },
+      {
         "locale": "ru",
         "region": "moscow"
       },
@@ -1104,6 +1155,11 @@
         "locale": "ru",
         "region": "moscow",
         "slug": "connect"
+      },
+      {
+        "locale": "ru",
+        "region": "moscow",
+        "slug": "offerings"
       },
       {
         "locale": "en",
@@ -1120,6 +1176,11 @@
         "slug": "connect"
       },
       {
+        "locale": "en",
+        "region": "new-york",
+        "slug": "offerings"
+      },
+      {
         "locale": "fr",
         "region": "paris"
       },
@@ -1132,6 +1193,11 @@
         "locale": "fr",
         "region": "paris",
         "slug": "connect"
+      },
+      {
+        "locale": "fr",
+        "region": "paris",
+        "slug": "offerings"
       },
       {
         "locale": "ko",
@@ -1148,6 +1214,11 @@
         "slug": "connect"
       },
       {
+        "locale": "ko",
+        "region": "seoul",
+        "slug": "offerings"
+      },
+      {
         "locale": "zh",
         "region": "shanghai"
       },
@@ -1160,6 +1231,11 @@
         "locale": "zh",
         "region": "shanghai",
         "slug": "connect"
+      },
+      {
+        "locale": "zh",
+        "region": "shanghai",
+        "slug": "offerings"
       },
       {
         "locale": "en",
@@ -1176,6 +1252,11 @@
         "slug": "connect"
       },
       {
+        "locale": "en",
+        "region": "sydney",
+        "slug": "offerings"
+      },
+      {
         "locale": "ja",
         "region": "tokyo"
       },
@@ -1190,6 +1271,11 @@
         "slug": "connect"
       },
       {
+        "locale": "ja",
+        "region": "tokyo",
+        "slug": "offerings"
+      },
+      {
         "locale": "en",
         "region": "toronto"
       },
@@ -1204,6 +1290,11 @@
         "slug": "connect"
       },
       {
+        "locale": "en",
+        "region": "toronto",
+        "slug": "offerings"
+      },
+      {
         "locale": "fr",
         "region": "toronto"
       },
@@ -1216,6 +1307,11 @@
         "locale": "fr",
         "region": "toronto",
         "slug": "connect"
+      },
+      {
+        "locale": "fr",
+        "region": "toronto",
+        "slug": "offerings"
       }
     ]
   },

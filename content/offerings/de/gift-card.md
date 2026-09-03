@@ -6,6 +6,8 @@ price: "25 $ - 200 $"
 featured: false
 ---
 
+> **Hinweis zur Demonstration:** Dieses Angebot ist ein Musterbeispiel zu Demonstrationszwecken. Es wird nicht von der Provelopment Foundation angeboten. Bearbeiten Sie diese Datei, um Ihre echten Leistungen zu beschreiben.
+
 Dies ist ein Demo-Angebot, das mit dem Provelopment-Foundation-Theme
 mitgeliefert wird. Ersetzen Sie es durch Ihr eigenes.
 
