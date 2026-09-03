@@ -840,14 +840,20 @@ scheduler or booking page:
 
 ```jsonc
 "features": {
-  "analytics": { "provider": "vercel" }
+  "analytics": { "provider": "vercel" } // or "none" — the explicit off state
 }
 ```
 
 - **`vercel`** mounts Vercel Web Analytics exactly as before — no new data
   collection is introduced.
-- **No `features.analytics`** — no analytics is mounted; the site works
-  unchanged.
+- **`none`** (or **no `features.analytics`**) — no analytics is mounted; the
+  site works unchanged. `provider: "none"` is an additive schema capability
+  that makes the disabled state explicit (`features.analytics` untouched or
+  absent behaves identically).
+- **Loud failure:** a provider value that reaches the adapter factory with no
+  registered adapter throws `AnalyticsMisconfigurationError` (the config
+  schema rejects unknown providers at build time first; the factory throw is
+  the defensive runtime contract). Analytics never silently disappears.
 - Provider selection happens in the analytics adapter factory, not in
   application/layout code. Adding another provider later (GA4, Plausible, …) is
   an adapter + config change, not an application rewrite.
@@ -892,6 +898,47 @@ route up automatically) and **config-driven**:
   your edge/receiver. Foundation is a frontend + integration seam, not an
   email/spam platform.
 
+### Outbound integration seams — at a glance
+
+Every outbound connection a visitor can trigger is modeled as a **visitor
+intent** and served through a small, provider-neutral seam. The Foundation
+ships the seams, not the providers: there is no provider SDK, no vendor
+account, and no provider-specific code outside `src/adapters/<capability>/`.
+Phase I (release `v2026.09.03-foundation-phase-i-outbound-seams`) verified
+this contract as a whole; per-capability detail lives in the sections above.
+
+| Intent | Feature key | Providers | Off state | Misconfigured → | Env secrets |
+| --- | --- | --- | --- | --- | --- |
+| Book | `features.booking` | `external-url` | `none` (or absent) | loud `BookingMisconfigurationError` (never a silent no-CTA) | none |
+| Directions | `features.maps` | `google` (keyless) | `none` (or absent) | none by construction (keyless) | none |
+| Inquiry | `features.contact` | `webhook` / `stub` | `stub` (explicit demo) | loud `ContactInquiryMisconfigurationError` (never the demo) | `CONTACT_WEBHOOK_URL` (+ optional token) **env-only** |
+| Analytics | `features.analytics` | `vercel` | `none` (or absent) | loud `AnalyticsMisconfigurationError` (never silent nothing) | none |
+| Connect/Message | `connect.methods` | config deep links (`mailto:`, `tel:`, `https:`, `whatsapp:`, `viber:`, …) | omit the method; `demoOnly` badges mark template demos | schema rejects malformed `href`/duplicate ids | none |
+
+Unifying rules:
+
+- **Explicit off states.** Every seam has an explicit disabled state; absent
+  config and `"none"` behave identically.
+- **No breaking schema or public contract changes across releases; additive
+  configuration support only where required.** Phase I added no provider and
+  no new dependency; the only schema addition is the explicit
+  `analytics: "none"` off state.
+- **Secrets are environment-backed only.** Nothing secret ever lives in
+  `site.config.json`, `config/`, or `content/`; webhook secrets are read
+  lazily from `process.env` by the contact server action.
+- **Privacy by default.** Contact webhook payloads are minimal
+  (`id`, `name`, `email`, `subject?`, `message`, `locale`, `submittedAt`) —
+  no IP, user-agent, cookies, or referrer. Every outbound anchor renders with
+  `rel="noreferrer" target="_blank"`.
+- **Loud failure.** A configured-but-invalid provider is rejected by the
+  config schema at build time and, defensively, throws a typed
+  `*MisconfigurationError` at its factory — it never silently degrades to the
+  disabled/demo state.
+
+Adding a new provider (e.g. a second maps provider) is a local change: a new
+adapter file in the capability directory, a factory branch, and a schema enum
+extension — **no** `src/app`, `src/components`, `src/core`, or
+`src/application` rewrite. This milestone deliberately ships no new provider.
 ## 6. Deploying
 
 The template deploys to Vercel directly from a Git repository. Follow

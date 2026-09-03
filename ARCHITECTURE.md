@@ -682,6 +682,33 @@ Guiding rules:
   provider, a hypothetical analytics widget) is a separate future capability
   and is explicitly deferred; the seam accommodates it additively.
 
+### Outbound intent seams — verified contract (Phase I)
+
+The Phase B/H/M/C outbound seams were verified in Phase I as a single,
+cross-cutting contract rather than rebuilt:
+
+- **`tests/unit/outbound-seams.test.ts`** proves the common principle across
+  capabilities: each seam exposes a bounded, provider-neutral result
+  appropriate to its intent (booking/maps link actions `{kind, provider, href}`
+  or `{kind: "none"}`; contact's operation/status domain), honors explicit
+  off/demo states, fails loudly for a configured-but-invalid provider (typed
+  `*MisconfigurationError`, never a silent fallback), never substitutes one
+  provider for another, and never fabricates a delivery (transport failure and
+  the demo stub can never report success).
+- **`tests/architecture/boundaries.test.ts`** ("outbound server-action &
+  isolation boundaries") additionally proves the negative guarantees: the
+  contact server action imports senders only through the contact-inquiry
+  factory; webhook secrets are read lazily from `process.env` at the server
+  action and exist nowhere in `src/config`, `src/core` (outside the sanctioned
+  `ContactInquiryEnv` type in `contact-inquiry.ts`), `content/`, or
+  `site.config.json`; presentation cannot import concrete provider adapters;
+  core cannot import adapters or config (Phase I).
+- **Naming note.** This roadmap *Phase I — Outbound Integrations & Action
+  Seams* is distinct from the earlier locale-identity milestone whose release
+  tag was `v2026.08.29-foundation-phase-i`. To disambiguate, the outbound
+  milestone ships as **`v2026.09.03-foundation-phase-i-outbound-seams`**.
+
+### Locale integration (Phase G composing)
 ### Locale integration (Phase G composing)
 
 Maps composes with the Phase G locale resolution — there is no second

@@ -297,6 +297,96 @@ describe("adapter factory boundary (Phase I)", () => {
   });
 });
 
+describe("outbound server-action & isolation boundaries (Phase I)", () => {
+  const appDirectory = path.join(srcDirectory, "app");
+  const configDirectory = path.join(srcDirectory, "config");
+  const coreDirectory = path.join(srcDirectory, "core");
+  const contentDirectory = path.join(process.cwd(), "content");
+  const siteConfigPath = path.join(process.cwd(), "site.config.json");
+
+  function listTextFiles(directory: string): string[] {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+      const entryPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) return listTextFiles(entryPath);
+      return /\.[jt]sx?$|\.md$|\.json$/.test(entry.name) ? [entryPath] : [];
+    });
+  }
+
+  it("the contact server action imports the sender only through the contact-inquiry factory", () => {
+    const actionSource = readFileSync(path.join(appDirectory, "contact-actions.ts"), "utf8");
+    expect(actionSource).toMatch(/from "@\/adapters\/contact-inquiry"/);
+    // Concrete provider modules must never be imported by the server action.
+    expect(actionSource).not.toMatch(/from "@\/adapters\/contact-inquiry\/webhook"/);
+    expect(actionSource).not.toMatch(/from "@\/adapters\/contact-inquiry\/stub"/);
+  });
+
+  it("webhook secrets are read lazily from the environment in the frontend boundary only", () => {
+    const actionSource = readFileSync(path.join(appDirectory, "contact-actions.ts"), "utf8");
+    // The ONLY sanctioned read site for the webhook secrets is the server action,
+    // inside the request handler (lazy/call-time), sourced from process.env.
+    expect(actionSource).toContain("process.env.CONTACT_WEBHOOK_URL");
+    expect(actionSource).toContain("process.env.CONTACT_WEBHOOK_TOKEN");
+  });
+
+  it("webhook secrets (values or bearer-token properties) never live in config, content, or site.config.json", () => {
+    const secretTokens = [
+      /CONTACT_WEBHOOK/,
+      /webhookUrl/,
+      /webhookToken/,
+    ];
+
+    for (const file of [...listTextFiles(configDirectory), ...listTextFiles(contentDirectory), siteConfigPath]) {
+      const source = readFileSync(file, "utf8");
+      for (const token of secretTokens) {
+        expect(source, `${path.relative(process.cwd(), file)} must not contain ${token}`).not.toMatch(token);
+      }
+    }
+  });
+
+  it("core never reads webhook secrets and names the env contract only in the sanctioned domain file", () => {
+    const coreFiles = listTextFiles(coreDirectory);
+    // `contact-inquiry.ts` is the sanctioned home of the ContactInquiryEnv type
+    // (the env contract); every OTHER core file must not mention the secret
+    // property names or read the environment at all.
+    for (const file of coreFiles) {
+      const source = readFileSync(file, "utf8");
+      expect(source, path.relative(process.cwd(), file)).not.toMatch(/CONTACT_WEBHOOK/);
+      expect(source, path.relative(process.cwd(), file)).not.toMatch(/process\.env\.CONTACT_/);
+      if (!file.endsWith("contact-inquiry.ts")) {
+        expect(source, path.relative(process.cwd(), file)).not.toMatch(/webhookUrl|webhookToken/);
+      }
+    }
+  });
+
+  it("presentation (components) cannot import any concrete provider adapter", () => {
+    const componentFiles = listTypeScriptFiles(path.join(srcDirectory, "components"));
+    for (const file of componentFiles) {
+      for (const specifier of extractImportSpecifiers(file)) {
+        for (const domain of ["maps", "booking", "analytics", "contact-inquiry"]) {
+          expect(
+            specifier,
+            `${path.relative(process.cwd(), file)} imports "${specifier}" (a ${domain} provider)`,
+          ).not.toMatch(new RegExp(`^@/adapters/${domain}/`));
+        }
+      }
+    }
+  });
+
+  it("core cannot import adapters or config (no outer-layer leakage)", () => {
+    for (const file of listTypeScriptFiles(coreDirectory)) {
+      for (const specifier of extractImportSpecifiers(file)) {
+        expect(specifier, `${path.relative(process.cwd(), file)} imports "${specifier}"`).not.toMatch(
+          /^@\/adapters(\/|$)/,
+        );
+        expect(specifier, `${path.relative(process.cwd(), file)} imports "${specifier}"`).not.toMatch(
+          /^@\/config(\/|$)/,
+        );
+      }
+    }
+  });
+});
+
+
 describe("Phase L — regional page-context boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
 
