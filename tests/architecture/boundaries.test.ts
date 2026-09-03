@@ -762,6 +762,36 @@ describe("Phase T — trust & publishing primitive boundaries", () => {
   });
 });
 
+describe("Phase UI-03 — shared UI primitives boundaries", () => {
+  const UI_COMPONENTS_DIRECTORY = path.join(srcDirectory, "components", "ui");
+  const UI_COMPONENT_FILES = listTypeScriptFiles(UI_COMPONENTS_DIRECTORY);
+
+  it("the shared UI primitives are configuration-, core-, adapter- and app-free", () => {
+    expect(UI_COMPONENT_FILES.length).toBeGreaterThan(0);
+    for (const file of UI_COMPONENT_FILES) {
+      const source = readFileSync(file, "utf8");
+      const display = file.slice(file.indexOf("components"));
+      expect(source, `${display} must not import @/config`).not.toMatch(/from ["']@\/config/);
+      expect(source, `${display} must not import @/core`).not.toMatch(/from ["']@\/core/);
+      expect(source, `${display} must not import @/adapters`).not.toMatch(/from ["']@\/adapters/);
+      expect(source, `${display} must not import @/app`).not.toMatch(/from ["']@\/app/);
+      expect(source, `${display} must not import siteConfig`).not.toContain("siteConfig");
+      expect(source, `${display} must not import ResolvedUiConfig`).not.toContain("ResolvedUiConfig");
+      // Only framework/`next` primitives and sibling (`./`) imports are allowed.
+      const nonSiblingNonNext = extractImportSpecifiers(file).filter((spec) =>
+        !spec.startsWith("./") && !spec.startsWith("next") && !["react", "react-dom/server"].includes(spec),
+      );
+      expect(nonSiblingNonNext, `${display} imports outside the allowed framework set`).toEqual([]);
+    }
+  });
+
+  it("server primitives declare no callback/event-handler props (NavItem stays serializable)", () => {
+    const navItem = readFileSync(path.join(UI_COMPONENTS_DIRECTORY, "nav-item.tsx"), "utf8");
+    expect(navItem).not.toMatch(/on(Click|Activate|Change|Open|Close|Toggle)\?/);
+    expect(navItem).not.toContain("use client");
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];

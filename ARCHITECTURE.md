@@ -1012,6 +1012,40 @@ ever invented:
 | `theme.mode` | `system` |
 | `theme.radius` | `medium` |
 
+### Shared UI Primitives (UI-03)
+
+`src/components/ui/` — reusable, **preset-agnostic, prop-driven** presentation
+primitives the Shell Engine (UI-04) will compose and the presets (UI-05+) will
+reuse. They accept semantic intent as plain props (labels, hrefs, active state,
+items) and never import configuration, core, adapters, `siteConfig`,
+`ResolvedUiConfig`, or any preset (boundary-enforced).
+
+| Primitive | Responsibility | Client? |
+| --- | --- | :-: |
+| `AppShell` | Composition frame (header / nav / main / secondary / footer / mobile slots); the deterministic `<main id>` skip-link target. **Frame only — no shell-engine policy** | — |
+| `Navigation` / `NavItem` | Landing landmark + list; NavItem is server-safe and data-only (label/href/active/external/badge/variant), `aria-current="page"` | — |
+| `NavGroup` | Heading + items; collapsible variant = client disclosure (`aria-expanded`/`aria-controls`) | collapsible |
+| `NavCta` / `NavBadge` | CTA variant + presentational chip | — |
+| `BottomNavigation` | Bottom-bar landmark + list (touch-target spacing via tokens) | — |
+| `Sidebar` | Rail + disclosure toggle (`aria-expanded`/`aria-controls`) | collapsible |
+| `Drawer` | Generic overlay/dialog primitive behind the roadmap's "MobileDrawer"/overlay concepts (naming note); `role=dialog` + `aria-modal` + `aria-labelledby`, Escape closes, closed-by-default SSR (nothing rendered when closed) | ✅ |
+| `OverlayNavigation` | Composition over `Drawer` (full-viewport overlay use) | ✅ |
+| `state.ts` | Pure `disclosureReducer` / `createInitialDisclosure` (framework-free) | — |
+
+**Composition boundary (preserved):** `Configuration → ResolvedUiConfig → Shared
+Primitives (UI-03) → Shell Engine (UI-04) → Presets (UI-05+)`. The primitives are
+**not wired into the live layout in UI-03**; UI-04 owns shell composition and
+responsive transformation (the primitives contain no breakpoint/media-query
+policy and no preset-selection logic).
+
+**Accessibility contract — structural vs behavioral:** UI-03 ships the semantics
+(landmarks, ARIA attributes, disclosure states, deterministic SSR-safe closed
+defaults, conditional rendering so closed panels contribute nothing focusable).
+The **behavioral matrix** (keyboard navigation, focus trap/return, Escape,
+scroll locking, responsive interaction, reduced motion) is a **mandatory UI-10
+browser-validation gate** — UI-03 implements the underlying behavior but does
+not fake browser verification in unit tests.
+
 ### No preset is ever selected by resolution (transitional decision, preserved)
 
 `preset` is the ONLY leaf with a different rule: an explicit `ui.preset` is
@@ -1073,7 +1107,7 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | --- | --- | --- |
 | Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 | ✅ shipped |
 | Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 | ✅ shipped (`resolveUiConfig` / `FOUNDATION_UI_DEFAULTS`) |
-| Shared UI primitives | UI-03 | not started |
+| Shared UI primitives | UI-03 | ✅ shipped (`src/components/ui`; unwired until UI-04 — the next consumer) |
 | Shell orchestration & responsive shell behavior | UI-04 | not started (will consume the resolved configuration) |
 | Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 | not started (the deliberate default decision point) |
 
