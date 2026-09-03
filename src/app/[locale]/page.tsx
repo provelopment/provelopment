@@ -5,6 +5,7 @@ import { BookingAction } from "@/components/site/booking-action";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
@@ -22,15 +23,37 @@ export async function generateMetadata({
 }: HomePageProps): Promise<Metadata> {
   const { locale } = await params;
 
+  const canonical = `${siteConfig.url}/${locale}`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const title = siteConfig.name;
+
   return {
+    // No explicit `title`: the layout default/template renders the site name
+    // alone (never "Name | Name").
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}`,
+      canonical,
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
         locales: localeCodes,
         defaultLocale: siteConfig.defaultLocale,
       }),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 

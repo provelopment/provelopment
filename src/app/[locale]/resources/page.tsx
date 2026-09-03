@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { buildLanguageAlternates } from "@/core/locale";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -30,12 +31,32 @@ export async function generateMetadata({
   const { locale } = await params;
   const content = await pageContentRepository.findBySlug("resources", locale);
 
+  const title = content?.title ?? "Resources";
+  const canonical = `${siteConfig.url}/${locale}/resources`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: content?.title ?? "Resources",
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/resources`,
+      canonical,
       languages: languageAlternates(),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 

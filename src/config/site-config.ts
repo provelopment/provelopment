@@ -74,6 +74,8 @@ export interface SiteConfig {
   readonly name: string;
   readonly tagline: string;
   readonly description: string;
+  /** Optional brand logo (absolute URL) for structured data (Phase S). */
+  readonly logo?: string;
   readonly contact: ContactConfig;
   readonly socialLinks: readonly SocialLink[];
   readonly navigation: readonly NavigationItem[];

@@ -52,6 +52,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     name: json.site.name,
     tagline: json.site.tagline,
     description: json.site.description,
+    logo: json.site.logo,
     defaultLocale: json.i18n.defaultLocale,
     locales: json.i18n.locales,
     contact: json.contact,

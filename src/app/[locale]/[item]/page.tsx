@@ -10,6 +10,7 @@ import { siteConfig } from "@/config";
 import { resolveRegionalPageContext } from "@/application/page-context";
 import { buildLanguageAlternates } from "@/core/locale";
 import { regionsForLocale, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -82,6 +83,9 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
   const content = await pageContentRepository.findBySlug(item, locale);
   if (!content) return {};
 
+  const title = content.title;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   if (isRegionalLanding(locale, item)) {
     const alternates = buildRegionalLanguageAlternates({
       baseUrl: siteConfig.url,
@@ -91,21 +95,40 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
       region: item,
       slug: null,
     });
+    const canonical = `${siteConfig.url}${regionalPath(locale, item, null)}`;
     return {
-      title: content.title,
+      title,
+      description: siteConfig.description,
       alternates: {
-        canonical: `${siteConfig.url}/${regionalPath(locale, item, null)}`,
+        canonical,
         languages: Object.keys(alternates).length > 0 ? alternates : undefined,
       },
+      openGraph: buildOpenGraphData({
+        baseUrl: siteConfig.url,
+        siteName: siteConfig.name,
+        locale,
+        title,
+        fallbackDescription: siteConfig.description,
+        url: canonical,
+        imageUrl: ogImage,
+        alternateLocales: localeCodes.filter((code) => code !== locale),
+      }),
+      twitter: buildTwitterData({
+        title,
+        fallbackDescription: siteConfig.description,
+        imageUrl: ogImage,
+      }),
     };
   }
 
   // Flat content page: content falls back to the default locale, so every
   // configured locale that renders this slug is a valid alternate.
+  const canonical = `${siteConfig.url}/${locale}/${item}`;
   return {
-    title: content.title,
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/${item}`,
+      canonical,
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
         locales: localeCodes,
@@ -113,6 +136,21 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
         path: `/${item}`,
       }),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 
@@ -143,7 +181,10 @@ export default async function ItemPage({ params }: ItemPageProps) {
             locale={locale}
             directionLinkResolver={directionLinkResolver}
           />
-          <RegionStructuredData region={context.region} />
+          <RegionStructuredData
+            region={context.region}
+            canonicalUrl={`${siteConfig.url}/${regionalPath(locale, item, null)}`}
+          />
         </>
       ) : null}
     </article>

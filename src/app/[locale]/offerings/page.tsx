@@ -8,6 +8,7 @@ import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { sortOfferings } from "@/core/offerings";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -23,10 +24,15 @@ interface OfferingsPageProps {
 export async function generateMetadata({ params }: OfferingsPageProps): Promise<Metadata> {
   const { locale } = await params;
 
+  const title = getDictionary(locale).offerings.heading;
+  const canonical = `${siteConfig.url}/${locale}/offerings`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: getDictionary(locale).offerings.heading,
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/offerings`,
+      canonical,
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
         locales: localeCodes,
@@ -34,6 +40,21 @@ export async function generateMetadata({ params }: OfferingsPageProps): Promise<
         path: "/offerings",
       }),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 

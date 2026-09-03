@@ -44,6 +44,24 @@ describe("parseSiteConfig", () => {
     expect(config.contact).toEqual({});
   });
 
+  it("accepts an omitted site.logo (optional) and maps it when present", () => {
+    expect(parseSiteConfig(validConfig).logo).toBeUndefined();
+
+    const config = parseSiteConfig({
+      ...validConfig,
+      site: { ...validConfig.site, logo: "https://example.com/logo.png" },
+    });
+    expect(config.logo).toBe("https://example.com/logo.png");
+  });
+
+  it("rejects an invalid site.logo URL", () => {
+    const invalid = {
+      ...validConfig,
+      site: { ...validConfig.site, logo: "not-a-url" },
+    };
+    expect(() => parseSiteConfig(invalid)).toThrow(/logo/);
+  });
+
   it("rejects a defaultLocale that is not among the locales", () => {
     const invalid = {
       ...validConfig,

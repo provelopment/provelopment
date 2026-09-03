@@ -61,6 +61,27 @@ export interface OfferingsContent extends PageContent {
 }
 
 /**
+ * Conservative display-price parser for SEO structured data (Phase S).
+ *
+ * `price` is a DISPLAY-ONLY string (Phase C) — never a modeled numeric/currency
+ * value. This parser extracts a bare numeric string for `Service.offers.price`
+ * ONLY when the entire value is a simple number with an optional single
+ * leading currency symbol, which is stripped but NEVER recorded as currency
+ * (`priceCurrency` is never emitted — currency is not modeled). Anything else
+ * (ranges such as "From $150", suffixed text like "$2,500 / month", words like
+ * "Custom Quote", …) yields `null` and the caller omits `offers`: we never
+ * guess. An Offering remains descriptive visitor-facing content.
+ */
+const leadingCurrencySymbolPattern = /^[$€£¥₽]/;
+
+export function parseDisplayPrice(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  const withoutSymbol = trimmed.replace(leadingCurrencySymbolPattern, "");
+  return /^\d[\d.,]*$/.test(withoutSymbol) ? withoutSymbol : null;
+}
+
+/**
  * A resolved offering action — provider-neutral and framework-free. Components
  * consume THIS shape plus a localized label; they never see providers, config,
  * or the raw `OfferingAction`.

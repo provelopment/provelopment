@@ -9,6 +9,7 @@ import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { siteConfig } from "@/config";
 import { resolveRegionalPageContext } from "@/application/page-context";
 import { hasPageEntry, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -66,12 +67,32 @@ export async function generateMetadata({ params }: RegionalPageProps): Promise<M
     slug,
   });
 
+  const title = content.title;
+  const canonical = `${siteConfig.url}${regionalPath(locale, item, slug)}`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: content.title,
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${regionalPath(locale, item, slug)}`,
+      canonical,
       languages: Object.keys(alternates).length > 0 ? alternates : undefined,
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 
@@ -107,7 +128,10 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
         locale={locale}
         directionLinkResolver={directionLinkResolver}
       />
-      <RegionStructuredData region={context.region} />
+      <RegionStructuredData
+        region={context.region}
+        canonicalUrl={`${siteConfig.url}/${regionalPath(locale, item, slug)}`}
+      />
     </article>
   );
 }

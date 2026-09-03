@@ -7,6 +7,7 @@ import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { isCanonicalLegalSlug, resolveLegalDocs } from "@/core/legal";
 import { buildLanguageAlternates } from "@/core/locale";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const legalRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -60,10 +61,15 @@ export async function generateMetadata({
   const content = await legalRepository.findBySlug(slug, locale);
   if (!content) return {};
 
+  const title = content.title;
+  const canonical = `${siteConfig.url}/${locale}/legal/${slug}`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: content.title,
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/legal/${slug}`,
+      canonical,
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
         locales: localeCodes,
@@ -71,6 +77,21 @@ export async function generateMetadata({
         path: `/legal/${slug}`,
       }),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 
