@@ -2,6 +2,19 @@ import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
+import type {
+  ContentWidth,
+  CtaAction,
+  CtaStyle,
+  DesktopNavigationPattern,
+  MobileNavigationPattern,
+  ShellVariant,
+  TabletNavigationPattern,
+  ThemeMode,
+  ThemeRadius,
+  UiDensity,
+  UiPreset,
+} from "@/core/ui";
 
 export interface LocaleConfig {
   /** BCP 47-style code such as `en` or `nl`. */
@@ -64,6 +77,65 @@ export interface BookingConfig {
   readonly url?: string;
 }
 
+/**
+ * UI system configuration (UI-01 — Architecture & Contract).
+ *
+ * Intent-level configuration namespace (roadmap §11): values describe the
+ * desired UX personality, never pixels. The block is OPTIONAL — an absent
+ * `ui` key (or an empty object) is valid and changes nothing: the contract
+ * fixes no default preset. UI-02 owns resolution (defaults/overrides/merging);
+ * UI-05 is where Adaptive is fixed as the resolved/recommended default.
+ */
+export interface UiConfig {
+  /** Explicit preset selection; `undefined` when omitted (never injected). */
+  readonly preset?: UiPreset;
+  /** Page-frame intent (roadmap §11 `shell`). */
+  readonly shell?: UiShellConfig;
+  /** Per-viewport navigation composition overrides (preset defines the rest). */
+  readonly navigation?: UiNavigationConfig;
+  /** Semantic UI density (roadmap §16). */
+  readonly density?: UiDensity;
+  /** Content area width intent (roadmap §17). */
+  readonly content?: UiContentConfig;
+  /** Primary CTA intent (roadmap §19). */
+  readonly cta?: UiCtaConfig;
+  /** Visual theme intent — kept separate from the layout preset (roadmap §18). */
+  readonly theme?: UiThemeConfig;
+}
+
+export interface UiShellConfig {
+  readonly header?: ShellVariant;
+  readonly footer?: ShellVariant;
+}
+
+export interface UiNavigationConfig {
+  readonly desktop?: DesktopNavigationPattern;
+  readonly tablet?: TabletNavigationPattern;
+  readonly mobile?: MobileNavigationPattern;
+}
+
+export interface UiContentConfig {
+  readonly width?: ContentWidth;
+}
+
+export interface UiCtaConfig {
+  /** Whether a primary CTA should be composed. */
+  readonly enabled?: boolean;
+  /** Semantic business action (roadmap §19). */
+  readonly action?: CtaAction;
+  /** Adopter-provided label for the action. */
+  readonly label?: string;
+  /** Visual prominence requested from the preset (roadmap §11). */
+  readonly style?: CtaStyle;
+}
+
+export interface UiThemeConfig {
+  /** Light/dark/system; `system` follows the OS color-scheme preference. */
+  readonly mode?: ThemeMode;
+  /** Semantic corner-radius intent (aligns with the `--radius-*` tokens). */
+  readonly radius?: ThemeRadius;
+}
+
 export interface SiteConfig {
   /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
   readonly url: string;
@@ -81,6 +153,12 @@ export interface SiteConfig {
   readonly navigation: readonly NavigationItem[];
   /** Phase M — configuration-driven connection modes for the Connect page. */
   readonly connect?: ConnectConfig;
+  /**
+   * UI system configuration (UI-01). Intent-level contract namespace
+   * (roadmap §11); validated by `uiConfigSchema`. Not consumed by rendering
+   * until UI-02+; see ARCHITECTURE.md — UI System Architecture.
+   */
+  readonly ui?: UiConfig;
   /** Normalized business profile (from `business` block or legacy contact). */
   readonly business: Business;
   /**

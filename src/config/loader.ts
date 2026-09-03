@@ -59,6 +59,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     socialLinks: json.socialLinks,
     navigation: json.navigation,
     connect: json.connect,
+    ui: json.ui,
     business,
     regions,
     pageBindings,
