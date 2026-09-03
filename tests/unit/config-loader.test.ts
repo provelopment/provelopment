@@ -38,6 +38,15 @@ describe("parseSiteConfig", () => {
     expect(config.analytics).toEqual({ provider: "vercel" });
   });
 
+  it("accepts an explicit analytics provider none as the intentional off state", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      features: { analytics: { provider: "none" } },
+    });
+
+    expect(config.analytics).toEqual({ provider: "none" });
+  });
+
   it("accepts empty contact details", () => {
     const config = parseSiteConfig({ ...validConfig, contact: {} });
 

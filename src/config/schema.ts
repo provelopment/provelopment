@@ -393,8 +393,8 @@ export const featuresConfigSchema = z.object({
   /** Optional functionality, each consumed by its own adapter. */
   analytics: z
     .object({
-      provider: z.literal("vercel", {
-        message: "supported providers: vercel",
+      provider: z.enum(["vercel", "none"], {
+        message: "supported providers: vercel, none",
       }),
     })
     .optional(),
@@ -437,8 +437,9 @@ export const featuresConfigSchema = z.object({
     .optional(),
   /**
    * Contact inquiry capability. `stub` is the explicit demo default; `webhook`
-   * requires the CONTACT_WEBHOOK_URL environment variable at runtime (never
-   * stored in this file — secrets are environment-backed).
+   * requires the webhook endpoint be configured via environment variables at
+   * runtime (never stored in this file — secrets are environment-backed and
+   * read only by the contact server action in `src/app/contact-actions.ts`).
    */
   contact: z
     .object({
