@@ -20,6 +20,13 @@ const SCHEMA_WEEKDAYS: Record<Weekday, string> = {
  * via `business.type` (falling back to `Organization`), the business identity,
  * general contact channels, and one Location per configured location. The
  * broader structured-data subsystem is a separate future feature.
+ *
+ * Phase S enrichment (additive only — the emitted shape below is preserved):
+ *   - `@id` + `url` for the organization;
+ *   - optional `logo` (from `site.logo`);
+ *   - `sameAs` from the configured `socialLinks` (never invented);
+ *   - a `ContactPoint` from the resolved business contact channels;
+ *   - a stable fragment-based `@id` on every Place location.
  */
 function toGeo(lat: number, lng: number) {
   return { "@type": "GeoCoordinates" as const, latitude: lat, longitude: lng };
@@ -28,6 +35,9 @@ function toGeo(lat: number, lng: number) {
 function toPlace(loc: BusinessLocation) {
   const place: Record<string, unknown> = {
     "@type": "Place",
+    // Stable fragment identifier — locations have no standalone route, so we
+    // never invent a page URL for them.
+    ...(loc.id ? { "@id": `${siteConfig.url}/#location-${loc.id}` } : {}),
     name: loc.name ?? siteConfig.name,
   };
   // JSON-LD uses the Latin/international representation when supplied (global
@@ -65,9 +75,23 @@ export function StructuredData({ locale }: { readonly locale: string }) {
   const node: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": type,
+    "@id": siteConfig.url,
     name: b.name ?? siteConfig.name,
+    url: siteConfig.url,
   };
   if (b.description) node.description = b.description;
+  if (siteConfig.logo) node.logo = { "@type": "ImageObject", url: siteConfig.logo };
+  if (siteConfig.socialLinks.length > 0) {
+    node.sameAs = siteConfig.socialLinks.map((link) => link.href);
+  }
+  if (b.contact.email || b.contact.phone) {
+    node.contactPoint = {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      ...(b.contact.email ? { email: b.contact.email } : {}),
+      ...(b.contact.phone ? { telephone: b.contact.phone } : {}),
+    };
+  }
   if (b.contact.email) node.email = b.contact.email;
   if (b.contact.phone) node.telephone = b.contact.phone;
   if (b.locations.length) {

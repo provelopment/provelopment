@@ -7,6 +7,7 @@ import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -31,12 +32,32 @@ export async function generateMetadata({ params }: ContactPageProps): Promise<Me
   const { locale } = await params;
   const content = await pageContentRepository.findBySlug("contact", locale);
 
+  const title = content?.title ?? "Contact";
+  const canonical = `${siteConfig.url}/${locale}/contact`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: content?.title ?? "Contact",
+    title,
+    description: siteConfig.description,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/contact`,
+      canonical,
       languages: languageAlternates(),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 

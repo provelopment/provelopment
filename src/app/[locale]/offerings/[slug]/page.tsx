@@ -5,11 +5,14 @@ import { createBookingActionResolver } from "@/adapters/booking";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { OfferingDetail } from "@/components/site/offering-detail";
 import { offeringActionLabel } from "@/components/site/offering-action-label";
+import { OfferingStructuredData } from "@/components/site/offering-structured-data";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import { resolveBusinessForLocale } from "@/core/business";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { isCanonicalOffering, resolveOfferingAction } from "@/core/offerings";
+import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -65,11 +68,15 @@ export async function generateMetadata({
 
   if (!content) return {};
 
+  const title = content.title;
+  const canonical = `${siteConfig.url}/${locale}/offerings/${slug}`;
+  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+
   return {
-    title: content.title,
+    title,
     description: content.blurb,
     alternates: {
-      canonical: `${siteConfig.url}/${locale}/offerings/${slug}`,
+      canonical,
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
         locales: localeCodes,
@@ -77,6 +84,23 @@ export async function generateMetadata({
         path: `/offerings/${slug}`,
       }),
     },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale,
+      title,
+      description: content.blurb,
+      fallbackDescription: siteConfig.description,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales: localeCodes.filter((code) => code !== locale),
+    }),
+    twitter: buildTwitterData({
+      title,
+      description: content.blurb,
+      fallbackDescription: siteConfig.description,
+      imageUrl: ogImage,
+    }),
   };
 }
 
@@ -118,18 +142,30 @@ export default async function OfferingsDetailPage({
       ? content.action.label?.trim() || offeringActionLabel(content.action.intent, dictionary)
       : null;
 
+  // Provider identity for the `Service` JSON-LD — the SAME business-resolution
+  // seam the visible UI uses (never an independent copy).
+  const business = resolveBusinessForLocale(siteConfig.business, locale);
+
   return (
-    <OfferingDetail
-      offering={content}
-      action={resolvedAction}
-      backHref={`/${locale}/offerings`}
-      labels={{
-        deliverablesHeading: dictionary.offerings.deliverables,
-        faqHeading: dictionary.offerings.faq,
-        featuredBadge: dictionary.offerings.featured,
-        actionLabel,
-        backToListing: dictionary.offerings.backToOfferings,
-      }}
-    />
+    <>
+      <OfferingDetail
+        offering={content}
+        action={resolvedAction}
+        backHref={`/${locale}/offerings`}
+        labels={{
+          deliverablesHeading: dictionary.offerings.deliverables,
+          faqHeading: dictionary.offerings.faq,
+          featuredBadge: dictionary.offerings.featured,
+          actionLabel,
+          backToListing: dictionary.offerings.backToOfferings,
+        }}
+      />
+      <OfferingStructuredData
+        offering={content}
+        canonicalUrl={`${siteConfig.url}/${locale}/offerings/${content.slug}`}
+        providerName={business.name ?? siteConfig.name}
+        providerType={business.type ?? "Organization"}
+      />
+    </>
   );
 }
