@@ -56,7 +56,7 @@ title; the body is rendered as Markdown.
 All content bodies (pages, offerings, legal) are localized the same way: a
 locale-specific file at `content/<type>/<locale>/<slug>.md` is served when
 present; otherwise the repository falls back to the default-locale body. The
-shipped template localizes every page and the demo content to all 8 locales.
+shipped template localizes every page and the demo content to all 9 locales.
 
 > **Fallback is intentional, not a bug.** A localized URL (e.g.
 > `/de/legal/privacy`) with a missing translation serves the default-locale
@@ -252,7 +252,7 @@ Legal **bodies** are localized independently of the footer **labels**:
   automatically — exactly the same fallback used everywhere else. So an adopter
   who has translated the footer but not a document's body still gets a working
   page until they add the translation.
-- The shipped demo docs include translated bodies for all 8 locales, all
+- The shipped demo docs include translated bodies for all 9 locales, all
   preserving the same generic, **replaceable-template / not legal advice**
   nature as the English originals. There is no separate translation system and
   no per-locale schema — just the standard content files and the standard
@@ -548,11 +548,11 @@ region`; a **Region** is the complete operational identity of that page.
         ]
       }
     },
-    "vancouver": { /* America/Vancouver, its own address/hours/holidays */ }
+    "new-york": { /* America/New_York, its own address/hours/holidays */ }
   },
   "pages": [
     { "locale": "en", "slug": "toronto",   "region": "toronto" },
-    { "locale": "en", "slug": "vancouver", "region": "vancouver" },
+    { "locale": "en", "slug": "new-york",  "region": "new-york" },
     { "locale": "fr", "slug": "toronto",   "region": "toronto" }   // one region, many locales
   ]
 }
@@ -598,11 +598,11 @@ main menu.
 
 ```jsonc
 "business": {
-  "regions": { "toronto": { …, "label": "Toronto" }, "vancouver": { … } },
+  "regions": { "toronto": { …, "label": "Toronto" }, "new-york": { … } },
   "pages": [
     { "locale": "en", "region": "toronto" },                // /en/toronto
     { "locale": "en", "region": "toronto", "slug": "about" },  // /en/toronto/about
-    { "locale": "en", "region": "vancouver" },              // /en/vancouver
+    { "locale": "en", "region": "new-york" },              // /en/new-york
     { "locale": "de", "region": "berlin" }                  // /de/berlin
   ]
 }
@@ -644,7 +644,7 @@ after selecting a region.
 "business": {
   "regions": {
     "toronto": { …, "defaultLocale": "en" },   // the default audience language
-    "vancouver": { … }
+    "new-york": { … }
   },
   "pages": [
     { "locale": "en", "region": "toronto" },
