@@ -765,6 +765,7 @@ describe("Phase T — trust & publishing primitive boundaries", () => {
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
+  const UI_CORE_RESOLUTION_MODULES = ["defaults.ts", "resolve.ts"];
 
   it("the UI vocabulary and preset profiles are framework-, config- and adapter-free", () => {
     for (const name of UI_CORE_MODULES) {
@@ -775,6 +776,35 @@ describe("Phase UI-01 — UI architecture contract boundaries", () => {
       expect(source, name).not.toMatch(/from ["']@\/adapters/);
       expect(source, name).not.toMatch(/from ["']@\/config/);
       expect(source, name).not.toContain("siteConfig");
+    }
+  });
+
+  it("the UI resolution machinery is framework-free and adapter-free; only a type-only config import is allowed (UI-02", () => {
+    for (const name of UI_CORE_RESOLUTION_MODULES) {
+      const source = readFileSync(path.join(UI_CORE_DIRECTORY, name), "utf8");
+      // No framework / zod / adapters / runtime config imports.
+
+      expect(source, name).not.toMatch(/from ["']next/);
+      expect(source, name).not.toMatch(/from ["']react/);
+      expect(source, name).not.toMatch(/from ["']zod/);
+      expect(source, name).not.toMatch(/from ["']@\/adapters/);
+      expect(source, name).not.toContain("siteConfig");
+      // The ONLY sanctioned config coupling is a TYPE-ONLY import (erased at
+      // compile time), so runtime values never flow core ← config. The regex
+      // allows `import type { ... } from "@/config/..."` but bans runtime
+      // `import { ... } from "@/config/..."` and `import ... = require(...`.
+      const runtimeConfigImport = source.match(/import\s+(?!type\b)[^"']*?from\s+["']@\/config["']/);
+      expect(runtimeConfigImport, `${name} must not import config VALUES at runtime`).toBeNull();
+      const requireConfig = source.match(/require\(\s*["']@\/config/);
+      expect(requireConfig, `${name} must not require config at runtime`).toBeNull();
+      // And every config import must be type-only (guards slip-through).
+      const configImport = source.match(/from\s+["']@\/config[^"']*["']/g);
+      for (const match of (configImport ?? [])) {
+        // Ensure the import statement containing this specifier starts with `import type`。
+        const stmtStart = Math.max(0, source.lastIndexOf("import", source.indexOf(match)));
+        const importStmt = source.slice(stmtStart, source.indexOf(match) + match.length);
+        expect(importStmt.trim().startsWith("import type"), `${name}: config import must be type-only`).toBe(true);
+      }
     }
   });
 });
