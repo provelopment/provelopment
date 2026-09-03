@@ -500,6 +500,13 @@ redesigning the Phase K/L model.
   every CONFIGURED operating location (`business.regions` is authoritative) in strict
   alphabetical order (Berlin, Jakarta, London, Los Angeles, Madrid, Moscow, New York,
   Paris, Seoul, Shanghai, Sydney, Tokyo, Toronto) plus a permanent leading **Unspecified** option.
+  Option text is computed via `regionDisplayName(locale, region)`:
+  - In non-English locales: the selected language name appears first, followed by the English
+    name in brackets if distinct (`서울 (Seoul)`, `東京 (Tokyo)`, `Londres (London)`).
+  - In the English locale: the English name appears first; for locations whose primary
+    language is non-English, the native name appears in brackets if distinct (`Tokyo (東京)`,
+    `Seoul (서울)`, `Moscow (Москва)`), while English-primary locations omit brackets (`London`,
+    `Sydney`, `New York`).
   The **Language** selector lists locales with the default locale (English) pinned first,
   followed by all remaining locales in alphabetical order.
 - **Unspecified location.** Explicitly labeled (never a bare "Location" that

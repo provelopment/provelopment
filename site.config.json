@@ -163,6 +163,17 @@
               ]
             }
           ]
+        },
+        "labels": {
+          "de": "Berlin",
+          "en": "Berlin",
+          "es": "Berlín",
+          "fr": "Berlin",
+          "id": "Berlin",
+          "ja": "ベルリン",
+          "ko": "베를린",
+          "ru": "Берлин",
+          "zh": "柏林"
         }
       },
       "jakarta": {
@@ -216,6 +227,17 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "de": "Jakarta",
+          "en": "Jakarta",
+          "es": "Yakarta",
+          "fr": "Jakarta",
+          "id": "Jakarta",
+          "ja": "ジャカルタ",
+          "ko": "자카르타",
+          "ru": "Джакарта",
+          "zh": "雅加达"
         }
       },
       "london": {
@@ -280,6 +302,17 @@
               "closed": true
             }
           ]
+        },
+        "labels": {
+          "de": "London",
+          "en": "London",
+          "es": "Londres",
+          "fr": "Londres",
+          "id": "London",
+          "ja": "ロンドン",
+          "ko": "런던",
+          "ru": "Лондон",
+          "zh": "伦敦"
         }
       },
       "los-angeles": {
@@ -345,6 +378,17 @@
               "closed": true
             }
           ]
+        },
+        "labels": {
+          "de": "Los Angeles",
+          "en": "Los Angeles",
+          "es": "Los Ángeles",
+          "fr": "Los Angeles",
+          "id": "Los Angeles",
+          "ja": "ロサンゼルス",
+          "ko": "로스앤젤레스",
+          "ru": "Лос-Анджелес",
+          "zh": "洛杉矶"
         }
       },
       "madrid": {
@@ -398,6 +442,17 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "de": "Madrid",
+          "en": "Madrid",
+          "es": "Madrid",
+          "fr": "Madrid",
+          "id": "Madrid",
+          "ja": "マドリード",
+          "ko": "마드리드",
+          "ru": "Мадрид",
+          "zh": "马德里"
         }
       },
       "moscow": {
@@ -459,7 +514,15 @@
           ]
         },
         "labels": {
-          "ru": "Москва"
+          "de": "Moskau",
+          "en": "Moscow",
+          "es": "Moscú",
+          "fr": "Moscou",
+          "id": "Moskow",
+          "ja": "モスクワ",
+          "ko": "모스크바",
+          "ru": "Москва",
+          "zh": "莫斯科"
         }
       },
       "new-york": {
@@ -525,6 +588,17 @@
               "closed": true
             }
           ]
+        },
+        "labels": {
+          "de": "New York",
+          "en": "New York",
+          "es": "Nueva York",
+          "fr": "New York",
+          "id": "New York",
+          "ja": "ニューヨーク",
+          "ko": "뉴욕",
+          "ru": "Нью-Йорк",
+          "zh": "纽约"
         }
       },
       "paris": {
@@ -578,6 +652,17 @@
           "saturday": [],
           "sunday": [],
           "holidays": []
+        },
+        "labels": {
+          "de": "Paris",
+          "en": "Paris",
+          "es": "París",
+          "fr": "Paris",
+          "id": "Paris",
+          "ja": "パリ",
+          "ko": "파리",
+          "ru": "Париж",
+          "zh": "巴黎"
         }
       },
       "seoul": {
@@ -633,7 +718,15 @@
           "holidays": []
         },
         "labels": {
-          "ko": "서울"
+          "de": "Seoul",
+          "en": "Seoul",
+          "es": "Seúl",
+          "fr": "Séoul",
+          "id": "Seoul",
+          "ja": "ソウル",
+          "ko": "서울",
+          "ru": "Сеул",
+          "zh": "首尔"
         }
       },
       "shanghai": {
@@ -689,6 +782,14 @@
           "holidays": []
         },
         "labels": {
+          "de": "Shanghai",
+          "en": "Shanghai",
+          "es": "Shanghái",
+          "fr": "Shanghai",
+          "id": "Shanghai",
+          "ja": "上海",
+          "ko": "상하이",
+          "ru": "Шанхай",
           "zh": "上海"
         }
       },
@@ -757,10 +858,15 @@
           ]
         },
         "labels": {
+          "de": "Sydney",
+          "en": "Sydney",
+          "es": "Sídney",
+          "fr": "Sydney",
+          "id": "Sydney",
           "ja": "シドニー",
-          "zh": "悉尼",
           "ko": "시드니",
-          "ru": "Сидней"
+          "ru": "Сидней",
+          "zh": "悉尼"
         }
       },
       "tokyo": {
@@ -816,7 +922,15 @@
           "holidays": []
         },
         "labels": {
-          "ja": "東京"
+          "de": "Tokio",
+          "en": "Tokyo",
+          "es": "Tokio",
+          "fr": "Tokyo",
+          "id": "Tokyo",
+          "ja": "東京",
+          "ko": "도쿄",
+          "ru": "Токио",
+          "zh": "东京"
         }
       },
       "toronto": {
@@ -892,6 +1006,17 @@
               ]
             }
           ]
+        },
+        "labels": {
+          "de": "Toronto",
+          "en": "Toronto",
+          "es": "Toronto",
+          "fr": "Toronto",
+          "id": "Toronto",
+          "ja": "トロント",
+          "ko": "토론토",
+          "ru": "Торонто",
+          "zh": "多伦多"
         }
       }
     },
