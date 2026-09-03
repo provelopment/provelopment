@@ -31,18 +31,19 @@ the sitemap, canonical URLs, and hreflang alternates.
 Read configuration only through the loader exports from `src/config`; never
 import the JSON file directly from components.
 
-### The `ui` namespace (UI-02 — resolution exists, still not consumed by rendering)
+### The `ui` namespace (UI-02/UI-04 — resolved config now drives the shell)
 
 The optional top-level `ui` key is the intent-level UI configuration namespace
 (preset, shell, navigation, density, content width, CTA, theme), validated at
-build time. **UI-02 added the resolution machinery** — `resolveUiConfig`
-resolves intent over developer overrides → preset profile (when a preset is
-explicitly selected) → neutral Foundation defaults (`FOUNDATION_UI_DEFAULTS`).
-Still, **as of UI-02, nothing consumes the resolved configuration** — adding or
-editing `ui` has no visual effect until the shell engine consumes it (UI-04).
-No default preset is fixed: omitting `preset` leaves it undefined (the resolved
-default is a UI-05 decision). `cta.enabled` resolves `false` by default — the
-shipped classic composition renders no CTA, and the Foundation never invents a
+build time. **UI-02** added `resolveUiConfig` (deterministic resolution over
+developer overrides → preset profile (when a preset is explicitly selected) →
+neutral Foundation defaults). **UI-04** wired the resolved config into the
+live shell (`ShellEngine`): the Foundation defaults (no `ui` block needed)
+render the classic top navigation at desktop/tablet and a closed mobile menu
+drawer below the `md` breakpoint — desktop/tablet are visually unchanged from
+before. No default preset is fixed: omitting `preset` leaves it undefined (the
+resolved default is a UI-05 decision). `cta.enabled` resolves `false` by
+default — the shipped shell renders no CTA, and the Foundation never invents a
 business action.
 
 ## 2. Content — Markdown Pages

@@ -792,10 +792,34 @@ describe("Phase UI-03 — shared UI primitives boundaries", () => {
   });
 });
 
+describe("Phase UI-04 — shell engine boundaries", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+  const SHELL_FILES = listTypeScriptFiles(SHELL_DIRECTORY);
+
+  it("the shell engine components import no configuration or adapters and receive intent via props", () => {
+    expect(SHELL_FILES.length).toBeGreaterThan(0);
+    for (const file of SHELL_FILES) {
+      const source = readFileSync(file, "utf8");
+      const display = file.slice(file.indexOf("components"));
+      expect(source, `${display} must not import @/config`).not.toMatch(/from ["']@\/config/);
+      expect(source, `${display} must not import @/adapters`).not.toMatch(/from ["']@\/adapters/);
+      expect(source, `${display} must not import siteConfig`).not.toContain("siteConfig");
+      expect(source, `${display} must not import @/app`).not.toMatch(/from ["']@\/app/);
+    }
+  });
+
+  it("the shell engine stays preset-agnostic (no preset-name literals)", () => {
+    for (const file of ["shell-engine.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      expect(source, file).not.toMatch(/"adaptive"|"classic"|"focus"|"workspace"|"immersive"/);
+    }
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
-  const UI_CORE_RESOLUTION_MODULES = ["defaults.ts", "resolve.ts"];
+  const UI_CORE_RESOLUTION_MODULES = ["defaults.ts", "resolve.ts", "shell.ts"];
 
   it("the UI vocabulary and preset profiles are framework-, config- and adapter-free", () => {
     for (const name of UI_CORE_MODULES) {

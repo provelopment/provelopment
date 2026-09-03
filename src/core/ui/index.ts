@@ -46,3 +46,10 @@ export type {
   ResolvedUiConfig,
   UiConfigResolutionIssue,
 } from "./resolve";
+
+export { contentWidthClass, densityClass, resolveShellPattern } from "./shell";
+export type {
+  PerViewportDecision,
+  ShellPatternDecision,
+  ShellPrimitiveKind,
+} from "./shell";
