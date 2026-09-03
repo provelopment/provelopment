@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { siteConfig } from "@/config";
 import {
   displayNameWithEnglish,
   regionDisplayName,
@@ -56,6 +57,16 @@ describe("Phase M refinement — location display names", () => {
     expect(regionDisplayName("en", montreal)).toBe("Montreal");
   });
 
+  it("appends local non-English name in brackets in English when defaultLocale differs", () => {
+    const montrealFr = makeRegion({
+      id: "montreal",
+      label: "Montreal",
+      defaultLocale: "fr",
+      labels: { fr: "Montréal" },
+    });
+    expect(regionDisplayName("en", montrealFr)).toBe("Montreal (Montréal)");
+  });
+
   it("CJK localized names with English suffix", () => {
     expect(
       regionDisplayName("ja", makeRegion({ id: "tokyo", label: "Tokyo", labels: { ja: "東京" } })),
@@ -71,6 +82,50 @@ describe("Phase M refinement — location display names", () => {
   it("falls back through label/name/id when no localized label exists", () => {
     expect(regionDisplayName("ja", makeRegion({ id: "berlin", label: "Berlin" }))).toBe("Berlin");
     expect(regionDisplayName("ja", makeRegion({ id: "paris" }))).toBe("paris");
+  });
+
+  it("live demo siteConfig: English view shows clean names for English cities and native in brackets for non-English cities", () => {
+    // English-primary locations have no brackets
+    expect(regionDisplayName("en", siteConfig.regions["london"])).toBe("London");
+    expect(regionDisplayName("en", siteConfig.regions["los-angeles"])).toBe("Los Angeles");
+    expect(regionDisplayName("en", siteConfig.regions["new-york"])).toBe("New York");
+    expect(regionDisplayName("en", siteConfig.regions["sydney"])).toBe("Sydney");
+    expect(regionDisplayName("en", siteConfig.regions["toronto"])).toBe("Toronto");
+
+    // Non-English locations with distinct native names have native names in brackets
+    expect(regionDisplayName("en", siteConfig.regions["tokyo"])).toBe("Tokyo (東京)");
+    expect(regionDisplayName("en", siteConfig.regions["seoul"])).toBe("Seoul (서울)");
+    expect(regionDisplayName("en", siteConfig.regions["shanghai"])).toBe("Shanghai (上海)");
+    expect(regionDisplayName("en", siteConfig.regions["moscow"])).toBe("Moscow (Москва)");
+
+    // Non-English locations with identical native names have no brackets
+    expect(regionDisplayName("en", siteConfig.regions["berlin"])).toBe("Berlin");
+    expect(regionDisplayName("en", siteConfig.regions["paris"])).toBe("Paris");
+    expect(regionDisplayName("en", siteConfig.regions["madrid"])).toBe("Madrid");
+    expect(regionDisplayName("en", siteConfig.regions["jakarta"])).toBe("Jakarta");
+  });
+
+  it("live demo siteConfig: Korean view displays all cities in Korean with English in brackets", () => {
+    expect(regionDisplayName("ko", siteConfig.regions["seoul"])).toBe("서울 (Seoul)");
+    expect(regionDisplayName("ko", siteConfig.regions["sydney"])).toBe("시드니 (Sydney)");
+    expect(regionDisplayName("ko", siteConfig.regions["berlin"])).toBe("베를린 (Berlin)");
+    expect(regionDisplayName("ko", siteConfig.regions["london"])).toBe("런던 (London)");
+    expect(regionDisplayName("ko", siteConfig.regions["tokyo"])).toBe("도쿄 (Tokyo)");
+    expect(regionDisplayName("ko", siteConfig.regions["new-york"])).toBe("뉴욕 (New York)");
+    expect(regionDisplayName("ko", siteConfig.regions["paris"])).toBe("파리 (Paris)");
+  });
+
+  it("live demo siteConfig: Japanese view displays all cities in Japanese with English in brackets", () => {
+    expect(regionDisplayName("ja", siteConfig.regions["tokyo"])).toBe("東京 (Tokyo)");
+    expect(regionDisplayName("ja", siteConfig.regions["sydney"])).toBe("シドニー (Sydney)");
+    expect(regionDisplayName("ja", siteConfig.regions["london"])).toBe("ロンドン (London)");
+    expect(regionDisplayName("ja", siteConfig.regions["new-york"])).toBe("ニューヨーク (New York)");
+  });
+
+  it("live demo siteConfig: Russian view displays all cities in Russian with English in brackets", () => {
+    expect(regionDisplayName("ru", siteConfig.regions["moscow"])).toBe("Москва (Moscow)");
+    expect(regionDisplayName("ru", siteConfig.regions["london"])).toBe("Лондон (London)");
+    expect(regionDisplayName("ru", siteConfig.regions["berlin"])).toBe("Берлин (Berlin)");
   });
 });
 

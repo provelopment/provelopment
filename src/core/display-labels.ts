@@ -41,16 +41,37 @@ export function displayNameWithEnglish(
 
 /**
  * The region's display name for the given locale:
- * localized `labels[locale]` where configured, else the canonical English
- * name (`label ?? name ?? id`), with the English name appended in brackets
- * when the two differ.
  *
- *   en toronto → `Toronto`;          ru moscow → `Москва (Moscow)`
- *   ja tokyo → `東京 (Tokyo)`;        ko seoul → `서울 (Seoul)`
- *   zh shanghai → `上海 (Shanghai)`;  en new-york → `New York`
+ * 1. When English is selected (`en`):
+ *    - The English name is displayed first.
+ *    - If the location's most common language is English (`defaultLocale === "en"`),
+ *      no brackets are added (e.g. `London`, `Los Angeles`, `New York`, `Sydney`, `Toronto`).
+ *    - If the location's most common language is non-English (`defaultLocale !== "en"`),
+ *      the local language name is appended in brackets when distinct from English
+ *      (e.g. `Tokyo (東京)`, `Seoul (서울)`, `Shanghai (上海)`, `Moscow (Москва)`).
+ *      If identical (e.g. `Berlin`, `Paris`, `Madrid`, `Jakarta`), brackets are omitted.
+ *
+ * 2. When a non-English language is selected:
+ *    - The city name in the selected language is displayed first.
+ *    - The canonical English name is appended in brackets when distinct
+ *      (e.g. `서울 (Seoul)`, `東京 (Tokyo)`, `Londres (London)`).
+ *      If identical, brackets are omitted.
  */
 export function regionDisplayName(locale: string, region: OperationalRegion): string {
   const english = region.label ?? region.name ?? region.id;
+
+  if (locale === "en") {
+    const localLanguage = region.defaultLocale ?? "en";
+    if (localLanguage === "en") {
+      return english;
+    }
+    const nativeName = region.labels?.[localLanguage];
+    if (nativeName && nativeName.trim() !== english.trim()) {
+      return `${english} (${nativeName})`;
+    }
+    return english;
+  }
+
   const localized = region.labels?.[locale] ?? english;
   return displayNameWithEnglish(localized, english);
 }
