@@ -943,6 +943,38 @@ scheduler or booking page:
   application/layout code. Adding another provider later (GA4, Plausible, …) is
   an adapter + config change, not an application rewrite.
 
+### Analytics privacy posture (audited — documentation only, Phase U)
+
+The Foundation ships **no consent gate** — no banner, no consent cookie, no opt-in
+gating of the analytics element. The following is the technically verified posture of the
+shipped `features.analytics: { "provider": "vercel" }` integration (audited during
+Phase U against the installed `@vercel/analytics` v2.0.1 package and the built
+output), plus Vercel's own product description where noted:
+
+- **Loads client-side only.** Analytics is composed through the Phase I adapter factory
+  and injected by the **browser after hydration** (a `defer` script appended to
+  `document.head`, deduplicated by `src`). It never appears in SSR HTML;the built
+  server output contains no `/_vercel/insights` or analytics markup.
+- **The inspected client loader writes no browser cookies/storage.** The
+  `@vercel/analytics` client runtime (`dist/index.mjs`) contains zero references to
+  `cookie`, `localStorage`, or `sessionStorage`;the package's only `cookie`
+  references live in its server-side request-forwarding helper (`dist/server/*`),
+  which the Foundation does not use.
+- **The production script is same-origin.** The client injects
+  `/_vercel/insights/script.js` (or `{basePath}/insights/script.js`) served from
+  the site's own origin;events post to same-origin `/_vercel/insights/*`.
+- **Vercel describes Web Analytics as cookieless and anonymized.** Vercel's docs state
+  it "only stores anonymized dataand does not use cookies" and is built into its
+  platform (no third-party service required). That is Vercel's claim about its
+  product — attributed as such — not a Foundation legal conclusion.
+
+- **Adopter responsibility.** When you change providers, add tracking or marketing
+  integrations, or operate in a jurisdiction with specific rules, **you** determine
+  whatever privacy/consent requirements apply to your configuration. The shipped
+  template Cookie Policy (`content/legal/<locale>/cookies.md`) is replaceable template
+  content, not legal advice—and `features.analytics: { "provider": "none" }`
+  disables analytics entirely if you prefer.
+
 ### Contact inquiries (`features.contact` + `/contact`)
 
 The `/contact` page and contact form are the inquiry capability. It is
