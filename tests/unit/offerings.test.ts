@@ -266,7 +266,7 @@ describe("resolveOfferingAction (pure core resolver, provider- and i18n-neutral)
 });
 
 describe("isCanonicalOffering (default-locale slug membership)", () => {
-  const canonical = ["consultation", "gift-card", "starter-package"];
+  const canonical = ["consultation", "starter-package"];
 
   it("accepts a canonical slug", () => {
     expect(isCanonicalOffering("consultation", canonical)).toBe(true);
@@ -295,12 +295,18 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
 
   it("lists the canonical (default-locale) offering slugs", async () => {
     const slugs = await repository.listSlugs(defaultLocale);
-    expect(slugs).toEqual(["consultation", "gift-card", "starter-package"]);
+    expect(slugs).toEqual(["consultation", "starter-package"]);
   });
 
   it("finds a default-locale offering with its offering fields", async () => {
     const content = await repository.findBySlug("consultation", defaultLocale);
     expect(content?.title).toBe("Consultation");
+    expect((content as { blurb?: string } | null)?.blurb).toBeTruthy();
+  });
+
+  it("finds a default-locale offering without offering fields (fallback to base)", async () => {
+    const content = await repository.findBySlug("starter-package", defaultLocale);
+    expect(content?.title).toBe("Starter package");
     expect((content as { blurb?: string } | null)?.blurb).toBeTruthy();
   });
 
@@ -317,13 +323,13 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
     // Expected localized titles per locale (French legitimately uses
     // "Consultation", the same word — body/blurb still localized).
     const localizedTitles: Record<string, Record<string, string>> = {
-      es: { consultation: "Consulta", "gift-card": "Tarjeta de regalo", "starter-package": "Paquete inicial" },
-      fr: { consultation: "Consultation", "gift-card": "Carte cadeau", "starter-package": "Pack de démarrage" },
-      de: { consultation: "Beratung", "gift-card": "Geschenkgutschein", "starter-package": "Startpaket" },
-      ja: { consultation: "相談", "gift-card": "ギフトカード", "starter-package": "スタートパッケージ" },
-      zh: { consultation: "咨询", "gift-card": "礼品卡", "starter-package": "入门套餐" },
-      ko: { consultation: "상담", "gift-card": "선물 카드", "starter-package": "스타터 패키지" },
-      id: { consultation: "Konsultasi", "gift-card": "Kartu hadiah", "starter-package": "Paket pemula" },
+      es: { consultation: "Consulta", "starter-package": "Paquete inicial" },
+      fr: { consultation: "Consultation", "starter-package": "Pack de démarrage" },
+      de: { consultation: "Beratung", "starter-package": "Startpaket" },
+      ja: { consultation: "相談", "starter-package": "スタートパッケージ" },
+      zh: { consultation: "咨询", "starter-package": "入门套餐" },
+      ko: { consultation: "상담", "starter-package": "스타터 패키지" },
+      id: { consultation: "Konsultasi", "starter-package": "Paket pemula" },
     };
 
     for (const [locale, titlesBySlug] of Object.entries(localizedTitles)) {
@@ -346,7 +352,7 @@ describe("offerings repository (reuses PageContentRepository + fs adapter)", () 
 
 describe("buildSitemapRoutes (content-driven, feature-gated)", () => {
   const pages = ["about", "contact", "resources"];
-  const canonicalOfferings = ["consultation", "gift-card", "starter-package"];
+  const canonicalOfferings = ["consultation", "starter-package"];
   const trustContentDisabled = {
     testimonialsEnabled: false,
     portfolioEnabled: false,
@@ -369,7 +375,6 @@ describe("buildSitemapRoutes (content-driven, feature-gated)", () => {
       "/resources",
       "/offerings",
       "/offerings/consultation",
-      "/offerings/gift-card",
       "/offerings/starter-package",
     ]);
   });
@@ -408,26 +413,22 @@ describe("parsePageFile (unchanged page contract)", () => {
 describe("resolveOfferingPrice (regional currency presentation)", () => {
   const starter = { slug: "starter-package", price: "From $150" };
   const consultation = { slug: "consultation", price: "From $40" };
-  const giftCard = { slug: "gift-card", price: "$25 - $200" };
 
   it("returns base price when region is unspecified/null", () => {
     expect(resolveOfferingPrice(starter, null)).toBe("From $150");
     expect(resolveOfferingPrice(consultation, null)).toBe("From $40");
-    expect(resolveOfferingPrice(giftCard, null)).toBe("$25 - $200");
   });
 
   it("resolves Australian Dollars (A$) for Sydney", () => {
     const sydney = siteConfig.regions["sydney"];
     expect(resolveOfferingPrice(starter, sydney)).toBe("From A$150");
     expect(resolveOfferingPrice(consultation, sydney)).toBe("From A$40");
-    expect(resolveOfferingPrice(giftCard, sydney)).toBe("A$25 - A$200");
   });
 
   it("resolves British Pounds (£) for London", () => {
     const london = siteConfig.regions["london"];
     expect(resolveOfferingPrice(starter, london)).toBe("From £150");
     expect(resolveOfferingPrice(consultation, london)).toBe("From £40");
-    expect(resolveOfferingPrice(giftCard, london)).toBe("£25 - £200");
   });
 
   it("resolves Euros (€) for Berlin, Paris, and Madrid", () => {
@@ -436,49 +437,43 @@ describe("resolveOfferingPrice (regional currency presentation)", () => {
     const madrid = siteConfig.regions["madrid"];
     expect(resolveOfferingPrice(starter, berlin)).toBe("From €150");
     expect(resolveOfferingPrice(consultation, paris)).toBe("From €40");
-    expect(resolveOfferingPrice(giftCard, madrid)).toBe("€25 - €200");
+    expect(resolveOfferingPrice(starter, madrid)).toBe("From €150");
   });
 
   it("resolves Japanese Yen (¥) for Tokyo with realistic tier", () => {
     const tokyo = siteConfig.regions["tokyo"];
     expect(resolveOfferingPrice(starter, tokyo)).toBe("From ¥15,000");
     expect(resolveOfferingPrice(consultation, tokyo)).toBe("From ¥4,000");
-    expect(resolveOfferingPrice(giftCard, tokyo)).toBe("¥2,500 - ¥20,000");
   });
 
   it("resolves Canadian Dollars (CA$) for Toronto", () => {
     const toronto = siteConfig.regions["toronto"];
     expect(resolveOfferingPrice(starter, toronto)).toBe("From CA$150");
     expect(resolveOfferingPrice(consultation, toronto)).toBe("From CA$40");
-    expect(resolveOfferingPrice(giftCard, toronto)).toBe("CA$25 - CA$200");
   });
 
   it("resolves Indonesian Rupiah (Rp) for Jakarta with realistic tier", () => {
     const jakarta = siteConfig.regions["jakarta"];
     expect(resolveOfferingPrice(starter, jakarta)).toBe("From Rp 1.500.000");
     expect(resolveOfferingPrice(consultation, jakarta)).toBe("From Rp 400.000");
-    expect(resolveOfferingPrice(giftCard, jakarta)).toBe("Rp 250.000 - Rp 2.000.000");
   });
 
   it("resolves Russian Rubles (₽) for Moscow with realistic tier", () => {
     const moscow = siteConfig.regions["moscow"];
     expect(resolveOfferingPrice(starter, moscow)).toBe("From 15 000 ₽");
     expect(resolveOfferingPrice(consultation, moscow)).toBe("From 4 000 ₽");
-    expect(resolveOfferingPrice(giftCard, moscow)).toBe("2 500 ₽ - 20 000 ₽");
   });
 
   it("resolves Korean Won (₩) for Seoul with realistic tier", () => {
     const seoul = siteConfig.regions["seoul"];
     expect(resolveOfferingPrice(starter, seoul)).toBe("From ₩150,000");
     expect(resolveOfferingPrice(consultation, seoul)).toBe("From ₩40,000");
-    expect(resolveOfferingPrice(giftCard, seoul)).toBe("₩25,000 - ₩200,000");
   });
 
   it("resolves Chinese Yuan (¥) for Shanghai with realistic tier", () => {
     const shanghai = siteConfig.regions["shanghai"];
     expect(resolveOfferingPrice(starter, shanghai)).toBe("From ¥1,000");
     expect(resolveOfferingPrice(consultation, shanghai)).toBe("From ¥300");
-    expect(resolveOfferingPrice(giftCard, shanghai)).toBe("¥200 - ¥1,500");
   });
 
   it("honors explicit regionalPrices and pricesByCurrency overrides", () => {

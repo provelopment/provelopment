@@ -90,18 +90,6 @@ const DEMO_CURRENCY_PRICES: Readonly<Record<string, Readonly<Record<string, stri
     RUB: "From 4 000 ₽",
     IDR: "From Rp 400.000",
   },
-  "gift-card": {
-    AUD: "A$25 - A$200",
-    CAD: "CA$25 - CA$200",
-    GBP: "£25 - £200",
-    EUR: "€25 - €200",
-    USD: "$25 - $200",
-    JPY: "¥2,500 - ¥20,000",
-    KRW: "₩25,000 - ₩200,000",
-    CNY: "¥200 - ¥1,500",
-    RUB: "2 500 ₽ - 20 000 ₽",
-    IDR: "Rp 250.000 - Rp 2.000.000",
-  },
 };
 
 /**
