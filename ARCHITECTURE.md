@@ -745,6 +745,26 @@ CMS, no provider.
   `Demo Partner` placeholders and honest template wording; portfolio and blog
   bodies are clearly marked template. Adopters must replace them before
   publishing — the template never fabricates real customer evidence.
+### Analytics privacy posture(Phase U — audit, documentation only)
+
+Phase U prosecuted the consent question against evidence instead of adding a consent
+subsystem. Findings:
+
+- **Client-side injection only.** The analytics element is composed through the Phase I
+  adapter factoryand injected by the browser after hydration(script
+  `/_vercel/insights/script.js`, same-origin; deduplicated by `src`). The built server
+  HTML never references `/_vercel/insights`, so SSR/SSG output is identical with or
+  without the feature enabled.
+- **No client-side storage.** The inspected `@vercel/analytics` v2.0.1 client
+  runtime(`dist/index.mjs`) reads/writes no cookies, `localStorage`, or
+  `sessionStorage`;the package's only `cookie` references live in the unused server
+  request-forwarding helper (`dist/server/*`).
+- **Vercel describes Web Analytics as cookieless and anonymized** — vendor claim,
+  attributed, not a Foundation legal conclusion. The Foundation ships **no consent
+  gate** — no banner, no consent cookie, no analytics-gating capability. A future
+  consent capability would require a concrete requirement that cannot be satisfied
+  through configuration/documentation alone;revisit conditions are recorded in
+  `plan/todo-milestone-u.md` (which now records the full audit.
 ### Locale integration (Phase G composing)
 
 Maps composes with the Phase G locale resolution — there is no second
