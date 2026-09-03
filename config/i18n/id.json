@@ -17,7 +17,10 @@
       "/about": "Tentang",
       "/resources": "Sumber daya",
       "/offerings": "Layanan",
-      "/connect": "Terhubung"
+      "/connect": "Terhubung",
+      "/testimonials": "Testimoni",
+      "/portfolio": "Portofolio",
+      "/blog": "Blog"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "Surel",
       "phone": "Telepon"
     }
+  },
+  "testimonials": {
+    "heading": "Testimoni",
+    "emptyState": "Belum ada testimoni.",
+    "featured": "Unggulan",
+    "ratingAria": "Rating {rating} dari 5"
+  },
+  "portfolio": {
+    "heading": "Portofolio",
+    "emptyState": "Belum ada proyek.",
+    "featured": "Unggulan",
+    "tags": "Tag",
+    "backToPortfolio": "Kembali ke portofolio"
+  },
+  "blog": {
+    "heading": "Blog",
+    "emptyState": "Belum ada tulisan.",
+    "backToBlog": "Kembali ke blog",
+    "readingTime": "{count} menit baca",
+    "rss": "Feed RSS"
   }
 }

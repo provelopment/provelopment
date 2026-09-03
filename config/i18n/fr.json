@@ -17,7 +17,10 @@
       "/about": "À propos",
       "/resources": "Ressources",
       "/offerings": "Offres",
-      "/connect": "Connecter"
+      "/connect": "Connecter",
+      "/testimonials": "Témoignages",
+      "/portfolio": "Portfolio",
+      "/blog": "Blog"
     }
   },
   "notFound": {
@@ -99,5 +102,25 @@
       "email": "Courriel",
       "phone": "Téléphone"
     }
+  },
+  "testimonials": {
+    "heading": "Témoignages",
+    "emptyState": "Aucun témoignage pour le moment.",
+    "featured": "À la une",
+    "ratingAria": "Note {rating} sur 5"
+  },
+  "portfolio": {
+    "heading": "Portfolio",
+    "emptyState": "Aucun projet pour le moment.",
+    "featured": "À la une",
+    "tags": "Étiquettes",
+    "backToPortfolio": "Retour au portfolio"
+  },
+  "blog": {
+    "heading": "Blog",
+    "emptyState": "Aucun article pour le moment.",
+    "backToBlog": "Retour au blog",
+    "readingTime": "{count} min de lecture",
+    "rss": "Flux RSS"
   }
 }
