@@ -641,9 +641,17 @@ Key points:
 Locations are **selectors**: the Location dropdown shows every configured
 operating location (from `business.regions`) in alphabetical order, plus an
 explicit **Unspecified** option — the list is never filtered by the current
-language and is never lost after selecting a region. The Language dropdown
-lists the default language (English) first, followed by remaining languages
-in alphabetical order.
+language and is never lost after selecting a region. Option display labels
+use contextual parenthetical notation:
+- When viewing in a non-English language (`ko`, `ja`, `zh`, etc.): the city
+  name in that language is displayed first, followed by the English name in
+  brackets if distinct (e.g. `서울 (Seoul)`, `東京 (Tokyo)`, `Londres (London)`).
+- When viewing in English: the English name is displayed; for cities whose
+  primary operating language is non-English, the local name is appended in
+  brackets if distinct (e.g. `Tokyo (東京)`, `Seoul (서울)`, `Moscow (Москва)`),
+  while English-primary locations omit brackets (`London`, `Sydney`, `Toronto`).
+The Language dropdown lists the default language (English) first, followed by
+remaining languages in alphabetical order.
 
 ```jsonc
 "business": {
