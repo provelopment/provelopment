@@ -1334,6 +1334,31 @@
     "portfolio": true,
     "blog": true
   },
+  "ui": {
+    "shell": {
+      "header": "standard",
+      "footer": "standard"
+    },
+    "navigation": {
+      "desktop": "top",
+      "tablet": "top-compact",
+      "mobile": "drawer"
+    },
+    "density": "comfortable",
+    "content": {
+      "width": "standard"
+    },
+    "cta": {
+      "enabled": true,
+      "action": "book",
+      "label": "Book Now",
+      "style": "standard"
+    },
+    "theme": {
+      "mode": "system",
+      "radius": "medium"
+    }
+  },
   "legal": [
     {
       "slug": "privacy",

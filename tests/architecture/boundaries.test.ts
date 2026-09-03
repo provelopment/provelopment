@@ -761,3 +761,20 @@ describe("Phase T — trust & publishing primitive boundaries", () => {
     expect(postDetail).toContain("<MarkdownContent");
   });
 });
+
+describe("Phase UI-01 — UI architecture contract boundaries", () => {
+  const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
+  const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
+
+  it("the UI vocabulary and preset profiles are framework-, config- and adapter-free", () => {
+    for (const name of UI_CORE_MODULES) {
+      const source = readFileSync(path.join(UI_CORE_DIRECTORY, name), "utf8");
+      expect(source, name).not.toMatch(/from ["']next/);
+      expect(source, name).not.toMatch(/from ["']react/);
+      expect(source, name).not.toMatch(/from ["']zod/);
+      expect(source, name).not.toMatch(/from ["']@\/adapters/);
+      expect(source, name).not.toMatch(/from ["']@\/config/);
+      expect(source, name).not.toContain("siteConfig");
+    }
+  });
+});
