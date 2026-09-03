@@ -381,9 +381,9 @@ describe("Phase M — live demo config smoke (site.config.json)", () => {
     expect(resolveNavHref(entries, "en", "toronto", "/")).toBe("/en/toronto");
     expect(resolveNavHref(entries, "en", "toronto", "/about")).toBe("/en/toronto/about");
     expect(resolveNavHref(entries, "en", "toronto", "/connect")).toBe("/en/toronto/connect");
+    expect(resolveNavHref(entries, "en", "toronto", "/offerings")).toBe("/en/toronto/offerings");
     // Not bound under toronto → filtered out (never a redirect to home).
     expect(resolveNavHref(entries, "en", "toronto", "/resources")).toBeNull();
-    expect(resolveNavHref(entries, "en", "toronto", "/offerings")).toBeNull();
     expect(resolveNavHref(entries, "en", "toronto", "/contact")).toBeNull();
   });
 

@@ -79,7 +79,10 @@
     "deliverables": "Ce qui est inclus",
     "faq": "Questions fréquentes",
     "externalCta": "En savoir plus",
-    "backToOfferings": "Retour aux offres"
+    "backToOfferings": "Retour aux offres",
+    "disclaimerTitle": "Démonstration de modèle",
+    "disclaimerBody": "Les offres présentées ci-dessous sont des exemples de démonstration et ne sont pas proposées par la Provelopment Foundation. Vous pouvez les personnaliser en modifiant les fichiers dans content/offerings/ ou les désactiver dans site.config.json.",
+    "currencyNotice": "Prix affichés en {currency} ({symbol}). Sélectionnez une ville dans le menu Emplacement pour afficher les devises locales."
   },
   "booking": {
     "book": "Réserver"

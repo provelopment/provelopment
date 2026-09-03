@@ -73,11 +73,11 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
   });
 });
 describe("Phase T — trust/publishing sitemap contract (locked exact inventory)", () => {
-  it("emits the full standardized regional and content inventory across all locales (214 locs)", async () => {
+  it("emits the full standardized regional and content inventory across all locales (228 locs)", async () => {
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
-    expect(urls).toHaveLength(214);
+    expect(urls).toHaveLength(228);
 
     for (const { code } of siteConfig.locales) {
       // Listings.

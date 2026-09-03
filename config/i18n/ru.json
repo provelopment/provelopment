@@ -79,7 +79,10 @@
     "deliverables": "Что входит",
     "faq": "Частые вопросы",
     "externalCta": "Подробнее",
-    "backToOfferings": "Назад к услугам"
+    "backToOfferings": "Назад к услугам",
+    "disclaimerTitle": "Демонстрация шаблона",
+    "disclaimerBody": "Приведенные ниже предложения являются демонстрационными заполнителями и не предоставляются Provelopment Foundation. Их можно настроить, отредактировав файлы в content/offerings/, или отключить в site.config.json.",
+    "currencyNotice": "Цены указаны в {currency} ({symbol}). Выберите город в меню местоположения, чтобы просмотреть местные валюты."
   },
   "booking": {
     "book": "Забронировать"
