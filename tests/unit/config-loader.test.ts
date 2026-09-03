@@ -1086,6 +1086,38 @@ describe("Phase M — connect config + region defaultLocale", () => {
   });
 });
 
+describe("UI-01 — the ui contract namespace", () => {
+  it("maps the ui namespace through the flattened site config", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      ui: { preset: "classic", density: "comfortable" },
+    });
+    expect(config.ui).toEqual({ preset: "classic", density: "comfortable" });
+  });
+
+  it("leaves ui undefined when absent", () => {
+    expect(parseSiteConfig(validConfig).ui).toBeUndefined();
+  });
+
+  it("accepts an empty ui block without a preset", () => {
+    const config = parseSiteConfig({ ...validConfig, ui: {} });
+    expect(config.ui).toEqual({});
+    expect(config.ui?.preset).toBeUndefined();
+  });
+
+  it("rejects an unknown preset value with the full expected list", () => {
+    expect(() =>
+      parseSiteConfig({ ...validConfig, ui: { preset: "glamorous" } }),
+    ).toThrow(/classic, adaptive, focus, workspace, immersive/);
+  });
+
+  it("rejects an unknown ui key (config typo)", () => {
+    expect(() =>
+      parseSiteConfig({ ...validConfig, ui: { presets: "classic" } }),
+    ).toThrow(/presets/);
+  });
+});
+
 function regionBaseData(): Record<string, unknown> {
   return {
     timezone: "America/Toronto",

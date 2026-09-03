@@ -11,6 +11,12 @@ export type {
   NavigationItem,
   SiteConfig,
   SocialLink,
+  UiConfig,
+  UiContentConfig,
+  UiCtaConfig,
+  UiNavigationConfig,
+  UiShellConfig,
+  UiThemeConfig,
 } from "./site-config";
 
 export type { Dictionary } from "./i18n/dictionary";
