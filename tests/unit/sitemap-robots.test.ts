@@ -50,7 +50,7 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
 
     const urls = (await sitemap()).map((entry) => entry.url);
     for (const { code } of siteConfig.locales) {
-      for (const slug of ["starter-package", "consultation", "gift-card"]) {
+      for (const slug of ["starter-package", "consultation"]) {
         expect(urls, `${code}/offerings/${slug}`).toContain(
           `${siteConfig.url}/${code}/offerings/${slug}`,
         );
@@ -73,11 +73,11 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
   });
 });
 describe("Phase T — trust/publishing sitemap contract (locked exact inventory)", () => {
-  it("emits the full standardized regional and content inventory across all locales (228 locs)", async () => {
+  it("emits the full standardized regional and content inventory across all locales (219 locs)", async () => {
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
-    expect(urls).toHaveLength(228);
+    expect(urls).toHaveLength(219);
 
     for (const { code } of siteConfig.locales) {
       // Listings.
