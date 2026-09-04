@@ -86,6 +86,24 @@ describe("UI-03 — AppShell (composition frame)", () => {
     expect(html).not.toContain("<aside");
   });
 
+  it("renders the optional sidebar slot between the header and main WITHOUT a nav wrapper", () => {
+    const html = renderToStaticMarkup(
+      AppShell({
+        header: header("h"),
+        sidebar: el("nav", { "aria-label": "Rail" }, "rail"),
+        sidebarClassName: "ui-shell-sidebar",
+        main: para("m"),
+        footer: footer("f"),
+        mainId: "main",
+      }),
+    );
+    expect(html).toContain('<div class="ui-shell-sidebar"><nav aria-label="Rail">rail</nav></div>');
+    expect(html.indexOf("<header>h</header>")).toBeLessThan(html.indexOf("ui-shell-sidebar"));
+    expect(html.indexOf("ui-shell-sidebar")).toBeLessThan(html.indexOf('<main id="main"'));
+    // The sidebar carries its own landmark; the frame must NOT emit a duplicate <nav>.
+    expect(html.match(/<nav/g) ?? []).toHaveLength(1);
+  });
+
   it("renders the optional navigation and secondary-panel slots when supplied", () => {
     const html = renderToStaticMarkup(
       AppShell({

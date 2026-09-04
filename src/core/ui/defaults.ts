@@ -9,6 +9,7 @@ import type {
   ThemeMode,
   ThemeRadius,
   UiDensity,
+  UiPreset,
 } from "./vocabulary";
 
 /**
@@ -37,6 +38,14 @@ import type {
 
 /** Foundation-level default values for the semantic UI intent leaves. */
 export interface UiFoundationDefaults {
+  /**
+   * The resolved DEFAULT PRESET personality (fixed at UI-05, owner-approved).
+   * `resolve.ts` references this property as its SINGLE default-selection point
+   * (`raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`). This is a
+   * personality default: explicit per-leaf overrides (and any explicitly
+   * selected preset) still win over the default preset's profile below.
+   */
+  readonly defaultPreset: UiPreset;
   readonly shell: { readonly header: ShellVariant; readonly footer: ShellVariant };
   readonly navigation: {
     readonly desktop: DesktopNavigationPattern;
@@ -66,6 +75,9 @@ export interface UiFoundationDefaults {
  * addition silently changes the resolved config for every adopter。
  */
 export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
+  // Resolved default personality (UI-05, owner-approved). `resolve.ts` is the
+  // single selection point: `raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`.
+  defaultPreset: "adaptive",
   shell: { header: "standard", footer: "standard" },
   navigation: {
     desktop: "top",

@@ -11,10 +11,11 @@
  * pure data + types only; never import React, Next.js, Tailwind, adapters, or
  * configuration from here.
  *
- * IMPORTANT (UI-01 contract): none of these values establish a default.
- * `ui.preset` is optional and no code injects one. The resolved default preset
- * is intentionally UNDEFINED at the UI-01 contract level; UI-05 is where
- * Adaptive is fixed as the resolved/recommended Foundation default.
+ * IMPORTANT (UI-01 contract, realized at UI-05): none of these values establish
+ * a default. `ui.preset` is optional and the schema/loader never inject one.
+ * The RESOLVED default personality is fixed at the UI-05 resolver selection
+ * point (`FOUNDATION_UI_DEFAULTS.defaultPreset = "adaptive"`) — a resolution
+ * policy, never a contract-surface default.
  */
 
 /** The five initial Foundation UI presets (roadmap §5–§9, §24). */

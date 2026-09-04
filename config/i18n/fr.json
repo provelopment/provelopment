@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "Navigation principale",
     "footerLabel": "Navigation de pied de page",
+    "moreMenu": "Plus",
+    "sidebarToggle": "Réduire la navigation",
     "items": {
       "/": "Accueil",
       "/about": "À propos",

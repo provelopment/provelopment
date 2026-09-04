@@ -15,6 +15,8 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
     navigation: {
       primaryLabel: "p",
       footerLabel: "f",
+      moreMenu: "m",
+      sidebarToggle: "s",
       items: { "/": "Home" },
     },
     notFound: { title: "n", message: "m", returnHome: "r" },
