@@ -1229,6 +1229,51 @@ declarative with **zero production-code change**:
 - **Demo:** the shipped demo stays explicit `classic` and byte-identical. Workspace
   is demonstrated via the resolution/SSR test matrix.
 
+### Immersive preset (UI-09 — premium visual-first; last explicit-preset proof + the overlay-CTA consumer fix)
+
+Immersive's contract (roadmap §9) = a premium visual-first shell where navigation
+is intentionally less prominent, with overlay navigation. Trajectory:
+`floating / floating / overlay`, `minimal` header, standard CTA. UI-09 proves the
+shell is declarative and ships **ONE minimal, vocabulary-driven content-layer
+consumer fix** to make the already-declared mobile overlay CTA observable:
+
+- **`floating` resolves through the EXISTING aside composition.** Desktop and tablet
+  `floating` both map to the aside slot and render the same two mutually-exclusive
+  `Sidebar` bands as any aside preset (desktop `hidden lg:block`, tablet
+  `hidden md:block lg:hidden`) — **no distinct `floating` visual treatment is
+  contractually defined** (shared vocabulary/visual-contract question; deferred, not
+  invented).
+- **`overlay` is an existing consumed structural path:** `ShellMobileNav pattern=
+  "overlay"` → `OverlayNavigation` (a `Drawer` composition), closed by default at SSR
+  (no dialog/CTA/focusable).
+- **The overlay-CTA consumer fix (UI-09):** the decision core already assigns the
+  mobile `overlay` the `ctaSlot: "drawer"`, but the UI-07 `SiteHeader` CTA consumer
+  only admitted `mobilePattern === "drawer"`. UI-09 admits `overlay` too — so
+  Immersive's standard CTA now renders inside the open overlay when enabled + label +
+  href (exactly the same materialization rule as the drawer). This is a
+  vocabulary-STRUCTURAL branch (never `preset === "immersive"`); no engine/primitive/
+  slot/config/interaction change; `Drawer`/`OverlayNavigation` untouched.
+- **Standard CTA** uses the existing UI-07 contract: aside ≥md (UI-05), overlay <md
+  (UI-09); disabled/no-href → no CTA; no invented destination.
+- **i18n genericity:** `moreMenu`/`sidebarToggle` stay required schema keys (pattern-
+  named); Immersive consumes neither — a test proves the Immersive assembly never
+  emits `moreMenu`.
+- **Demo:** the shipped demo stays explicit `classic` and byte-identical. Immersive
+  is demonstrated via the resolution/SSR test matrix.
+
+**Truthful status — Proven vs deferred vs UI-10:**
+- **Proven:** Immersive's contractually defined shell composition is expressible and
+  proven; desktop/tablet `floating` via the existing aside composition; mobile
+  `overlay` via the existing OverlayNavigation path; mobile overlay CTA via the
+  UI-09 consumer fix (already-declared `ctaSlot:"drawer"` now admitted for `overlay`).
+- **Deferred (shared, contract-ambiguous):** distinct `floating` visual treatment
+  (no concrete contract defining how it differs from the existing aside/sidebar
+  composition); `minimal` header treatment (no concrete content/chrome contract;
+  UI-07 D4 carried forward).
+- **UI-10:** overlay interaction behavior (animation, backdrop, dismissal, Escape,
+  focus management, reduced motion) remains the dedicated UI-10 browser
+  interaction/accessibility gate.
+
 ### Completeness & error behavior
 
 The completeness invariant guarantees a fully-determined resolved config:
@@ -1286,7 +1331,8 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition) |
 | Classic preset — the first non-default preset (declarative proof) | UI-06 | ✅ shipped (explicit `preset: "classic"` in the demo; zero engine changes) |
 | Focus preset — conversion-first + the first CTA-contract extension (`cta.href`, drawer CTA, prominent) | UI-07 | ✅ shipped (D1–D3; `minimal` chrome DEFERRED) |
-| Workspace preset — the SHELL is a declarative proof (shared sidebar machinery); **grouped nav + secondary panel DEFERRED** | UI-08 | ✅ shipped (zero production-code change; shell SSR-proven; UI-09 next) |
+| Workspace preset — the SHELL is a declarative proof (shared sidebar machinery); **grouped nav + secondary panel DEFERRED** | UI-08 | ✅ shipped (zero production-code change; shell SSR-proven) |
+| Immersive preset — premium visual-first; last explicit-preset proof + **overlay-CTA consumer fix**; floating/minimal treatments DEFERRED | UI-09 | ✅ shipped (1 content-layer consumer fix; shell + overlay CTA SSR-proven) |
 
 ## AI Development
 

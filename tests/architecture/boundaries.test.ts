@@ -914,6 +914,29 @@ describe("Phase UI-08 — workspace preset stays fully declarative at the archit
   });
 });
 
+describe("Phase UI-09 — immersive preset stays fully declarative at the architectural boundary", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+
+  it("the shell engine contains zero immersive-specific logic (source-scan for preset-name literals)", () => {
+    for (const file of ["shell-engine.tsx", "shell-bottom-bar.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      expect(source, file).not.toMatch(/["']immersive["']/);
+    }
+  });
+
+  it("the shell decision core branches only on vocabulary/structural values — never the immersive preset", () => {
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/["']immersive["']/);
+  });
+
+  it("the immersive profile is data, not code (presets.ts profile row only; no immersive branch in core)", () => {
+    const presets = readFileSync(path.join(srcDirectory, "core", "ui", "presets.ts"), "utf8");
+    expect(presets).toMatch(/immersive:\s*\{/); // profile row only
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/["']immersive["']/);
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
