@@ -105,7 +105,10 @@ export function ShellEngine({
 
   const ctaNode =
     decision.cta.present && ctaLabel && ctaHref ? (
-      <NavCta item={{ label: ctaLabel, href: ctaHref }} className="ui-shell-cta" />
+      <NavCta
+        item={{ label: ctaLabel, href: ctaHref }}
+        className={`ui-shell-cta${resolved.cta.style === "prominent" ? " ui-cta-prominent" : ""}`}
+      />
     ) : null;
 
   // Header-slot CTA: composed beside the header only when a real CTA renders

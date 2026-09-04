@@ -561,6 +561,12 @@ const uiCtaSchema = z
       .enum(CTA_ACTIONS, { message: `must be one of: ${CTA_ACTIONS.join(", ")}` })
       .optional(),
     label: z.string().min(1, "must not be empty").optional(),
+    /**
+     * Adopter-owned CTA destination (UI-07 D1). Optional and NEVER inferred:
+     * the Foundation does not derive a route from `action` or invent one. An
+     * enabled CTA without label+href renders nothing (engine invariant).
+     */
+    href: z.string().min(1, "must not be empty").optional(),
     style: z
       .enum(CTA_STYLES, { message: `must be one of: ${CTA_STYLES.join(", ")}` })
       .optional(),

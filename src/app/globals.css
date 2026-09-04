@@ -157,6 +157,24 @@ body {
   outline-offset: 2px;
 }
 
+/*
+ * Primary CTA presentation (UI-07 — D3): the additive `prominent` treatment.
+ *
+ * The structural CTA (engine `ui-shell-cta`, drawer `ui-drawer-cta`) is a
+ * plain link by default; `cta.style: "prominent"` adds this token-pure filled
+ * treatment. Standard CTAs stay byte-identical. Only semantic tokens are used
+ * (no raw colors); the Foundation's single focus ring above still applies.
+ */
+.ui-cta-prominent {
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
 /* Respect reduced-motion preferences: strip transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -34,6 +34,9 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 // pre-UI-06 demo. `resolved.preset` == "classic" (truthful personality).
 const resolvedUi = resolveUiConfig(siteConfig.ui ?? {});
 const shellDecision = resolveShellPattern(resolvedUi);
+// UI-07: CTA label/href flow from the resolved contract (adopter-owned;
+// `href` added at UI-07 D1). The demo declares label but no href, so the
+// engine's existing invariant keeps rendering no CTA (byte-identical demo).
 
 // Phase K: when operating regions are configured, the legacy global business
 // block is NOT merged into rendered pages. The layout suppresses the global
@@ -152,6 +155,8 @@ export default async function LocaleLayout({
           bottomNav={bottomNav}
           locale={locale}
           pageBindings={siteConfig.pageBindings}
+          ctaLabel={resolvedUi.cta.label}
+          ctaHref={resolvedUi.cta.href}
         />
         {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}

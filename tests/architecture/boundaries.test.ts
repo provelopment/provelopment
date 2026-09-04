@@ -864,6 +864,33 @@ describe("Phase UI-06 — classic preset is purely declarative", () => {
   });
 });
 
+describe("Phase UI-07 — focus preset stays fully declarative at the architectural boundary", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+
+  it("the shell engine contains zero focus-specific logic (source-scan for preset-name literals)", () => {
+    for (const file of ["shell-engine.tsx", "shell-bottom-bar.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      // Quoted preset-name literals are forbidden (plain prose like "focus-trap"
+      // in comments is not a code branch).
+      expect(source, file).not.toMatch(/["']focus["']/);
+    }
+  });
+
+  it("the focus profile is data, not code — no focus branch in the core decision layer", () => {
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/["']focus["']/);
+    const presets = readFileSync(path.join(srcDirectory, "core", "ui", "presets.ts"), "utf8");
+    expect(presets).toMatch(/focus:\s*\{/); // profile row only
+  });
+
+  it("the engine branches on the `prominent` VOCABULARY VALUE — never on preset identity", () => {
+    const engine = readFileSync(path.join(SHELL_DIRECTORY, "shell-engine.tsx"), "utf8");
+    expect(engine).toMatch(/resolved\.cta\.style\s*===\s*["']prominent["']/);
+    expect(engine).not.toMatch(/preset\s*===\s*["']focus["']/);
+    expect(engine).not.toMatch(/preset\s*===\s*["'][a-z]+["']/);
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
