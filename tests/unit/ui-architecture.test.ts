@@ -28,7 +28,8 @@ import {
  *  - NO default preset exists: `{}`, an empty `ui` block, and a block with
  *    `preset` omitted all parse with `preset === undefined`;
  *  - invalid values and unknown keys fail clearly;
- *  - the shipped demo configuration does not fix a default.
+ *  - the shipped demo configuration explicitly selects the classic preset
+ *    (UI-06) — still one of the five valid presets, no default fixed.
  */
 
 const baseConfig = {
@@ -218,13 +219,20 @@ describe("UI-01 — no default preset (the contract decision)", () => {
     expect(uiPresetProfiles.classic.preset).toBe("classic");
     expect(uiConfigSchema.safeParse({}).success).toBe(true);
   });
+});
 
-  it("the shipped demo configuration does not fix a default preset", () => {
-    // The canonical example block in site.config.json lives WITHOUT a preset.
-    // This test encodes the UI-01 decision: a preset should only ever be
-    // selected explicitly at the ownership level.
+describe("UI-06 — the shipped demo explicitly selects Classic", () => {
+  it("site.config.json ui block chooses the classic preset (plus explicit leaves)", () => {
     expect(siteConfig.ui).toBeDefined();
-    expect(siteConfig.ui?.preset).toBeUndefined();
+    expect(siteConfig.ui?.preset).toBe("classic");
+    // The demo keeps its explicit classic leaves — D1 (Option B): the preset
+    // makes the personality truthful while the leaves stay as explicit
+    // overrides that repeat profile values (byte-identical effective config).
+    expect(siteConfig.ui?.navigation).toEqual({
+      desktop: "top",
+      tablet: "top-compact",
+      mobile: "drawer",
+    });
   });
 });
 
@@ -270,8 +278,8 @@ describe("UI-01 — loader mapping", () => {
     expect(config.ui?.preset).toBe("classic");
   });
 
-  it("the shipped demo ui block maps through the validated loader without a preset", () => {
+  it("the shipped demo ui block maps through the validated loader with the classic preset", () => {
     const config = parseSiteConfig({ ...baseConfig, ui: siteConfig.ui ?? {} });
-    expect(config.ui?.preset).toBeUndefined();
+    expect(config.ui?.preset).toBe("classic");
   });
 });
