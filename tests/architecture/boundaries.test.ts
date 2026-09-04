@@ -846,6 +846,24 @@ describe("Phase UI-05 — adaptive preset boundaries", () => {
   });
 });
 
+describe("Phase UI-06 — classic preset is purely declarative", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+
+  it("the shell engine contains zero classic-specific logic (source-scan)", () => {
+    for (const file of ["shell-engine.tsx", "shell-bottom-bar.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      expect(source, file).not.toMatch(/classic/);
+    }
+  });
+
+  it("the classic profile is data, not code — no classic branch in the core", () => {
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/classic/);
+    const presets = readFileSync(path.join(srcDirectory, "core", "ui", "presets.ts"), "utf8");
+    expect(presets).toMatch(/classic:\s*\{/); // profile row only
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];

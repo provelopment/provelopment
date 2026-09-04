@@ -35,7 +35,7 @@ describe("resolveShellPattern — Adaptive default personality (UI-05)", () => {
     expect(d.cta.present).toBe(false);
   });
 
-  it("models the shipped demo (explicit classic leaves win over the default personality)", () => {
+  it("models an explicit classic-leaf config without a preset (personality=adaptive, effective=classic)", () => {
     const classic = resolveUiConfig({
       navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
     });
