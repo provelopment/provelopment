@@ -5,6 +5,7 @@ import {
   densityClass,
   resolveShellPattern,
   resolveUiConfig,
+  splitBottomNavItems,
   type DesktopNavigationPattern,
   type MobileNavigationPattern,
   type ShellPrimitiveKind,
@@ -22,15 +23,29 @@ import {
 
 const defaults = resolveUiConfig({});
 
-describe("resolveShellPattern — Foundation defaults", () => {
-  it("yields classic top-bar ≥md and a closed drawer <md, NO CTA", () => {
+describe("resolveShellPattern — Adaptive default personality (UI-05)", () => {
+  it("yields aside sidebar ≥md and a bottom bar <md, NO CTA", () => {
     const d = resolveShellPattern(defaults);
+    expect(d.desktop.primitiveKind).toBe("sidebar");
+    expect(d.desktop.slot).toBe("aside");
+    expect(d.tablet.primitiveKind).toBe("collapsed-sidebar");
+    expect(d.tablet.slot).toBe("aside");
+    expect(d.mobile.primitiveKind).toBe("bottom-bar");
+    expect(d.mobile.trigger).toBe(false);
+    expect(d.cta.present).toBe(false);
+  });
+
+  it("models the shipped demo (explicit classic leaves win over the default personality)", () => {
+    const classic = resolveUiConfig({
+      navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
+    });
+    const d = resolveShellPattern(classic);
     expect(d.desktop.primitiveKind).toBe("top-bar");
     expect(d.desktop.slot).toBe("header");
     expect(d.tablet.primitiveKind).toBe("top-bar");
     expect(d.mobile.primitiveKind).toBe("drawer");
     expect(d.mobile.trigger).toBe(true);
-    expect(d.cta.present).toBe(false);
+    expect(classic.preset).toBe("adaptive"); // personality; effective leaves are classic
   });
 });
 
@@ -91,7 +106,7 @@ describe("resolveShellPattern — decision boundaries", () => {
     expect(resolveShellPattern(fromPreset).desktop.primitiveKind).toBe("sidebar");
   });
 
-  it("places CTA only when resolved.cta.enabled", () => {
+  it("places CTA per structural slot only when resolved.cta.enabled", () => {
     const off = resolveUiConfig({});
     const on = resolveUiConfig({ cta: { enabled: true, action: "book", label: "Book", style: "standard" } });
     const onMobileBottom = resolveUiConfig({
@@ -100,13 +115,45 @@ describe("resolveShellPattern — decision boundaries", () => {
     });
     expect(resolveShellPattern(off).cta.present).toBe(false);
     expect(resolveShellPattern(on).cta.present).toBe(true);
+    // Adaptive default = aside slots → CTA lands in the aside slot.
+    expect(resolveShellPattern(on).desktop.ctaSlot).toBe("aside");
+    expect(resolveShellPattern(on).tablet.ctaSlot).toBe("aside");
     expect(resolveShellPattern(onMobileBottom).mobile.ctaSlot).toBe("bottom");
   });
 
-  it("keeps the closed-by-default mobile layer deterministic (drawer trigger=true, nothing else decided)", () => {
+  it("keeps the mobile layer deterministic (bottom-bar has no trigger; drawer/overlay triggers)", () => {
     const d = resolveShellPattern(defaults);
-    expect(d.mobile.primitiveKind).toBe("drawer");
+    expect(d.mobile.primitiveKind).toBe("bottom-bar");
+    expect(d.mobile.trigger).toBe(false);
     expect(d.mobile.ctaSlot).toBe("none");
+  });
+});
+
+describe("splitBottomNavItems — deterministic bottom-bar content rule (UI-05)", () => {
+  const items = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ href: `/${n}`, label: `Item ${n}` }));
+
+  it("primary = first 4 configured items; remainder exposed via More drawer only when non-empty", () => {
+    const split = splitBottomNavItems(items);
+    expect(split.primary.map((item) => item.href)).toEqual(["/1", "/2", "/3", "/4"]);
+    expect(split.remainder.map((item) => item.href)).toEqual(["/5", "/6", "/7"]);
+  });
+
+  it("≤ limit items → remainder empty (no More drawer)", () => {
+    const short = splitBottomNavItems(items.slice(0, 3));
+    expect(short.primary).toHaveLength(3);
+    expect(short.remainder).toEqual([]);
+    const exact = splitBottomNavItems(items.slice(0, 4));
+    expect(exact.primary).toHaveLength(4);
+    expect(exact.remainder).toEqual([]);
+  });
+
+  it("preserves configuration order and is a pure function", () => {
+    const a = splitBottomNavItems(items);
+    const b = splitBottomNavItems([...items]);
+    expect(a).toEqual(b);
+    expect([...a.primary, ...a.remainder].map((item) => item.href)).toEqual(
+      items.map((item) => item.href),
+    );
   });
 });
 

@@ -11,3 +11,6 @@ export type { ShellEngineProps } from "./shell-engine";
 
 export { ShellMobileNav } from "./shell-mobile-nav";
 export type { ShellMobileNavProps } from "./shell-mobile-nav";
+
+export { ShellBottomBar } from "./shell-bottom-bar";
+export type { ShellBottomBarLink, ShellBottomBarProps } from "./shell-bottom-bar";

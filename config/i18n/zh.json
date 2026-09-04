@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "主导航",
     "footerLabel": "页脚导航",
+    "moreMenu": "更多",
+    "sidebarToggle": "收起导航",
     "items": {
       "/": "首页",
       "/about": "关于",

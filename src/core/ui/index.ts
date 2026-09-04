@@ -47,8 +47,10 @@ export type {
   UiConfigResolutionIssue,
 } from "./resolve";
 
-export { contentWidthClass, densityClass, resolveShellPattern } from "./shell";
+export { contentWidthClass, densityClass, resolveShellPattern, splitBottomNavItems } from "./shell";
+export { BOTTOM_NAV_PRIMARY_LIMIT } from "./shell";
 export type {
+  BottomNavSplit,
   PerViewportDecision,
   ShellPatternDecision,
   ShellPrimitiveKind,

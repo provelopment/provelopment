@@ -29,6 +29,10 @@ export const dictionarySchema = z.object({
     footerLabel: z.string(),
     /** Localized navigation-item labels keyed by href (`"/"`, `"/about"`, …). */
     items: z.record(z.string(), z.string()),
+    /** UI-05 — label for the adaptive bottom-bar "More" drawer trigger. */
+    moreMenu: z.string(),
+    /** UI-05 — label for the adaptive desktop sidebar collapse/expand toggle. */
+    sidebarToggle: z.string(),
   }),
   notFound: z.object({
     title: z.string(),

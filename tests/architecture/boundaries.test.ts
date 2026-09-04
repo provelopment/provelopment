@@ -809,9 +809,39 @@ describe("Phase UI-04 — shell engine boundaries", () => {
   });
 
   it("the shell engine stays preset-agnostic (no preset-name literals)", () => {
-    for (const file of ["shell-engine.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
-      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+    for (const file of SHELL_FILES) {
+      const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/"adaptive"|"classic"|"focus"|"workspace"|"immersive"/);
+    }
+  });
+});
+
+describe("Phase UI-05 — adaptive preset boundaries", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+  const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
+
+  it("the shell engine branches only on vocabulary/structural values — never preset identity", () => {
+    for (const file of ["shell-engine.tsx", "shell-bottom-bar.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      expect(source, file).not.toMatch(/preset\s*===\s*["'][a-z]/);
+      expect(source, file).not.toMatch(/\.preset/);
+    }
+  });
+
+  it("the deterministic bottom-bar content rule lives in the framework-free core", () => {
+    const coreIndex = readFileSync(path.join(UI_CORE_DIRECTORY, "index.ts"), "utf8");
+    const shellCore = readFileSync(path.join(UI_CORE_DIRECTORY, "shell.ts"), "utf8");
+    expect(coreIndex).toContain("splitBottomNavItems");
+    expect(coreIndex).toContain("BOTTOM_NAV_PRIMARY_LIMIT");
+    expect(shellCore).toContain("BOTTOM_NAV_PRIMARY_LIMIT = 4");
+  });
+
+  it("the engine receives config-derived context (locale, pageBindings) via props — no config import", () => {
+    const engine = readFileSync(path.join(SHELL_DIRECTORY, "shell-engine.tsx"), "utf8");
+    const bottomBar = readFileSync(path.join(SHELL_DIRECTORY, "shell-bottom-bar.tsx"), "utf8");
+    for (const [name, source] of [["shell-engine.tsx", engine], ["shell-bottom-bar.tsx", bottomBar]] as const) {
+      expect(source, name).not.toMatch(/from ["']@\/config/);
+      expect(source, name).not.toContain("siteConfig");
     }
   });
 });
