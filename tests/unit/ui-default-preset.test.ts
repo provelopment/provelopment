@@ -7,13 +7,16 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-05 — the resolved default personality decision (Part B).
  *
- * Founder-approved contract (plan/todo-milestone-ui-05.md §2):
+ * Founder-approved contract (plan/todo-milestone-ui-05.md §2, UI-06 §2):
  *  - when no preset is supplied, the resolver selects Adaptive as the
  *    Foundation's default personality;
  *  - this NEVER changes the effective composition of a config whose explicit
  *    leaves already decide the behavior (personality != effective);
  *  - all five presets remain explicitly selectable and unaffected;
  *  - explicit developer overrides continue to win over the default personality.
+ *  - UI-06: the shipped demo now EXPLICITLY selects classic (personality
+ *    "classic"), while its explicit classic leaves keep the byte-identical
+ *    effective composition.
  */
 describe("UI-05 — the deliberate Adaptive default decision", () => {
   it("FOUNDATION_UI_DEFAULTS fixes the default preset to adaptive", () => {
@@ -48,18 +51,15 @@ describe("UI-05 — the deliberate Adaptive default decision", () => {
     }
   });
 
-  it("the shipped demo stays effective-classic because its explicit leaves win", () => {
-    // `site.config.json` declares explicit classic leaves and NO preset. After
-    // the UI-05 default decision, `resolved.preset` is the adaptive personality,
-    // but the EFFECTIVE composition remains the classic top-bar shell — so the
-    // demo renders byte-identically before and after the decision.
+  it("the shipped demo resolves the classic personality (explicit preset, UI-06)", () => {
+    // `site.config.json` now sets `"preset": "classic"` explicitly (D1 Option B,
+    // UI-06) and keeps its explicit classic leaves. The effective composition is
+    // byte-identical to the pre-UI-06 demo — only the truthful personality
+    // changed (adaptive → classic).
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("adaptive");
-    expect(demoResolved.navigation).toEqual({
-      desktop: "top",
-      tablet: "top-compact",
-      mobile: "drawer",
-    });
+    expect(demoResolved.preset).toBe("classic");
+    expect(demoResolved.navigation).toEqual(uiPresetProfiles.classic.navigation);
     expect(demoResolved.navigation).not.toEqual(uiPresetProfiles.adaptive.navigation);
+    expect(demoResolved.shell).toEqual(uiPresetProfiles.classic.shell);
   });
 });

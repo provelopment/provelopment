@@ -27,10 +27,11 @@ const geistMono = Geist_Mono({
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
-// UI-04/UI-05: the single resolved UI configuration (UI-02) drives the shell.
-// The SHIPPED demo config declares explicit classic leaves (no `preset`), so its
-// effective composition stays top-bar ≥md + drawer <md (explicit leaves win);
-// `resolved.preset` identifies the resolved DEFAULT personality (Adaptive, UI-05).
+// UI-04/UI-05/UI-06: the single resolved UI configuration (UI-02) drives the
+// shell. The SHIPPED demo config explicitly selects the classic preset (UI-06)
+// and keeps its explicit classic leaves (which repeat the profile), so the
+// effective composition stays top-bar ≥md + drawer <md — byte-identical to the
+// pre-UI-06 demo. `resolved.preset` == "classic" (truthful personality).
 const resolvedUi = resolveUiConfig(siteConfig.ui ?? {});
 const shellDecision = resolveShellPattern(resolvedUi);
 

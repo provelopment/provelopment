@@ -75,7 +75,8 @@ An override does not cancel the preset — it overrides a single dimension:
 (`FOUNDATION_UI_DEFAULTS.defaultPreset`, selected at the resolver's single
 `raw.preset ?? …` point). This changes the OUT-OF-THE-BOX experience for a
 fresh clone (sidebar shell) but never overrides explicit leaves — the shipped
-demo's explicit classic leaves keep it classic.
+demo explicitly selects `"preset": "classic"` (UI-06), so it renders the
+familiar top-bar + drawer shell.
 
 Every other preset stays explicitly selectable and unaffected:
 
@@ -85,6 +86,12 @@ Every other preset stays explicitly selectable and unaffected:
 { "ui": { "preset": "workspace" } }   // grouped sidebar (+ secondary panel intent)
 { "ui": { "preset": "immersive" } }   // floating nav + overlay menu
 ```
+
+**Classic (UI-06) is the declarative proof:** it required zero Foundation code
+changes — the profile → resolver → engine pipeline built in UI-01–05 already
+composes top navigation + the mobile drawer. The demo's `ui` block shows the
+recommended pattern: `"preset": "classic"` plus optional explicit leaves that
+override individual dimensions of the profile.
 
 **Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)
 preserves the existing composition for header-slot layouts; mobile (<`md`) is
