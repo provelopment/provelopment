@@ -56,16 +56,47 @@ export interface ShellPatternDecision {
   readonly cta: { readonly present: boolean };
 }
 
-function desktopDecision(kind: ShellPrimitiveKind, ctaSlot: "header" | "none"): PerViewportDecision {
-  return { primitiveKind: kind, slot: kind === "sidebar" || kind === "floating" ? "aside" : "header", ctaSlot };
+function desktopDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
+  const slot = kind === "sidebar" || kind === "floating" ? "aside" : "header";
+  const ctaSlot = !ctaPresent ? "none" : slot === "aside" ? "aside" : "header";
+  return { primitiveKind: kind, slot, ctaSlot };
 }
 
-function tabletDecision(kind: ShellPrimitiveKind, ctaSlot: "header" | "none"): PerViewportDecision {
-  return { primitiveKind: kind, slot: kind === "collapsed-sidebar" || kind === "floating" ? "aside" : "header", ctaSlot };
+function tabletDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
+  const slot = kind === "collapsed-sidebar" || kind === "floating" ? "aside" : "header";
+  const ctaSlot = !ctaPresent ? "none" : slot === "aside" ? "aside" : "header";
+  return { primitiveKind: kind, slot, ctaSlot };
 }
 
-function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaSlot: "drawer" | "bottom" | "none"): PerViewportDecision {
+function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaPresent: boolean): PerViewportDecision {
+  const ctaSlot = !ctaPresent ? "none" : kind === "bottom-bar" ? "bottom" : kind === "top" ? "header" : "drawer";
   return { primitiveKind: kind, slot: "header", ctaSlot, trigger };
+}
+
+/**
+ * Deterministic BottomNavigation content rule (UI-05, requirement B).
+ *
+ * The bottom bar shows the FIRST `BOTTOM_NAV_PRIMARY_LIMIT` (4) navigation items
+ * in CONFIGURATION order; any remainder is exposed through the "More" drawer when
+ * it is non-empty. This uses ONLY the existing ordered site content model
+ * (`site.config.json` `navigation`) — no new mobile-navigation configuration
+ * namespace and no invented business semantics. The limit is a Foundation-owned
+ * design constant (a small bar with ≥44px touch targets).
+ */
+export const BOTTOM_NAV_PRIMARY_LIMIT = 4;
+
+export interface BottomNavSplit<T> {
+  /** The items shown directly in the bottom bar (first N in configured order). */
+  readonly primary: readonly T[];
+  /** Remaining items exposed via the "More" drawer (empty → no drawer). */
+  readonly remainder: readonly T[];
+}
+
+export function splitBottomNavItems<T>(items: readonly T[]): BottomNavSplit<T> {
+  return {
+    primary: items.slice(0, BOTTOM_NAV_PRIMARY_LIMIT),
+    remainder: items.slice(BOTTOM_NAV_PRIMARY_LIMIT),
+  };
 }
 
 /** Density → inert marker class. The DEFAULT (`comfortable`) emits nothing —
@@ -125,16 +156,11 @@ export function resolveShellPattern(resolved: ResolvedUiConfig): ShellPatternDec
         : "drawer";
 
   const ctaPresent = resolved.cta.enabled === true;
-  const headerCta = ctaPresent ? "header" : "none";
 
   return {
-    desktop: desktopDecision(desktopKind, headerCta),
-    tablet: tabletDecision(tabletKind, ctaPresent ? (tabletKind === "top-bar" ? "header" : "none") : "none"),
-    mobile: mobileDecision(
-      mobileKind,
-      mobileKind === "drawer" || mobileKind === "overlay",
-      ctaPresent ? (mobileKind === "bottom-bar" ? "bottom" : "drawer") : "none",
-    ),
+    desktop: desktopDecision(desktopKind, ctaPresent),
+    tablet: tabletDecision(tabletKind, ctaPresent),
+    mobile: mobileDecision(mobileKind, mobileKind === "drawer" || mobileKind === "overlay", ctaPresent),
     classes: {
       densityClass: densityClass(resolved.density),
       contentWidthClass: contentWidthClass(resolved.content.width),

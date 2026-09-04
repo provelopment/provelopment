@@ -1060,30 +1060,62 @@ that consumes the RESOLVED semantic intent (UI-02) and the shared primitives
   preset identity — so UI-05+ presets need no changes here.
 - **Engine (`shell-engine.tsx`, server)** — composes the `AppShell` frame with
   content slots; applies density/content classes; renders a primary CTA only
-  when `resolved.cta.enabled` (the Foundation never invents one by default);
-  exposes the optional `<md` mobile slot. The ≥md nav landmark and the <md
-  mobile layer (`ShellMobileNav`: trigger + closed-by-default drawer/overlay)
-  are composed into the header by the content layer (`SiteHeader`), preserving
-  the established header layout (locked zero-visual-delta decision).
+  when `resolved.cta.enabled` AND label+href are supplied (the Foundation never
+  invents one by default); composes the aside/sidebar and mobile bottom-bar
+  layers for aside/bottom-bar compositions (UI-05). The ≥md header-slot nav
+  landmark and the <md mobile layer (`ShellMobileNav`: trigger + closed-by-
+  default drawer/overlay) are composed into the header by the content layer
+  (`SiteHeader`).
 - **Boundaries (master §7):** the engine understands intent, not business
   content; it imports no configuration/adapters and receives resolved/config
-  values via props. The shared primitives stay breakpoint-free; the only
-  responsive utilities are the Tailwind classes the engine/layout emit.
-- **Wiring (UI-04):** `layout.tsx` computes `resolveUiConfig(siteConfig.ui ??
-  {})` once and renders through `ShellEngine`; the shipped Foundation defaults
-  = classic top bar (≥md) + closed mobile drawer (<md) — desktop/tablet
-  byte-identical to the previous shell; the mobile nav becomes the roadmap
-  Classic drawer pattern the shipped config already declares.
+  context (locale, pageBindings) via props; it branches ONLY on vocabulary/
+  structural values, never preset identity. The shared primitives stay
+  breakpoint-free; the only responsive utilities are the Tailwind classes the
+  engine/layout emit.
+- **Wiring (UI-04/UI-05):** `layout.tsx` computes `resolveUiConfig(siteConfig.ui ??
+  {})` once and renders through `ShellEngine`. Responsive behavior:
+  * **Desktop/tablet (≥`md`) → existing composition preserved** — a
+    header-slot (top-bar) composition renders byte-identically to the previous
+    shell at those widths.
+  * **Mobile (<`md`) → intentionally modernized** to the declared mobile
+    pattern (the roadmap-Classic drawer; with Adaptive, the bottom bar + More
+    drawer).
+  Note: this is NOT a "zero visual delta" claim across all viewports — the
+  mobile navigation is intentionally the declared (modernized) pattern.
 
-### No preset is ever selected by resolution (transitional decision, preserved)
+### Adaptive preset (UI-05) & the resolved default personality
 
-`preset` is the ONLY leaf with a different rule: an explicit `ui.preset` is
-preserved; when omitted, `resolveUiConfig` yields `preset === undefined` — no
-constant, no schema default, no loader inference, no resolver fallback. The
-Foundation-defaults layer contains no preset selection. The resolved default
-preset remains a **UI-05 policy decision** (UI-02 establishes the resolution
-mechanism; UI-05 establishes the Adaptive default policy — it may make a small,
-intentional evolution to the mechanism then, reviewed as part of UI-05).
+`{"ui":{"preset":"adaptive"}}` is now a fully observable composition through the
+existing pipeline (resolution → shell decision → ShellEngine → shared primitives):
+
+- **Resolution (UI-05 Part B, owner-approved):** `FOUNDATION_UI_DEFAULTS.defaultPreset
+  = "adaptive"` fixes the resolved DEFAULT PERSONALITY. The resolver's SINGLE
+  selection point is `raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset` in
+  `resolveUiConfig` — the schema/loader inject nothing, and every other module
+  has no preset-selection code (source-scan tested).
+- **Personality ≠ effective composition (Foundation DX contract):**
+  `resolved.preset` identifies the selected/default UI **personality**; the
+  resolved leaves are the **effective** UI behavior. An explicit developer leaf
+  override does NOT cancel the preset — it overrides one dimension of it. E.g.
+  `{ "ui": { "navigation": { "desktop": "top" } } }` with no `preset` resolves
+  `preset = "adaptive"` while the effective composition keeps `desktop = "top"`
+  (and `tablet = "collapsed-sidebar"`, `mobile = "bottom-bar"` from the adaptive
+  profile). The shipped demo declares explicit classic leaves + no `preset`, so
+  it renders the classic shell byte-identically before and after the default
+  decision.
+- **Adaptive shell composition:** desktop `sidebar` → an expanded, user-
+  collapsible `Sidebar` in the aside slot (≥`lg`); tablet `collapsed-sidebar` →
+  a compact-label rail band (`md`–`lg`, deterministic interim — icon-only rail
+  deferred); mobile `bottom-bar` → `BottomNavigation` (first 4 configured items
+  per `BOTTOM_NAV_PRIMARY_LIMIT`) + a closed-by-default "More" drawer for the
+  remainder (deterministic content rule, no new config namespace). Aside bands
+  use distinct ids + mutually exclusive responsive classes so exactly ONE
+  sidebar landmark is exposed at any width.
+- **CTA placement (business-neutral):** per the decision's structural slot
+  (header/aside/bottom) and ONLY when `resolved.cta.enabled` ∧ label+href are
+  supplied — the engine never invents an action/href/label.
+- **Every other preset remains explicitly selectable** and resolves its own
+  profile untouched by the default decision (five-preset regression tests).
 
 ### Completeness & error behavior
 
@@ -1103,16 +1135,17 @@ capability matrix. Presets describe what a UX personality means; later phases
 compose shared primitives (UI-03) under a shell engine (UI-04). No preset gets
 a bespoke implementation.
 
-### No UI-01 default preset (transitional architectural decision)
+### The resolved default preset (UI-05 decision)
 
-The resolved default preset is **intentionally undefined at the UI-01 contract
-level**. `ui.preset` is optional, no constant or loader injects a value, and
-`{}` as well as `{ "ui": { "density": "comfortable" } }` parse with
-`preset === undefined`. UI-05 is the phase that delivers Adaptive and fixes it
-as the resolved/recommended Foundation default, recording it there. This is an
-intentional, transitional state, not uncertainty about the Foundation's
-eventual direction: during the transition the existing classic-style rendering
-stays in place because the contract is not yet consumed.
+The UI-01 contract deliberately left `ui.preset` optional and let the schema/
+loader inject nothing. **UI-05 fixed the RESOLVED default** at the resolver's
+single selection point (`raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`,
+with `defaultPreset: "adaptive"` in `FOUNDATION_UI_DEFAULTS`). The schema and
+loader still never inject a preset — the default is a resolver/deterministic
+personality, documented in `presets.ts` ("resolved default fixed at UI-05") and
+now realized. The personality/effective distinction (§Adaptive preset above) is
+what lets the shipped classic demo stay byte-identical while the default
+personality is Adaptive.
 
 ### Theme/layout separation
 
@@ -1137,9 +1170,8 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Vocabulary, schema surface, preset identities, profile semantics, contract types | UI-01 | ✅ shipped |
 | Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 | ✅ shipped (`resolveUiConfig` / `FOUNDATION_UI_DEFAULTS`) |
 | Shared UI primitives | UI-03 | ✅ shipped (`src/components/ui`; unwired until UI-04 — the next consumer) |
-| Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout; UI-05 next) |
-| Shell orchestration & responsive shell behavior | UI-04 | not started (will consume the resolved configuration) |
-| Adaptive runtime implementation + Adaptive as the resolved/recommended default | UI-05 | not started (the deliberate default decision point) |
+| Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout) |
+| Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition; UI-06 next) |
 
 ## AI Development
 

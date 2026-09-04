@@ -43,6 +43,7 @@ const items = createElement(
 );
 
 describe("ShellEngine (server) — frame & decision-driven composition", () => {
+  const base = { locale: "en", pageBindings: [] };
   it("renders the AppShell frame with the deterministic main id and content slots", () => {
     const resolved = resolveUiConfig({});
     const html = renderToStaticMarkup(
@@ -53,6 +54,7 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
         footer,
         mainId: "main",
         mainClassName: "flex-1",
+        ...base,
       }),
     );
     expect(html).toContain("<header>Brand</header>");
@@ -63,15 +65,15 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
   it("applies the flex-column wrapper with opt-in density + content-width classes", () => {
     const resolved = resolveUiConfig({ density: "compact", content: { width: "wide" } });
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main" }),
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ...base }),
     );
     expect(html).toContain("flex flex-col flex-1 ui-density-compact max-w-screen-2xl");
   });
 
-  it("emits NO density/content class for the Foundation defaults (zero-visual-delta)", () => {
-    const resolved = resolveUiConfig({});
+  it("emits NO density/content class for the defaults (default demo leaves emit nothing)", () => {
+    const resolved = resolveUiConfig({ navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" } });
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main" }),
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ...base }),
     );
     expect(html).toContain('class="flex flex-col flex-1"');
   });
@@ -79,15 +81,18 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
   it("renders NO CTA by default (cta.enabled=false — Foundation never invents one)", () => {
     const resolved = resolveUiConfig({});
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book" }),
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", ...base }),
     );
     expect(html).not.toContain("nav-item-cta");
   });
 
-  it("renders the CTA when resolved.cta.enabled AND label+href are supplied", () => {
-    const resolved = resolveUiConfig({ cta: { enabled: true, action: "book", label: "Book", style: "standard" } });
+  it("renders the CTA in the header slot when resolved.cta.enabled AND label+href are supplied", () => {
+    const resolved = resolveUiConfig({
+      navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
+      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+    });
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book" }),
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", ...base }),
     );
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/book");
@@ -96,7 +101,7 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
   it("keeps the footer/content ordering stable (header, main, footer)", () => {
     const resolved = resolveUiConfig({});
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main" }),
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ...base }),
     );
     expect(html.indexOf("<header>"))
       .toBeLessThan(html.indexOf('<main id="main"'));

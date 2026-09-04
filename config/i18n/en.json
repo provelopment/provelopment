@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "Primary navigation",
     "footerLabel": "Footer navigation",
+    "moreMenu": "More",
+    "sidebarToggle": "Collapse navigation",
     "items": {
       "/": "Home",
       "/about": "About",

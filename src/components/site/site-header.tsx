@@ -7,6 +7,7 @@ import { ShellMobileNav } from "@/components/shell";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
+import { getSiteNavLinks } from "./nav-links";
 
 interface SiteHeaderProps {
     readonly locale: string;
@@ -16,7 +17,22 @@ interface SiteHeaderProps {
 
 export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     const dictionary = getDictionary(locale);
-    const mobilePattern = resolveShellPattern(resolved).mobile.primitiveKind;
+    const decision = resolveShellPattern(resolved);
+    const mobilePattern = decision.mobile.primitiveKind;
+    const desktopSlot = decision.desktop.slot;
+    const tabletSlot = decision.tablet.slot;
+    // The header renders the ≥md navigation landmark ONLY when the resolved
+    // composition places navigation in the header slot (top-bar patterns). With
+    // an aside composition (adaptive sidebar) the single nav landmark lives in
+    // the shell sidebar instead — exactly one exposed landmark per viewport.
+    const hasHeaderNav = desktopSlot === "header" || tabletSlot === "header";
+    const desktopNavClassName = !hasHeaderNav
+        ? undefined
+        : desktopSlot === "header" && tabletSlot === "header"
+            ? "hidden md:block"
+            : desktopSlot === "header"
+                ? "hidden lg:block"
+                : "hidden md:block lg:hidden";
     // Phase M: the selector inventory is every CONFIGURED operating location
     // (`business.regions` is authoritative), so once any region is configured
     // the Location selector is available for every locale.
@@ -30,10 +46,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         ]),
     );
 
-    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item) => ({
-        href: item.href,
-        label: dictionary.navigation.items[item.href] ?? item.label,
-    }));
+    const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale);
 
     const navListElement = (
         <ContextNavLinks
@@ -43,15 +56,6 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
             linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
         />
     );
-
-    // UI-04 responsive split (locked zero-visual-delta): the desktop/tablet nav
-    // landmark is EXACTLY today's markup at ≥md. Below `md`, when the resolved
-    // mobile pattern is a distinct layer (drawer/overlay/bottom-bar), the
-    // desktop/tablet landmark hides and the ShellMobileNav layer (below) takes
-    // over; when the mobile pattern is "top", the landmark stays visible at all
-    // widths (no hiding — byte-identical).
-    const desktopNavClassName =
-        mobilePattern === "top" ? undefined : "hidden md:block";
 
     return (
         <header className="border-b border-border">
@@ -63,9 +67,11 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                 />
 
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                    <nav aria-label={dictionary.navigation.primaryLabel} className={desktopNavClassName}>
-                        {navListElement}
-                    </nav>
+                    {hasHeaderNav ? (
+                        <nav aria-label={dictionary.navigation.primaryLabel} className={desktopNavClassName}>
+                            {navListElement}
+                        </nav>
+                    ) : null}
 
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                         {hasLocations ? (

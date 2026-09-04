@@ -70,13 +70,15 @@ export interface UiConfigInput {
  * completeness invariant (assertResolvedUiConfigComplete)
  * ```
  *
- * CONTRACT DECISIONS (locked, owner-approved; see plan/todo-milestone-ui-02.md):
+ * CONTRACT DECISIONS (locked, owner-approved; see plan/todo-milestone-ui-02.md,
+ * amended at UI-05 — plan/todo-milestone-ui-05.md):
  *
- * 1. NO default preset. `resolveUiConfig({})` yields `preset === undefined`; no
- *     preset-selection constant of any name exists; the Foundation-defaults
- *     layer contains no preset selection; and NO preset is ever selected as a
- *     fallback. The resolved default preset is a UI-05 policy decision, not a
- *     UI-02 mechanic.
+ * 1. ONE default preset. UI-05 fixes `FOUNDATION_UI_DEFAULTS.defaultPreset =
+ *    "adaptive"` as the resolved default PERSONALITY. Selection happens at
+ *    exactly ONE point here (`raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`);
+ *    the schema, loader, and every other module inject nothing. The default
+ *    personality does NOT override explicit per-leaf values (overrides win) and
+ *    does NOT prevent any other preset from being selected explicitly.
  * 2. Neutral CTA defaults. The Foundation never invents a business action:
  *     `cta.enabled` defaults to `false`; `action`/`label` are adopter-only
  *     strings and resolve to `undefined` when not configured（never invented）。
@@ -210,20 +212,17 @@ export function assertResolvedUiConfigComplete(
  * free of state and application/business assumptions.
  */
 export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
-  const preset = raw.preset;
-
-  // These two lines are the ONLY place a preset may influence resolution. When
-  // `preset` is undefined, `profile` stays undefined and every preset-profile
-  // leaf below falls through to its Foundation default. NO preset is ever
-  // selected as a fallback here — the resolved default preset is a UI-05
-  // policy decision, never a UI-02 mechanic.
-
-
-
-  const profile = preset ? uiPresetProfiles[preset] : undefined;
+  // THE single default-preset selection point (UI-05, owner-approved): an
+  // explicit `ui.preset` wins; otherwise the Foundation's default personality
+  // (Adaptive) applies. The schema, loader, and every other module inject
+  // nothing — this is the one place a default preset enters resolution.
+  // Explicit per-leaf overrides still beat the (default or explicit) profile
+  // below via `resolveLeaf`.
+  const preset = raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset;
+  const profile = uiPresetProfiles[preset];
 
   const resolved: ResolvedUiConfig = {
-    preset: preset === undefined ? undefined : preset,
+    preset,
     shell: {
       header: resolveLeaf(raw.shell?.header, profile?.shell.header, FOUNDATION_UI_DEFAULTS.shell.header),
       footer: resolveLeaf(raw.shell?.footer, profile?.shell.footer, FOUNDATION_UI_DEFAULTS.shell.footer),

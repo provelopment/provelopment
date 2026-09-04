@@ -9,8 +9,10 @@ import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
-import { resolveUiConfig } from "@/core/ui";
+import { resolveShellPattern, resolveUiConfig } from "@/core/ui";
 import { ShellEngine } from "@/components/shell";
+import { ContextNavLinks } from "@/components/site/context-nav-links";
+import { getSiteNavLinks } from "@/components/site/nav-links";
 import "../globals.css";
 
 const geistSans = Geist({
@@ -25,11 +27,12 @@ const geistMono = Geist_Mono({
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
-// UI-04: the single resolved UI configuration (UI-02) drives the shell. The
-// shipped config (Foundation defaults) = classic top-bar ≥md + closed mobile
-// drawer <md — visually equivalent on desktop/tablet; the <md drawer is the
-// roadmap Classic mobile pattern the shipped config already declares.
+// UI-04/UI-05: the single resolved UI configuration (UI-02) drives the shell.
+// The SHIPPED demo config declares explicit classic leaves (no `preset`), so its
+// effective composition stays top-bar ≥md + drawer <md (explicit leaves win);
+// `resolved.preset` identifies the resolved DEFAULT personality (Adaptive, UI-05).
 const resolvedUi = resolveUiConfig(siteConfig.ui ?? {});
+const shellDecision = resolveShellPattern(resolvedUi);
 
 // Phase K: when operating regions are configured, the legacy global business
 // block is NOT merged into rendered pages. The layout suppresses the global
@@ -97,6 +100,27 @@ export default async function LocaleLayout({
 }: LocaleLayoutProps) {
   const { locale } = await params;
   const dictionary = getDictionary(locale);
+  const navLinks = getSiteNavLinks(locale);
+  const usesAside =
+    shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside";
+  const usesBottomBar = shellDecision.mobile.primitiveKind === "bottom-bar";
+
+  const asideContent = usesAside ? (
+    <ContextNavLinks
+      locale={locale}
+      links={navLinks}
+      className="space-y-2"
+      linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+    />
+  ) : undefined;
+
+  const bottomNav = usesBottomBar
+    ? {
+        label: dictionary.navigation.primaryLabel,
+        moreLabel: dictionary.navigation.moreMenu,
+        links: navLinks,
+      }
+    : undefined;
 
   return (
     <html
@@ -121,6 +145,12 @@ export default async function LocaleLayout({
           footer={<SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />}
           mainId="main"
           mainClassName="flex-1"
+          navigationLabel={dictionary.navigation.primaryLabel}
+          sidebarToggleLabel={dictionary.navigation.sidebarToggle}
+          asideContent={asideContent}
+          bottomNav={bottomNav}
+          locale={locale}
+          pageBindings={siteConfig.pageBindings}
         />
         {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}

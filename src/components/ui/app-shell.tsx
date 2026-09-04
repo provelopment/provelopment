@@ -27,6 +27,15 @@ export interface AppShellProps {
   readonly footer: ReactNode;
   /** Optional navigation slot (sidebar rail, top bar, etc.). */
   readonly navigation?: ReactNode;
+  /**
+   * Optional aside/sidebar slot (UI-05). Rendered between the header and the
+   * main landmark WITHOUT an extra landmark wrapper, so a consumer-side
+   * navigation rail (e.g. the `Sidebar` primitive, which is itself a `<nav>`)
+   * stays the SINGLE navigation landmark. Absent → renders nothing.
+   */
+  readonly sidebar?: ReactNode;
+  /** Optional class for the sidebar wrapper (responsive placement). */
+  readonly sidebarClassName?: string;
   /** Optional secondary/context panel slot (workspace-style compositions). */
   readonly secondaryPanel?: ReactNode;
   /** Optional slot for a mobile-navigation layer (drawer/bottom bar etc.). */
@@ -45,6 +54,8 @@ export function AppShell({
   footer,
   navigation,
   navigationLabel,
+  sidebar,
+  sidebarClassName,
   secondaryPanel,
   mobileNavigation,
   mainId,
@@ -53,6 +64,7 @@ export function AppShell({
   return (
     <>
       {header}
+      {sidebar ? <div className={sidebarClassName}>{sidebar}</div> : null}
       {navigation ? (
         <nav aria-label={navigationLabel}>{navigation}</nav>
       ) : null}

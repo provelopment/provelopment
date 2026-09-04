@@ -82,9 +82,11 @@ export interface BookingConfig {
  *
  * Intent-level configuration namespace (roadmap §11): values describe the
  * desired UX personality, never pixels. The block is OPTIONAL — an absent
- * `ui` key (or an empty object) is valid and changes nothing: the contract
- * fixes no default preset. UI-02 owns resolution (defaults/overrides/merging);
- * UI-05 is where Adaptive is fixed as the resolved/recommended default.
+ * `ui` key (or an empty object) is valid and changes nothing at the CONTRACT
+ * surface. The RESOLVED default personality is fixed at UI-05
+ * (`FOUNDATION_UI_DEFAULTS.defaultPreset = "adaptive"`, applied in
+ * `resolveUiConfig`'s single selection point); the schema/loader still inject
+ * no preset.
  */
 export interface UiConfig {
   /** Explicit preset selection; `undefined` when omitted (never injected). */

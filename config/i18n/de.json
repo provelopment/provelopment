@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "Hauptnavigation",
     "footerLabel": "Fußzeilennavigation",
+    "moreMenu": "Mehr",
+    "sidebarToggle": "Navigation einklappen",
     "items": {
       "/": "Startseite",
       "/about": "Über uns",
