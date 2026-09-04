@@ -23,7 +23,7 @@ fail the build with actionable error messages.
 | `socialLinks` | Footer/header social links |
 | `navigation` | Header navigation entries (label + href) |
 | `features` | Feature flags, e.g. `analytics.provider` |
-| `ui` (reserved, UI-01) | Intent-level UI namespace — validated, **not yet consumed**; see below |
+| `ui` | Intent-level UI namespace — presets, navigation patterns, density, CTA, theme; see below |
 
 Set `site.url` to your final production origin before go-live — it drives
 the sitemap, canonical URLs, and hreflang alternates.
@@ -31,20 +31,71 @@ the sitemap, canonical URLs, and hreflang alternates.
 Read configuration only through the loader exports from `src/config`; never
 import the JSON file directly from components.
 
-### The `ui` namespace (UI-02/UI-04 — resolved config now drives the shell)
+### The `ui` namespace (UI-05 — presets are live; the resolved default personality is Adaptive)
 
 The optional top-level `ui` key is the intent-level UI configuration namespace
 (preset, shell, navigation, density, content width, CTA, theme), validated at
-build time. **UI-02** added `resolveUiConfig` (deterministic resolution over
-developer overrides → preset profile (when a preset is explicitly selected) →
-neutral Foundation defaults). **UI-04** wired the resolved config into the
-live shell (`ShellEngine`): the Foundation defaults (no `ui` block needed)
-render the classic top navigation at desktop/tablet and a closed mobile menu
-drawer below the `md` breakpoint — desktop/tablet are visually unchanged from
-before. No default preset is fixed: omitting `preset` leaves it undefined (the
-resolved default is a UI-05 decision). `cta.enabled` resolves `false` by
-default — the shipped shell renders no CTA, and the Foundation never invents a
-business action.
+build time. `resolveUiConfig` resolves it deterministically: **explicit
+developer overrides → preset profile (explicit preset OR the resolved default
+personality) → neutral Foundation defaults → completeness guard.**
+
+**You configure semantic intent, never component internals or CSS.** One JSON
+switch selects a complete modern UI personality:
+
+```jsonc
+// Adaptive (the resolved Foundation default personality): expanded collapsible
+// sidebar on desktop, compact sidebar rail on tablet, bottom navigation + "More"
+// drawer on mobile.
+{ "ui": { "preset": "adaptive" } }
+```
+
+Individual JSON switches override any dimension without canceling the preset:
+
+```jsonc
+{
+  "ui": {
+    "preset": "adaptive",
+    "navigation": { "mobile": "drawer" },   // override one dimension
+    "density": "compact"
+  }
+}
+```
+
+**Preset personality ≠ effective composition.** `resolved.preset` identifies the
+selected/default UI personality; the resolved leaves are the effective behavior.
+An override does not cancel the preset — it overrides a single dimension:
+
+```jsonc
+{ "ui": { "navigation": { "desktop": "top" } } }
+// → preset = "adaptive" (personality), desktop = "top", tablet = "collapsed-sidebar",
+//   mobile = "bottom-bar" (adaptive profile fills the remaining dimensions)
+```
+
+**Default:** omitting `preset` resolves the **Adaptive default personality**
+(`FOUNDATION_UI_DEFAULTS.defaultPreset`, selected at the resolver's single
+`raw.preset ?? …` point). This changes the OUT-OF-THE-BOX experience for a
+fresh clone (sidebar shell) but never overrides explicit leaves — the shipped
+demo's explicit classic leaves keep it classic.
+
+Every other preset stays explicitly selectable and unaffected:
+
+```jsonc
+{ "ui": { "preset": "classic" } }     // top navigation + drawer (today's shipped demo)
+{ "ui": { "preset": "focus" } }       // minimal nav + prominent CTA style
+{ "ui": { "preset": "workspace" } }   // grouped sidebar (+ secondary panel intent)
+{ "ui": { "preset": "immersive" } }   // floating nav + overlay menu
+```
+
+**Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)
+preserves the existing composition for header-slot layouts; mobile (<`md`) is
+intentionally modernized to the declared mobile pattern (Classic drawer, or
+Adaptive bottom bar + More drawer). The bottom bar's content rule is
+deterministic: the first **4** configured `navigation` items render in the bar;
+the remainder (when non-empty) is exposed through the "More" drawer.
+
+`cta.enabled` resolves `false` by default — the shell renders no CTA, and the
+Foundation never invents a business action. When you enable a CTA, supply
+`action`, `label`, and keep `style` semantic (standard/prominent).
 
 ## 2. Content — Markdown Pages
 

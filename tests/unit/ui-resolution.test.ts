@@ -23,47 +23,44 @@ import {
 import type { ResolvedUiConfig } from "@/core/ui";
 
 /**
- * UI-02 - Configuration Infrastructure resolution-behavior tests.
+ * UI-02 - Configuration Infrastructure resolution-behavior tests
+ * (amended at UI-05 — default preset decision).
  *
  * These tests encode the DOCUMENTED RESOLUTION CONTRACT
- * (plan/todo-milestone-ui-02.md):
- *   1. no preset -> Foundation defaults; preset stays undefined;
+ * (plan/todo-milestone-ui-02.md, amended at plan/todo-milestone-ui-05.md):
+ *   1. no explicit preset -> the FOUNDATION DEFAULT PERSONALITY (Adaptive,
+ *      fixed at UI-05) fills the leaves; `resolveUiConfig({}).preset` is the
+ *      default personality (NOT undefined — amended at UI-05);
  *   2. overrides win over preset profiles win over Foundation defaults,
- *      deterministically and purely;
+ *      deterministically and purely (personality != effective: overriding a
+ *      leaf does not cancel the preset);
  *   3. all five explicit presets resolve their full profiles;
- *   4. no preset is ever injected (schema/loader/constants keep
- *      `resolveUiConfig({})` at `preset === undefined`);
+ *   4. the default preset is selected at EXACTLY ONE point (the resolver's
+ *      `raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`); the schema,
+ *      loader, and every other module inject nothing;
  *   5. CTA stays business-neutral (enabled false, action/label undefined);
  *   6. completeness fails loudly; vocab-backed resolved leaves stay within
- *      the shipped vocabulary;
- *   7. the resolution sources contain no adaptive fallback (source-scan).
+ *      the shipped vocabulary.
  */
 
-describe("UI-02 - no preset -> Foundation defaults", () => {
-  it("resolveUiConfig({}) yields preset undefined and every leaf from the Foundation defaults", () => {
+describe("UI-02/UI-05 - no explicit preset -> Adaptive default personality", () => {
+  it("resolveUiConfig({}) resolves the default personality (adaptive) with its full profile", () => {
     const resolved = resolveUiConfig({});
-    expect(resolved.preset).toBeUndefined();
-    expect(resolved).toEqual({
-      preset: undefined,
-      shell: FOUNDATION_UI_DEFAULTS.shell,
-      navigation: FOUNDATION_UI_DEFAULTS.navigation,
-      density: FOUNDATION_UI_DEFAULTS.density,
-      content: FOUNDATION_UI_DEFAULTS.content,
-      cta: {
-        enabled: false,
-        action: undefined,
-        label: undefined,
-        style: "standard",
-      },
-      theme: FOUNDATION_UI_DEFAULTS.theme,
-    });
+    expect(resolved.preset).toBe("adaptive");
+    expect(resolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
+    expect(resolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
+    // Leaves the preset does NOT define fall through to Foundation defaults:
+    expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
+    expect(resolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
+    expect(resolved.cta.enabled).toBe(false);
+    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 
-  it("overrides merge over the Foundation defaults without selecting a preset", () => {
+  it("explicit per-leaf overrides still win over the default personality (personality != effective)", () => {
     const resolved = resolveUiConfig({ density: "spacious" });
-    expect(resolved.preset).toBeUndefined();
-    expect(resolved.density).toBe("spacious");
-    expect(resolved.shell).toEqual(FOUNDATION_UI_DEFAULTS.shell);
+    expect(resolved.preset).toBe("adaptive"); // personality preserved
+    expect(resolved.density).toBe("spacious"); // effective leaf overridden
+    expect(resolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
     expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 });
@@ -106,12 +103,12 @@ describe("UI-02 - deterministic precedence (override > profile > Foundation)", (
     expect(resolved.shell.header).toBe("standard"); // profile and Foundation agree
   });
 
-  it("explicit config works WITHOUT a preset (roadmap Level-3 case)", () => {
+  it("explicit config works WITHOUT a preset (default personality fills the rest)", () => {
     const resolved = resolveUiConfig({ navigation: { desktop: "sidebar" } });
-    expect(resolved.preset).toBeUndefined();
-    expect(resolved.navigation.desktop).toBe("sidebar");
-    expect(resolved.navigation.tablet).toBe("top-compact"); // Foundation
-    expect(resolved.navigation.mobile).toBe("drawer"); // Foundation
+    expect(resolved.preset).toBe("adaptive"); // default personality
+    expect(resolved.navigation.desktop).toBe("sidebar"); // override wins
+    expect(resolved.navigation.tablet).toBe("collapsed-sidebar"); // adaptive profile fills the rest
+    expect(resolved.navigation.mobile).toBe("bottom-bar"); // adaptive profile fills the rest
   });
 
   it("is pure and deterministic: same input twice -> deep-equal outputs; input never mutated", () => {
@@ -168,7 +165,7 @@ describe("UI-02 - completeness matrix (every leaf defined, vocab-backed leaves i
       if (typeof (cfg as { preset?: string }).preset === "string") {
         expect(resolved.preset).toBe((cfg as { preset: string }).preset);
       } else {
-        expect(resolved.preset).toBeUndefined();
+        expect(resolved.preset).toBe("adaptive"); // UI-05 default personality
       }
       expect(resolved.shell.header).toBeDefined();
       expect(resolved.shell.footer).toBeDefined();
@@ -230,29 +227,35 @@ describe("UI-02 - controlled error surface (completeness fails loudly)", () => {
   });
 });
 
-describe("UI-02 - no preset may be selected (decision encoded in tests)", () => {
-  it("resolveUiConfig({}) keeps preset undefined", () => {
-    expect(resolveUiConfig({}).preset).toBeUndefined();
-    expect(resolveUiConfig({ density: "comfortable" }).preset).toBeUndefined();
+describe("UI-05 - the default preset is selected at exactly one point", () => {
+  it("resolveUiConfig({}) resolves the adaptive default personality", () => {
+    expect(resolveUiConfig({}).preset).toBe("adaptive");
+    expect(resolveUiConfig({ density: "comfortable" }).preset).toBe("adaptive");
   });
 
-  it("no DEFAULT_PRESET symbol exists in src/core/ui", () => {
+  it("defaults.ts fixes defaultPreset adaptive; resolve.ts is the single selection point", () => {
     const dir = path.join(process.cwd(), "src", "core", "ui");
-    const files = ["index.ts", "vocabulary.ts", "presets.ts", "defaults.ts", "resolve.ts"];
-    for (const file of files) {
-      const source = readFileSync(path.join(dir, file), "utf8");
-      // The decision is about a SYMBOL (constant/variable declaration), not the
-      // prose phrase appearing in doc comments (UI-01 documents "deliberately no
-      // DEFAULT_PRESET" — which itself asserts the decision).
-      expect(source.match(/DEFAULT_PRESET\s*(?:=|:)/), file).toBeNull();
-    }
+    const defaultsSource = readFileSync(path.join(dir, "defaults.ts"), "utf8");
+    const resolveSource = readFileSync(path.join(dir, "resolve.ts"), "utf8");
+    // The default personality constant lives in the Foundation defaults table.
+    expect(defaultsSource).toMatch(/defaultPreset\s*:\s*"adaptive"/);
+    // `raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset` is the ONLY place a
+    // default preset enters resolution — no other fallback/selection string.
+    expect(resolveSource).toContain("raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset");
+    expect(resolveSource.match(/preset\s*=\s*raw\.preset\s*\?\?/g)?.length ?? 0).toBeGreaterThanOrEqual(1);
   });
 
-  it("neither defaults.ts nor resolve.ts selects adaptive as a fallback (source-scan)", () => {
-    for (const file of ["defaults.ts", "resolve.ts"]) {
-      const source = readFileSync(path.join(process.cwd(), "src", "core", "ui", file), "utf8");
-      expect(source.includes("adaptive"), file).toBe(false);
+  it("no other core-ui module selects a preset (source-scan)", () => {
+    const dir = path.join(process.cwd(), "src", "core", "ui");
+    // The default personality is declared ONLY in defaults.ts and selected ONLY
+    // in resolve.ts. (vocabulary.ts/presets.ts legitimately DOCUMENT the decision
+    // in prose; the scan targets modules that must have no selection code.)
+    for (const file of ["index.ts", "shell.ts"]) {
+      const source = readFileSync(path.join(dir, file), "utf8");
+      expect(source.includes("defaultPreset"), file).toBe(false);
     }
+    const presets = readFileSync(path.join(dir, "presets.ts"), "utf8");
+    expect(presets).not.toMatch(/defaultPreset\s*[:=]/);
   });
 });
 

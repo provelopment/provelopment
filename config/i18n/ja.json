@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "メインナビゲーション",
     "footerLabel": "フッターナビゲーション",
+    "moreMenu": "もっと見る",
+    "sidebarToggle": "ナビゲーションを折りたたむ",
     "items": {
       "/": "ホーム",
       "/about": "概要",

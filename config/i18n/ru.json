@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "Основная навигация",
     "footerLabel": "Навигация в подвале",
+    "moreMenu": "Ещё",
+    "sidebarToggle": "Свернуть навигацию",
     "items": {
       "/": "Главная",
       "/about": "О нас",

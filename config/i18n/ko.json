@@ -12,6 +12,8 @@
   "navigation": {
     "primaryLabel": "기본 탐색",
     "footerLabel": "푸터 탐색",
+    "moreMenu": "더 보기",
+    "sidebarToggle": "내비게이션 접기",
     "items": {
       "/": "홈",
       "/about": "소개",
