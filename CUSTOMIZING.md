@@ -83,7 +83,7 @@ Every other preset stays explicitly selectable and unaffected:
 ```jsonc
 { "ui": { "preset": "classic" } }     // top navigation + drawer (today's shipped demo)
 { "ui": { "preset": "focus" } }       // minimal nav + prominent CTA style
-{ "ui": { "preset": "workspace" } }   // grouped sidebar (+ secondary panel intent)
+{ "ui": { "preset": "workspace" } }   // sidebar + collapsed-sidebar + drawer shell (UI-08: grouped nav + secondary panel deferred)
 { "ui": { "preset": "immersive" } }   // floating nav + overlay menu
 ```
 
@@ -121,6 +121,28 @@ treatment:
   treatment; `standard` stays a plain link. The `minimal` header/navigation
   values resolve but their chrome/content treatment is **deferred** (no
   doc-established contract; see ARCHITECTURE — Focus preset).
+
+**Workspace (UI-08) is an information-rich shell** — the third declarative proof
+after Classic and Focus. It required **zero production-code change**: the
+profile → resolver → engine pipeline already composes the sidebar ≥md,
+collapsed-sidebar tablet, drawer <md shell (shared with Adaptive):
+
+```jsonc
+{
+  "ui": {
+    "preset": "workspace",
+    "cta": { "enabled": true, "action": "book", "label": "Book Now", "href": "/booking" }
+  }
+}
+```
+
+The CTA renders in the sidebar at ≥`md` (aside slot) and inside the mobile drawer
+at <`md` (existing UI-07 consumer). **Truthful scope:** the **Workspace shell** is
+implemented and proven; **grouped navigation** and the **optional secondary/context
+panel** remain **deferred pending explicit contracts** (no group data shape, no
+content source, no consumer as of UI-08 — see ARCHITECTURE — Workspace preset). Do
+not expect `navigation.groups` / `secondaryPanel` configuration in this release.
+
 
 **Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)
 preserves the existing composition for header-slot layouts; mobile (<`md`) is
