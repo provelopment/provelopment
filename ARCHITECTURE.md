@@ -962,7 +962,7 @@ switches.
 | `navigation.mobile` | `drawer` \| `bottom-bar` \| `top` \| `overlay` | Mobile composition override |
 | `density` | `compact` \| `comfortable` \| `spacious` | Overall density intent |
 | `content.width` | `narrow` \| `standard` \| `wide` \| `full` | Content area width intent |
-| `cta.enabled/action/label/style` | boolean / semantic action / string / `standard` \| `prominent` | Primary CTA intent |
+| `cta.enabled/action/label/href/style` | boolean / semantic action / string(s) / `standard` \| `prominent` | Primary CTA intent (action/label/href adopter-owned) |
 | `theme.mode` / `theme.radius` | `system` \| `light` \| `dark` / `none` \| `small` \| `medium` \| `large` | Visual theme intent |
 
 Every value is validated by `src/config/schema.ts` (`uiConfigSchema`) and flows
@@ -1007,7 +1007,7 @@ ever invented:
 | `density` | `comfortable` |
 | `content.width` | `standard` |
 | `cta.enabled` | `false` |
-| `cta.action` / `cta.label` | `undefined` (adopter-only business strings) |
+| `cta.action` / `cta.label` / `cta.href` | `undefined` (adopter-only business strings; `href` never inferred from `action`, UI-07 D1) |
 | `cta.style` | preset profile → `standard` |
 | `theme.mode` | `system` |
 | `theme.radius` | `medium` |
@@ -1133,11 +1133,11 @@ pipeline with **no production-code change** (the mechanism UI-01–05 built).
   SSR for an explicit-classic-leaves config (tested), and the boundary scan
   asserts zero `classic` literals in the engine.
 - **CTA:** falls to the header slot at ≥md when explicitly enabled + label/href;
-  nothing by default. The decision core's `ctaSlot: "drawer"` remains LATENT
-  (D2): no component renders a CTA inside the mobile drawer, and the Classic
-  milestone deliberately does not extend the engine/UI-03 primitives for it —
-  Focus (the prominent-CTA personality) is flagged as the first demonstrated
-  need if/when a drawer CTA is required.
+  nothing by default. The decision core's `ctaSlot: "drawer"` was LATENT at
+  UI-06 and gained its content-layer consumer at UI-07 (`SiteHeader` composes
+  the CTA inside the mobile drawer children when the decision says drawer +
+  enabled + label/href). No engine-level drawer-slot machinery exists — the
+  engine branches only on vocabulary/structural values.
 - **i18n genericity (D3):** `navigation.moreMenu` and `navigation.sidebarToggle`
   stay REQUIRED schema keys, named after PATTERNS (bottom-bar "More" drawer,
   sidebar collapse toggle) and therefore reusable verbatim by any future preset
@@ -1148,12 +1148,50 @@ pipeline with **no production-code change** (the mechanism UI-01–05 built).
   effective composition is byte-identical to the pre-UI-06 demo (260 routes /
   219 sitemap unchanged).
 
+### Focus preset (UI-07 — conversion-first; the smallest declarative extension)
+
+Focus is the FIRST demonstrated case where the CTA contract needed extension,
+and the milestone makes its product requirements observable with the smallest
+change (approved D1/D2/D3):
+
+- **Profile (data-only, since UI-01):** `minimal / top-compact / drawer`,
+  shell `minimal/standard`, `cta.style: prominent`. The decision core maps it to
+  header-slot trajectories — minimal ≥md, top-compact tablet, closed drawer <md —
+  **no sidebar, no bottom bar** (SSR-tested).
+- **D1 — `cta.href` (the ONLY contract addition):** an optional, adopter-owned
+  destination leaf. The Foundation NEVER infers a route from `action` and never
+  invents one. Neutral default `undefined`; an enabled CTA without label+href
+  still renders nothing. Canonical shape:
+  `{ "cta": { "enabled": true, "action": "book", "label": "Book Now", "href": "/booking" } }`.
+- **D2 — drawer CTA is now observable:** the latent `ctaSlot: "drawer"` decision
+  acquired its content-layer consumer (`SiteHeader`). When mobile is the drawer
+  pattern + the CTA materially exists, the CTA is composed as a child of the
+  `ShellMobileNav` drawer. Closed SSR renders no dialog (and therefore no CTA /
+  nothing focusable); opening the drawer exposes the CTA among its existing
+  children. The consumer branches on decision-core VALUES — a Classic config
+  with a complete CTA consumes the identical slot (the consumer is generic, not
+  Focus-specific). No engine machinery, no `Drawer` change.
+- **D3 — prominent is observable:** `cta.style === "prominent"` adds the additive
+  `ui-cta-prominent` treatment (token-pure: `--primary` / `--primary-foreground`
+  / `--radius-md`) to the engine header CTA and the drawer CTA. `standard` is
+  behaviorally and structurally unchanged; CTA presence is independent of styling.
+- **Minimal is DEFERRED (D4):** `shell.header: "minimal"` and
+  `navigation.desktop: "minimal"` resolve but have NO concrete implementation
+  contract in the governing docs (no spec for which items hide or how the header
+  restructures). UI-07 truthfully documents that the minimal chrome/content
+  treatment is deferred to a later owner/UI decision — it does NOT invent a
+  navigation-reduction design. The Focus ≥md header therefore renders the full
+  navigation list (proven).
+- **Demo:** the shipped demo stays explicit `classic` and byte-identical (its
+  enabled CTA has no `href`, so nothing renders). Focus is demonstrated via the
+  resolution/SSR test matrix.
+
 ### Completeness & error behavior
 
 The completeness invariant guarantees a fully-determined resolved config:
-every leaf that must resolve is defined (the adopter-only `cta.action`/`cta.label`
-legitimately stay `undefined`), and vocab-backed leaves stay within the shipped
-`src/core/ui/vocabulary` enums. Violations throw `UiConfigResolutionError`
+every leaf that must resolve is defined (the adopter-only `cta.action`/`cta.label`/
+`cta.href` legitimately stay `undefined`), and vocab-backed leaves stay within the
+shipped `src/core/ui/vocabulary` enums. Violations throw `UiConfigResolutionError`
 listing exact leaf paths — future preset-profile or Foundation-default additions
 fail loudly at resolution time rather than silently resolving to `undefined`.
 
@@ -1203,7 +1241,8 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Shared UI primitives | UI-03 | ✅ shipped (`src/components/ui`; unwired until UI-04 — the next consumer) |
 | Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout) |
 | Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition) |
-| Classic preset — the first non-default preset (declarative proof) | UI-06 | ✅ shipped (explicit `preset: "classic"` in the demo; zero engine changes; UI-07 next) |
+| Classic preset — the first non-default preset (declarative proof) | UI-06 | ✅ shipped (explicit `preset: "classic"` in the demo; zero engine changes) |
+| Focus preset — conversion-first + the first CTA-contract extension (`cta.href`, drawer CTA, prominent) | UI-07 | ✅ shipped (D1–D3; `minimal` chrome DEFERRED; UI-08 next) |
 
 ## AI Development
 

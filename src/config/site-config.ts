@@ -127,6 +127,11 @@ export interface UiCtaConfig {
   readonly action?: CtaAction;
   /** Adopter-provided label for the action. */
   readonly label?: string;
+  /**
+   * Adopter-owned CTA destination (UI-07 D1). Optional; the Foundation never
+   * infers one from `action`. An enabled CTA without label+href renders nothing.
+   */
+  readonly href?: string;
   /** Visual prominence requested from the preset (roadmap §11). */
   readonly style?: CtaStyle;
 }

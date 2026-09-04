@@ -93,6 +93,35 @@ composes top navigation + the mobile drawer. The demo's `ui` block shows the
 recommended pattern: `"preset": "classic"` plus optional explicit leaves that
 override individual dimensions of the profile.
 
+**Focus (UI-07) is conversion-first with a prominent primary CTA.** It required
+the smallest declarative extension — one adopter-owned `cta.href` destination,
+the content-layer drawer CTA consumer, and the vocabulary-driven `prominent`
+treatment:
+
+```jsonc
+{
+  "ui": {
+    "preset": "focus",
+    "cta": {
+      "enabled": true,
+      "action": "book",          // semantic action (never auto-routed)
+      "label": "Book Now",
+      "href": "/booking"         // adopter-owned destination (UI-07 D1)
+    }
+  }
+}
+```
+
+- The CTA renders in the header at ≥`md` and inside the mobile drawer at <`md`
+  (when it materially exists — enabled + label + href).
+- `cta.href` is optional and NEVER inferred from `action`. An enabled CTA
+  without label+href renders nothing (the Foundation never invents a destination
+  or route).
+- `style: \"prominent\"` (the Focus default) applies a filled, token-pure
+  treatment; `standard` stays a plain link. The `minimal` header/navigation
+  values resolve but their chrome/content treatment is **deferred** (no
+  doc-established contract; see ARCHITECTURE — Focus preset).
+
 **Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)
 preserves the existing composition for header-slot layouts; mobile (<`md`) is
 intentionally modernized to the declared mobile pattern (Classic drawer, or
@@ -102,7 +131,9 @@ the remainder (when non-empty) is exposed through the "More" drawer.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
-`action`, `label`, and keep `style` semantic (standard/prominent).
+`action`, `label`, and `href` (the adopter-owned destination), and keep `style`
+semantic (`standard`/`prominent`). The Foundation never derives `href` from
+`action` — an enabled CTA without label+href renders nothing.
 
 ## 2. Content — Markdown Pages
 

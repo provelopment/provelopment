@@ -47,6 +47,7 @@ export interface UiConfigInput {
     readonly enabled?: boolean;
     readonly action?: CtaAction;
     readonly label?: string;
+    readonly href?: string;
     readonly style?: CtaStyle;
   };
   readonly theme?: { readonly mode?: ThemeMode; readonly radius?: ThemeRadius };
@@ -83,10 +84,10 @@ export interface UiConfigInput {
  *     `cta.enabled` defaults to `false`; `action`/`label` are adopter-only
  *     strings and resolve to `undefined` when not configured（never invented）。
  * 3. Completeness is structural: every leaf that MUST resolve (all non-preset
- *     leaves except the adopter-only CTA strings) must be defined or resolution
- *     throws `UiConfigResolutionError` listing the missing leaf path — future
- *     vocabulary/profile growth fails loudly rather than silently resolving to
- *     `undefined`.
+ *     leaves except the adopter-only CTA strings `action`/`label`/`href`) must
+ *     be defined or resolution throws `UiConfigResolutionError` listing the
+ *     missing leaf path — future vocabulary/profile growth fails loudly rather
+ *     than silently resolving to `undefined`.
  * 4. Framework-neutral: pure TS (no React/Next/Zod/adapters/configuration
  *     imports);the only config coupling is the structural `UiConfigInput`
  *     shape defined in this module (no `@/config` import at all)。
@@ -132,6 +133,8 @@ export interface ResolvedUiConfig {
     readonly enabled: boolean;
     readonly action?: CtaAction;
     readonly label?: string;
+    /** Adopter-owned destination (UI-07 D1): never invented or inferred. */
+    readonly href?: string;
     readonly style: CtaStyle;
   };
   readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius };
@@ -160,8 +163,8 @@ function resolveLeaf<T>(
 
 /**
  * Asserts that a resolved-shaped object is COMPLETE (every leaf that must
- * resolve is defined; the adopter-only CTA strings `action`/`label` are
- * intentionally optional) and that vocab-backed leaves are members of the
+ * resolve is defined; the adopter-only CTA strings `action`/`label`/`href`
+ * are intentionally optional) and that vocab-backed leaves are members of the
  * shipped vocabulary.
  *
  * Exported for testability: future preset-profile or Foundation-default
@@ -240,6 +243,7 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
       enabled: resolveLeaf(raw.cta?.enabled, undefined, FOUNDATION_UI_DEFAULTS.cta.enabled),
       action: resolveLeaf(raw.cta?.action, undefined, FOUNDATION_UI_DEFAULTS.cta.action),
       label: resolveLeaf(raw.cta?.label, undefined, FOUNDATION_UI_DEFAULTS.cta.label),
+      href: resolveLeaf(raw.cta?.href, undefined, FOUNDATION_UI_DEFAULTS.cta.href),
       style: resolveLeaf(raw.cta?.style, profile?.cta.style, FOUNDATION_UI_DEFAULTS.cta.style),
     },
     theme: {
