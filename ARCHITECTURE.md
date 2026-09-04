@@ -1186,6 +1186,49 @@ change (approved D1/D2/D3):
   enabled CTA has no `href`, so nothing renders). Focus is demonstrated via the
   resolution/SSR test matrix.
 
+### Workspace preset (UI-08 — information-rich shell; declarative proof, third after Classic and Focus)
+
+Workspace's intent (roadmap §8) is an information-rich composition for complex
+navigation / workflows / portals / admin: **sidebar + grouped navigation +
+optional secondary panel**. UI-08 proves the SHELL composition is fully
+declarative with **zero production-code change**:
+
+- **Shell trajectory (declarative since UI-01):** `sidebar / collapsed-sidebar /
+  drawer`, shell `standard/standard`, `cta.style: standard`. The decision core maps
+  it to aside trajectories — sidebar ≥md, collapsed-sidebar tablet, closed drawer
+  <md — **no bottom bar** (SSR-tested). CTA lands in the aside slot ≥md and the
+  drawer slot <md (existing UI-05 aside + UI-07 drawer CTA consumers).
+- **Sidebar machinery is shared, not Workspace-specific:** the engine composes the
+  same two deterministic sidebar bands as Adaptive (desktop `hidden lg:block`,
+  tablet `hidden md:block lg:hidden`, distinct ids, mutually exclusive classes —
+  never simultaneously exposed; desktop band user-collapsible). No new primitive.
+- **The milestone is architectural proof, not feature work:** the profile, resolver,
+  shell decision, engine, `SiteHeader` (≥md/aside + drawer CTA), and layout wiring
+  already compose Workspace. Production code is unchanged; a focused SSR suite
+  (`shell-workspace.test.ts`) proves the shell, and a boundary scan asserts zero
+  `workspace` preset literals in engine/core.
+
+**Truthful status — Workspace SHELL vs Workspace information architecture:**
+
+> **Workspace shell composition is implemented and proven; grouped navigation and
+> the optional secondary/context panel remain DEFERRED pending explicit contracts.**
+
+- **Grouped navigation — DEFERRED (contract unresolved).** Documented intent only:
+  no authoritative group data shape, no labels/content source, no consumer;
+  `NavigationItem` is flat and `NavGroup` is unconsumed. It is a **future SHARED
+  capability decision** (Adaptive also claims `complexNavigation`) — the group
+  schema (nesting/depth, labels, ordering, active-state, a11y, responsive, relation
+  to flat nav) must be an owner decision before the existing `NavGroup` primitive is
+  consumed. UI-08 invents no grouping model and adds no `children` to `NavigationItem`.
+- **Secondary/context panel — DEFERRED.** Explicitly optional (roadmap §8 "Potential
+  extended configuration"); lacks a content source, a configuration contract, a
+  placement contract, and a runtime consumer. UI-08 does not wire the latent
+  `AppShell.secondaryPanel` slot or add ShellEngine props (no generalized slot
+  machinery); it does not invent Details/Hours/Contact/Map content.
+- **Minimal remains deferred (UI-07):** unchanged.
+- **Demo:** the shipped demo stays explicit `classic` and byte-identical. Workspace
+  is demonstrated via the resolution/SSR test matrix.
+
 ### Completeness & error behavior
 
 The completeness invariant guarantees a fully-determined resolved config:
@@ -1242,7 +1285,8 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout) |
 | Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition) |
 | Classic preset — the first non-default preset (declarative proof) | UI-06 | ✅ shipped (explicit `preset: "classic"` in the demo; zero engine changes) |
-| Focus preset — conversion-first + the first CTA-contract extension (`cta.href`, drawer CTA, prominent) | UI-07 | ✅ shipped (D1–D3; `minimal` chrome DEFERRED; UI-08 next) |
+| Focus preset — conversion-first + the first CTA-contract extension (`cta.href`, drawer CTA, prominent) | UI-07 | ✅ shipped (D1–D3; `minimal` chrome DEFERRED) |
+| Workspace preset — the SHELL is a declarative proof (shared sidebar machinery); **grouped nav + secondary panel DEFERRED** | UI-08 | ✅ shipped (zero production-code change; shell SSR-proven; UI-09 next) |
 
 ## AI Development
 
