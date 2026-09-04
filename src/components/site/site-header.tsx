@@ -4,6 +4,7 @@ import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
 import { resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
+import { NavCta } from "@/components/ui/nav-cta";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
@@ -57,6 +58,29 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         />
     );
 
+    // UI-07 (D2): the latent `ctaSlot: "drawer"` decision acquires its
+    // content-layer consumer HERE. When the decision says the mobile CTA slot
+    // is the drawer (mobile `drawer` pattern) AND an adopter CTA materializes
+    // (enabled + label + href), the CTA is composed as a child of the
+    // ShellMobileNav drawer. No engine machinery, no Drawer change: closed SSR
+    // still renders no dialog (and therefore no CTA / no focusable), and the
+    // drawer opening exposes the CTA among its existing children. The branch is
+    // on the decision-core VALUES (ctaSlot, primitive kind) — never preset
+    // identity — and `href` is adopter-owned (never invented).
+    const ctaLabel = resolved.cta.label;
+    const ctaHref = resolved.cta.href;
+    const mobileDrawerCta =
+        decision.mobile.ctaSlot === "drawer" &&
+        mobilePattern === "drawer" &&
+        resolved.cta.enabled &&
+        ctaLabel &&
+        ctaHref ? (
+            <NavCta
+                item={{ label: ctaLabel, href: ctaHref }}
+                className={`ui-drawer-cta${resolved.cta.style === "prominent" ? " ui-cta-prominent" : ""}`}
+            />
+        ) : null;
+
     return (
         <header className="border-b border-border">
             <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
@@ -97,6 +121,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                         className="md:hidden"
                     >
                         {navListElement}
+                        {mobileDrawerCta}
                     </ShellMobileNav>
                 ) : null}
             </div>

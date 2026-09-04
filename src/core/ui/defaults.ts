@@ -62,6 +62,13 @@ export interface UiFoundationDefaults {
    readonly enabled: boolean;
     readonly action?: CtaAction;
     readonly label?: string;
+    /**
+     * ADOPTER-OWNED DESTINATION (UI-07 D1): the CTA `href` is a business
+     * decision — the Foundation NEVER infers a destination from `action` or
+     * invents a route. Optional; resolves `undefined` when omitted. An enabled
+     * CTA without label+href renders nothing (the engine's existing invariant).
+     */
+    readonly href?: string;
     /** CTA visual prominence;presets may override via `cta.style`。 */
    readonly style: CtaStyle;
   };
@@ -90,6 +97,9 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
     enabled: false,
     action: undefined,
     label: undefined,
+    // UI-07 D1: the CTA destination is adopter-owned; the Foundation never
+    // invents or infers a href (no action→URL registry, no route inference).
+    href: undefined,
     style: "standard",
   },
   theme: { mode: "system", radius: "medium" },
