@@ -84,7 +84,7 @@ Every other preset stays explicitly selectable and unaffected:
 { "ui": { "preset": "classic" } }     // top navigation + drawer (today's shipped demo)
 { "ui": { "preset": "focus" } }       // minimal nav + prominent CTA style
 { "ui": { "preset": "workspace" } }   // sidebar + collapsed-sidebar + drawer shell (UI-08: grouped nav + secondary panel deferred)
-{ "ui": { "preset": "immersive" } }   // floating nav + overlay menu
+{ "ui": { "preset": "immersive" } }   // floating nav + overlay menu (UI-09: overlay CTA proven; distinct floating/minimal treatments deferred)
 ```
 
 **Classic (UI-06) is the declarative proof:** it required zero Foundation code
@@ -142,6 +142,32 @@ implemented and proven; **grouped navigation** and the **optional secondary/cont
 panel** remain **deferred pending explicit contracts** (no group data shape, no
 content source, no consumer as of UI-08 — see ARCHITECTURE — Workspace preset). Do
 not expect `navigation.groups` / `secondaryPanel` configuration in this release.
+
+
+**Immersive (UI-09) is the visual-first shell.** It required **one minimal,
+vocabulary-driven content-layer consumer fix** (not a new architecture) to make the
+already-declared mobile **overlay** CTA observable:
+
+```jsonc
+{
+  "ui": {
+    "preset": "immersive",
+    "cta": { "enabled": true, "action": "book", "label": "Book Now", "href": "/booking" }
+  }
+}
+```
+
+Desktop/tablet `floating` resolves through the existing **aside** (sidebar)
+composition; mobile `overlay` uses the existing `OverlayNavigation` path. The CTA
+renders in the aside at ≥`md` and inside the **open overlay** at <`md` (the UI-09
+consumer extends the existing UI-07 drawer-CTA consumer to admit the `overlay`
+pattern). `disabled`/no-`href` → no CTA (never invented). **Truthful scope:** a
+distinct `floating` visual treatment and the `minimal` header treatment remain
+**deferred** (no concrete contract defines them); **overlay interaction behavior**
+(animation, backdrop, dismissal, Escape, focus, reduced motion) remains the
+**UI-10** gate. Do not expect a distinct floating look or a reduced header in this
+release.
+
 
 
 **Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)
