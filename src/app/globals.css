@@ -61,6 +61,9 @@
   /* Keyboard focus ring. */
   --ring: #2563eb;
 
+  /* Modal disclosure scrim (UI-10 D3) — the backdrop behind open dialogs. */
+  --backdrop: #00000066;
+
   /* Native controls, scrollbars and form autofill match the scheme. */
   color-scheme: light;
 }
@@ -87,6 +90,10 @@
     --destructive: #f87171;
     --destructive-foreground: #450a0a;
     --ring: #60a5fa;
+
+    /* Modal disclosure scrim (UI-10 D3) — the backdrop behind open dialogs. */
+    --backdrop: #00000099;
+
     color-scheme: dark;
   }
 }
@@ -185,6 +192,33 @@ body {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/*
+ * Modal disclosure layer (UI-10 D3/D4) — shared by the Drawer primitive behind
+ * every drawer / overlay / More disclosure. Minimal, BEHAVIORAL styling only:
+ * a dismissing scrim + an overlay panel; no animation is introduced (the global
+ * prefers-reduced-motion rule above strips any future motion for free). Both
+ * elements are rendered ONLY while a dialog is open (closed SSR renders neither).
+ */
+.ui-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background-color: var(--backdrop);
+}
+
+.ui-drawer-panel {
+  position: fixed;
+  inset: 0 auto auto 0;
+  z-index: 50;
+  height: 100%;
+  min-width: 16rem;
+  max-width: 22rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--background);
+  padding: 1rem;
 }
 /*
  * Prose presentation contract for Markdown content (pages, legal, connect,

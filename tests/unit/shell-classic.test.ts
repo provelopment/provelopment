@@ -20,6 +20,7 @@ vi.mock("react", async (importOriginal) => {
       return [value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -138,8 +139,11 @@ describe("ShellEngine — Classic navigation landmark correctness", () => {
     // The engine renders NO additional landmark for a header-slot composition:
     expect(html.match(/aria-label="Primary navigation"/g) ?? []).toHaveLength(1);
     expect(html).toContain('<nav aria-label="Primary navigation" class="hidden md:block">');
-    // Deterministic trigger/control relationship (drawer CLOSED at SSR):
+    // Deterministic trigger/control relationship (B1): the trigger owns the id;
+    // aria-controls resolves to the `${id}-panel` id that exists only when open.
+    expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
+    expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("md:hidden");
     // Closed drawer contributes no dialog, no links, no focusables:

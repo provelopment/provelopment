@@ -778,8 +778,12 @@ describe("Phase UI-03 — shared UI primitives boundaries", () => {
       expect(source, `${display} must not import siteConfig`).not.toContain("siteConfig");
       expect(source, `${display} must not import ResolvedUiConfig`).not.toContain("ResolvedUiConfig");
       // Only framework/`next` primitives and sibling (`./`) imports are allowed.
+      // `react-dom` is permitted for the Drawer's modal portal (createPortal):
+      // the SAME package as the already-allowed `react-dom/server`, a pure React
+      // primitive with no config/core/adapter/app leak. UI-10 mount-at-document-
+      // root needs it so the modal truly overlays every shell region.
       const nonSiblingNonNext = extractImportSpecifiers(file).filter((spec) =>
-        !spec.startsWith("./") && !spec.startsWith("next") && !["react", "react-dom/server"].includes(spec),
+        !spec.startsWith("./") && !spec.startsWith("next") && !["react", "react-dom", "react-dom/server"].includes(spec),
       );
       expect(nonSiblingNonNext, `${display} imports outside the allowed framework set`).toEqual([]);
     }
@@ -934,6 +938,38 @@ describe("Phase UI-09 — immersive preset stays fully declarative at the archit
     expect(presets).toMatch(/immersive:\s*\{/); // profile row only
     const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
     expect(shellCore).not.toMatch(/["']immersive["']/);
+  });
+});
+
+describe("Phase UI-10 — the shared behavioral/accessibility contract stays preset-agnostic", () => {
+  const UI_COMPONENTS_DIRECTORY = path.join(srcDirectory, "components", "ui");
+
+  it("the Drawer modal primitive (focus/inert/backdrop/scroll) contains zero preset-name literals", () => {
+    const drawer = readFileSync(path.join(UI_COMPONENTS_DIRECTORY, "drawer.tsx"), "utf8");
+    for (const preset of ["classic", "adaptive", "focus", "workspace", "immersive"]) {
+      expect(drawer, `drawer must not contain "${preset}"`).not.toMatch(new RegExp(`["']${preset}["']`));
+    }
+  });
+
+  it("the shared ContentNavLinks consumer (active semantics) contains zero preset-name literals", () => {
+    const consumer = readFileSync(
+      path.join(srcDirectory, "components", "site", "context-nav-links.tsx"),
+      "utf8",
+    );
+    for (const preset of ["classic", "adaptive", "focus", "workspace", "immersive"]) {
+      expect(consumer, `context-nav-links must not contain "${preset}"`).not.toMatch(new RegExp(`["']${preset}["']`));
+    }
+  });
+
+  it("the shell mobile-nav composes drawer/overlay only via the resolved vocabulary (never preset identity)", () => {
+    const source = readFileSync(path.join(srcDirectory, "components", "shell", "shell-mobile-nav.tsx"), "utf8");
+    for (const preset of ["classic", "adaptive", "focus", "workspace", "immersive"]) {
+      expect(source, `shell-mobile-nav must not contain "${preset}"`).not.toMatch(new RegExp(`["']${preset}["']`));
+    }
+    // It composes the two client dialog PATTERNS structurally (B1: trigger owns
+    // the id; panel uses the `${id}-panel` relationship and is named by trigger).
+    expect(source).toContain('aria-controls={`${id}-panel`}');
+    expect(source).toContain(`id={\`\${id}-panel\`}`);
   });
 });
 

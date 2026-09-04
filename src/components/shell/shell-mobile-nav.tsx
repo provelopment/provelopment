@@ -37,10 +37,16 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className 
   const [open, setOpen] = useState(createInitialDisclosure(false));
   const toggle = () => setOpen((current) => disclosureReducer(current, { type: "toggle" }));
 
+  // B1 (UI-10): the trigger owns the deterministic `id`; the dialog/panel uses
+  // the corresponding `${id}-panel` id and is NAMED BY the trigger
+  // (`aria-labelledby={id}`). `aria-controls` then resolves to a real panel id,
+  // and the drawer/overlay primitive can locate the invoking trigger via that
+  // relationship for focus-return.
   return (
     <div className={className}>
       <button
         type="button"
+        id={id}
         aria-expanded={open === "open"}
         aria-controls={`${id}-panel`}
         onClick={toggle}
@@ -49,11 +55,11 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className 
         {triggerLabel}
       </button>
       {pattern === "overlay" ? (
-        <OverlayNavigation open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={id}>
+        <OverlayNavigation open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={`${id}-panel`}>
           {children}
         </OverlayNavigation>
       ) : (
-        <Drawer open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={id}>
+        <Drawer open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={`${id}-panel`}>
           {children}
         </Drawer>
       )}
