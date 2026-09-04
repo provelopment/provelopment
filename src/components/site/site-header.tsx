@@ -58,20 +58,21 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         />
     );
 
-    // UI-07 (D2): the latent `ctaSlot: "drawer"` decision acquires its
-    // content-layer consumer HERE. When the decision says the mobile CTA slot
-    // is the drawer (mobile `drawer` pattern) AND an adopter CTA materializes
+    // UI-07 (D2) + UI-09 (overlay): the latent `ctaSlot: "drawer"` decision
+    // acquires its content-layer consumer HERE. When the decision says the mobile
+    // CTA slot is the drawer (mobile `drawer` OR `overlay` pattern — both map to
+    // the drawer CTA slot in the decision core) AND an adopter CTA materializes
     // (enabled + label + href), the CTA is composed as a child of the
-    // ShellMobileNav drawer. No engine machinery, no Drawer change: closed SSR
-    // still renders no dialog (and therefore no CTA / no focusable), and the
-    // drawer opening exposes the CTA among its existing children. The branch is
-    // on the decision-core VALUES (ctaSlot, primitive kind) — never preset
-    // identity — and `href` is adopter-owned (never invented).
+    // ShellMobileNav drawer/overlay. No engine machinery, no Drawer/Overlay change:
+    // closed SSR still renders no dialog (and therefore no CTA / no focusable), and
+    // opening exposes the CTA among its existing children. The branch is on the
+    // decision-core VALUES (ctaSlot, primitive kind) — never preset identity — and
+    // `href` is adopter-owned (never invented).
     const ctaLabel = resolved.cta.label;
     const ctaHref = resolved.cta.href;
     const mobileDrawerCta =
         decision.mobile.ctaSlot === "drawer" &&
-        mobilePattern === "drawer" &&
+        (mobilePattern === "drawer" || mobilePattern === "overlay") &&
         resolved.cta.enabled &&
         ctaLabel &&
         ctaHref ? (
