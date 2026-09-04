@@ -19,6 +19,7 @@ vi.mock("react", async (importOriginal) => {
       return [value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -117,7 +118,11 @@ describe("ShellMobileNav (client) — deterministic SSR states + dialog semantic
     );
     expect(html).toContain("md:hidden");
     expect(html).toContain('aria-expanded="false"');
+    // B1: the trigger owns the deterministic id; aria-controls targets the
+    // `${id}-panel` id that exists only once the dialog is open.
+    expect(html).toContain('id="m"');
     expect(html).toContain('aria-controls="m-panel"');
+    expect(html).not.toContain('id="m-panel"');
     // Closed drawer renders no dialog markup:
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain("/en");

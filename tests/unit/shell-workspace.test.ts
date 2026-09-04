@@ -24,6 +24,7 @@ vi.mock("react", async (importOriginal) => {
       return [mockForcedOpen ? "open" : value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -268,7 +269,9 @@ describe("SiteHeader — Workspace mobile drawer + drawer CTA (existing UI-07 co
 
   it("CLOSED SSR: trigger present; NO dialog/CTA/focusable; single nav landmark; no duplicate ids", () => {
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
+    expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("md:hidden");
     // Workspace (aside composition) exposes its single ≥md nav landmark in the
@@ -289,8 +292,12 @@ describe("SiteHeader — Workspace mobile drawer + drawer CTA (existing UI-07 co
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/booking");
     expect(html).not.toContain("ui-cta-prominent"); // workspace profile style stays standard
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav"'));
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('role="dialog"'));
+    // B1: trigger owns the id; panel uses `-panel` id and is named by trigger.
+    expect(html).toContain('id="shell-mobile-nav"');
+    expect(html).toContain('id="shell-mobile-nav-panel"');
+    expect(html).toContain('aria-labelledby="shell-mobile-nav"');
+    expect(html).toContain("ui-drawer-backdrop");
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN drawer with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {

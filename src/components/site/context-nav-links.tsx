@@ -61,6 +61,15 @@ export function ContextNavLinks({
     return [{ ...link, href, external: !isInternalHref(link.href) }];
   });
 
+  // B2 (UI-10): the active page is conveyed via `aria-current="page"` on the
+  // internal link whose RESOLVED href equals the current pathname — the same
+  // route-comparison convention the bottom navigation uses
+  // (shell-bottom-bar.tsx). External links never carry aria-current.
+  const resolvedWithActive = resolved.map((link) => ({
+    ...link,
+    active: !link.external && pathname === link.href,
+  }));
+
   const listClassName = className ?? "space-y-2";
   const linkClass = linkClassName ?? "hover:text-primary";
 
@@ -79,7 +88,7 @@ export function ContextNavLinks({
 
   return (
     <ul aria-label={ariaLabel} className={listClassName}>
-      {resolved.map((link) => {
+      {resolvedWithActive.map((link) => {
         const key = link.key ?? link.href;
         return link.external ? (
           <li key={key}>
@@ -89,7 +98,7 @@ export function ContextNavLinks({
           </li>
         ) : (
           <li key={key}>
-            <Link href={link.href} className={linkClass}>
+            <Link href={link.href} aria-current={link.active ? "page" : undefined} className={linkClass}>
               {renderLabel(link.label, link.demoOnly)}
             </Link>
           </li>

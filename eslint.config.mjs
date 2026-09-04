@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // UI-10 D5: the CDP browser-verification harness is Node CLI infra (not
+    // Next app code). It is exercised by `pnpm test:browser`; linting it as
+    // server/app code would flag Node globals and is not this project's lint
+    // surface.
+    "tests/browser/**",
   ]),
 ]);
 

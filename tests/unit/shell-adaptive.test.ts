@@ -20,6 +20,7 @@ vi.mock("react", async (importOriginal) => {
       return [value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 vi.mock("next/navigation", () => ({ usePathname: () => "/en" }));
@@ -138,7 +139,10 @@ describe("ShellEngine — Adaptive bottom-bar composition (UI-05)", () => {
     expect(html.indexOf("/en/5")).toBe(-1);
     expect(html.indexOf("/en/6")).toBe(-1);
     expect(html.indexOf("/en/7")).toBe(-1);
+    // B1: the More trigger owns the id; aria-controls resolves to the `-panel` id.
+    expect(html).toContain('id="shell-bottom-more"');
     expect(html).toContain('aria-controls="shell-bottom-more-panel"');
+    expect(html).not.toContain('id="shell-bottom-more-panel"');
     expect(html).not.toContain('role="dialog"');
     const ids = allIds(html);
     expect(new Set(ids).size).toBe(ids.length);
