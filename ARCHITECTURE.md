@@ -1100,9 +1100,10 @@ existing pipeline (resolution → shell decision → ShellEngine → shared prim
   `{ "ui": { "navigation": { "desktop": "top" } } }` with no `preset` resolves
   `preset = "adaptive"` while the effective composition keeps `desktop = "top"`
   (and `tablet = "collapsed-sidebar"`, `mobile = "bottom-bar"` from the adaptive
-  profile). The shipped demo declares explicit classic leaves + no `preset`, so
-  it renders the classic shell byte-identically before and after the default
-  decision.
+  profile). Since UI-06 the shipped demo explicitly selects `preset = "classic"`
+  (its explicit classic leaves repeat the profile); BEFORE UI-06 it leaned on
+  precise overrides alone. Either way it renders the classic shell
+  byte-identically — the personality is truthful, the effect is unchanged.
 - **Adaptive shell composition:** desktop `sidebar` → an expanded, user-
   collapsible `Sidebar` in the aside slot (≥`lg`); tablet `collapsed-sidebar` →
   a compact-label rail band (`md`–`lg`, deterministic interim — icon-only rail
@@ -1116,6 +1117,36 @@ existing pipeline (resolution → shell decision → ShellEngine → shared prim
   supplied — the engine never invents an action/href/label.
 - **Every other preset remains explicitly selectable** and resolves its own
   profile untouched by the default decision (five-preset regression tests).
+
+### Classic preset (UI-06 — the first non-default preset is purely declarative)
+
+Classic is the proof milestone for the architecture: `{"ui":{"preset":"classic"}}`
+flows through the existing profile → resolver → shell decision → Shell Engine
+pipeline with **no production-code change** (the mechanism UI-01–05 built).
+
+- **Composition:** `top / top-compact / drawer`, shell `standard/standard`,
+  `cta.style: standard`. The decision core maps it to the long-shipped
+  header-slot trajectories — desktop/tablet `top-bar → slot header` (the ≥md
+  single nav landmark, `hidden md:block`), mobile `drawer → slot header,
+  trigger` (the <md `ShellMobileNav` closed-by-default drawer) — **no sidebar,
+  no bottom bar**. `ShellEngine` SSR for the classic preset is byte-identical to
+  SSR for an explicit-classic-leaves config (tested), and the boundary scan
+  asserts zero `classic` literals in the engine.
+- **CTA:** falls to the header slot at ≥md when explicitly enabled + label/href;
+  nothing by default. The decision core's `ctaSlot: "drawer"` remains LATENT
+  (D2): no component renders a CTA inside the mobile drawer, and the Classic
+  milestone deliberately does not extend the engine/UI-03 primitives for it —
+  Focus (the prominent-CTA personality) is flagged as the first demonstrated
+  need if/when a drawer CTA is required.
+- **i18n genericity (D3):** `navigation.moreMenu` and `navigation.sidebarToggle`
+  stay REQUIRED schema keys, named after PATTERNS (bottom-bar "More" drawer,
+  sidebar collapse toggle) and therefore reusable verbatim by any future preset
+  composing those patterns (workspace's sidebar reuses `sidebarToggle`). Classic
+  consumes neither; a test proves the Classic assembly never emits their values.
+- **Demo:** `site.config.json` ships `"preset": "classic"` (D1 Option B) with
+  its explicit classic leaves retained — `resolved.preset` is truthful, the
+  effective composition is byte-identical to the pre-UI-06 demo (260 routes /
+  219 sitemap unchanged).
 
 ### Completeness & error behavior
 
@@ -1171,7 +1202,8 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Configuration resolution, defaults, preset inheritance, overrides, resolved configuration | UI-02 | ✅ shipped (`resolveUiConfig` / `FOUNDATION_UI_DEFAULTS`) |
 | Shared UI primitives | UI-03 | ✅ shipped (`src/components/ui`; unwired until UI-04 — the next consumer) |
 | Shell orchestration & responsive shell behavior | UI-04 | ✅ shipped (`ShellEngine` + `resolveShellPattern`; wired into the live layout) |
-| Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition; UI-06 next) |
+| Adaptive preset implementation + Adaptive as the resolved/recommended default | UI-05 | ✅ shipped (`defaultPreset: "adaptive"` single selection point; adaptive aside + bottom-bar composition) |
+| Classic preset — the first non-default preset (declarative proof) | UI-06 | ✅ shipped (explicit `preset: "classic"` in the demo; zero engine changes; UI-07 next) |
 
 ## AI Development
 
