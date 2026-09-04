@@ -27,3 +27,24 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+  # UI-10 D5: the committed cross-preset browser/accessibility gate. Drives real
+  # headless Chrome via CDP (Node's built-in WebSocket + fetch; no Playwright/
+  # Cypress). GitHub ubuntu-latest runners ship a stable Chrome.
+  browser-matrix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm exec tsc --noEmit
+
+      - run: pnpm run test:browser

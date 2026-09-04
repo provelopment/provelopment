@@ -24,6 +24,7 @@ vi.mock("react", async (importOriginal) => {
       return [mockForcedOpen ? "open" : value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -254,7 +255,9 @@ describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-l
 
   it("CLOSED SSR: trigger present; NO dialog/CTA/focusable; single nav landmark; no duplicate ids", () => {
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
+    expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("md:hidden");
     // Immersive (aside composition) exposes its single ≥md nav landmark in the
@@ -275,8 +278,12 @@ describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-l
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/booking");
     expect(html).not.toContain("ui-cta-prominent"); // immersive profile style stays standard
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav"'));
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('role="dialog"'));
+    // B1: trigger owns the id; panel uses `-panel` id and is named by trigger.
+    expect(html).toContain('id="shell-mobile-nav"');
+    expect(html).toContain('id="shell-mobile-nav-panel"');
+    expect(html).toContain('aria-labelledby="shell-mobile-nav"');
+    expect(html).toContain("ui-drawer-backdrop");
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN overlay with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {
@@ -327,7 +334,10 @@ describe("SiteHeader — the UI-09 consumer keeps drawer behavior unchanged", ()
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/book");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav"'));
+    // B1: drawer-parity path uses the same corrected panel relationship.
+    expect(html).toContain('id="shell-mobile-nav-panel"');
+    expect(html).toContain('aria-labelledby="shell-mobile-nav"');
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 });
 

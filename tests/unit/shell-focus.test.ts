@@ -24,6 +24,7 @@ vi.mock("react", async (importOriginal) => {
       return [mockForcedOpen ? "open" : value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -197,8 +198,11 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
 
   it("CLOSED SSR: trigger present; NO dialog, NO CTA, nothing focusable; one ≥md nav landmark; no duplicate ids", () => {
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
-    // Deterministic trigger/control relationship (drawer CLOSED at SSR):
+    // Deterministic trigger/control relationship (B1): the trigger owns the
+    // deterministic id; aria-controls resolves to the `${id}-panel` panel id.
+    expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
+    expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain("md:hidden");
     // One ≥md nav landmark (Focus desktop `minimal` renders the full list in
@@ -221,9 +225,19 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
     expect(html).toContain("/booking");
     // D3: the Focus profile is prominent — the drawer CTA gets the treatment too.
     expect(html).toContain("ui-cta-prominent");
-    expect(html.indexOf('id="shell-mobile-nav"')).toBeGreaterThan(0);
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('role="dialog"'));
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav"'));
+    // B1: the trigger owns `shell-mobile-nav`; the dialog panel uses
+    // `shell-mobile-nav-panel` and is NAMED BY the trigger (aria-labelledby).
+    expect(html).toContain('id="shell-mobile-nav"');
+    expect(html).toContain('id="shell-mobile-nav-panel"');
+    expect(html).toContain('aria-labelledby="shell-mobile-nav"');
+    expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
+    // D1/D3 open-state markup: focusable panel + dismissing backdrop.
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain("ui-drawer-panel");
+    expect(html).toContain("ui-drawer-backdrop");
+    // The CTA lives inside the dialog panel:
+    expect(html).toContain("nav-item-cta");
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN drawer with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {

@@ -168,6 +168,19 @@ distinct `floating` visual treatment and the `minimal` header treatment remain
 **UI-10** gate. Do not expect a distinct floating look or a reduced header in this
 release.
 
+**Behavioral & accessibility contract (UI-10):** the five presets share a
+browser-validated modal contract in the `Drawer` primitive (drawer, overlay, and
+Adaptive's More drawer all use it): **focus** moves into an opened disclosure and
+returns to the trigger on close (Escape / backdrop / trigger); Tab / Shift+Tab are
+contained; the background becomes **`inert`** while open and is restored on close;
+a dismissing **backdrop/scrim** is shown; background **scroll is locked**; and the
+global **`prefers-reduced-motion`** rule governs any motion (none is added). The
+active page is marked **`aria-current="page"`** on the internal nav link in every
+placement (header, sidebar bands, drawer/overlay, footer), and each disclosure's
+trigger owns the id the dialog is named by (`aria-controls`/`aria-labelledby`
+resolve to real elements). This is validated by the committed **CDP browser matrix**
+(`pnpm test:browser`, also run in CI) across all five presets × desktop/tablet/mobile.
+
 
 
 **Responsive behavior (owner-applied wording):** desktop/tablet (≥`md`)

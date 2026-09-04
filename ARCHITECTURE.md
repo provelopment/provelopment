@@ -1270,9 +1270,54 @@ consumer fix** to make the already-declared mobile overlay CTA observable:
   (no concrete contract defining how it differs from the existing aside/sidebar
   composition); `minimal` header treatment (no concrete content/chrome contract;
   UI-07 D4 carried forward).
-- **UI-10:** overlay interaction behavior (animation, backdrop, dismissal, Escape,
-  focus management, reduced motion) remains the dedicated UI-10 browser
-  interaction/accessibility gate.
+- **UI-10:** the behavioral/accessibility gate (see below) implements and browser-validates
+  overlay/drawer interaction behavior (focus management, backdrop, dismissal/Escape, scroll
+  locking, reduced motion, background inertness).
+
+### Behavioral / accessibility gate (UI-10 — the shared cross-preset contract, shipped)
+
+UI-10 is the **final cross-preset behavioral and accessibility validation gate** — not a
+product-redesign phase. It makes the shared interaction contract real and browser-validated:
+
+- **Modal behavior in the shared `Drawer` primitive** (`src/components/ui/drawer.tsx`),
+  serving every drawer / overlay / More disclosure via the same structural path:
+  - **Focus management:** focus enters the opened dialog deterministically (first focusable,
+    else the portal panel); Tab / Shift+Tab are contained; Escape closes; focus RETURNS to the
+    invoking trigger on close.
+  - **Background inertness:** while open, the platform `inert` attribute is applied to every
+    background ancestor sibling (never the dialog/backdrop) and restored exactly on close.
+  - **Backdrop + dismissal:** a `ui-drawer-backdrop` scrim is rendered while open; click/tap
+    dismisses; Escape dismisses; the global `prefers-reduced-motion` rule governs any motion
+    (none is added). The backdrop + panel are **portal-mounted at the document root**
+    (`react-dom` `createPortal`) so the modal genuinely overlays every shell region — the
+    browser matrix proved a consumer-nested backdrop is hit-tested under the header's static
+    content.
+  - **Scroll locking:** body overflow is locked while open and restored on close; repeated
+    open/close cycles leak nothing.
+- **Content-layer consumer fixes (vocabulary-driven, non-preset-specific):**
+  - **Disclosure ARIA wiring** (`shell-mobile-nav.tsx`): the trigger owns the deterministic
+    `id`; the dialog/panel uses the corresponding `${id}-panel` id and is NAMED BY the trigger
+    (`aria-labelledby={id}`). `aria-controls` resolves to a real panel id; the modal locates
+    its trigger by that relationship for focus-return.
+  - **Active navigation semantics** (`context-nav-links.tsx`): the shared consumer sets
+    `aria-current="page"` on the active INTERNAL link (same route comparison as the bottom
+    bar); external links never carry it. Propagates to the header, both aside bands, the
+    drawer/overlay children, and the footer.
+- **Validation capability (`tests/browser/`)** — a committed, reproducible **CDP**
+  (Chrome DevTools Protocol) harness built on Node's built-in WebSocket + fetch (**no**
+  Playwright/Cypress/WebdriverIO/jsdom), reusing the repository's established headless-Chrome
+  convention. `pnpm test:browser` swaps each preset's config, boots `next dev`, drives real
+  interaction across desktop/tablet/mobile (and md/lg boundaries), and writes a
+  machine-readable report (`%TEMP%/ui10-browser-report.json`); CI `browser-matrix` runs it on
+  ubuntu-latest. Navigates over `localhost` (Next blocks `127.0.0.1` dev chunks absent
+  `allowedDevOrigins`).
+- **Boundary note:** the UI-primitive boundary test now allows the `react-dom` import for the
+  portal — the same package as the already-allowed `react-dom/server`, framework-only, no
+  config/core/adapter/app leak.
+- **Deferred contract decisions (recorded, NOT solved — no invented semantics):** the
+  collapsed-sidebar **visual** treatment (C1; icon rail / hidden-vs-icon semantics) and the
+  mobile header-CTA placement when a drawer CTA exists (C2). Distinct `floating`/`minimal`
+  visuals, grouped nav, and the secondary panel remain deferred (no concrete contract).
 
 ### Completeness & error behavior
 
@@ -1333,6 +1378,7 @@ and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 | Focus preset — conversion-first + the first CTA-contract extension (`cta.href`, drawer CTA, prominent) | UI-07 | ✅ shipped (D1–D3; `minimal` chrome DEFERRED) |
 | Workspace preset — the SHELL is a declarative proof (shared sidebar machinery); **grouped nav + secondary panel DEFERRED** | UI-08 | ✅ shipped (zero production-code change; shell SSR-proven) |
 | Immersive preset — premium visual-first; last explicit-preset proof + **overlay-CTA consumer fix**; floating/minimal treatments DEFERRED | UI-09 | ✅ shipped (1 content-layer consumer fix; shell + overlay CTA SSR-proven) |
+| Cross-preset behavioral & accessibility gate — focus/inert/backdrop/Escape/scroll in the shared Drawer + B1/B2 ARIA-consumer fixes + committed CDP validation capability | UI-10 | ✅ shipped (browser-validated 5×3 viewport matrix; collapsed-sidebar visual + mobile header-CTA placement DEFERRED) |
 
 ## AI Development
 

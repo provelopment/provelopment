@@ -22,6 +22,7 @@ vi.mock("react", async (importOriginal) => {
       return [value, () => undefined];
     },
     useEffect: () => undefined,
+    useRef: () => ({ current: null }),
   };
 });
 
@@ -241,6 +242,10 @@ describe("UI-03 — Drawer / OverlayNavigation (deterministic SSR states + dialo
     expect(html).toContain('role="dialog"');
     expect(html).toContain('aria-modal="true"');
     expect(html).toContain('aria-labelledby="trigger-id"');
+    expect(html).toContain('id="d"');
+    expect(html).toContain('tabindex="-1"');
+    expect(html).toContain("ui-drawer-panel");
+    expect(html).toContain("ui-drawer-backdrop");
     expect(html).toContain("/en");
   });
 
