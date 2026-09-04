@@ -891,6 +891,29 @@ describe("Phase UI-07 — focus preset stays fully declarative at the architectu
   });
 });
 
+describe("Phase UI-08 — workspace preset stays fully declarative at the architectural boundary", () => {
+  const SHELL_DIRECTORY = path.join(srcDirectory, "components", "shell");
+
+  it("the shell engine contains zero workspace-specific logic (source-scan for preset-name literals)", () => {
+    for (const file of ["shell-engine.tsx", "shell-bottom-bar.tsx", "shell-mobile-nav.tsx", "index.ts"]) {
+      const source = readFileSync(path.join(SHELL_DIRECTORY, file), "utf8");
+      expect(source, file).not.toMatch(/["']workspace["']/);
+    }
+  });
+
+  it("the shell decision core branches only on vocabulary/structural values — never the workspace preset", () => {
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/["']workspace["']/);
+  });
+
+  it("the workspace profile is data, not code (presets.ts profile row only; no workspace branch in core)", () => {
+    const presets = readFileSync(path.join(srcDirectory, "core", "ui", "presets.ts"), "utf8");
+    expect(presets).toMatch(/workspace:\s*\{/); // profile row only
+    const shellCore = readFileSync(path.join(srcDirectory, "core", "ui", "shell.ts"), "utf8");
+    expect(shellCore).not.toMatch(/["']workspace["']/);
+  });
+});
+
 describe("Phase UI-01 — UI architecture contract boundaries", () => {
   const UI_CORE_DIRECTORY = path.join(srcDirectory, "core", "ui");
   const UI_CORE_MODULES = ["vocabulary.ts", "presets.ts", "index.ts"];
