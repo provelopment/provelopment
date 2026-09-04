@@ -124,27 +124,30 @@ describe("UI-02 - deterministic precedence (override > profile > Foundation)", (
 });
 
 describe("UI-02 - neutral CTA (D1)", () => {
-  it("never invents a business action: enabled false, action/label undefined, style standard", () => {
+  it("never invents a business action: enabled false, action/label/href undefined, style standard", () => {
     const plain = resolveUiConfig({});
     expect(plain.cta.enabled).toBe(false);
     expect(plain.cta.action).toBeUndefined();
     expect(plain.cta.label).toBeUndefined();
+    expect(plain.cta.href).toBeUndefined(); // UI-07 D1: destination adopter-owned
     expect(plain.cta.style).toBe("standard");
 
     const presetOnly = resolveUiConfig({ preset: "focus" });
     expect(presetOnly.cta.enabled).toBe(false); // presets do not define enabled
     expect(presetOnly.cta.action).toBeUndefined();
     expect(presetOnly.cta.label).toBeUndefined();
+    expect(presetOnly.cta.href).toBeUndefined();
     expect(presetOnly.cta.style).toBe("prominent"); // focus profile requests prominence
   });
 
-  it("an explicit adopter CTA override is preserved", () => {
+  it("an explicit adopter CTA override is preserved (incl. the UI-07 href destination)", () => {
     const resolved = resolveUiConfig({
-      cta: { enabled: true, action: "book", label: "Book Now", style: "standard" },
+      cta: { enabled: true, action: "book", label: "Book Now", href: "/booking", style: "standard" },
     });
     expect(resolved.cta.enabled).toBe(true);
     expect(resolved.cta.action).toBe("book");
     expect(resolved.cta.label).toBe("Book Now");
+    expect(resolved.cta.href).toBe("/booking");
   });
 });
 describe("UI-02 - completeness matrix (every leaf defined, vocab-backed leaves in vocabulary)", () => {
