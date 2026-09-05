@@ -12,6 +12,12 @@
 export { AppShell } from "./app-shell";
 export type { AppShellProps } from "./app-shell";
 
+export { Button } from "./button";
+export type { ButtonProps } from "./button";
+
+export { Section } from "./section";
+export type { SectionProps } from "./section";
+
 export { Navigation } from "./navigation";
 export type { NavigationProps } from "./navigation";
 

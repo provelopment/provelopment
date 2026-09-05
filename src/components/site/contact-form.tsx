@@ -3,6 +3,7 @@
 import { useActionState, useState, type FormEvent } from "react";
 
 import { submitContactInquiry } from "@/app/contact-actions";
+import { Button } from "@/components/ui/button";
 import {
   initialContactSubmissionState,
   type ContactSubmissionState,
@@ -239,14 +240,13 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
       </p>
 
       <div>
-        <button
+        <Button
           type="submit"
           disabled={isPending}
           aria-busy={isPending}
-          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
         >
           {isPending ? dict.sending : dict.submit}
-        </button>
+        </Button>
       </div>
     </form>
   );

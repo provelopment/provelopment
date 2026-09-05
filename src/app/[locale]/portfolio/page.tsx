@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { PortfolioList } from "@/components/site/portfolio-list";
+import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -87,7 +88,7 @@ export default async function PortfolioPage({ params }: PortfolioPageProps) {
   const sorted = sortPortfolio(items);
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{chrome.heading}</h1>
       <div className="mt-8">
         <PortfolioList
@@ -97,6 +98,6 @@ export default async function PortfolioPage({ params }: PortfolioPageProps) {
           featuredLabel={chrome.featured}
         />
       </div>
-    </article>
+    </Section>
   );
 }

@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { locale } from "next/root-params";
 import { getDictionary } from "@/config/i18n";
+import { Section } from "@/components/ui/section";
 
 export default async function NotFound() {
   const currentLocale = await locale();
   const dictionary = getDictionary(currentLocale);
 
   return (
-    <section className="mx-auto max-w-page px-4 py-24 text-center">
+    <Section className="py-24 text-center">
       <h1 className="text-4xl font-bold tracking-tight">
         {dictionary.notFound.title}
       </h1>
@@ -20,6 +21,6 @@ export default async function NotFound() {
           {dictionary.notFound.returnHome}
         </Link>
       </p>
-    </section>
+    </Section>
   );
 }

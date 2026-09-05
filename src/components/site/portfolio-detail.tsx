@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { PortfolioItem } from "@/core/portfolio";
+import { Section } from "@/components/ui/section";
 import { MarkdownContent } from "./markdown-content";
 
 interface PortfolioDetailProps {
@@ -23,7 +24,7 @@ export function PortfolioDetail({
   tagsLabel,
 }: PortfolioDetailProps) {
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <p className="mb-6">
         <Link href={backHref} className="text-sm font-medium text-primary hover:underline">
           ← {backLabel}
@@ -42,6 +43,6 @@ export function PortfolioDetail({
       <div className="mt-8">
         <MarkdownContent markdown={item.body} />
       </div>
-    </article>
+    </Section>
   );
 }

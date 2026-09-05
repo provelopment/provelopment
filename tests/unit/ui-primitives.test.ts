@@ -29,6 +29,7 @@ vi.mock("react", async (importOriginal) => {
 import {
   AppShell,
   BottomNavigation,
+  Button,
   Drawer,
   NavBadge,
   NavCta,
@@ -36,6 +37,7 @@ import {
   NavItem,
   Navigation,
   OverlayNavigation,
+  Section,
   Sidebar,
 } from "@/components/ui";
 
@@ -289,5 +291,69 @@ describe("UI-03 — Sidebar", () => {
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain("<span>rail</span>");
     expect(html).not.toContain('id="sidebar-panel" class="hidden"');
+  });
+});
+
+describe("P1-4 — Button (shared primary-action primitive)", () => {
+  it("renders a native <button> with type=button by default", () => {
+    const html = renderToStaticMarkup(Button({ children: "Try again" }));
+    expect(html).toContain('<button type="button" class="inline-flex');
+    expect(html).toContain(">Try again</button>");
+  });
+
+  it("is token-driven and adds NO focus-visible CSS (P1-3 single-source ring)", () => {
+    const html = renderToStaticMarkup(Button({ children: "Go" }));
+    expect(html).toContain("bg-primary");
+    expect(html).toContain("text-primary-foreground");
+    expect(html).toContain("rounded-md");
+    // The shared focus contract lives in globals.css — the primitive must not emit
+    // a competing focus-visible utility.
+    expect(html).not.toContain("focus-visible:");
+
+  });
+
+  it("preserves native type, disabled and aria-busy for form submits", () => {
+    const html = renderToStaticMarkup(
+      Button({ type: "submit", disabled: true, "aria-busy": true, children: "Send" }),
+    );
+    expect(html).toContain('<button type="submit" class="inline-flex');
+    expect(html).toContain('disabled=""');
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain(">Send</button>");
+    expect(html).toContain("disabled:opacity-60");
+  });
+
+  it("merges an extra className without losing the shared treatment", () => {
+    const html = renderToStaticMarkup(Button({ type: "button", className: "w-full", children: "X" }));
+    expect(html).toContain("class=\"inline-flex");
+    expect(html).toContain("w-full");
+  });
+});
+
+describe("P1-4 — Section (semantic page-content frame)", () => {
+  it("renders <section> by default inside the shared page-frame class", () => {
+    const html = renderToStaticMarkup(Section({ children: "Content" }));
+    expect(html).toContain("<section class=\"mx-auto max-w-page px-4 py-12\">Content</section>");
+  });
+
+  it("renders <article> for detail/content pages (as prop)", () => {
+    const html = renderToStaticMarkup(Section({ as: "article", children: "Body" }));
+    expect(html).toContain("<article class=\"mx-auto max-w-page px-4 py-12\">Body</article>");
+  });
+
+  it("accepts rhythm/alignment overrides via className (error/not-found status)", () => {
+    const html = renderToStaticMarkup(Section({ className: "py-24 text-center", children: "O" }));
+    expect(html).toContain("class=\"mx-auto max-w-page px-4 py-12 py-24 text-center\"");
+  });
+
+  it("forwards aria-labelledby for heading association", () => {
+    const html = renderToStaticMarkup(Section({ "aria-labelledby": "section-heading", children: "S" }));
+    expect(html).toContain('aria-labelledby="section-heading"');
+  });
+
+  it("does NOT inject ARIA or heading composition (native semantics preserved)", () => {
+    const html = renderToStaticMarkup(Section({ as: "article", children: "S" }));
+    expect(html).not.toContain("role=");
+    expect(html).not.toContain("<h");
   });
 });

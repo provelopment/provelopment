@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { isCanonicalLegalSlug, resolveLegalDocs } from "@/core/legal";
@@ -118,7 +119,7 @@ export default async function LegalPage({ params }: LegalPageProps) {
   const dictionary = getDictionary(locale);
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
@@ -126,6 +127,6 @@ export default async function LegalPage({ params }: LegalPageProps) {
       <p className="mt-10 text-sm text-muted-foreground">
         {dictionary.legal.disclaimer}
       </p>
-    </article>
+    </Section>
   );
 }
