@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { siteConfig } from "@/config";
@@ -9,6 +8,7 @@ import {
   parseRegionalPath,
   resolveNavHref,
 } from "@/core/regional-pages";
+import { NavItem } from "@/components/ui/nav-item";
 
 export interface ContextNavLink {
   readonly href: string;
@@ -41,8 +41,16 @@ interface ContextNavLinksProps {
  * LANDING — Home means "home for the currently selected location". In the
  * generic context flat `/{locale}{href}` routes are used.
  *
- * External links (`mailto:`, `tel:`, `https:`, …) pass through as plain
- * anchors; internal links become Next `<Link>`s.
+ * P0-5 (link-semantics convergence): the LINK SEMANTICS live in the shared
+ * `NavItem` primitive — internal Next `<Link>`, external new-tab +
+ * `rel="noreferrer"`, `aria-current="page"` on the active internal item, and
+ * the badge chip. This component owns the CONTEXT that NavItem must not:
+ * URL/region-aware destination resolution, active-page computation from the
+ * pathname (UI-10 B2), and the list composition. Every placement — the ≥md
+ * header nav, the aside (sidebar) bands, the mobile drawer/overlay children,
+ * and the footer Connect list — therefore renders through exactly one link
+ * semantic/rendering path. External links (`mailto:`, `tel:`, `https:`, …)
+ * resolve here, then render through the same NavItem external contract.
  */
 export function ContextNavLinks({
   locale,
@@ -73,37 +81,21 @@ export function ContextNavLinks({
   const listClassName = className ?? "space-y-2";
   const linkClass = linkClassName ?? "hover:text-primary";
 
-  function renderLabel(label: string, demoOnly?: boolean) {
-    return (
-      <span className="inline-flex items-center gap-1.5">
-        {label}
-        {demoBadgeLabel && demoOnly ? (
-          <span className="rounded bg-accent px-1.5 py-0.5 text-xs text-muted-foreground">
-            {demoBadgeLabel}
-          </span>
-        ) : null}
-      </span>
-    );
-  }
-
   return (
     <ul aria-label={ariaLabel} className={listClassName}>
-      {resolvedWithActive.map((link) => {
-        const key = link.key ?? link.href;
-        return link.external ? (
-          <li key={key}>
-            <a href={link.href} rel="noreferrer" target="_blank" className={linkClass}>
-              {renderLabel(link.label, link.demoOnly)}
-            </a>
-          </li>
-        ) : (
-          <li key={key}>
-            <Link href={link.href} aria-current={link.active ? "page" : undefined} className={linkClass}>
-              {renderLabel(link.label, link.demoOnly)}
-            </Link>
-          </li>
-        );
-      })}
+      {resolvedWithActive.map((link) => (
+        <NavItem
+          key={link.key ?? link.href}
+          item={{
+            label: link.label,
+            href: link.href,
+            active: link.active,
+            external: link.external,
+            badge: link.demoOnly && demoBadgeLabel ? demoBadgeLabel : undefined,
+          }}
+          className={linkClass}
+        />
+      ))}
     </ul>
   );
 }
