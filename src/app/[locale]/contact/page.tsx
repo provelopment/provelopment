@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { ContactForm } from "@/components/site/contact-form";
+import { Section } from "@/components/ui/section";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
@@ -79,7 +80,7 @@ export default async function ContactPage({ params }: ContactPageProps) {
   const demoMode = config?.provider === "stub";
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">
         {dictionary.contact.heading}
       </h1>
@@ -100,6 +101,6 @@ export default async function ContactPage({ params }: ContactPageProps) {
           dict={dictionary.contact}
         />
       </div>
-    </article>
+    </Section>
   );
 }
