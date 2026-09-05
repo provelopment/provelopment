@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import type { OfferingsListItem } from "@/core/offerings";
+import { CardImage } from "@/components/ui/card-image";
 
 interface OfferingCardProps {
   readonly offering: OfferingsListItem;
@@ -26,17 +26,7 @@ export function OfferingCard({ offering, href, featuredLabel }: OfferingCardProp
       href={href}
       className="block rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
     >
-      {offering.image ? (
-        <div className="relative mb-4 h-40 w-full overflow-hidden rounded">
-          <Image
-            src={offering.image}
-            alt={offering.title}
-            fill
-            sizes="(max-width: 640px) 100vw, 320px"
-            className="object-cover"
-          />
-        </div>
-      ) : null}
+      {offering.image ? <CardImage src={offering.image} alt={offering.title} /> : null}
       <h2 className="text-xl font-semibold">{offering.title}</h2>
       {offering.featured && featuredLabel ? (
         <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-primary">

@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import type { PortfolioItem } from "@/core/portfolio";
+import { CardImage } from "@/components/ui/card-image";
 
 interface PortfolioCardProps {
   readonly item: PortfolioItem;
@@ -21,17 +21,7 @@ export function PortfolioCard({ item, href, featuredLabel }: PortfolioCardProps)
       href={href}
       className="block h-full rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
     >
-      {item.image ? (
-        <div className="relative mb-4 h-40 w-full overflow-hidden rounded">
-          <Image
-            src={item.image}
-            alt={item.title}
-            fill
-            sizes="(max-width: 640px) 100vw, 320px"
-            className="object-cover"
-          />
-        </div>
-      ) : null}
+      {item.image ? <CardImage src={item.image} alt={item.title} /> : null}
       <h2 className="text-xl font-semibold">
         {item.title}
         {item.year ? <span className="text-muted-foreground"> · {item.year}</span> : null}

@@ -43,6 +43,7 @@ import {
   Sidebar,
   Stack,
   FieldError,
+  CardImage,
 } from "@/components/ui";
 
 /** Small JSX-free node helper for the repo's `.test.ts` component convention. */
@@ -442,5 +443,23 @@ describe("P2-8 — FieldError (shared field-level validation-error presentation 
     );
     expect(html).not.toContain("role=");
     expect(html).not.toContain("aria-live");
+  });
+});
+
+describe("P2-10 — CardImage (shared collection-card image primitive)", () => {
+  it("renders the demonstrated fill + object-cover wrapper and Image at card sizing", () => {
+    const html = renderToStaticMarkup(CardImage({ src: "/images/photo.jpg", alt: "Consultation" }));
+    expect(html).toContain(
+      '<div class="relative mb-4 h-40 w-full overflow-hidden rounded">',
+    );
+    expect(html).toContain('alt="Consultation"');
+    expect(html).toContain('data-nimg="fill"');
+    expect(html).toContain('sizes="(max-width: 640px) 100vw, 320px"');
+    expect(html).toContain('class="object-cover"');
+  });
+
+  it("passes alt through verbatim (caller owns accessible copy; the primitive never invents alt)", () => {
+    const html = renderToStaticMarkup(CardImage({ src: "/a.png", alt: "My Portfolio Item" }));
+    expect(html).toContain('alt="My Portfolio Item"');
   });
 });
