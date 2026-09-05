@@ -22,7 +22,28 @@ import type {
  * Framework-neutral (pure data): see ARCHITECTURE.md — UI System Architecture.
  */
 
-/** A capability's level in the roadmap §24 matrix (✓ / optional / limited / —). */
+/**
+ * The roadmap §24 capability-matrix level a preset may claim for a capability.
+ *
+ * P0-6 — the CAPABILITY-CLAIM VOCABULARY (each level has a concrete
+ * architectural meaning + evidence rule; enforced by
+ * `tests/architecture/capability-claims.test.ts`):
+ *
+ *  - supported  → the preset's RESOLVED COMPOSITION implements AND browser-
+ *                 verifies the behavior. Evidence: resolved leaves select the
+ *                 composition AND the browser matrix asserts the behavior for
+ *                 that preset.
+ *  - optional   → the shared capability is implemented + verified at the
+ *                 Foundation level, but the preset does NOT compose it by
+ *                 default; a user can reach it via explicit configuration.
+ *  - limited    → the shared capability exists only PARTIALLY (documented
+ *                 limitation); it is not the full capability contract.
+ *  - unsupported→ NOT claimed for this preset (roadmap "—"). Absence is the
+ *                 honest default. A shared primitive/config field existing in
+ *                 source is NOT evidence of support. Custom configurations are
+ *                 never preset-gated, so a user may still compose a shared
+ *                 capability a preset does not claim.
+ */
 export type UiCapabilityLevel = "supported" | "optional" | "limited" | "unsupported";
 
 /** The roadmap §24 capability matrix (the rows a preset may claim). */
@@ -72,7 +93,14 @@ export interface UiPresetProfile {
   readonly capabilities: UiPresetCapabilities;
 }
 
-/** Builds a full capability row from the explicit levels (the rest is "—"). */
+/**
+ * Builds a full capability row from the explicit levels; every unlisted column
+ * is `unsupported` — the roadmap "—". P0-6: the default IS the truthful state;
+ * a row may only be raised (to optional/limited/supported) when the
+ * implementation + composition + (for supported) browser verification exist
+ * and the claim gate (`tests/architecture/capability-claims.test.ts`) is
+ * updated with the evidence at the same time.
+ */
 function capabilities(levels: Partial<UiPresetCapabilities>): UiPresetCapabilities {
   return {
     topNavigation: "unsupported",
@@ -110,7 +138,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
       mobileDrawer: "supported",
       primaryCta: "supported",
       complexNavigation: "limited",
-      applicationDashboard: "limited",
+      applicationDashboard: "unsupported",
     }),
   },
   adaptive: {
@@ -127,8 +155,13 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
       bottomMobileNavigation: "supported",
       mobileDrawer: "supported",
       primaryCta: "supported",
-      complexNavigation: "supported",
-      applicationDashboard: "supported",
+      // P0-4/P0-6 truth: no grouped-navigation implementation exists (flat
+      // `navigation[]`), so "complex navigation" is only the flat nav lists
+      // the sidebar/header already compose (limited), not full grouping.
+      complexNavigation: "limited",
+      // P0-6 truth: an app-LIKE shell (sidebar/bottom-bar) exists but no
+      // dashboard features (groups, secondary panel) — limited, not supported.
+      applicationDashboard: "limited",
     }),
   },
   focus: {
@@ -145,13 +178,15 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
       primaryCta: "supported",
       overlayNavigation: "optional",
       complexNavigation: "limited",
-      visualFirst: "supported",
+      // P0-6 truth: the distinct minimal/floating PRESENTATION is C-deferred;
+      // the realized parts are the prominent CTA + minimal-chrome resolution.
+      visualFirst: "limited",
     }),
   },
   workspace: {
     preset: "workspace",
     summary:
-      "An information-rich personality: grouped sidebar navigation with an optional secondary panel (roadmap §8)",
+      "An information-rich personality: sidebar navigation with an optional secondary panel (grouped nav + secondary panel are DECLARED but deferred pending contracts — P0-4)",
     navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
     shell: { header: "standard", footer: "standard", sidebar: { collapsible: true } },
     cta: { style: "standard" },
@@ -162,9 +197,12 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
       bottomMobileNavigation: "optional",
       mobileDrawer: "supported",
       primaryCta: "supported",
-      secondaryPanel: "supported",
-      complexNavigation: "supported",
-      applicationDashboard: "supported",
+      // P0-4/P0-6 truth: no secondary-panel content source / composition /
+      // responsive contract exists — the AppShell slot alone is NOT a
+      // capability. Claimed "unsupported" until the owner decisions land.
+      secondaryPanel: "unsupported",
+      complexNavigation: "limited",
+      applicationDashboard: "limited",
     }),
   },
   immersive: {
@@ -180,7 +218,9 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
       primaryCta: "supported",
       overlayNavigation: "supported",
       complexNavigation: "limited",
-      visualFirst: "supported",
+      // P0-6 truth: the distinct floating/minimal presentation is C-deferred;
+      // the realized parts are the overlay menu + floating→aside composition.
+      visualFirst: "limited",
     }),
   },
 };
