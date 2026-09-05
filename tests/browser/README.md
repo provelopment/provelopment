@@ -46,5 +46,12 @@ tree stays clean.
 - scroll lock restored across open/close cycles (D4);
 - reduced-motion media query + no animation on the modal (PMR);
 - CTA reachability in each declared placement (header/aside/bottom/drawer/overlay);
+- P0-1 SIDEBAR capability: structural collapse/expand on collapsible desktop
+  bands (toggle present, panel hidden from layout + tab order when collapsed,
+  expand restores navigation + CTA), tablet `collapsed-sidebar` bands
+  collapsed-by-default + always expandable (never a dead-end), immersive
+  `floating` rail static/non-collapsible, and the immersive OVERLAY mobile
+  contract (vertical navigation, content-appropriate bounded width, explicit
+  "Close Sidebar" control that closes with focus-return + inert/scroll restore);
 - responsive landmark exclusivity and deterministic unique ids;
 - Adaptive's bottom-bar **More** disclosure through the same Drawer path.
