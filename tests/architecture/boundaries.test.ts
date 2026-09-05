@@ -720,6 +720,17 @@ describe("Phase D — design-system boundaries", () => {
       );
     }
   });
+
+  it("P2-8 — the contact-form field errors delegate to the shared FieldError primitive", () => {
+    // The contact form must compose the shared `<FieldError>` instead of
+    // inlining the raw `mt-1 text-sm text-destructive` error paragraph.
+    const source = readFileSync(
+      path.join(srcDirectory, "components", "site", "contact-form.tsx"),
+      "utf8",
+    );
+    expect(source).toMatch(/from "@\/components\/ui\/field-error"/);
+    expect(source).not.toMatch(/<p className="mt-1 text-sm text-destructive">/);
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
