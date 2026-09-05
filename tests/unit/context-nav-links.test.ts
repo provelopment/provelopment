@@ -55,3 +55,42 @@ describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
         expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(0);
     });
 });
+
+/**
+ * P0-5 — link-semantics convergence: the rendered LINK contract is the shared
+ * `NavItem` primitive (internal Next Link, external new-tab + rel=noreferrer,
+ * `aria-current="page"`, and the badge chip). ContextNavLinks keeps only the
+ * URL/region-aware context — resolution, active computation, list composition.
+ */
+describe("ContextNavLinks — P0-5 shared link path", () => {
+    it("renders the demo badge through the shared nav-item-badge chip (not a second badge implementation)", () => {
+        mockPath = "/en";
+        const html = renderToStaticMarkup(
+            ContextNavLinks({
+                locale: "en",
+                links: [{ href: "/contact", label: "Message Us", demoOnly: true }],
+                demoBadgeLabel: "Demo",
+            }),
+        );
+        // Label preserved and the single badge chip is the shared NavItem badge:
+        expect(html).toContain("Message Us");
+        expect(html.match(/class="nav-item-badge"/g) ?? []).toHaveLength(1);
+        expect(html).not.toMatch(/rounded bg-accent|inline-flex items-center gap-1\.5/);
+    });
+
+    it("the active internal item's li carries the shared aria-current-page marker (NavItem path)", () => {
+        mockPath = "/en/about";
+        const html = render();
+        // Only NavItem emits the `aria-current-page` marker on the item wrapper.
+        expect(html.match(/<li class="aria-current-page">/g) ?? []).toHaveLength(1);
+        expect(html).toContain('href="/en/about"');
+    });
+
+    it("every rendered item is an li>a pair via NavItem (no direct a/Link in the consumer)", () => {
+        mockPath = "/en";
+        const html = render();
+        // Three configured links → three <li> wrappers, each containing exactly one anchor.
+        expect(html.match(/<li/g) ?? []).toHaveLength(3);
+        expect(html.match(/<a /g) ?? []).toHaveLength(3);
+    });
+});

@@ -144,6 +144,10 @@ async function runHeaderPreset(rows, preset, prominent, cdp) {
     const s = await cdp.evaluate(`(() => ({
       navVisible: ${visible('nav[aria-label="Primary navigation"]')},
       navCurrent: !!document.querySelector('nav[aria-label="Primary navigation"] a[aria-current="page"]'),
+      // P0-5: the active item renders through the shared NavItem path — the
+      // item wrapper class 'aria-current-page' is emitted only by NavItem
+      // (ContextNavLinks, header + drawer/overlay placements, now compose it).
+      liSharedMarker: (() => { const a = document.querySelector('nav[aria-label="Primary navigation"] a[aria-current="page"]'); return !!a && !!a.parentElement && a.parentElement.classList.contains('aria-current-page'); })(),
       ctaVisible: ${visible('.ui-shell-header-row .ui-shell-cta')},
       ctaProminent: !!document.querySelector('.ui-shell-header-row .ui-cta-prominent'),
       triggerHidden: (() => { const t = document.querySelector('#shell-mobile-nav'); return t && getComputedStyle(t).display === 'none'; })(),
@@ -153,6 +157,7 @@ async function runHeaderPreset(rows, preset, prominent, cdp) {
     }))()`);
     check(rows, `${vpName}.nav.visible`, s.navVisible);
     check(rows, `${vpName}.nav.ariaCurrent`, !!s.navCurrent);
+    check(rows, `${vpName}.nav.liSharedMarker`, !!s.liSharedMarker);
     check(rows, `${vpName}.cta.reachable`, !!s.ctaVisible);
     check(rows, `${vpName}.ctaProminent`, prominent ? !!s.ctaProminent : !s.ctaProminent);
     check(rows, `${vpName}.mobile.triggerHidden`, !!s.triggerHidden);
@@ -373,6 +378,10 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
       prominentInPanel: !!d.querySelector('.ui-cta-prominent'),
       currentInPanel: !!d.querySelector('a[aria-current="page"]'),
+      // P0-5: the active panel item renders through the shared NavItem path —
+      // only NavItem emits the 'aria-current-page' item-wrapper marker.
+      currentLiShared: (() => { const a = d.querySelector('a[aria-current="page"]'); return !!a && !!a.parentElement && a.parentElement.classList.contains('aria-current-page'); })(),
+      footerBadgeShared: (() => { const b = document.querySelector('footer .nav-item-badge'); return !!b && b.getBoundingClientRect().width > 0; })(),
     };
   })()`);
   check(rows, "open.dialog.role", !!o && o.role === "dialog");
@@ -395,6 +404,8 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   const reachableCtasOpen = await cdp.evaluate(`(() => [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length)()`);
   check(rows, "open.cta.single", !!o && reachableCtasOpen === 1);
   check(rows, "open.ariaCurrent.inPanel", !!o && !!o.currentInPanel);
+  check(rows, "open.nav.liSharedMarker", !!o && !!o.currentLiShared);
+  check(rows, "open.footer.badgeShared", !!o && !!o.footerBadgeShared);
 
   // P0-1 — immersive OVERLAY sidebar contract: vertical navigation,
   // content-appropriate bounded width, and an explicit bottom close control.
@@ -488,12 +499,18 @@ async function runAdaptiveMobile(rows, cdp) {
   const s = await cdp.evaluate(`(() => ({
     barVisible: ${visible('.ui-shell-bottom-bar')},
     barNavCurrent: !!document.querySelector('.ui-shell-bottom-bar a[aria-current="page"]'),
+    // P0-5: the bottom bar already renders NavItem — the active item's wrapper
+    // class 'aria-current-page' proves it stays on the shared path.
+    barLiShared: (() => { const a = document.querySelector('.ui-shell-bottom-bar a[aria-current="page"]'); return !!a && !!a.parentElement && a.parentElement.classList.contains('aria-current-page'); })(),
+    footerBadgeShared: (() => { const b = document.querySelector('footer .nav-item-badge'); return !!b && b.getBoundingClientRect().width > 0; })(),
     barCta: (() => { const c = document.querySelector('.ui-shell-bottom-bar .nav-item-cta'); return !!c && c.getBoundingClientRect().width > 0; })(),
     moreTrigger: !!document.querySelector('#shell-bottom-more'),
     dialogs: document.querySelectorAll('[role="dialog"]').length,
   }))()`);
   check(rows, "bar.visible", !!s.barVisible);
   check(rows, "bar.ariaCurrent", !!s.barNavCurrent);
+  check(rows, "bar.nav.liSharedMarker", !!s.barLiShared);
+  check(rows, "bar.footer.badgeShared", !!s.footerBadgeShared);
   check(rows, "bar.cta.reachable", !!s.barCta);
   check(rows, "bar.no.dialog", s.dialogs === 0);
 
