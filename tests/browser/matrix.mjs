@@ -135,6 +135,71 @@ async function writeReport(rows, totalFails) {
   const fails = rows.filter((r) => !r.ok);
   for (const f of fails) console.log(`  FAIL [${f.preset}/${f.name}] ${f.detail}`);
 }
+/**
+ * P1-3 — the VISIBLE focus-ring contract (the single global `:focus-visible`
+ * rule driven by the `--ring` token). This is distinct from the UI-10 focus
+ * LIFECYCLE (entry/return/inert, asserted elsewhere). We prove:
+ *  - keyboard focus (real Tab dispatch / a real focus()) yields a VISIBLE
+ *    `:focus-visible` outline on the shared link family;
+ *  - pointer-only interaction does NOT falsely force the ring (Chromium's
+ *    `:focus-visible` heuristic: mouse interaction does not match);
+ *  - a keyboard Tab sweep lands on an interactive element (button/select/a)
+ *    that carries the visible ring.
+ * No configuration, no preset branching — the single global rule applies to
+ * whichever interactive elements each composition renders.
+ */
+async function runFocusVisibleRing(rows, cdp, label) {
+  // Fresh navigation so focus heuristics start clean (no prior keyboard/paint).
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+
+  // 1) POINTER (real mouse click): a REAL CDP mouse click deterministically
+  //    sets Chromium's input modality to "mouse"; `:focus-visible` must NOT
+  //    match for a plain anchor focused by a mouse (unlike a script `.focus()`,
+  //    which inherits the stale WebContents keyboard-modality from earlier
+  //    assertions — the cause of the original flake). The target is a plain
+  //    header/footer anchor; a one-shot `click` preventDefault stops navigation
+  //    so the element stays inspectable.
+  const LINK_SELECTOR = 'nav[aria-label="Primary navigation"] a, footer a, header a';
+  await cdp.evaluate(`(() => {
+    const a = document.querySelector(${JSON.stringify(LINK_SELECTOR)});
+    if (!a) return;
+    a.addEventListener("click", function once(e) {
+      e.preventDefault();
+      a.removeEventListener("click", once);
+    }, { capture: true });
+  })()`);
+  await cdp.clickCenter(LINK_SELECTOR);
+  await sleep(80);
+  const pointer = await cdp.evaluate(`(() => {
+    const a = document.querySelector(${JSON.stringify(LINK_SELECTOR)});
+    if (!a) return { ok: false, detail: "no nav/footer/header link" };
+    const cs = getComputedStyle(a);
+    const forced = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
+    const fv = a.matches(':focus-visible');
+    const self = document.activeElement === a;
+    return { ok: !forced && !fv && self, forced, fv, self, style: cs.outlineStyle + ' ' + cs.outlineWidth };
+  })()`);
+  check(rows, `${label}.focusVisible.pointer.noRing`, !!pointer && !!pointer.ok, (pointer && pointer.detail) || `forced=${pointer && pointer.forced} fv=${pointer && pointer.fv} self=${pointer && pointer.self} ${pointer && pointer.style}`);
+
+  // 2) KEYBOARD: real Tab dispatch until an interactive family is active;
+  //    Chromium matches `:focus-visible` for keyboard modality, so the VISIBLE
+  //    ring (the single global `--ring` rule) must be present.
+  let keyboard = null;
+  for (let i = 0; i < 8 && !keyboard; i += 1) {
+    await cdp.pressKey("Tab");
+    await sleep(60);
+    keyboard = await cdp.evaluate(`(() => {
+      const el = document.activeElement;
+      if (!el) return null;
+      if (!/^(A|BUTTON|SELECT|TEXTAREA|INPUT)$/i.test(el.tagName)) return null;
+      const cs = getComputedStyle(el);
+      const ring = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
+      return { ok: ring, tag: el.tagName, style: cs.outlineStyle + ' ' + cs.outlineWidth };
+    })()`);
+  }
+  check(rows, `${label}.focusVisible.link.ring`, !!keyboard && !!keyboard.ok, (keyboard && keyboard.detail) || `active=${keyboard && keyboard.tag}: ${keyboard && keyboard.style}`);
+}
 /** Header-slot presets (classic / focus) — desktop + tablet ≥md structure + C2 observation. */
 async function runHeaderPreset(rows, preset, prominent, cdp) {
   for (const [vpName, vp] of [["desktop", VIEWPORTS.desktop], ["tablet", VIEWPORTS.tablet]]) {
@@ -613,6 +678,8 @@ async function runPreset(preset, chrome) {
       await runDrawerOverlayMobile(rows, preset, false, cdp);
       await runReducedMotion(rows, "#shell-mobile-nav", "#shell-mobile-nav-panel", cdp);
     }
+    // P1-3 — visible focus-ring contract (link + pointer-distinction + keyboard Tab).
+    await runFocusVisibleRing(rows, cdp, `focus.${preset.name}`);
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {

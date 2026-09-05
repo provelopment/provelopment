@@ -221,15 +221,6 @@ body {
   padding: 1rem;
 }
 
-.ui-sidebar-toggle:focus-visible,
-.ui-drawer-close:focus-visible {
-  /* P0-1 — the focus-ring contract lives here (globals.css), via the --ring
-   * token, never as Tailwind focus-visible utilities inside components
-   * (design-system boundary: components consume semantic tokens only). */
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
-}
-
 /* P0-1 — the OVERLAY disclosure is sized content-appropriately (a sidebar
  * that hugs its labels) instead of stretching toward the shared 22rem cap,
  * while never exceeding a comfortable share of the viewport. Scoped to the

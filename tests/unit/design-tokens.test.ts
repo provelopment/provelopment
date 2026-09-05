@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -164,5 +164,37 @@ describe("Phase D — design tokens (src/app/globals.css)", () => {
     expect(globals).not.toContain("data-theme");
     expect(globals).not.toContain("localStorage");
     expect(globals).not.toContain("matchMedia");
+  });
+
+  it("the focus-visible ring is the SINGLE source (no duplicate rule + no focus removal)", () => {
+    // P1-3 — the visible focus-ring contract is one global rule driven by the
+    // `--ring` token. Both directions of drift are banned:
+    //  - a second `:focus-visible { outline: ... }` block would create a
+    //    competing/overridden ring (duplication → inconsistency);
+    //  - any `outline-none` in CSS/TSX would remove the indicator for keyboard
+    //    users (focus must never be stripped cosmetically).
+    const focusVisibleBlocks = globals.match(/:focus-visible\s*\{/g) ?? [];
+    expect(focusVisibleBlocks.length).toBeGreaterThanOrEqual(1);
+    expect(
+      focusVisibleBlocks.length,
+      `expected exactly one :focus-visible block in globals.css; found ${focusVisibleBlocks.length}`,
+    ).toBe(1);
+    expect(globals, "globals.css must not remove the focus indicator").not.toMatch(/outline-none\s*[;{]/);
+
+    // No TSX component may remove the focus indicator (e.g. `outline-none`).
+    const srcRoot = path.join(process.cwd(), "src");
+    const tsxCandidates: string[] = [];
+    const visit = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) visit(full);
+        else if (entry.name.endsWith(".tsx")) tsxCandidates.push(full);
+      }
+    };
+    visit(srcRoot);
+    for (const file of tsxCandidates) {
+      const source = readFileSync(file, "utf8");
+      expect(source, `${path.relative(process.cwd(), file)} must not remove the keyboard focus indicator`).not.toContain("outline-none");
+    }
   });
 });
