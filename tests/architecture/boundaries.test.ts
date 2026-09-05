@@ -485,6 +485,18 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
     expect(source).not.toContain("item.href === \"/\"");
   });
 
+  it("P0-5 — the site layer delegates LINK SEMANTICS to the shared NavItem primitive (one link-rendering path)", () => {
+    const source = readComponent("context-nav-links.tsx");
+    // The consumer composes the shared primitive and renders NO link itself:
+    expect(source).toContain('from "@/components/ui/nav-item"');
+    expect(source).toContain("<NavItem");
+    expect(source).not.toContain('from "next/link"');
+    expect(source).not.toContain('target="_blank"');
+    // It still OWNS the context NavItem must not: URL/region resolution + active computation.
+    expect(source).toContain("resolveNavHref");
+    expect(source).toContain("pathname === link.href");
+  });
+
   it("primary navigation uses Connect, never Contact", () => {
     const config = JSON.parse(
       readFileSync(path.join(process.cwd(), "site.config.json"), "utf8"),
