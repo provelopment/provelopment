@@ -135,6 +135,63 @@ async function writeReport(rows, totalFails) {
   const fails = rows.filter((r) => !r.ok);
   for (const f of fails) console.log(`  FAIL [${f.preset}/${f.name}] ${f.detail}`);
 }
+/**
+ * P1-3 — the VISIBLE focus-ring contract (the single global `:focus-visible`
+ * rule driven by the `--ring` token). This is distinct from the UI-10 focus
+ * LIFECYCLE (entry/return/inert, asserted elsewhere). We prove:
+ *  - keyboard focus (real Tab dispatch / a real focus()) yields a VISIBLE
+ *    `:focus-visible` outline on the shared link family;
+ *  - pointer-only interaction does NOT falsely force the ring (Chromium's
+ *    `:focus-visible` heuristic: mouse interaction does not match);
+ *  - a keyboard Tab sweep lands on an interactive element (button/select/a)
+ *    that carries the visible ring.
+ * No configuration, no preset branching — the single global rule applies to
+ * whichever interactive elements each composition renders.
+ */
+async function runFocusVisibleRing(rows, cdp, label) {
+  // Fresh navigation so focus heuristics start clean (no prior keyboard/paint).
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+
+  // 1) POINTER / programmatic focus FIRST, on a fresh page with NO prior
+  //    keyboard interaction: a script `.focus()` is non-keyboard modality per
+  //    the `:focus-visible` spec, so the visible ring must NOT be forced.
+  //    (Running this BEFORE any Tab dispatch keeps Chromium's input modality
+  //    clean — after a real Tab the page would inherit keyboard modality.)
+  await cdp.evaluate(`(() => {
+    const a = document.querySelector('nav[aria-label="Primary navigation"] a, footer a, a[href="#main"]');
+    if (a) a.focus();
+  })()`);
+  await sleep(60);
+  const pointer = await cdp.evaluate(`(() => {
+    const a = document.querySelector('nav[aria-label="Primary navigation"] a, footer a, a[href="#main"]');
+    if (!a) return { ok: false, detail: "no nav/footer/skip link" };
+    const cs = getComputedStyle(a);
+    const forced = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
+    const fv = a.matches(':focus-visible');
+    const self = document.activeElement === a;
+    return { ok: !forced && !fv && self, forced, fv, self, style: cs.outlineStyle + ' ' + cs.outlineWidth };
+  })()`);
+  check(rows, `${label}.focusVisible.pointer.noRing`, !!pointer && !!pointer.ok, (pointer && pointer.detail) || `forced=${pointer && pointer.forced} fv=${pointer && pointer.fv} self=${pointer && pointer.self} ${pointer && pointer.style}`);
+
+  // 2) KEYBOARD: real Tab dispatch until an interactive family is active;
+  //    Chromium matches `:focus-visible` for keyboard modality, so the VISIBLE
+  //    ring (the single global `--ring` rule) must be present.
+  let keyboard = null;
+  for (let i = 0; i < 8 && !keyboard; i += 1) {
+    await cdp.pressKey("Tab");
+    await sleep(60);
+    keyboard = await cdp.evaluate(`(() => {
+      const el = document.activeElement;
+      if (!el) return null;
+      if (!/^(A|BUTTON|SELECT|TEXTAREA|INPUT)$/i.test(el.tagName)) return null;
+      const cs = getComputedStyle(el);
+      const ring = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
+      return { ok: ring, tag: el.tagName, style: cs.outlineStyle + ' ' + cs.outlineWidth };
+    })()`);
+  }
+  check(rows, `${label}.focusVisible.link.ring`, !!keyboard && !!keyboard.ok, (keyboard && keyboard.detail) || `active=${keyboard && keyboard.tag}: ${keyboard && keyboard.style}`);
+}
 /** Header-slot presets (classic / focus) — desktop + tablet ≥md structure + C2 observation. */
 async function runHeaderPreset(rows, preset, prominent, cdp) {
   for (const [vpName, vp] of [["desktop", VIEWPORTS.desktop], ["tablet", VIEWPORTS.tablet]]) {
@@ -613,6 +670,8 @@ async function runPreset(preset, chrome) {
       await runDrawerOverlayMobile(rows, preset, false, cdp);
       await runReducedMotion(rows, "#shell-mobile-nav", "#shell-mobile-nav-panel", cdp);
     }
+    // P1-3 — visible focus-ring contract (link + pointer-distinction + keyboard Tab).
+    await runFocusVisibleRing(rows, cdp, `focus.${preset.name}`);
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {
