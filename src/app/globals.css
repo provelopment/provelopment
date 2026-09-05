@@ -239,6 +239,25 @@ body {
   width: max-content;
   max-width: min(18rem, 80vw);
 }
+
+/*
+ * P0-5 — the shared navigation badge chip rendered by `NavItem` (and therefore
+ * by Navigation / NavGroup / BottomNavigation / ContextNavLinks placements).
+ * Token-pure styling mirrors the pre-P0-5 demo-badge treatment exactly, so the
+ * converged single rendering path is visually identical everywhere the chip
+ * appears (footer Connect methods, bottom-bar demo items). The chip is
+ * presentational — its MEANING always comes with a visible label.
+ */
+.nav-item-badge {
+  display: inline-block;
+  margin-left: 0.375rem;
+  border-radius: var(--radius-sm);
+  background-color: var(--accent);
+  color: var(--muted-foreground);
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
 /*
  * Prose presentation contract for Markdown content (pages, legal, connect,
  * offerings, regional landings). Applied by MarkdownContent — the content
