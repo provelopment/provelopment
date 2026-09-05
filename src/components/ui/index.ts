@@ -24,6 +24,9 @@ export type { NavGroupProps } from "./nav-group";
 export { NavCta } from "./nav-cta";
 export type { NavCtaProps } from "./nav-cta";
 
+export { Cta, isCtaRenderable } from "./cta";
+export type { CtaProps } from "./cta";
+
 export { NavBadge } from "./nav-badge";
 export type { NavBadgeProps } from "./nav-badge";
 

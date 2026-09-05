@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/ui/app-shell";
-import { NavCta } from "@/components/ui/nav-cta";
+import { Cta, isCtaRenderable } from "@/components/ui/cta";
 import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
@@ -103,20 +103,43 @@ export function ShellEngine({
   // to a wrapping row on large screens so the rail sits beside main.
   const wrapperClass = `flex flex-col flex-1 ${asideActive ? "lg:flex-row lg:flex-wrap" : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
 
-  const ctaNode =
-    decision.cta.present && ctaLabel && ctaHref ? (
-      <NavCta
-        item={{ label: ctaLabel, href: ctaHref }}
-        className={`ui-shell-cta${resolved.cta.style === "prominent" ? " ui-cta-prominent" : ""}`}
-      />
-    ) : null;
+  // P0-2 — the primary CTA is the one shared `Cta` capability. The engine owns
+  // WHERE the CTA is composed (from the decision-core per-viewport ctaSlot);
+  // `Cta` owns WHETHER one exists (enabled ∧ label ∧ href, the single presence
+  // predicate) and its prominence. Nothing here invents a label or href.
+  const ctaNode = isCtaRenderable(resolved.cta.enabled, ctaLabel, ctaHref) ? (
+    <Cta
+      enabled={resolved.cta.enabled}
+      style={resolved.cta.style}
+      label={ctaLabel}
+      href={ctaHref}
+      className="ui-shell-cta"
+    />
+  ) : null;
+
+  const headerUsesCta =
+    ctaNode !== null && (decision.desktop.ctaSlot === "header" || decision.tablet.ctaSlot === "header");
+
+  // P0-2 responsive contract (exactly ONE interactive CTA per viewport): when
+  // the mobile composition owns the CTA slot (drawer / overlay / bottom-bar),
+  // the ≥md header CTA instance must NOT remain reachable below `md` — a
+  // header-slot preset whose mobile disclosure also exposes its own CTA must
+  // never render a duplicate desktop+mobile pair. The hide lives on an OUTER
+  // wrapper (not the CTA itself) so the additive `ui-cta-prominent` display
+  // rule can never override it (layered utility vs unlayered token rule).
+  const mobileOwnsCta =
+    decision.mobile.ctaSlot !== "header" && decision.mobile.ctaSlot !== "none";
+  const headerCtaNode =
+    headerUsesCta && ctaNode !== null
+      ? mobileOwnsCta
+        ? <div className="hidden md:block">{ctaNode}</div>
+        : ctaNode
+      : null;
 
   // Header-slot CTA: composed beside the header only when a real CTA renders
   // (no-op → header passthrough; the shipped demo stays byte-identical).
-  const headerUsesCta =
-    ctaNode !== null && (decision.desktop.ctaSlot === "header" || decision.tablet.ctaSlot === "header");
-  const headerContent = headerUsesCta ? (
-    <div className="ui-shell-header-row">{header}{ctaNode}</div>
+  const headerContent = headerCtaNode ? (
+    <div className="ui-shell-header-row">{header}{headerCtaNode}</div>
   ) : (
     header
   );
