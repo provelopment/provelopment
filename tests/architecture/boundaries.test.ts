@@ -667,6 +667,40 @@ describe("Phase D — design-system boundaries", () => {
       }
     }
   });
+
+  it("P1-7 — Grid + Stack collection/header consumers delegate to the shared primitives", () => {
+    // The collection listings (offering/portfolio/post/testimonial) + the
+    // connect method grid + the header alignment stacks must compose the shared
+    // `<Grid>`/`<Stack>` primitives instead of inlining the raw layout classes.
+    const gridConsumers = [
+      path.join(srcDirectory, "components", "site", "offering-list.tsx"),
+      path.join(srcDirectory, "components", "site", "portfolio-list.tsx"),
+      path.join(srcDirectory, "components", "site", "post-list.tsx"),
+      path.join(srcDirectory, "components", "site", "testimonial-list.tsx"),
+      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+    ];
+    const stackConsumers = [
+      path.join(srcDirectory, "components", "site", "site-header.tsx"),
+    ];
+    for (const file of [...gridConsumers, ...stackConsumers]) {
+      const source = readFileSync(file, "utf8");
+      expect(source, `${path.relative(process.cwd(), file)} must use <Grid>/<Stack>`).toMatch(
+        /from "@\/components\/ui\/(grid|stack)"/,
+      );
+    }
+    // No raw `grid gap-… sm:grid-cols-…` collection-listing class string remains
+    // in any app page or site component (the grid.tsx doc-comment is excluded).
+    const collectionGrid = /<ul className="(mt-8 )?grid gap-[0-9]+ sm:grid-cols-/;
+    for (const directory of [APP_DIRECTORY, path.join(srcDirectory, "components", "site")]) {
+      for (const file of listTypeScriptFiles(directory)) {
+        const source = readFileSync(file, "utf8");
+        expect(
+          source,
+          `${path.relative(process.cwd(), file)} must not inline the raw collection-grid class`,
+        ).not.toMatch(collectionGrid);
+      }
+    }
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
