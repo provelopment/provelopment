@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { NavBadge } from "./nav-badge";
+
 /**
  * NavItem (UI-03 — Shared UI Primitives).
  *
@@ -50,7 +52,7 @@ export function NavItem({ item, className }: NavItemProps) {
         target={external ? "_blank" : undefined}
       >
         {label}
-        {badge ? <span className="nav-item-badge">{badge}</span> : null}
+        {badge ? <NavBadge label={badge} /> : null}
       </Link>
     </li>
   );
