@@ -150,6 +150,37 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
   });
 });
 
+describe("P0-2 — the header CTA is a single shared capability with one responsive rule", () => {
+  it("header CTA is hidden below md when the mobile composition owns the CTA slot (drawer) — no duplicate desktop+mobile pair", () => {
+    const resolved = resolveUiConfig({
+      navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
+      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+    });
+    const html = renderToStaticMarkup(
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", locale: "en", pageBindings: [] }),
+    );
+    expect(html).toContain("ui-shell-header-row");
+    // The ≥md header instance is reachable ≥md but NOT below md (the mobile
+    // drawer owns the CTA there) — the no-duplicate responsive contract.
+    expect(html).toContain('class="hidden md:block"');
+    expect(html).toContain("nav-item-cta");
+    expect(html.indexOf("<header>")).toBeLessThan(html.indexOf("nav-item-cta"));
+  });
+
+  it("header CTA stays directly in the header row when the mobile composition also uses the header slot (single CTA at every width)", () => {
+    const resolved = resolveUiConfig({
+      navigation: { desktop: "top", tablet: "top-compact", mobile: "top" },
+      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+    });
+    const html = renderToStaticMarkup(
+      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", locale: "en", pageBindings: [] }),
+    );
+    expect(html).toContain("ui-shell-header-row");
+    expect(html).not.toContain('class="hidden md:block"');
+    expect(html).toContain("nav-item-cta");
+  });
+});
+
 describe("ShellMobileNav (client) — deterministic SSR states + dialog semantics", () => {
   it("renders the trigger (below the breakpoint) + a CLOSED drawer (nothing else rendered)", () => {
     const html = renderToStaticMarkup(
