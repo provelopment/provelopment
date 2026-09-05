@@ -42,6 +42,7 @@ import {
   Section,
   Sidebar,
   Stack,
+  FieldError,
 } from "@/components/ui";
 
 /** Small JSX-free node helper for the repo's `.test.ts` component convention. */
@@ -413,6 +414,32 @@ describe("P1-8 — Empty (shared collection empty-state message primitive)", () 
 
   it("does NOT inject ARIA (a static empty message is not an async status/live region)", () => {
     const html = renderToStaticMarkup(Empty({ label: "Empty" }));
+    expect(html).not.toContain("role=");
+    expect(html).not.toContain("aria-live");
+  });
+});
+
+describe("P2-8 — FieldError (shared field-level validation-error presentation primitive)", () => {
+  it("renders <p> with the demonstrated mt-1 text-sm text-destructive classes when show", () => {
+    const html = renderToStaticMarkup(
+      FieldError({ id: "contact-name-error", show: true, children: "Please enter your name." }),
+    );
+    expect(html).toBe(
+      '<p id="contact-name-error" class="mt-1 text-sm text-destructive">Please enter your name.</p>',
+    );
+  });
+
+  it("renders NOTHING when show is false (zero DOM residue can never be described)", () => {
+    const html = renderToStaticMarkup(
+      FieldError({ id: "contact-name-error", show: false, children: "Please enter your name." }),
+    );
+    expect(html).toBe("");
+  });
+
+  it("does NOT inject role/live-region ARIA (field-level descriptive error text)", () => {
+    const html = renderToStaticMarkup(
+      FieldError({ id: "contact-name-error", show: true, children: "Please enter your name." }),
+    );
     expect(html).not.toContain("role=");
     expect(html).not.toContain("aria-live");
   });

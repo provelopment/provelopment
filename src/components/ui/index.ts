@@ -24,6 +24,9 @@ export type { EmptyProps } from "./empty";
 export { Grid } from "./grid";
 export type { GridProps } from "./grid";
 
+export { FieldError } from "./field-error";
+export type { FieldErrorProps } from "./field-error";
+
 export { Stack } from "./stack";
 export type { StackProps } from "./stack";
 
