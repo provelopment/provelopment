@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { Section } from "@/components/ui/section";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { siteConfig } from "@/config";
@@ -175,7 +176,7 @@ export default async function ItemPage({ params }: ItemPageProps) {
   );
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
@@ -194,6 +195,6 @@ export default async function ItemPage({ params }: ItemPageProps) {
           />
         </>
       ) : null}
-    </article>
+    </Section>
   );
 }

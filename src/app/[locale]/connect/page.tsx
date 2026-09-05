@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { Section } from "@/components/ui/section";
 import { connectMethodLabel } from "@/components/site/connect-method-label";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
@@ -78,7 +79,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
   const dictionary = getDictionary(locale);
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{dictionary.connect.heading}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
@@ -122,6 +123,6 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
       <p className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
         {dictionary.connect.demoNotice}
       </p>
-    </article>
+    </Section>
   );
 }

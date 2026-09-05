@@ -636,6 +636,37 @@ describe("Phase D — design-system boundaries", () => {
     );
     expect(layout).not.toContain('"use client"');
   });
+
+  it("P1-4 — Button + Section are the SINGLE shared primitive path (no residual duplicated class strings)", () => {
+    const primaryActionClass =
+      "inline-flex items-center justify-center rounded-md bg-primary px-4 py-2";
+    const pageFrameClass = "mx-auto max-w-page px-4 py-12";
+
+    // (1) The two demonstrated Button consumers delegate to the shared primitive
+    //     and carry NO duplicated primary-action class literal.
+    for (const rel of ["[locale]/error.tsx", "components/site/contact-form.tsx"]) {
+      const file = path.join(rel.startsWith("components") ? srcDirectory : APP_DIRECTORY, rel);
+      const source = readFileSync(file, "utf8");
+      expect(source, `${rel} must delegate to the shared Button`).toContain(
+        'from "@/components/ui/button"',
+      );
+      expect(source, `${rel} must not duplicate the primary-action class`).not.toContain(
+        primaryActionClass,
+      );
+    }
+
+    // (2) Every page-frame consumer delegates to the shared Section: the raw
+    //     frame class string must not appear in any app page or site component.
+    for (const directory of [APP_DIRECTORY, path.join(srcDirectory, "components", "site")]) {
+      for (const file of listTypeScriptFiles(directory)) {
+        const source = readFileSync(file, "utf8");
+        expect(
+          source,
+          `${path.relative(process.cwd(), file)} must use <Section> instead of the raw page-frame class`,
+        ).not.toContain(pageFrameClass);
+      }
+    }
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");

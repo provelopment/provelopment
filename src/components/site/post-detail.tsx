@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import type { PostContent } from "@/core/posts";
+import { Section } from "@/components/ui/section";
 import { MarkdownContent } from "./markdown-content";
 
 interface PostDetailProps {
@@ -23,7 +24,7 @@ export function PostDetail({
   readingTimeLabel,
 }: PostDetailProps) {
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <p className="mb-6">
         <Link href={backHref} className="text-sm font-medium text-primary hover:underline">
           ← {backLabel}
@@ -39,6 +40,6 @@ export function PostDetail({
       <div className="mt-8">
         <MarkdownContent markdown={post.body} />
       </div>
-    </article>
+    </Section>
   );
 }

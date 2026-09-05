@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { TestimonialList } from "@/components/site/testimonial-list";
+import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -88,7 +89,7 @@ export default async function TestimonialsPage({ params }: TestimonialsPageProps
   const sorted = sortTestimonials(items);
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{chrome.heading}</h1>
       <div className="mt-8">
         <TestimonialList
@@ -98,6 +99,6 @@ export default async function TestimonialsPage({ params }: TestimonialsPageProps
           ratingAriaTemplate={chrome.ratingAria}
         />
       </div>
-    </article>
+    </Section>
   );
 }

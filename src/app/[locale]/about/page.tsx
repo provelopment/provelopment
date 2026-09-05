@@ -2,6 +2,7 @@ import { createFileSystemPageContentRepository } from "@/adapters/content/fs-pag
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
 import { buildLanguageAlternates } from "@/core/locale";
 import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
@@ -69,11 +70,11 @@ export default async function AboutPage({ params }: PageParams) {
   }
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
-    </article>
+    </Section>
   );
 }

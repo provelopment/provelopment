@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { OfferingList } from "@/components/site/offering-list";
+import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -80,12 +81,12 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
 
   if (canonicalSlugs.length === 0) {
     return (
-      <article className="mx-auto max-w-page px-4 py-12">
+      <Section as="article">
         <h1 className="text-3xl font-bold tracking-tight">
           {dictionary.offerings.heading}
         </h1>
         <p className="mt-4 text-muted-foreground">{dictionary.offerings.emptyState}</p>
-      </article>
+      </Section>
     );
   }
 
@@ -104,7 +105,7 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
   }));
 
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       <h1 className="text-3xl font-bold tracking-tight">
         {dictionary.offerings.heading}
       </h1>
@@ -125,6 +126,6 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
         baseHref={`/${locale}/offerings`}
         featuredLabel={dictionary.offerings.featured}
       />
-    </article>
+    </Section>
   );
 }
