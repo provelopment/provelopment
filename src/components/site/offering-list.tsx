@@ -1,5 +1,6 @@
-import type { OfferingsListItem } from "@/core/offerings";
+import { Grid } from "@/components/ui/grid";
 
+import type { OfferingsListItem } from "@/core/offerings";
 import { OfferingCard } from "./offering-card";
 
 interface OfferingListProps {
@@ -21,7 +22,7 @@ interface OfferingListProps {
  */
 export function OfferingList({ offerings, baseHref, featuredLabel }: OfferingListProps) {
   return (
-    <ul className="mt-8 grid gap-6 sm:grid-cols-2">
+    <Grid columns="sm:grid-cols-2" className="mt-8">
       {offerings.map((offering) => (
         <li key={offering.slug}>
           <OfferingCard
@@ -31,6 +32,6 @@ export function OfferingList({ offerings, baseHref, featuredLabel }: OfferingLis
           />
         </li>
       ))}
-    </ul>
+    </Grid>
   );
 }

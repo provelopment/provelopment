@@ -5,6 +5,7 @@ import { configuredRegionIds } from "@/core/regional-pages";
 import { resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
 import { Cta } from "@/components/ui/cta";
+import { Stack } from "@/components/ui/stack";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
@@ -107,14 +108,14 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                     className="font-semibold tracking-tight"
                 />
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                <Stack direction="row" gap="gap-x-4 gap-y-2" items="items-center">
                     {hasHeaderNav ? (
                         <nav aria-label={dictionary.navigation.primaryLabel} className={desktopNavClassName}>
                             {navListElement}
                         </nav>
                     ) : null}
 
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <Stack direction="row" gap="gap-x-3 gap-y-2" items="items-center">
                         {hasLocations ? (
                             <LocationSwitcher
                                 locale={locale}
@@ -127,8 +128,8 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                             locale={locale}
                             label={dictionary.language.label}
                         />
-                    </div>
-                </div>
+                    </Stack>
+                </Stack>
 
                 {mobilePattern === "drawer" || mobilePattern === "overlay" ? (
                     <ShellMobileNav
