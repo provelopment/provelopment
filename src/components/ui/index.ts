@@ -27,6 +27,9 @@ export type { GridProps } from "./grid";
 export { FieldError } from "./field-error";
 export type { FieldErrorProps } from "./field-error";
 
+export { CardImage } from "./card-image";
+export type { CardImageProps } from "./card-image";
+
 export { Stack } from "./stack";
 export type { StackProps } from "./stack";
 
