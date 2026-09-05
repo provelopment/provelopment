@@ -731,6 +731,25 @@ describe("Phase D — design-system boundaries", () => {
     expect(source).toMatch(/from "@\/components\/ui\/field-error"/);
     expect(source).not.toMatch(/<p className="mt-1 text-sm text-destructive">/);
   });
+
+  it("P2-10 — the collection-card images delegate to the shared CardImage primitive", () => {
+    // offering-card + portfolio-card must compose the shared `<CardImage>`
+    // instead of inlining the raw `fill + object-cover` card image block.
+    const cardConsumers = [
+      path.join(srcDirectory, "components", "site", "offering-card.tsx"),
+      path.join(srcDirectory, "components", "site", "portfolio-card.tsx"),
+    ];
+    for (const file of cardConsumers) {
+      const source = readFileSync(file, "utf8");
+      expect(source, `${path.relative(process.cwd(), file)} must use <CardImage>`).toMatch(
+        /from "@\/components\/ui\/card-image"/,
+      );
+      expect(source, `${path.relative(process.cwd(), file)} must not inline the card-image wrapper`).not.toMatch(
+        /relative mb-4 h-40 w-full overflow-hidden rounded/,
+      );
+    }
+    // The offering-detail HERO (h-64 / sizes=100vw / non-link) stays local by design.
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
