@@ -4,6 +4,7 @@ import { useActionState, useState, type FormEvent } from "react";
 
 import { submitContactInquiry } from "@/app/contact-actions";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/field-error";
 import {
   initialContactSubmissionState,
   type ContactSubmissionState,
@@ -137,11 +138,9 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           aria-describedby={errorFor("name") ? "contact-name-error" : undefined}
           className={fieldClassName("name")}
         />
-        {errorFor("name") ? (
-          <p id="contact-name-error" className="mt-1 text-sm text-destructive">
-            {dict.errors.name}
-          </p>
-        ) : null}
+        <FieldError id="contact-name-error" show={errorFor("name")}>
+          {dict.errors.name}
+        </FieldError>
       </div>
 
       <div className="grid">
@@ -161,11 +160,9 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           aria-describedby={errorFor("email") ? "contact-email-error" : undefined}
           className={fieldClassName("email")}
         />
-        {errorFor("email") ? (
-          <p id="contact-email-error" className="mt-1 text-sm text-destructive">
-            {dict.errors.email}
-          </p>
-        ) : null}
+        <FieldError id="contact-email-error" show={errorFor("email")}>
+          {dict.errors.email}
+        </FieldError>
       </div>
 
       {subjectEnabled ? (
@@ -185,11 +182,9 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
             aria-describedby={errorFor("subject") ? "contact-subject-error" : undefined}
             className={fieldClassName("subject")}
           />
-          {errorFor("subject") ? (
-            <p id="contact-subject-error" className="mt-1 text-sm text-destructive">
-              {dict.errors.subject}
-            </p>
-          ) : null}
+          <FieldError id="contact-subject-error" show={errorFor("subject")}>
+            {dict.errors.subject}
+          </FieldError>
         </div>
       ) : null}
 
@@ -209,11 +204,9 @@ function ActiveContactForm({ config, locale, dict }: ActiveContactFormProps) {
           aria-describedby={errorFor("message") ? "contact-message-error" : undefined}
           className={fieldClassName("message")}
         />
-        {errorFor("message") ? (
-          <p id="contact-message-error" className="mt-1 text-sm text-destructive">
-            {dict.errors.message}
-          </p>
-        ) : null}
+        <FieldError id="contact-message-error" show={errorFor("message")}>
+          {dict.errors.message}
+        </FieldError>
       </div>
 
       {/* Honeypot: visually hidden, off the tab order; bots that fill it are
