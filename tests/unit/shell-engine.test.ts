@@ -111,6 +111,45 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
   });
 });
 
+describe("P0-1 — the Sidebar capability is composition-driven (custom configs, no preset branches)", () => {
+  it("a non-preset custom composition (Header+Sidebar+Nav+CTA) gets the SAME collapsible sidebar contract", () => {
+    const custom = resolveUiConfig({
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+      shell: { sidebar: { collapsible: true } },
+      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+    });
+    const html = renderToStaticMarkup(
+      ShellEngine({
+        resolved: custom,
+        header,
+        main,
+        footer,
+        mainId: "main",
+        navigationLabel: "Primary",
+        asideContent: items,
+        ctaLabel: "Book",
+        ctaHref: "/book",
+        locale: "en",
+        pageBindings: [],
+      }),
+    );
+    // Aside composition → the header breaks to its own full-width row (P0-1
+    // layout fix), not inline beside the rail.
+    expect(html).toContain("lg:w-full");
+    // Collapsible desktop band exposes the structural toggle.
+    expect(html).toContain('aria-controls="shell-sidebar-desktop-panel"');
+    expect(html).toContain('aria-expanded="true"');
+    // Tablet `collapsed-sidebar` renders collapsed-by-default + expandable
+    // (never a dead-end).
+    expect(html).toContain('id="shell-sidebar-tablet-panel" class="hidden"');
+    expect(html).toContain('aria-expanded="false"');
+    // The CTA composes INSIDE the sidebar panel — a child of the navigation
+    // region, not positioned independently.
+    expect(html).toContain("nav-item-cta");
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+  });
+});
+
 describe("ShellMobileNav (client) — deterministic SSR states + dialog semantics", () => {
   it("renders the trigger (below the breakpoint) + a CLOSED drawer (nothing else rendered)", () => {
     const html = renderToStaticMarkup(

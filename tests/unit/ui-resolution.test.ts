@@ -207,7 +207,7 @@ describe("UI-02 - completeness matrix (every leaf defined, vocab-backed leaves i
 describe("UI-02 - controlled error surface (completeness fails loudly)", () => {
   it("throws UiConfigResolutionError with the missing leaf path on a partial resolved object", () => {
     const partial: Partial<ResolvedUiConfig> = {
-      shell: { header: "standard", footer: "standard" },
+      shell: { header: "standard", footer: "standard", sidebar: { collapsible: false } },
     };
     expect(() => assertResolvedUiConfigComplete(partial)).toThrow(UiConfigResolutionError);
     try {
@@ -273,5 +273,44 @@ describe("UI-02 - profile-coverage guarantee (future additions fail loudly)", ()
       theme: { mode: "system", radius: "medium" },
     } as unknown as Partial<ResolvedUiConfig>;
     expect(() => assertResolvedUiConfigComplete(sansDesktop)).toThrow(/navigation\.desktop/);
+  });
+});
+
+describe("P0-1 — the sidebar capability leaf is declarative and shared (no preset identity)", () => {
+  it("the default personality (adaptive) resolves collapsible=true; non-collapsible profiles resolve false", () => {
+    expect(resolveUiConfig({}).shell.sidebar.collapsible).toBe(true);
+    expect(resolveUiConfig({ preset: "classic" }).shell.sidebar.collapsible).toBe(false);
+    expect(resolveUiConfig({ preset: "focus" }).shell.sidebar.collapsible).toBe(false);
+    expect(resolveUiConfig({ preset: "workspace" }).shell.sidebar.collapsible).toBe(true);
+    expect(resolveUiConfig({ preset: "immersive" }).shell.sidebar.collapsible).toBe(false);
+  });
+
+  it("an explicit override wins over the profile (same capability, configured per composition)", () => {
+    const off = resolveUiConfig({ preset: "adaptive", shell: { sidebar: { collapsible: false } } });
+    expect(off.preset).toBe("adaptive"); // personality preserved
+    expect(off.shell.sidebar.collapsible).toBe(false); // effective leaf overridden
+    const on = resolveUiConfig({ preset: "classic", shell: { sidebar: { collapsible: true } } });
+    expect(on.preset).toBe("classic");
+    expect(on.shell.sidebar.collapsible).toBe(true);
+  });
+
+  it("a custom (non-preset) configuration expresses the same sidebar capability", () => {
+    const custom = resolveUiConfig({
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+      shell: { sidebar: { collapsible: true } },
+      cta: { enabled: true, action: "book", label: "Book Now", style: "standard" },
+    });
+    expect(custom.shell.sidebar.collapsible).toBe(true);
+    expect(custom.navigation.desktop).toBe("sidebar");
+    // No preset was selected; the leaves ARE the composition.
+    expect(custom.preset).toBe("adaptive"); // personality only — effective = custom
+  });
+
+  it("completeness requires the sidebar leaf (a missing value fails loudly)", () => {
+    const sansSidebar = {
+      ...resolveUiConfig({}),
+      shell: { header: "standard", footer: "standard" },
+    } as unknown as Partial<ResolvedUiConfig>;
+    expect(() => assertResolvedUiConfigComplete(sansSidebar)).toThrow(/shell\.sidebar\.collapsible/);
   });
 });

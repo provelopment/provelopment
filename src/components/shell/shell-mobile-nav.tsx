@@ -31,17 +31,37 @@ export interface ShellMobileNavProps {
   /** Nav content rendered inside the open dialog. */
   readonly children: ReactNode;
   readonly className?: string;
+  /**
+   * P0-1 (owner-approved sidebar contract): optional explicit close control
+   * label (e.g. "Close Sidebar"). When set, a clearly identifiable close
+   * button is rendered AFTER the children at the bottom of the open
+   * disclosure, wired to the SAME Drawer close mechanism (onClose → the UI-10
+   * focus-return/inert/scroll contract). Consumers opt in; an absent label
+   * renders no control and changes nothing.
+   */
+  readonly closeLabel?: string;
 }
 
-export function ShellMobileNav({ pattern, triggerLabel, id, children, className }: ShellMobileNavProps) {
+export function ShellMobileNav({ pattern, triggerLabel, id, children, className, closeLabel }: ShellMobileNavProps) {
   const [open, setOpen] = useState(createInitialDisclosure(false));
   const toggle = () => setOpen((current) => disclosureReducer(current, { type: "toggle" }));
+  const close = () => setOpen("closed");
 
-  // B1 (UI-10): the trigger owns the deterministic `id`; the dialog/panel uses
-  // the corresponding `${id}-panel` id and is NAMED BY the trigger
-  // (`aria-labelledby={id}`). `aria-controls` then resolves to a real panel id,
-  // and the drawer/overlay primitive can locate the invoking trigger via that
-  // relationship for focus-return.
+  const dialogContent = (
+    <>
+      {children}
+      {closeLabel ? (
+        <button
+          type="button"
+          onClick={close}
+          className="ui-drawer-close mt-4 flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+        >
+          {closeLabel}
+        </button>
+      ) : null}
+    </>
+  );
+
   return (
     <div className={className}>
       <button
@@ -55,12 +75,22 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className 
         {triggerLabel}
       </button>
       {pattern === "overlay" ? (
-        <OverlayNavigation open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={`${id}-panel`}>
-          {children}
+        <OverlayNavigation
+          open={open === "open"}
+          onClose={close}
+          labelledBy={id}
+          id={`${id}-panel`}
+          // P0-1: the overlay pattern is sized content-appropriately (a
+          // sidebar that hugs its labels, not a full-width strip) via this
+          // scoping class; the shared Drawer primitive and its panel CSS are
+          // unchanged.
+          className="ui-overlay-panel"
+        >
+          {dialogContent}
         </OverlayNavigation>
       ) : (
-        <Drawer open={open === "open"} onClose={() => setOpen("closed")} labelledBy={id} id={`${id}-panel`}>
-          {children}
+        <Drawer open={open === "open"} onClose={close} labelledBy={id} id={`${id}-panel`}>
+          {dialogContent}
         </Drawer>
       )}
     </div>

@@ -46,7 +46,7 @@ export interface UiFoundationDefaults {
    * selected preset) still win over the default preset's profile below.
    */
   readonly defaultPreset: UiPreset;
-  readonly shell: { readonly header: ShellVariant; readonly footer: ShellVariant };
+  readonly shell: { readonly header: ShellVariant; readonly footer: ShellVariant; readonly sidebar: { readonly collapsible: boolean } };
   readonly navigation: {
     readonly desktop: DesktopNavigationPattern;
     readonly tablet: TabletNavigationPattern;
@@ -85,7 +85,14 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
   // Resolved default personality (UI-05, owner-approved). `resolve.ts` is the
   // single selection point: `raw.preset ?? FOUNDATION_UI_DEFAULTS.defaultPreset`.
   defaultPreset: "adaptive",
-  shell: { header: "standard", footer: "standard" },
+  shell: {
+    header: "standard",
+    footer: "standard",
+    // P0-1: the NEUTRAL default is non-collapsible. Presets that own a
+    // user-collapsible rail (Adaptive, Workspace) declare `true` in their
+    // profile; a custom config opts in with `shell.sidebar.collapsible`.
+    sidebar: { collapsible: false },
+  },
   navigation: {
     desktop: "top",
     tablet: "top-compact",

@@ -27,7 +27,7 @@ describe("UI-06 — explicit Classic selection (declarative preset)", () => {
       tablet: "top-compact",
       mobile: "drawer",
     });
-    expect(resolved.shell).toEqual({ header: "standard", footer: "standard" });
+    expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("standard");
     // Leaves Classic does not define fall to Foundation defaults:
     expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);

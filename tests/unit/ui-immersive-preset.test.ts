@@ -33,7 +33,7 @@ describe("UI-09 — explicit Immersive selection (declarative profile)", () => {
       tablet: "floating",
       mobile: "overlay",
     });
-    expect(resolved.shell).toEqual({ header: "minimal", footer: "standard" });
+    expect(resolved.shell).toEqual({ header: "minimal", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("standard");
     // Leaves Immersive does NOT define fall to Foundation defaults:
     expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);

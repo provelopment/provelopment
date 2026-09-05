@@ -35,7 +35,12 @@ import {
  */
 export interface UiConfigInput {
   readonly preset?: UiPreset;
-  readonly shell?: { readonly header?: ShellVariant; readonly footer?: ShellVariant };
+  readonly shell?: {
+    readonly header?: ShellVariant;
+    readonly footer?: ShellVariant;
+    /** P0-1 — whether the composed aside rail is user-collapsible. */
+    readonly sidebar?: { readonly collapsible?: boolean };
+  };
   readonly navigation?: {
     readonly desktop?: DesktopNavigationPattern;
     readonly tablet?: TabletNavigationPattern;
@@ -121,7 +126,12 @@ export class UiConfigResolutionError extends Error {
  */
 export interface ResolvedUiConfig {
   readonly preset?: UiPreset;
-  readonly shell: { readonly header: ShellVariant; readonly footer: ShellVariant };
+  readonly shell: {
+    readonly header: ShellVariant;
+    readonly footer: ShellVariant;
+    /** P0-1 — resolved rail collapsibility (false when no rail is composed). */
+    readonly sidebar: { readonly collapsible: boolean };
+  };
   readonly navigation: {
     readonly desktop: DesktopNavigationPattern;
     readonly tablet: TabletNavigationPattern;
@@ -192,6 +202,7 @@ export function assertResolvedUiConfigComplete(
 
   check("shell.header", resolved.shell?.header);
   check("shell.footer", resolved.shell?.footer);
+  check("shell.sidebar.collapsible", resolved.shell?.sidebar?.collapsible);
   check("navigation.desktop", resolved.navigation?.desktop);
   check("navigation.tablet", resolved.navigation?.tablet);
   check("navigation.mobile", resolved.navigation?.mobile);
@@ -229,6 +240,13 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
     shell: {
       header: resolveLeaf(raw.shell?.header, profile?.shell.header, FOUNDATION_UI_DEFAULTS.shell.header),
       footer: resolveLeaf(raw.shell?.footer, profile?.shell.footer, FOUNDATION_UI_DEFAULTS.shell.footer),
+      sidebar: {
+        collapsible: resolveLeaf(
+          raw.shell?.sidebar?.collapsible,
+          profile?.shell.sidebar.collapsible,
+          FOUNDATION_UI_DEFAULTS.shell.sidebar.collapsible,
+        ),
+      },
     },
     navigation: {
       desktop: resolveLeaf(raw.navigation?.desktop, profile?.navigation.desktop, FOUNDATION_UI_DEFAULTS.navigation.desktop),
