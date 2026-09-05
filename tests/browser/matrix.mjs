@@ -153,19 +153,27 @@ async function runFocusVisibleRing(rows, cdp, label) {
   await cdp.navigate(`${BASE_URL}/en`);
   await waitReady(cdp);
 
-  // 1) POINTER / programmatic focus FIRST, on a fresh page with NO prior
-  //    keyboard interaction: a script `.focus()` is non-keyboard modality per
-  //    the `:focus-visible` spec, so the visible ring must NOT be forced.
-  //    (Running this BEFORE any Tab dispatch keeps Chromium's input modality
-  //    clean — after a real Tab the page would inherit keyboard modality.)
+  // 1) POINTER (real mouse click): a REAL CDP mouse click deterministically
+  //    sets Chromium's input modality to "mouse"; `:focus-visible` must NOT
+  //    match for a plain anchor focused by a mouse (unlike a script `.focus()`,
+  //    which inherits the stale WebContents keyboard-modality from earlier
+  //    assertions — the cause of the original flake). The target is a plain
+  //    header/footer anchor; a one-shot `click` preventDefault stops navigation
+  //    so the element stays inspectable.
+  const LINK_SELECTOR = 'nav[aria-label="Primary navigation"] a, footer a, header a';
   await cdp.evaluate(`(() => {
-    const a = document.querySelector('nav[aria-label="Primary navigation"] a, footer a, a[href="#main"]');
-    if (a) a.focus();
+    const a = document.querySelector(${JSON.stringify(LINK_SELECTOR)});
+    if (!a) return;
+    a.addEventListener("click", function once(e) {
+      e.preventDefault();
+      a.removeEventListener("click", once);
+    }, { capture: true });
   })()`);
-  await sleep(60);
+  await cdp.clickCenter(LINK_SELECTOR);
+  await sleep(80);
   const pointer = await cdp.evaluate(`(() => {
-    const a = document.querySelector('nav[aria-label="Primary navigation"] a, footer a, a[href="#main"]');
-    if (!a) return { ok: false, detail: "no nav/footer/skip link" };
+    const a = document.querySelector(${JSON.stringify(LINK_SELECTOR)});
+    if (!a) return { ok: false, detail: "no nav/footer/header link" };
     const cs = getComputedStyle(a);
     const forced = cs.outlineStyle !== 'none' && cs.outlineWidth !== '0px';
     const fv = a.matches(':focus-visible');
