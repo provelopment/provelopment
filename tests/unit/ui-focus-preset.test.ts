@@ -28,7 +28,7 @@ describe("UI-07 — explicit Focus selection (declarative profile)", () => {
       tablet: "top-compact",
       mobile: "drawer",
     });
-    expect(resolved.shell).toEqual({ header: "minimal", footer: "standard" });
+    expect(resolved.shell).toEqual({ header: "minimal", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("prominent");
     // Leaves Focus does NOT define fall to Foundation defaults:
     expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);

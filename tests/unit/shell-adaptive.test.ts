@@ -73,6 +73,14 @@ describe("ShellEngine — Adaptive aside composition (UI-05)", () => {
     expect(html).toContain('class="hidden md:block lg:hidden"');
     expect(html.match(/aria-label="Primary"/g) ?? []).toHaveLength(2);
     expect(html).toContain("flex flex-col flex-1 lg:flex-row lg:flex-wrap");
+    // P0-1 sidebar capability: the desktop band is collapsible from the
+    // RESOLVED leaf (`shell.sidebar.collapsible`), and the tablet
+    // `collapsed-sidebar` band is collapsed-by-default + always expandable.
+    expect(html).toContain('aria-controls="shell-sidebar-desktop-panel"');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('aria-controls="shell-sidebar-tablet-panel"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain('id="shell-sidebar-tablet-panel" class="hidden"');
   });
 
   it("inactive bands are display:none wrappers — no focusable content escapes a hidden band", () => {

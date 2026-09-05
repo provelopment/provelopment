@@ -521,6 +521,17 @@ const uiShellSchema = z
   .object({
     header: z.enum(SHELL_VARIANTS, { message: shellVariantMessage }).optional(),
     footer: z.enum(SHELL_VARIANTS, { message: shellVariantMessage }).optional(),
+    /**
+     * P0-1 — declarative sidebar capability. Optional; only `collapsible`
+     * exists today. The sidebar's PRESENCE is expressed by the resolved
+     * navigation composition (aside slots), never duplicated here.
+     */
+    sidebar: z
+      .object({
+        collapsible: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 
