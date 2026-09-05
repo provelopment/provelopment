@@ -1,3 +1,4 @@
+import { Grid } from "@/components/ui/grid";
 import type { TestimonialContent } from "@/core/testimonials";
 import { TestimonialCard } from "./testimonial-card";
 
@@ -23,7 +24,7 @@ export function TestimonialList({
   }
 
   return (
-    <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <Grid columns="sm:grid-cols-2 lg:grid-cols-3">
       {testimonials.map((testimonial) => (
         <li key={testimonial.slug} className="flex">
           <TestimonialCard
@@ -33,6 +34,6 @@ export function TestimonialList({
           />
         </li>
       ))}
-    </ul>
+    </Grid>
   );
 }

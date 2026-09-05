@@ -31,6 +31,7 @@ import {
   BottomNavigation,
   Button,
   Drawer,
+  Grid,
   NavBadge,
   NavCta,
   NavGroup,
@@ -39,6 +40,7 @@ import {
   OverlayNavigation,
   Section,
   Sidebar,
+  Stack,
 } from "@/components/ui";
 
 /** Small JSX-free node helper for the repo's `.test.ts` component convention. */
@@ -355,5 +357,44 @@ describe("P1-4 — Section (semantic page-content frame)", () => {
     const html = renderToStaticMarkup(Section({ as: "article", children: "S" }));
     expect(html).not.toContain("role=");
     expect(html).not.toContain("<h");
+  });
+});
+
+describe("P1-7 — Grid (shared multi-column layout primitive)", () => {
+  it("renders a semantic <ul> with the grid + columns + gap utilities", () => {
+    const html = renderToStaticMarkup(Grid({ columns: "sm:grid-cols-2", children: "items" }));
+    expect(html).toContain('<ul class="grid sm:grid-cols-2 gap-6">');
+  });
+
+  it("renders <ol> when as=ol and preserves a className passthrough", () => {
+    const html = renderToStaticMarkup(Grid({ as: "ol", columns: "lg:grid-cols-3", className: "mt-8", children: "o" }));
+    expect(html).toContain('<ol class="grid lg:grid-cols-3 gap-6 mt-8">');
+  });
+
+  it("honors the gap override (connect method grid)", () => {
+    const html = renderToStaticMarkup(Grid({ columns: "sm:grid-cols-2", gap: "gap-4", className: "mt-8", children: "m" }));
+    expect(html).toContain('<ul class="grid sm:grid-cols-2 gap-4 mt-8">');
+  });
+
+  it("does NOT inject ARIA grid role (CSS grid != ARIA grid)", () => {
+    const html = renderToStaticMarkup(Grid({ children: "l" }));
+    expect(html).not.toContain("role=");
+  });
+});
+
+describe("P1-7 — Stack (shared alignment layout primitive)", () => {
+  it("renders a flex row with the gap + items utilities by default", () => {
+    const html = renderToStaticMarkup(Stack({ children: "x" }));
+    expect(html).toContain('<div class="flex flex-wrap gap-2">');
+  });
+
+  it("renders a flex column with items when direction=col", () => {
+    const html = renderToStaticMarkup(Stack({ direction: "col", gap: "gap-y-2", items: "items-start", children: "y" }));
+    expect(html).toContain('<div class="flex flex-col gap-y-2 items-start">');
+  });
+
+  it("preserves a className passthrough", () => {
+    const html = renderToStaticMarkup(Stack({ className: "w-full", children: "z" }));
+    expect(html).toContain('class="flex flex-wrap gap-2 w-full"');
   });
 });

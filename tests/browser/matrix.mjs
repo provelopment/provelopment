@@ -651,6 +651,42 @@ async function runPagePrimitives(rows, cdp, label) {
   check(rows, `${label}.pagePrimitive.submitButton`, !!s.submitNative && !!s.submitToken && !!s.ariaBusy);
 }
 
+/**
+ * P1-7 — real-usage proof for the shared Grid + Stack primitives. The
+ * `/en/offerings` route renders the shared collection `<Grid>` (a semantic
+ * `<ul>` with the responsive columns class) and the `/en` page header renders
+ * the shared `<Stack>` (a `flex` alignment row) in every preset composition.
+ * This proves the layout primitives are actually composed and rendering —
+ * not source-only.
+ */
+async function runGridStack(rows, cdp, label) {
+  await cdp.navigate(`${BASE_URL}/en/offerings`);
+  await waitReady(cdp);
+  const g = await cdp.evaluate(`(() => {
+    const ul = document.querySelector('main ul.grid');
+    const gridClass = ul ? ul.className : '';
+    return {
+      gridList: !!ul && ul.tagName === 'UL',
+      responsiveColumns: gridClass.includes('sm:grid-cols-2'),
+      gap: gridClass.includes('gap-6'),
+    };
+  })()`);
+  check(rows, `${label}.grid.rowList`, !!g.gridList);
+  check(rows, `${label}.grid.responsive`, !!g.gridList && !!g.responsiveColumns && !!g.gap);
+
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const st = await cdp.evaluate(`(() => {
+    const header = document.querySelector('header');
+    const stack = header ? header.querySelector('div.flex') : null;
+    return {
+      stack: !!stack,
+      flexWrap: !!stack && stack.className.includes('flex-wrap'),
+    };
+  })()`);
+  check(rows, `${label}.stack.inHeader`, !!st.stack && !!st.flexWrap);
+}
+
 /** Reduced motion: the global PMR rule applies and the modal never animates. */
 async function runReducedMotion(rows, trigger, panel, cdp) {
   await cdp.setReducedMotion(true);
@@ -708,6 +744,8 @@ async function runPreset(preset, chrome) {
     await runFocusVisibleRing(rows, cdp, `focus.${preset.name}`);
     // P1-4 — the shared Section + Button primitives render on a real route.
     await runPagePrimitives(rows, cdp, `p14.${preset.name}`);
+    // P1-7 — the shared Grid + Stack primitives render on real routes.
+    await runGridStack(rows, cdp, `p17.${preset.name}`);
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {

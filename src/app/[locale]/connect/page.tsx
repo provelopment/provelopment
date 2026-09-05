@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Grid } from "@/components/ui/grid";
 import { connectMethodLabel } from "@/components/site/connect-method-label";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
@@ -85,7 +86,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
         <MarkdownContent markdown={content.body} />
       </div>
 
-      <ul className="mt-8 grid gap-4 sm:grid-cols-2">
+      <Grid columns="sm:grid-cols-2" gap="gap-4" className="mt-8">
         {siteConfig.connect?.methods.map((method) => {
           const label = connectMethodLabel(dictionary, method);
           return (
@@ -118,7 +119,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
             </li>
           );
         })}
-      </ul>
+      </Grid>
 
       <p className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
         {dictionary.connect.demoNotice}
