@@ -1,3 +1,4 @@
+import { Empty } from "@/components/ui/empty";
 import { Grid } from "@/components/ui/grid";
 import type { PortfolioItem } from "@/core/portfolio";
 import { PortfolioCard } from "./portfolio-card";
@@ -20,7 +21,7 @@ export function PortfolioList({
   featuredLabel,
 }: PortfolioListProps) {
   if (items.length === 0) {
-    return <p className="text-muted-foreground">{emptyLabel}</p>;
+    return <Empty label={emptyLabel} />;
   }
 
   return (

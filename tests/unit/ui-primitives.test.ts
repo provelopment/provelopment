@@ -31,6 +31,7 @@ import {
   BottomNavigation,
   Button,
   Drawer,
+  Empty,
   Grid,
   NavBadge,
   NavCta,
@@ -396,5 +397,23 @@ describe("P1-7 — Stack (shared alignment layout primitive)", () => {
   it("preserves a className passthrough", () => {
     const html = renderToStaticMarkup(Stack({ className: "w-full", children: "z" }));
     expect(html).toContain('class="flex flex-wrap gap-2 w-full"');
+  });
+});
+
+describe("P1-8 — Empty (shared collection empty-state message primitive)", () => {
+  it("renders the demonstrated muted-foreground paragraph", () => {
+    const html = renderToStaticMarkup(Empty({ label: "Nothing here yet." }));
+    expect(html).toContain('<p class="text-muted-foreground">Nothing here yet.</p>');
+  });
+
+  it("forwards an optional className (e.g. a top-margin rhythm)", () => {
+    const html = renderToStaticMarkup(Empty({ label: "Empty", className: "mt-4" }));
+    expect(html).toContain('<p class="text-muted-foreground mt-4">Empty</p>');
+  });
+
+  it("does NOT inject ARIA (a static empty message is not an async status/live region)", () => {
+    const html = renderToStaticMarkup(Empty({ label: "Empty" }));
+    expect(html).not.toContain("role=");
+    expect(html).not.toContain("aria-live");
   });
 });

@@ -1,4 +1,5 @@
 import type { PostContent } from "@/core/posts";
+import { Empty } from "@/components/ui/empty";
 import { Grid } from "@/components/ui/grid";
 import { PostCard } from "./post-card";
 
@@ -22,7 +23,7 @@ export function PostList({
   readingTimeLabelFor,
 }: PostListProps) {
   if (posts.length === 0) {
-    return <p className="text-muted-foreground">{emptyLabel}</p>;
+    return <Empty label={emptyLabel} />;
   }
 
   return (

@@ -1,3 +1,4 @@
+import { Empty } from "@/components/ui/empty";
 import { Grid } from "@/components/ui/grid";
 import type { TestimonialContent } from "@/core/testimonials";
 import { TestimonialCard } from "./testimonial-card";
@@ -20,7 +21,7 @@ export function TestimonialList({
   ratingAriaTemplate,
 }: TestimonialListProps) {
   if (testimonials.length === 0) {
-    return <p className="text-muted-foreground">{emptyLabel}</p>;
+    return <Empty label={emptyLabel} />;
   }
 
   return (
