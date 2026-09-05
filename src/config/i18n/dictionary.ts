@@ -33,6 +33,13 @@ export const dictionarySchema = z.object({
     moreMenu: z.string(),
     /** UI-05 — label for the adaptive desktop sidebar collapse/expand toggle. */
     sidebarToggle: z.string(),
+    /**
+     * P0-1 — label for the explicit mobile-disclosure close control
+     * ("Close Sidebar" in the owner-approved sidebar contract). OPTIONAL: the
+     * control renders only when the composer opts in (the overlay pattern
+     * today); locale files without the key are valid.
+     */
+    closeSidebar: z.string().optional(),
   }),
   notFound: z.object({
     title: z.string(),

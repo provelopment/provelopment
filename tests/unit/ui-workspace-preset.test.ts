@@ -31,7 +31,7 @@ describe("UI-08 — explicit Workspace selection (declarative profile)", () => {
       tablet: "collapsed-sidebar",
       mobile: "drawer",
     });
-    expect(resolved.shell).toEqual({ header: "standard", footer: "standard" });
+    expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: true } });
     expect(resolved.cta.style).toBe("standard");
     // Leaves Workspace does NOT define fall to Foundation defaults:
     expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);

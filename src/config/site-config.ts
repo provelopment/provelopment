@@ -108,6 +108,8 @@ export interface UiConfig {
 export interface UiShellConfig {
   readonly header?: ShellVariant;
   readonly footer?: ShellVariant;
+  /** P0-1 — whether the composed aside rail is user-collapsible. */
+  readonly sidebar?: { readonly collapsible?: boolean };
 }
 
 export interface UiNavigationConfig {

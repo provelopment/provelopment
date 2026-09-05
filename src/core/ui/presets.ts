@@ -56,6 +56,15 @@ export interface UiPresetProfile {
   readonly shell: {
     readonly header: ShellVariant;
     readonly footer: ShellVariant;
+    /**
+     * P0-1 sidebars: whether the aside rail (where composed) is user-collapsible.
+     * `true` means the SAME structural contract in every composition: the rail
+     * can collapse to a reduced state and be restored via a discoverable toggle.
+     * Classic/Focus never compose an aside → `false`. Immersive's `floating`
+     * rail is intentionally static (`false`) until its visual contract is
+     * defined (open product decision).
+     */
+    readonly sidebar: { readonly collapsible: boolean };
   };
   /** Default CTA prominence requested by the preset. */
   readonly cta: { readonly style: CtaStyle };
@@ -93,7 +102,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     preset: "classic",
     summary: "A clean, familiar top-navigation website experience (roadmap §5.1)",
     navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
-    shell: { header: "standard", footer: "standard" },
+    shell: { header: "standard", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "standard" },
     capabilities: capabilities({
       topNavigation: "supported",
@@ -109,7 +118,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     summary:
       "The roadmap's recommended personality: an adaptive collapsible sidebar (roadmap §6; resolved default fixed at UI-05)",
     navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "bottom-bar" },
-    shell: { header: "standard", footer: "standard" },
+    shell: { header: "standard", footer: "standard", sidebar: { collapsible: true } },
     cta: { style: "standard" },
     capabilities: capabilities({
       topNavigation: "optional",
@@ -127,7 +136,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     summary:
       "A conversion-first personality: minimal navigation with a prominent primary CTA (roadmap §7)",
     navigation: { desktop: "minimal", tablet: "top-compact", mobile: "drawer" },
-    shell: { header: "minimal", footer: "standard" },
+    shell: { header: "minimal", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "prominent" },
     capabilities: capabilities({
       topNavigation: "supported",
@@ -144,7 +153,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     summary:
       "An information-rich personality: grouped sidebar navigation with an optional secondary panel (roadmap §8)",
     navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
-    shell: { header: "standard", footer: "standard" },
+    shell: { header: "standard", footer: "standard", sidebar: { collapsible: true } },
     cta: { style: "standard" },
     capabilities: capabilities({
       topNavigation: "optional",
@@ -163,7 +172,7 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     summary:
       "A premium visual-first personality: minimal/floating navigation with an overlay menu (roadmap §9)",
     navigation: { desktop: "floating", tablet: "floating", mobile: "overlay" },
-    shell: { header: "minimal", footer: "standard" },
+    shell: { header: "minimal", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "standard" },
     capabilities: capabilities({
       topNavigation: "optional",

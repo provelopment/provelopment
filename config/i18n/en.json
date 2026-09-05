@@ -14,6 +14,7 @@
     "footerLabel": "Footer navigation",
     "moreMenu": "More",
     "sidebarToggle": "Collapse navigation",
+    "closeSidebar": "Close Sidebar",
     "items": {
       "/": "Home",
       "/about": "About",

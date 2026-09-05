@@ -115,10 +115,24 @@ export function ShellEngine({
   // (no-op → header passthrough; the shipped demo stays byte-identical).
   const headerUsesCta =
     ctaNode !== null && (decision.desktop.ctaSlot === "header" || decision.tablet.ctaSlot === "header");
-  const headerSlot = headerUsesCta ? (
+  const headerContent = headerUsesCta ? (
     <div className="ui-shell-header-row">{header}{ctaNode}</div>
   ) : (
     header
+  );
+  // P0-1 (converged from the verified UI-12.2 demo fix): in the ASIDE
+  // composition the page frame becomes a wrapping row on large screens
+  // (`lg:flex-row lg:flex-wrap`). The header is a flex ITEM like the rail and
+  // `<main>`, so without an explicit full-width basis it sits INLINE beside the
+  // sidebar (seen live: header 36%, rail 240px beside it, main squeezed to
+  // 45%). The footer already breaks to its own row via `lg:w-full` below; the
+  // header must do the same so the rail and `<main>` share a row UNDER a
+  // full-width brand row. Header-slot presets (asideActive === false) are
+  // untouched — byte-identical as before.
+  const headerSlot = asideActive ? (
+    <div className="lg:w-full">{headerContent}</div>
+  ) : (
+    headerContent
   );
 
   return (
@@ -138,7 +152,21 @@ export function ShellEngine({
 
   function buildAside() {
     if (!asideActive || !asideContent) return null;
+    // P0-1 — the sidebar capability is configured (not hard-coded per band):
+    // `resolved.shell.sidebar.collapsible` is the declarative intent. The
+    // tablet `collapsed-sidebar` COMPOSITION additionally means
+    // "collapsed-by-default, always expandable" — a property of the pattern,
+    // not a second config leaf.
+    const sidebarCollapsible = resolved.shell.sidebar.collapsible;
     const renderBand = (id: string, band: "desktop" | "tablet") => {
+      const isDesktopBand = band === "desktop";
+      const tabletCollapsedSidebar =
+        !isDesktopBand && decision.tablet.primitiveKind === "collapsed-sidebar";
+      // A collapsed-sidebar band is collapsible BY DEFINITION (its initial
+      // state is collapsed; the user must be able to expand it — never a
+      // dead-end). Non-collapsed bands follow the configured intent.
+      const collapsible = tabletCollapsedSidebar || sidebarCollapsible;
+      const collapsedInitial = tabletCollapsedSidebar;
       const bandCta =
         ctaNode !== null &&
         ((band === "desktop" && decision.desktop.ctaSlot === "aside") ||
@@ -150,7 +178,8 @@ export function ShellEngine({
           key={band}
           id={id}
           label={navigationLabel ?? "Navigation"}
-          collapsible={band === "desktop"}
+          collapsible={collapsible}
+          collapsed={collapsedInitial}
           toggleLabel={sidebarToggleLabel}
         >
           {asideContent}

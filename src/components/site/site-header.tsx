@@ -58,6 +58,24 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         />
     );
 
+    // P0-1 (owner-approved sidebar contract): the OVERLAY mobile disclosure
+    // presents navigation VERTICALLY (a sidebar, not a horizontal strip). This
+    // is a vocabulary-driven branch on the resolved mobile primitive kind — the
+    // same pattern value the engine/decision core composes on. Drawer-pattern
+    // disclosures (classic/focus/workspace) keep the shared horizontal list
+    // unchanged.
+    const mobileNavListElement =
+        mobilePattern === "overlay" ? (
+            <ContextNavLinks
+                locale={locale}
+                links={navLinks}
+                className="flex flex-col items-start gap-y-2"
+                linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            />
+        ) : (
+            navListElement
+        );
+
     // UI-07 (D2) + UI-09 (overlay): the latent `ctaSlot: "drawer"` decision
     // acquires its content-layer consumer HERE. When the decision says the mobile
     // CTA slot is the drawer (mobile `drawer` OR `overlay` pattern — both map to
@@ -120,8 +138,13 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                         id="shell-mobile-nav"
                         triggerLabel={dictionary.navigation.primaryLabel}
                         className="md:hidden"
+                        closeLabel={
+                            mobilePattern === "overlay"
+                                ? (dictionary.navigation.closeSidebar ?? "Close Sidebar")
+                                : undefined
+                        }
                     >
-                        {navListElement}
+                        {mobileNavListElement}
                         {mobileDrawerCta}
                     </ShellMobileNav>
                 ) : null}

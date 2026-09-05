@@ -172,11 +172,54 @@ async function runHeaderPreset(rows, preset, prominent, cdp) {
 
 /** Aside-slot presets (adaptive / workspace / immersive) — desktop + tablet bands. */
 async function runAsidePreset(rows, preset, cdp) {
+  // P0-1: presets resolving `shell.sidebar.collapsible: true` get the SAME
+  // structural contract here (the harness drives per preset; runtime never does).
+  const collapsible = preset.name === "adaptive" || preset.name === "workspace";
   for (const [vpName, vp] of [["desktop", VIEWPORTS.desktop], ["tablet", VIEWPORTS.tablet]]) {
     await cdp.setViewport(vp.width, vp.height);
     await cdp.navigate(`${BASE_URL}/en`);
     await waitReady(cdp);
-    const s = await cdp.evaluate(`(() => ({
+    const controlsId = vpName === "desktop" ? "shell-sidebar-desktop-panel" : "shell-sidebar-tablet-panel";
+    const railSel = vpName === "desktop" ? "#shell-sidebar-desktop-rail" : "#shell-sidebar-tablet-rail";
+    const toggleSel = `${railSel} [aria-controls="${controlsId}"]`;
+
+    // P0-1 INITIAL state — a real collapse is NOT aria-only: a collapsed band
+    // hides its panel from layout + tab order; the toggle stays (expand control).
+    const init = await cdp.evaluate(`(() => {
+      const rail = document.querySelector(${JSON.stringify(railSel)});
+      const panel = document.querySelector(${JSON.stringify(vpName === "desktop" ? "#shell-sidebar-desktop-panel" : "#shell-sidebar-tablet-panel")});
+      const toggle = rail ? rail.querySelector('[aria-controls="${controlsId}"]') : null;
+      const pr = panel ? panel.getBoundingClientRect() : null;
+      return {
+        hasRail: !!rail,
+        panelVisible: !!pr && pr.width > 0 && pr.height > 0,
+        panelHiddenClass: !!panel && panel.classList.contains('hidden'),
+        togglePresent: !!toggle,
+        toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+      };
+    })()`);
+    check(rows, `${vpName}.aside.present`, !!init.hasRail);
+    if (collapsible) {
+      check(rows, `${vpName}.aside.toggle.present`, !!init.togglePresent);
+      if (vpName === "desktop") {
+        check(rows, `${vpName}.aside.expanded.initial`, init.toggleExpanded === "true" && init.panelVisible);
+      } else {
+        // `collapsed-sidebar` MEANS collapsed-by-default + always expandable.
+        check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.panelHiddenClass && !init.panelVisible);
+        check(rows, `${vpName}.aside.collapsed.notDeadEnd`, init.togglePresent);
+      }
+    } else {
+      // immersive floating rail: static, expanded, no toggle (capability off).
+      check(rows, `${vpName}.aside.static.panelVisible`, init.panelVisible);
+      check(rows, `${vpName}.aside.static.noToggle`, !init.togglePresent);
+    }
+
+    if (collapsible && vpName === "tablet") {
+      await cdp.clickCenter(toggleSel); // expand before content checks
+      await sleep(250);
+    }
+
+const s = await cdp.evaluate(`(() => ({
       sidebar: !!document.querySelector('.ui-shell-sidebar'),
       desktopRail: ${visible('#shell-sidebar-desktop-rail')},
       tabletRail: ${visible('#shell-sidebar-tablet-rail')},
@@ -191,9 +234,46 @@ async function runAsidePreset(rows, preset, cdp) {
     check(rows, `${vpName}.aside.ariaCurrent`, !!s.currentInAside);
     check(rows, `${vpName}.no.dialog`, s.dialogs === 0);
     check(rows, `${vpName}.no.bottomBar`, !s.bottomBar);
+
+    // P0-1 REAL interaction — desktop collapse → expand cycle (same toggle stays
+    // reachable; navigation + panel restore).
+    if (collapsible && vpName === "desktop") {
+      await cdp.clickCenter(toggleSel);
+      await sleep(250);
+      const collapsed = await cdp.evaluate(`(() => {
+        const panel = document.querySelector("#shell-sidebar-desktop-panel");
+        const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
+        const pr = panel ? panel.getBoundingClientRect() : null;
+        return {
+          collapsedStructural: !!panel && panel.classList.contains('hidden'),
+          notVisible: !pr || (pr.width === 0 && pr.height === 0),
+          togglePresent: !!toggle,
+          toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+        };
+      })()`);
+      check(rows, `${vpName}.aside.collapse.structural`, collapsed.collapsedStructural && collapsed.notVisible);
+      check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
+      check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
+      await cdp.clickCenter(toggleSel);
+      await sleep(250);
+      const restored = await cdp.evaluate(`(() => {
+        const panel = document.querySelector("#shell-sidebar-desktop-panel");
+        const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
+        const pr = panel ? panel.getBoundingClientRect() : null;
+        const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
+        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, linkReachable: !!link && link.getBoundingClientRect().width > 0 };
+      })()`);
+      check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible);
+      check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true");
+      check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
+    } else if (collapsible && vpName === "tablet") {
+      const restored = await cdp.evaluate(`(() => { const panel = document.querySelector("#shell-sidebar-tablet-panel"); const pr = panel ? panel.getBoundingClientRect() : null; return !panel.classList.contains('hidden') && pr.width > 0 && pr.height > 0; })()`);
+      check(rows, `${vpName}.aside.expand.restores`, restored);
+    }
   }
 }
 
+/** Responsive landmark exclusivity across the md (768) and lg (1024) boundaries. */
 /** Responsive landmark exclusivity across the md (768) and lg (1024) boundaries. */
 async function runAsideBoundaries(rows, preset, mobileBar, cdp) {
   for (const width of [767, 768, 1023, 1024]) {
@@ -293,6 +373,32 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "open.ctaProminent", prominent ? !!o && !!o.prominentInPanel : !!(o && !o.prominentInPanel));
   check(rows, "open.ariaCurrent.inPanel", !!o && !!o.currentInPanel);
 
+  // P0-1 — immersive OVERLAY sidebar contract: vertical navigation,
+  // content-appropriate bounded width, and an explicit bottom close control.
+  if (preset.name === "immersive") {
+    const ov = await cdp.evaluate(`(() => {
+      const d = document.querySelector(${JSON.stringify(PANEL)});
+      if (!d) return null;
+      const ul = d.querySelector('ul');
+      const closeBtn = d.querySelector('.ui-drawer-close');
+      const pr = d.getBoundingClientRect();
+      const closeRect = closeBtn ? closeBtn.getBoundingClientRect() : null;
+      return {
+        navVertical: ul ? getComputedStyle(ul).flexDirection === 'column' : false,
+        panelWidth: Math.round(pr.width),
+        viewportWidth: document.documentElement.clientWidth,
+        closeLabel: closeBtn ? closeBtn.textContent.trim() : null,
+        closeVisible: !!closeBtn && closeRect.width > 0 && closeRect.height > 0,
+        closeBelowNav: !!closeBtn && !!ul && closeBtn.getBoundingClientRect().top > ul.getBoundingClientRect().bottom - 4,
+      };
+    })()`);
+    check(rows, "overlay.nav.vertical", !!ov && ov.navVertical);
+    check(rows, "overlay.panel.bounded", !!ov && ov.panelWidth >= 240 && ov.panelWidth < ov.viewportWidth && ov.panelWidth <= Math.min(288, ov.viewportWidth * 0.8) + 2);
+    check(rows, "overlay.close.visible", !!ov && ov.closeVisible);
+    check(rows, "overlay.close.label", !!ov && ov.closeLabel === "Close Sidebar");
+    check(rows, "overlay.close.belowNav", !!ov && ov.closeBelowNav);
+  }
+
   let trapped = true;
   for (let i = 0; i < 6 && trapped; i += 1) {
     await cdp.pressKey("Tab");
@@ -333,6 +439,22 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
     if (s2.dialogs !== 0 || s2.mainInert || s2.overflow !== "") clean = false;
   }
   check(rows, "cycles.clean", clean);
+
+  // P0-1 — activating the explicit "Close Sidebar" control closes the mobile
+  // disclosure, returns focus to the trigger, and restores inert + scroll
+  // (the SAME Drawer close mechanism as Escape/backdrop — not a second path).
+  if (preset.name === "immersive") {
+    const reopen = await openTrigger(cdp, TRIGGER, PANEL);
+    check(rows, "closeBtn.opens", reopen);
+    const closeBtnClick = await cdp.clickCenter("#shell-mobile-nav-panel .ui-drawer-close");
+    await sleep(250);
+    const cc = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, activeId: document.activeElement && document.activeElement.id, mainInert: !!document.querySelector('main').closest('[inert]'), overflow: document.body.style.overflow }))()`);
+    check(rows, "closeBtn.clicked", closeBtnClick);
+    check(rows, "closeBtn.closed", cc.dialogs === 0);
+    check(rows, "closeBtn.focusReturn", cc.activeId === "shell-mobile-nav");
+    check(rows, "closeBtn.inertCleared", cc.mainInert === false);
+    check(rows, "closeBtn.scrollRestored", cc.overflow === "");
+  }
 }
 
 /** Adaptive mobile: bottom bar + its More disclosure (the shared drawer path). */
