@@ -18,6 +18,9 @@ export type { ButtonProps } from "./button";
 export { Section } from "./section";
 export type { SectionProps } from "./section";
 
+export { Empty } from "./empty";
+export type { EmptyProps } from "./empty";
+
 export { Grid } from "./grid";
 export type { GridProps } from "./grid";
 

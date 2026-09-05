@@ -701,6 +701,25 @@ describe("Phase D — design-system boundaries", () => {
       }
     }
   });
+
+  it("P1-8 — the collection-list empty states delegate to the shared Empty primitive", () => {
+    // portfolio/testimonial/post lists must compose the shared `<Empty>` instead
+    // of inlining the raw `text-muted-foreground` empty-message paragraph.
+    const emptyConsumers = [
+      path.join(srcDirectory, "components", "site", "portfolio-list.tsx"),
+      path.join(srcDirectory, "components", "site", "testimonial-list.tsx"),
+      path.join(srcDirectory, "components", "site", "post-list.tsx"),
+    ];
+    for (const file of emptyConsumers) {
+      const source = readFileSync(file, "utf8");
+      expect(source, `${path.relative(process.cwd(), file)} must use <Empty>`).toMatch(
+        /from "@\/components\/ui\/empty"/,
+      );
+      expect(source, `${path.relative(process.cwd(), file)} must not inline the raw empty-message class`).not.toMatch(
+        /<p className="text-muted-foreground">\{emptyLabel\}<\/p>/,
+      );
+    }
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
