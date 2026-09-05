@@ -160,14 +160,23 @@ async function runHeaderPreset(rows, preset, prominent, cdp) {
     check(rows, `${vpName}.no.bottomBar`, !s.bottomBar);
     check(rows, `${vpName}.no.aside`, !s.aside);
   }
-  // C2 (deferred): observe whether a header-slot CTA persists below md when the
-  // mobile drawer also exposes its own CTA. Recorded; NOT resolved here (no new
-  // responsive CTA contract is invented).
+  // P0-2 (resolves the deferred C2 observation): a header-slot preset whose
+  // mobile disclosure also owns the CTA slot must NEVER expose a duplicate
+  // interactive CTA. At <md the ≥md header CTA instance is hidden, so at rest
+  // (drawer/overlay closed) ZERO interactive CTAs are reachable; opening the
+  // disclosure exposes exactly the one panel CTA (asserted in
+  // runDrawerOverlayMobile via `open.cta.single`).
   await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
   await cdp.navigate(`${BASE_URL}/en`);
   await waitReady(cdp);
-  const mob = await cdp.evaluate(`(() => ({ headerCtaVisible: ${visible('.ui-shell-header-row .ui-shell-cta')} }))()`);
-  check(rows, "c2.headerCtaAtMobile.observed", true, `header CTA visible at <md: ${mob.headerCtaVisible} (C2 contract observation only)`);
+  const mob = await cdp.evaluate(`(() => {
+    const headerCta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
+    const headerCtaRect = headerCta ? headerCta.getBoundingClientRect() : null;
+    const reachableCtas = [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length;
+    return { headerCtaVisible: !!headerCtaRect && headerCtaRect.width > 0, reachableCtas };
+  })()`);
+  check(rows, "mobile.headerCta.hiddenBelowMd", !mob.headerCtaVisible);
+  check(rows, "mobile.noDuplicateCta", mob.reachableCtas === 0);
 }
 
 /** Aside-slot presets (adaptive / workspace / immersive) — desktop + tablet bands. */
@@ -244,16 +253,21 @@ const s = await cdp.evaluate(`(() => ({
         const panel = document.querySelector("#shell-sidebar-desktop-panel");
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
         const pr = panel ? panel.getBoundingClientRect() : null;
+        const cta = panel ? panel.querySelector('.nav-item-cta') : null;
         return {
           collapsedStructural: !!panel && panel.classList.contains('hidden'),
           notVisible: !pr || (pr.width === 0 && pr.height === 0),
           togglePresent: !!toggle,
           toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+          // P0-2: the CTA must follow the sidebar's structural collapse —
+          // when the panel is collapsed the CTA inside it is NOT reachable.
+          ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
         };
       })()`);
       check(rows, `${vpName}.aside.collapse.structural`, collapsed.collapsedStructural && collapsed.notVisible);
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
+      check(rows, `${vpName}.aside.collapse.ctaNotReachable`, !collapsed.ctaReachable);
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const restored = await cdp.evaluate(`(() => {
@@ -261,11 +275,15 @@ const s = await cdp.evaluate(`(() => ({
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
         const pr = panel ? panel.getBoundingClientRect() : null;
         const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
-        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, linkReachable: !!link && link.getBoundingClientRect().width > 0 };
+        const cta = panel ? panel.querySelector('.nav-item-cta') : null;
+        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
       })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible);
       check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true");
       check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
+      // P0-2: re-expanding restores the CTA (it follows the same collapse
+      // semantics as the navigation — never orphaned, never stranded).
+      check(rows, `${vpName}.aside.expand.ctaReachable`, restored.ctaReachable);
     } else if (collapsible && vpName === "tablet") {
       const restored = await cdp.evaluate(`(() => { const panel = document.querySelector("#shell-sidebar-tablet-panel"); const pr = panel ? panel.getBoundingClientRect() : null; return !panel.classList.contains('hidden') && pr.width > 0 && pr.height > 0; })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored);
@@ -371,6 +389,11 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "open.cta.inPanel", !!o && !!o.ctaInPanel);
   check(rows, "open.cta.reachable", !!o && !!o.ctaReachable);
   check(rows, "open.ctaProminent", prominent ? !!o && !!o.prominentInPanel : !!(o && !o.prominentInPanel));
+  // P0-2: exactly ONE interactive CTA is reachable while the mobile disclosure
+  // is open (the ≥md header instance is hidden below md now; the aside bands
+  // are display:none at <md) — no duplicate desktop+mobile pair, no dual CTA.
+  const reachableCtasOpen = await cdp.evaluate(`(() => [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length)()`);
+  check(rows, "open.cta.single", !!o && reachableCtasOpen === 1);
   check(rows, "open.ariaCurrent.inPanel", !!o && !!o.currentInPanel);
 
   // P0-1 — immersive OVERLAY sidebar contract: vertical navigation,

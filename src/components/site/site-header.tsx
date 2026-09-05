@@ -4,7 +4,7 @@ import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
 import { resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
-import { NavCta } from "@/components/ui/nav-cta";
+import { Cta } from "@/components/ui/cta";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
@@ -76,27 +76,25 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
             navListElement
         );
 
-    // UI-07 (D2) + UI-09 (overlay): the latent `ctaSlot: "drawer"` decision
-    // acquires its content-layer consumer HERE. When the decision says the mobile
-    // CTA slot is the drawer (mobile `drawer` OR `overlay` pattern — both map to
-    // the drawer CTA slot in the decision core) AND an adopter CTA materializes
-    // (enabled + label + href), the CTA is composed as a child of the
-    // ShellMobileNav drawer/overlay. No engine machinery, no Drawer/Overlay change:
-    // closed SSR still renders no dialog (and therefore no CTA / no focusable), and
-    // opening exposes the CTA among its existing children. The branch is on the
-    // decision-core VALUES (ctaSlot, primitive kind) — never preset identity — and
-    // `href` is adopter-owned (never invented).
+    // P0-2 — the mobile drawer/overlay CTA uses the SAME shared `Cta`
+    // capability as the engine's header/aside/bottom compositions. The
+    // placement decision remains vocabulary-driven (`decision.mobile.ctaSlot`
+    // is "drawer" exactly for the drawer/overlay compositions); `Cta` owns the
+    // single presence predicate (enabled ∧ label ∧ href) + prominence, so no
+    // enabled/label/href condition or `ui-cta-prominent` logic is duplicated.
+    // Closed SSR renders no dialog (and therefore no CTA / no focusable);
+    // opening exposes the CTA among the disclosure's children.
     const ctaLabel = resolved.cta.label;
     const ctaHref = resolved.cta.href;
     const mobileDrawerCta =
         decision.mobile.ctaSlot === "drawer" &&
-        (mobilePattern === "drawer" || mobilePattern === "overlay") &&
-        resolved.cta.enabled &&
-        ctaLabel &&
-        ctaHref ? (
-            <NavCta
-                item={{ label: ctaLabel, href: ctaHref }}
-                className={`ui-drawer-cta${resolved.cta.style === "prominent" ? " ui-cta-prominent" : ""}`}
+        (mobilePattern === "drawer" || mobilePattern === "overlay") ? (
+            <Cta
+                enabled={resolved.cta.enabled}
+                style={resolved.cta.style}
+                label={ctaLabel}
+                href={ctaHref}
+                className="ui-drawer-cta"
             />
         ) : null;
 
