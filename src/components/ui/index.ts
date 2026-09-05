@@ -18,6 +18,12 @@ export type { ButtonProps } from "./button";
 export { Section } from "./section";
 export type { SectionProps } from "./section";
 
+export { Grid } from "./grid";
+export type { GridProps } from "./grid";
+
+export { Stack } from "./stack";
+export type { StackProps } from "./stack";
+
 export { Navigation } from "./navigation";
 export type { NavigationProps } from "./navigation";
 

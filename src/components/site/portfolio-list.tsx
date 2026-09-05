@@ -1,3 +1,4 @@
+import { Grid } from "@/components/ui/grid";
 import type { PortfolioItem } from "@/core/portfolio";
 import { PortfolioCard } from "./portfolio-card";
 
@@ -23,7 +24,7 @@ export function PortfolioList({
   }
 
   return (
-    <ul className="grid gap-6 sm:grid-cols-2">
+    <Grid columns="sm:grid-cols-2">
       {items.map((item) => (
         <li key={item.slug} className="flex">
           <PortfolioCard
@@ -33,6 +34,6 @@ export function PortfolioList({
           />
         </li>
       ))}
-    </ul>
+    </Grid>
   );
 }

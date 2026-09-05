@@ -1,4 +1,5 @@
 import type { PostContent } from "@/core/posts";
+import { Grid } from "@/components/ui/grid";
 import { PostCard } from "./post-card";
 
 interface PostListProps {
@@ -25,7 +26,7 @@ export function PostList({
   }
 
   return (
-    <ul className="grid gap-6 lg:grid-cols-2">
+    <Grid columns="lg:grid-cols-2">
       {posts.map((post) => (
         <li key={post.slug} className="flex">
           <PostCard
@@ -35,6 +36,6 @@ export function PostList({
           />
         </li>
       ))}
-    </ul>
+    </Grid>
   );
 }
