@@ -362,7 +362,6 @@ const s = await cdp.evaluate(`(() => ({
 }
 
 /** Responsive landmark exclusivity across the md (768) and lg (1024) boundaries. */
-/** Responsive landmark exclusivity across the md (768) and lg (1024) boundaries. */
 async function runAsideBoundaries(rows, preset, mobileBar, cdp) {
   for (const width of [767, 768, 1023, 1024]) {
     await cdp.setViewport(width, 820);
@@ -625,6 +624,33 @@ async function runAdaptiveMobile(rows, cdp) {
   check(rows, "more.backdrop.inertCleared", mb.mainInert === false);
 }
 
+/**
+ * P1-4 — real-usage proof for the shared Section + Button primitives. The
+ * `/en/contact` route renders the page-content frame (`<Section as="article">`,
+ * an `<article>` with the shared frame class) and the contact submit action
+ * (the shared `Button`, a NATIVE `<button type="submit">`, never a link)
+ * in EVERY preset composition. This proves the primitives are actually
+ * composed and rendering — not source-only.
+ */
+async function runPagePrimitives(rows, cdp, label) {
+  await cdp.navigate(`${BASE_URL}/en/contact`);
+  await waitReady(cdp);
+  const s = await cdp.evaluate(`(() => {
+    const article = document.querySelector('main article, article');
+    const frame = article && article.className && article.className.includes('mx-auto max-w-page px-4 py-12');
+    const submit = document.querySelector('button[type="submit"]');
+    return {
+      article: !!article && article.tagName === 'ARTICLE',
+      frame,
+      submitNative: !!submit && submit.tagName === 'BUTTON',
+      submitToken: !!submit && submit.className.includes('bg-primary') && submit.className.includes('text-primary-foreground'),
+      ariaBusy: !!submit && submit.hasAttribute('aria-busy'),
+    };
+  })()`);
+  check(rows, `${label}.pagePrimitive.sectionFrame`, !!s.article && !!s.frame);
+  check(rows, `${label}.pagePrimitive.submitButton`, !!s.submitNative && !!s.submitToken && !!s.ariaBusy);
+}
+
 /** Reduced motion: the global PMR rule applies and the modal never animates. */
 async function runReducedMotion(rows, trigger, panel, cdp) {
   await cdp.setReducedMotion(true);
@@ -680,6 +706,8 @@ async function runPreset(preset, chrome) {
     }
     // P1-3 — visible focus-ring contract (link + pointer-distinction + keyboard Tab).
     await runFocusVisibleRing(rows, cdp, `focus.${preset.name}`);
+    // P1-4 — the shared Section + Button primitives render on a real route.
+    await runPagePrimitives(rows, cdp, `p14.${preset.name}`);
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {

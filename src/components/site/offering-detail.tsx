@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { OfferingsContent, ResolvedOfferingAction } from "@/core/offerings";
 
 import { MarkdownContent } from "./markdown-content";
+import { Section } from "@/components/ui/section";
 
 export interface OfferingDetailLabels {
   /** "What's included" section heading. */
@@ -46,7 +47,7 @@ interface OfferingDetailProps {
  */
 export function OfferingDetail({ offering, action, backHref, labels }: OfferingDetailProps) {
   return (
-    <article className="mx-auto max-w-page px-4 py-12">
+    <Section as="article">
       {offering.image ? (
         <div className="relative mb-8 h-64 w-full overflow-hidden rounded">
           <Image
@@ -135,6 +136,6 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
           {labels.backToListing}
         </Link>
       </p>
-    </article>
+    </Section>
   );
 }

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { useErrorMessages } from "@/components/site/error-messages-context";
+import { Button } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
 
 /**
  * Segment error boundary for recoverable render errors within a locale.
@@ -30,17 +32,13 @@ export default function Error({
   const locale = params?.locale;
 
   return (
-    <section className="mx-auto max-w-page px-4 py-24 text-center">
+    <Section className="py-24 text-center">
       <h1 className="text-4xl font-bold tracking-tight">{messages.title}</h1>
       <p className="mt-4 text-muted-foreground">{messages.message}</p>
       <div className="mt-8 flex items-center justify-center gap-4">
-        <button
-          type="button"
-          onClick={() => reset()}
-          className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:opacity-90"
-        >
+        <Button type="button" onClick={() => reset()}>
           {messages.tryAgain}
-        </button>
+        </Button>
         <Link
           href={`/${locale ?? ""}`}
           className="font-medium text-primary hover:underline"
@@ -48,6 +46,6 @@ export default function Error({
           {messages.returnHome}
         </Link>
       </div>
-    </section>
+    </Section>
   );
 }
