@@ -153,6 +153,7 @@ describe("UI-03 — NavItem (server-safe, data-driven)", () => {
   it("renders the badge chip when supplied", () => {
     const html = renderToStaticMarkup(NavItem({ item: { label: "Blog", href: "/en/blog", badge: "NEW" } }));
     expect(html).toContain(">NEW</span>");
+    expect(html).toContain("nav-item-badge");
   });
 
   it("the non-active link uses no aria-current (no invented state)", () => {
