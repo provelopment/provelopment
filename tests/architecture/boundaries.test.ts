@@ -750,6 +750,17 @@ describe("Phase D — design-system boundaries", () => {
     }
     // The offering-detail HERO (h-64 / sizes=100vw / non-link) stays local by design.
   });
+
+  it("P2-11 — NavItem composes the shared NavBadge for its badge chip", () => {
+    // NavItem must use the shared `<NavBadge>` (same `nav-item-badge` class
+    // contract) instead of inlining a duplicate badge `<span>`.
+    const source = readFileSync(
+      path.join(srcDirectory, "components", "ui", "nav-item.tsx"),
+      "utf8",
+    );
+    expect(source).toMatch(/from "\.\/nav-badge"/);
+    expect(source).not.toMatch(/<span className="nav-item-badge">\{badge\}<\/span>/);
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
