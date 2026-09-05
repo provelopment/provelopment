@@ -46,6 +46,12 @@ tree stays clean.
 - scroll lock restored across open/close cycles (D4);
 - reduced-motion media query + no animation on the modal (PMR);
 - CTA reachability in each declared placement (header/aside/bottom/drawer/overlay);
+- P0-2 CTA composition convergence: ONE shared CTA capability path; exactly ONE
+  interactive CTA reachable per viewport (the ≥md header CTA instance is hidden
+  below `md` when the mobile disclosure/bottom-bar owns the CTA slot — resolves
+  the deferred C2 observation); the aside CTA follows sidebar collapse (not
+  reachable when the panel is collapsed; restored on expand); while a
+  drawer/overlay is open exactly one CTA is reachable (no duplicate pair);
 - P0-1 SIDEBAR capability: structural collapse/expand on collapsible desktop
   bands (toggle present, panel hidden from layout + tab order when collapsed,
   expand restores navigation + CTA), tablet `collapsed-sidebar` bands

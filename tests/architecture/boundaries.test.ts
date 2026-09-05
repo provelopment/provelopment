@@ -887,9 +887,14 @@ describe("Phase UI-07 — focus preset stays fully declarative at the architectu
     expect(presets).toMatch(/focus:\s*\{/); // profile row only
   });
 
-  it("the engine branches on the `prominent` VOCABULARY VALUE — never on preset identity", () => {
+  it("the `prominent` VOCABULARY BRANCH lives in the shared CTA capability — never preset identity", () => {
     const engine = readFileSync(path.join(SHELL_DIRECTORY, "shell-engine.tsx"), "utf8");
-    expect(engine).toMatch(/resolved\.cta\.style\s*===\s*["']prominent["']/);
+    const ctaPrimitive = readFileSync(path.join(srcDirectory, "components", "ui", "cta.tsx"), "utf8");
+    // P0-2: the presence/prominence semantics converged into ONE shared
+    // capability (ui/cta.tsx), which branches on the `prominent` vocabulary
+    // VALUE — never preset identity. The engine consumes that capability.
+    expect(ctaPrimitive).toMatch(/style\s*===\s*["']prominent["']/);
+    expect(ctaPrimitive).not.toMatch(/preset\s*===\s*["'][a-z]+["']/);
     expect(engine).not.toMatch(/preset\s*===\s*["']focus["']/);
     expect(engine).not.toMatch(/preset\s*===\s*["'][a-z]+["']/);
   });
