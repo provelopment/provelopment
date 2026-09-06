@@ -2,24 +2,82 @@
 title: About
 ---
 
-This page is a sample included with the Provelopment Foundation template.
-Everything you see here comes from a Markdown file:
-`content/pages/en/about.md`.
+## About the Provelopment Foundation
 
-## Editing content
+The **Provelopment Foundation** is an open website foundation for small
+businesses — a production-grade, configurable template that provides the
+starting point for a complete multilingual website.
 
-Each page lives at `content/pages/<locale>/<slug>.md`. The frontmatter sets
-the page title, and the body is rendered as rich Markdown:
+This site is both the Foundation's own home page and its living
+demonstration: everything you see here is produced by the Foundation itself,
+from configuration, Markdown content, and shared building blocks.
 
-- **Bold**, _italic_, and `inline code`
-- [Links](https://example.com) and lists
-- Multiple heading levels
+The Foundation is intentionally a **display and demonstration shell**. It
+shows what the template makes possible without pretending to operate a real
+business: contact forms, booking actions, and connection options are
+configurable placeholders that a real deployment replaces with its own.
 
-### Adding pages
+## What the Foundation provides
 
-Create a new `.md` file in `content/pages/<locale>/` and it becomes a page.
-Add it to the `navigation` array in `site.config.json` so visitors can find
-it. When a translation is missing for a locale, the default locale's version
-is served automatically.
+The capabilities demonstrated on this site:
 
-Replace this copy with the real story of your business.
+- **Configuration-first identity and structure** — `site.config.json` defines
+  the site name, URL, contact channels, navigation, feature toggles, legal
+  documents, and UI preset. Ordinary customization happens here, not in code.
+- **Multilingual content** — interface strings live in locale dictionaries
+  (`config/i18n/<locale>.json`); page text lives in Markdown under
+  `content/`. A missing translation falls back to the default locale.
+- **Content collections** — pages, offerings, portfolio items, blog posts,
+  testimonials, and legal documents are all Markdown-driven collections,
+  statically generated at build time.
+- **Configurable capability seams** — contact inquiries (webhook or demo
+  stub), booking actions, map directions, and analytics are provider-neutral
+  adapters, enabled and disabled through `features` in `site.config.json`.
+- **Search-ready by default** — canonical URLs, hreflang alternates,
+  structured data, a dynamic sitemap, and robots output are generated from
+  the configured content.
+- **Accessible and responsive** — shared UI primitives, focus-visible
+  handling, modal/drawer behavior, and responsive shell navigation.
+- **RSS** — the blog publishes a localized RSS feed (`/blog/rss.xml`).
+
+## Why it exists
+
+Most small-business websites repeat the same hard work: multilingual
+routing, responsive navigation, search optimization, contact handling,
+accessibility, and a clean visual system. The Foundation packages that work
+into one reusable template so a new site starts from a proven base instead
+of a blank page — and so ordinary customization never requires editing
+platform code.
+
+## How it can be configured
+
+A downstream site customizes the Foundation through documented, user-owned
+surfaces:
+
+- **JSON configuration** — `site.config.json` (identity, navigation, features,
+  UI preset) and locale dictionaries in `config/i18n/`.
+- **Markdown content** — pages, offerings, portfolio, blog posts,
+  testimonials, and legal documents under `content/`.
+- **Assets** — logos, images, icons, and favicon under `public/`.
+- **User customization files** — site-owned files that survive Foundation
+  engine updates.
+
+The goal: most ordinary website customization requires changing these files,
+never the Foundation's driving code.
+
+## How the presets work
+
+The same website and content can be presented through five UI presets —
+**classic**, **adaptive**, **focus**, **workspace**, and **immersive** —
+selected through `ui.preset` in `site.config.json`. Each preset changes the
+presentation and navigation chrome while the underlying content stays the
+same. The preset demonstration sites in this project present the same
+Foundation content under these different presentations.
+
+## How this site relates to Provelopment.com
+
+The Provelopment Foundation is the template and demonstration base.
+**Provelopment.com** is the eventual operational parent/business site, where
+real operational contacts and services are established. This site — the
+Foundation reference site — remains the canonical demonstration and
+reference implementation of the template.

@@ -93,11 +93,11 @@ describe("UI-08 — explicit Workspace selection (declarative profile)", () => {
     expect(resolveUiConfig({}).preset).toBe("adaptive");
   });
 
-  it("the shipped demo (explicit Classic) is unchanged by UI-08", () => {
+  it("the shipped Foundation reference site (Adaptive) is unchanged by UI-08", () => {
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("classic");
+    expect(demoResolved.preset).toBe("adaptive");
     expect(demoResolved.cta.label).toBe("Book Now");
-    expect(demoResolved.cta.href).toBeUndefined(); // no destination → still renders nothing
+    expect(demoResolved.cta.href).toBe("https://example.com/book"); // display/example destination (FS-2 reference CTA)
     expect(demoResolved.cta.style).toBe("standard");
   });
 });

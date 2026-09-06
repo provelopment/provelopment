@@ -95,11 +95,11 @@ describe("UI-09 — explicit Immersive selection (declarative profile)", () => {
     expect(resolveUiConfig({}).preset).toBe("adaptive");
   });
 
-  it("the shipped demo (explicit Classic) is unchanged by UI-09", () => {
+  it("the shipped Foundation reference site (Adaptive) is unchanged by UI-09", () => {
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("classic");
+    expect(demoResolved.preset).toBe("adaptive");
     expect(demoResolved.cta.label).toBe("Book Now");
-    expect(demoResolved.cta.href).toBeUndefined(); // no destination → still renders nothing
+    expect(demoResolved.cta.href).toBe("https://example.com/book"); // display/example destination (FS-2 reference CTA)
     expect(demoResolved.cta.style).toBe("standard");
   });
 });

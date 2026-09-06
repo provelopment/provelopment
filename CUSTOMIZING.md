@@ -9,6 +9,89 @@ want to turn it into their own website. The core idea:
 
 ---
 
+## What is the Provelopment Foundation?
+
+The Provelopment Foundation is the **actual modeled site and the canonical
+demonstration of the template**. `foundation.provelopment.com` is both the real
+Foundation website and the reference implementation. Everything the template
+can do is visible there.
+
+The Foundation is a **display and demonstration shell**, not an operational
+business. `example.com`, `hello@example.com`, the booking/contact/maps/connect
+placeholders, and the demonstration "operating regions" are **intentional
+placeholders** — a real deployment replaces them. Do not treat them as
+operational contacts or services.
+
+## The five-site model: one Foundation, five presentations
+
+The Foundation is presented through **five deployments that are five
+presentations of the SAME canonical site** — never five separate businesses:
+
+| Deployment | Preset | What the visitor sees |
+| --- | --- | --- |
+| `foundation.provelopment.com` | Adaptive | the canonical Foundation site (sidebar + bottom-nav shell) |
+| `classic.foundation.provelopment.com` | Classic | same site with top navigation + drawer |
+| `focus.foundation.provelopment.com` | Focus | same site with reduced navigation + prominent CTA |
+| `workspace.foundation.provelopment.com` | Workspace | same site with a sidebar + drawer shell |
+| `immersive.foundation.provelopment.com` | Immersive | same site with floating rail + overlay mobile |
+
+All five present the **same canonical content and configuration** (drawn from
+the same `site.config.json`, `content/`, `config/i18n/`, and `public/assets/`).
+Only the `ui.preset` (plus the presentation leaves that follow from it) differ.
+This is exactly what the **preset comparison dropdown** in the header shows:
+you are viewing the same Foundation content, switchable across presentations.
+`classic`, `focus`, `workspace`, and `immersive` are **not separate content
+authorities** — there is one content model, five ways to present it.
+
+## Customization ownership boundary
+
+`CUSTOMIZING.md` is the downstream user guide: everything you are expected to
+customize lives in **config, content, and assets** — never in platform code.
+The boundary between "Foundation-owned" and "downstream/user-owned" is:
+
+| Foundation-owned (do not edit for customization) | Downstream/user-owned (edit freely) |
+| --- | --- |
+| `src/**` — application code, components, framework wiring | `site.config.json` — site identity, navigation, features, UI preset, theme, assets |
+| configuration **schema + loaders** (`src/config/`) | `content/**` — Markdown pages, offerings, portfolio, posts, testimonials, legal |
+| UI/preset engine (`src/core/ui/`, `src/components/ui/`) | `config/i18n/<locale>.json` — localized interface strings |
+| design-system implementation (`src/app/globals.css` tokens, `src/app/icon.svg` default) | `public/assets/*` — the shipped default asset files you replace |
+| localization infrastructure + dictionary schema | asset URL values you supply through `site.assets.*` |
+| build/deploy machinery, tests, proofs-of-consistency | feature/provider switches (`features.*`, `provider: "none"`) you choose |
+| Foundation **defaults** (what the layers above fall back to) | presentation values you expose through the configuration contract (preset, `ui.theme.background`, …) |
+
+The Foundation default asset files themselves live under Foundation ownership
+because they ship with the template; **replacing them** is the downstream
+action (see the Assets section below). The **values** you configure in
+`site.config.json` (including `site.assets.*`) are always downstream-owned.
+
+## Update-safety model (be honest about it)
+
+- **Downstream-owned files are preserved** on a future upstream pull: your
+  `site.config.json`, `content/**`, `config/i18n/*`, and `public/assets/*`
+  edits stay yours. In a `git merge upstream/main`, your versions of those
+  files win when you've changed them.
+- **Foundation-owned files are replaced** on a future upstream pull: `src/**`,
+  `tests/**`, build/deploy files, and the schema/loader evolve with the
+  template.
+- **Defaults interact with your overrides:** a future Foundation release may
+  add a **new** `site.assets.*` key or `ui.theme.*` leaf whose **default**
+  value you haven't overridden. Because the configuration surface is additive
+  and validated, your existing values keep working; a genuinely conflicting
+  key is a real merge you should read.
+- **The re-vendor step is deliberate, not automatic:** if you maintain a
+  `FoundationDemos`-style preset deployment, the canonical content/config/assets
+  must be re-vendored through that repository's `setup`/`generate` machinery
+  and re-verified — a manual step, not a merge.
+- **Where a change is structural** (e.g. a new required configuration key),
+  the build fails loudly with an actionable message rather than silently
+  changing behavior.
+
+In short: **your configuration, content, assets, and selected presentation are
+yours; the implementation that renders them is the Foundation's and may evolve
+under you.**
+
+---
+
 ## 1. Site Configuration — `site.config.json`
 
 This file is the single source of truth for your site's settings. It is
@@ -17,7 +100,7 @@ fail the build with actionable error messages.
 
 | Section | What it controls |
 | --- | --- |
-| `site` | Production URL, site name, tagline, meta description, optional logo |
+| `site` | Production URL, site name, tagline, meta description, logo, `assets` (`logo`/`ogImage`/`favicon` URLs) |
 | `i18n` | Locales and the default locale |
 | `contact` | Public contact email |
 | `socialLinks` | Footer/header social links |
@@ -73,15 +156,16 @@ An override does not cancel the preset — it overrides a single dimension:
 
 **Default:** omitting `preset` resolves the **Adaptive default personality**
 (`FOUNDATION_UI_DEFAULTS.defaultPreset`, selected at the resolver's single
-`raw.preset ?? …` point). This changes the OUT-OF-THE-BOX experience for a
-fresh clone (sidebar shell) but never overrides explicit leaves — the shipped
-demo explicitly selects `"preset": "classic"` (UI-06), so it renders the
-familiar top-bar + drawer shell.
+`raw.preset ?? …` point). The canonical **Foundation reference site at
+`foundation.provelopment.com` explicitly selects `"preset": "adaptive"`**
+(FS-2), so it demonstrates the sidebar + bottom-nav shell; the other four
+deployments each select one of the other presets. A fresh clone that omits
+`preset` behaves exactly like the Adaptive reference site.
 
 Every other preset stays explicitly selectable and unaffected:
 
 ```jsonc
-{ "ui": { "preset": "classic" } }     // top navigation + drawer (today's shipped demo)
+{ "ui": { "preset": "classic" } }     // top navigation + drawer (one of the five preset deployments)
 { "ui": { "preset": "focus" } }       // minimal nav + prominent CTA style
 { "ui": { "preset": "workspace" } }   // sidebar + collapsed-sidebar + drawer shell (UI-08: grouped nav + secondary panel deferred)
 { "ui": { "preset": "immersive" } }   // floating nav + overlay menu (UI-09: overlay CTA proven; distinct floating/minimal treatments deferred)
@@ -89,9 +173,9 @@ Every other preset stays explicitly selectable and unaffected:
 
 **Classic (UI-06) is the declarative proof:** it required zero Foundation code
 changes — the profile → resolver → engine pipeline built in UI-01–05 already
-composes top navigation + the mobile drawer. The demo's `ui` block shows the
-recommended pattern: `"preset": "classic"` plus optional explicit leaves that
-override individual dimensions of the profile.
+composes top navigation + the mobile drawer. The pattern for any preset is the
+same: `"preset": "<name>"` plus optional explicit leaves that override
+individual dimensions of the profile (used by the five preset deployments).
 
 **Focus (UI-07) is conversion-first with a prominent primary CTA.** It required
 the smallest declarative extension — one adopter-owned `cta.href` destination,
@@ -196,6 +280,36 @@ Foundation never invents a business action. When you enable a CTA, supply
 semantic (`standard`/`prominent`). The Foundation never derives `href` from
 `action` — an enabled CTA without label+href renders nothing.
 
+### Theme presentation — `ui.theme`
+
+- `ui.theme.mode` (`system` | `light` | `dark`) — the light/dark preference.
+  `system` follows the operating system preference (the shipped default; the
+  site is AA-verified in both schemes).
+- `ui.theme.radius` (`none` | `small` | `medium` | `large`) — semantic corner
+  radius intent, aligned with the `--radius-*` design tokens.
+- `ui.theme.background` — the **adopter-owned page/background color**, an
+  optional hex value (`#rgb`, `#rrggbb`, or `#rrggbbaa`). When set, it flows
+  through the existing design-token system (`--background` on the root
+  element) and **replaces the Foundation's default background**; when absent,
+  the Foundation's default `--background` token renders unchanged.
+
+```jsonc
+// Adaptive reference, default background (nothing added).
+{ "ui": { "preset": "adaptive", "theme": { "mode": "system", "radius": "medium" } } }
+
+// A downstream site changing its page background via configuration only:
+{
+  "ui": {
+    "preset": "adaptive",
+    "theme": { "mode": "system", "radius": "medium", "background": "#faf7f2" }
+  }
+}
+```
+
+The background is a **configuration value, not a preset-name branch**: it
+behaves identically under every preset and is applied through the established
+token mechanism — no components need to change. Invalid values (a non-hex
+string, wrong length) fail the build with an actionable message.
 ## 2. Content — Markdown Pages
 
 Pages live at `content/pages/<locale>/<slug>.md`. Frontmatter sets the page
@@ -608,15 +722,49 @@ per-page SEO configuration to fill in:
 - **When you change `site.url`** (before go-live), every canonical, hreflang,
   sitemap, and robots reference updates automatically.
 
-### Favicon & social preview
-### Favicon & app icon
+### Assets — `public/assets/`, `src/app/icon.svg`, and `site.assets.*`
 
-- Favicon / app icon: replace `src/app/icon.svg`.
-- Social preview image: generated at build time by
-  `src/app/[locale]/opengraph-image.tsx` from your config values. Its brand
-  colors are fixed literals in that file (a generated brand asset) — edit them
-  there if you want the preview to match your palette; the rest of the site
-  re-brands purely through the token section above.
+The standard site assets have **predictable default paths** and are
+configurable through the validated `site.assets.*` block:
+
+| Asset | Default file | Configuration (`site.assets.*`) |
+| --- | --- | --- |
+| Brand logo (structured data) | `public/assets/logo.svg` | `site.assets.logo` |
+| Open Graph / social share image | `public/assets/og-image.png` (1200×630) | `site.assets.ogImage` |
+| Browser favicon / app icon | `src/app/icon.svg` | `site.assets.favicon` |
+
+There are **two equally-supported ways to customize an asset**:
+
+1. **Replace in place** — overwrite the default file at its existing path
+   (`public/assets/logo.svg`, `public/assets/og-image.png`, or
+   `src/app/icon.svg`). No configuration change, no code change.
+2. **Point configuration at your own URL** — keep the Foundation default file
+   untouched and set the absolute URL:
+
+```jsonc
+{
+  "site": {
+    "assets": {
+      "logo":     "https://cdn.example.com/my-logo.svg",     // replaces JSON-LD logo
+      "ogImage":  "https://cdn.example.com/my-share.png",    // replaces og:image / twitter:image
+      "favicon":  "https://cdn.example.com/my-icon.ico"      // replaces the browser icon
+    }
+  }
+}
+```
+
+`site.assets.*` values are **absolute URLs** (validated at build time). Absent
+keys fall back to the shipped Foundation default asset, so a fresh clone needs
+no asset configuration. The `ogImage` value is used by every page's Open Graph
+and Twitter metadata (via the `resolveOgImageUrl` helper); when it is absent,
+the per-locale generated OpenGraph image route is used as the default.
+
+**Content-level images are separate:** images referenced inside Markdown
+content (offerings, portfolio, posts — e.g. an `image:` frontmatter value)
+come from the content itself and are rendered by the card/detail image
+primitives. They are distinct from the global site-asset registry above; an
+adopter supplies content imagery through the same `content/**` files that hold
+the text.
 
 User-facing interface strings (nav labels, hero copy, section headings, 404
 copy, the language-selector label) live in one JSON file per locale under
@@ -1261,6 +1409,35 @@ Because your changes are confined to configuration, content, and assets,
 merges are usually clean. When conflicts appear, your versions of
 `site.config.json`, `content/`, and asset files win; upstream wins for
 platform code unless you deliberately changed it.
+
+### What a future upstream pull preserves vs. replaces
+
+| Surface | On a future `git merge upstream/main` |
+| --- | --- |
+| `site.config.json` (your values) | **Preserved** — your versions win in a conflict |
+| `content/**` (your pages/collections) | **Preserved** |
+| `config/i18n/*` (your translations) | **Preserved** |
+| `public/assets/*` (your replaced files) | **Preserved** |
+| `src/**`, `tests/**`, build/deploy files | **Replaced** by the template's implementation |
+| schema/loader (`src/config/`) | **Replaced** — but additive/validated, so your config keeps building |
+| Foundation **default assets** you did not replace | **Replaced** by the new defaults — this is expected |
+
+The areas that require a **deliberate merge** rather than automatic acceptance:
+
+1. A new **required** configuration key or a changed config shape — the build
+   fails loudly with an actionable message telling you what to add;
+2. A new `site.assets.*`/`ui.theme.*` leaf whose **default** you did not
+   override — your existing values keep working, but read the release notes to
+   see what the new default is;
+3. If you maintain a `FoundationDemos`-style set of preset deployments, the
+   canonical content/config/assets must be **re-vendored** through that
+   repository's `setup`/`generate` scripts and re-verified — that is a manual,
+   deliberate step (see the five-site model above).
+
+In short: the Foundation is designed so your customization survives upstream
+updates, but it does not pretend to be a merge engine. Real structural changes
+surface as actionable build errors, and real conflicts surface as merge
+conflicts you resolve on your side.
 
 ## 8. Validating Your Changes
 

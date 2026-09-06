@@ -39,9 +39,13 @@
   "language": {
     "label": "Sprache"
   },
+  "presetComparison": {
+    "label": "Diese Website in einem anderen Preset ansehen",
+    "current": "aktuell"
+  },
   "location": {
     "label": "Standort",
-    "unspecified": "Nicht angegeben"
+    "unspecified": "Global"
   },
   "business": {
     "open": "Jetzt geöffnet",

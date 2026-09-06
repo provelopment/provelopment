@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -8,7 +8,7 @@ import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 import type { TestimonialContent } from "@/core/testimonials";
 import { sortTestimonials } from "@/core/testimonials";
 
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: TestimonialsPageProps): Promi
   const dictionary = getDictionary(locale);
   const title = dictionary.testimonials?.heading ?? "Testimonials";
   const canonical = `${siteConfig.url}/${locale}/testimonials`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -103,5 +103,6 @@ export default async function TestimonialsPage({ params }: TestimonialsPageProps
     </Section>
   );
 }
+
 
 

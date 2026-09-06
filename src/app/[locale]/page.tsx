@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 
 import { createBookingActionResolver } from "@/adapters/booking";
 import { BookingAction } from "@/components/site/booking-action";
@@ -6,7 +6,7 @@ import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
@@ -25,7 +25,7 @@ export async function generateMetadata({
   const { locale } = await params;
 
   const canonical = `${siteConfig.url}/${locale}`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
   const title = siteConfig.name;
 
   return {
@@ -102,3 +102,4 @@ export default async function HomePage({
     </>
   );
 }
+

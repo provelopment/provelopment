@@ -80,7 +80,10 @@ export function StructuredData({ locale }: { readonly locale: string }) {
     url: siteConfig.url,
   };
   if (b.description) node.description = b.description;
-  if (siteConfig.logo) node.logo = { "@type": "ImageObject", url: siteConfig.logo };
+  // FS-4 — structured-data logo resolves from the canonical asset config
+  // (`site.assets.logo`) with `site.logo` as the legacy fallback.
+  const logoUrl = siteConfig.assets?.logo ?? siteConfig.logo;
+  if (logoUrl) node.logo = { "@type": "ImageObject", url: logoUrl };
   if (siteConfig.socialLinks.length > 0) {
     node.sameAs = siteConfig.socialLinks.map((link) => link.href);
   }

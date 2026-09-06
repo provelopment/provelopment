@@ -51,15 +51,15 @@ describe("UI-05 — the deliberate Adaptive default decision", () => {
     }
   });
 
-  it("the shipped demo resolves the classic personality (explicit preset, UI-06)", () => {
-    // `site.config.json` now sets `"preset": "classic"` explicitly (D1 Option B,
-    // UI-06) and keeps its explicit classic leaves. The effective composition is
-    // byte-identical to the pre-UI-06 demo — only the truthful personality
-    // changed (adaptive → classic).
+  it("the shipped Foundation reference site resolves the adaptive personality (FS-2)", () => {
+    // `site.config.json` sets `"preset": "adaptive"` (the canonical Foundation
+    // reference deployment = Adaptive per FS-2) with no explicit navigation/shell
+    // leaves, so the adaptive profile governs: sidebar ≥md / collapsed-sidebar
+    // tablet / bottom-bar <md. Personality == effective composition here.
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("classic");
-    expect(demoResolved.navigation).toEqual(uiPresetProfiles.classic.navigation);
-    expect(demoResolved.navigation).not.toEqual(uiPresetProfiles.adaptive.navigation);
-    expect(demoResolved.shell).toEqual(uiPresetProfiles.classic.shell);
+    expect(demoResolved.preset).toBe("adaptive");
+    expect(demoResolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
+    expect(demoResolved.navigation).not.toEqual(uiPresetProfiles.classic.navigation);
+    expect(demoResolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
   });
 });

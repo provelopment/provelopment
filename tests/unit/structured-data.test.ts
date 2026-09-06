@@ -63,17 +63,26 @@ describe("StructuredData — global organization/local-business JSON-LD (Phase S
     }
   });
 
-  it("omits logo when not configured (the demo has no site.logo)", () => {
+  it("emits the canonical asset logo (FS-4: configured via site.assets.logo)", () => {
     const node = jsonLd(renderToStaticMarkup(StructuredData({ locale: "en" })));
-    expect(node.logo).toBeUndefined();
+    // The canonical reference config defines `site.assets.logo`, so the
+    // structured-data JSON-LD logo is present and points at the canonical asset.
+    if (siteConfig.assets?.logo || siteConfig.logo) {
+      const logo = node.logo as { "@type"?: string; url?: string };
+      expect(logo).toMatchObject({ "@type": "ImageObject" });
+      expect(logo.url).toBe(siteConfig.assets?.logo ?? siteConfig.logo);
+    } else {
+      // Absent branch: no logo configured → JSON-LD omits it (never invented).
+      expect(node.logo).toBeUndefined();
+    }
   });
 
-  it("wires logo, sameAs and contactPoint to configured values (source contract)", () => {
+  it("wires logo (assets-aware), sameAs and contactPoint to configured values (source contract)", () => {
     const source = readFileSync(
       path.join(process.cwd(), "src", "components", "site", "structured-data.tsx"),
       "utf8",
     );
-    expect(source).toContain("siteConfig.logo");
+    expect(source).toContain("siteConfig.assets?.logo ?? siteConfig.logo");
     expect(source).toContain("siteConfig.socialLinks.map");
     expect(source).toContain("b.contact.email || b.contact.phone");
   });

@@ -39,9 +39,13 @@
   "language": {
     "label": "언어"
   },
+  "presetComparison": {
+    "label": "다른 프리셋으로 이 사이트 보기",
+    "current": "현재"
+  },
   "location": {
     "label": "지역",
-    "unspecified": "지정되지 않음"
+    "unspecified": "글로벌"
   },
   "business": {
     "open": "영업 중",

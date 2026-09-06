@@ -39,9 +39,13 @@
   "language": {
     "label": "Язык"
   },
+  "presetComparison": {
+    "label": "Просмотреть этот сайт в другом пресете",
+    "current": "текущий"
+  },
   "location": {
     "label": "Регион",
-    "unspecified": "Не указано"
+    "unspecified": "Глобальный"
   },
   "business": {
     "open": "Открыто сейчас",

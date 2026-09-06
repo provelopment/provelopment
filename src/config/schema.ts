@@ -6,6 +6,7 @@ import {
   CONTENT_WIDTHS,
   CTA_ACTIONS,
   CTA_STYLES,
+  COLOR_HEX_PATTERN,
   DESKTOP_NAVIGATION_PATTERNS,
   MOBILE_NAVIGATION_PATTERNS,
   SHELL_VARIANTS,
@@ -44,6 +45,22 @@ export const localeConfigSchema = z.object({
   englishLabel: z.string().min(1, "must not be empty").optional(),
 });
 
+/** FS-4 — canonical asset configuration (absolute URLs, validated; defaulted). */
+export const siteAssetsSchema = z.object({
+  /** Structured-data brand logo (JSON-LD `ImageObject`). */
+  logo: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo.svg")
+    .optional(),
+  /** Open Graph / social sharing image (defaults to the generated per-locale route). */
+  ogImage: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/og-image.png")
+    .optional(),
+  /** Browser favicon / icon (defaults to the app-routed `icon.svg`). */
+  favicon: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/favicon.ico")
+    .optional(),
+});
+
 export const siteSettingsSchema = z.object({
   url: z
     .url("must be an absolute URL including protocol, e.g. https://example.com")
@@ -58,6 +75,13 @@ export const siteSettingsSchema = z.object({
   logo: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/logo.png")
     .optional(),
+  /**
+   * FS-4 — canonical visual asset configuration. Every value is an OPTIONAL
+   * absolute URL; absent keys fall back to the shipped Foundation default
+   * asset (see public/assets/). Defaults are predictable and replaceable both
+   * in place and via configuration.
+   */
+  assets: siteAssetsSchema.optional(),
 });
 
 export const i18nConfigSchema = z
@@ -592,6 +616,39 @@ const uiThemeSchema = z
     radius: z
       .enum(THEME_RADII, { message: `must be one of: ${THEME_RADII.join(", ")}` })
       .optional(),
+    /**
+     * FS-5 — adopter-owned page/background color as a constrained hex value
+     * (`#rgb`, `#rrggbb`, or `#rrggbbaa`), matching the `--background` design
+     * token. Absent → the existing token renders. Constrained (not arbitrary
+     * CSS) so a bad value can never inject unsafe CSS.
+     */
+    background: z
+      .string()
+      .regex(
+        COLOR_HEX_PATTERN,
+        "must be a hex color: #rgb, #rrggbb, or #rrggbbaa (e.g. #fafafa)",
+      )
+      .optional(),
+  })
+  .strict();
+
+/**
+ * FS-3 — preset-comparison deployment metadata. Maps each UI preset to the URL
+ * of the deployment that presents the Foundation through that preset. This is
+ * deployment metadata (which site demonstrates which preset), NOT page content.
+ *
+ * Each deployment's own entry is redundant with its `site.url`; the block
+ * exists so every deployment knows the full five-site map. The active preset is
+ * derived from `ui.preset` at runtime, never from a hostname comparison. An
+ * absent key means that preset is not part of the comparison set for this site.
+ */
+const uiPresetComparisonSchema = z
+  .object({
+    adaptive: z.url("must be an absolute URL including protocol, e.g. https://foundation.provelopment.com").optional(),
+    classic: z.url("must be an absolute URL including protocol, e.g. https://classic.example.com").optional(),
+    focus: z.url("must be an absolute URL including protocol, e.g. https://focus.example.com").optional(),
+    workspace: z.url("must be an absolute URL including protocol, e.g. https://workspace.example.com").optional(),
+    immersive: z.url("must be an absolute URL including protocol, e.g. https://immersive.example.com").optional(),
   })
   .strict();
 
@@ -612,6 +669,8 @@ export const uiConfigSchema = z
     content: uiContentSchema.optional(),
     cta: uiCtaSchema.optional(),
     theme: uiThemeSchema.optional(),
+    /** FS-3 — preset-comparison deployment destinations (preset → deployment URL). */
+    presetComparison: uiPresetComparisonSchema.optional(),
   })
   .strict();
 

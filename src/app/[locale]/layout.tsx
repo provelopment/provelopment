@@ -79,9 +79,14 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: "website",
       siteName: siteConfig.name,
+      ...(siteConfig.assets?.ogImage ? { images: [{ url: siteConfig.assets.ogImage }] } : {}),
     },
     twitter: {
       card: "summary_large_image",
+      ...(siteConfig.assets?.ogImage ? { images: [siteConfig.assets.ogImage] } : {}),
+    },
+    icons: {
+      icon: siteConfig.assets?.favicon,
     },
     alternates: {
       languages: buildLanguageAlternates({
@@ -126,10 +131,20 @@ export default async function LocaleLayout({
       }
     : undefined;
 
+  // FS-5 — the configured page/background color flows into the EXISTING
+  // design-token system: when `ui.theme.background` is set, we override the
+  // `--background` CSS variable on `<html>` (components consume the token via
+  // `bg-background`/token utilities; no inline component styles). Absent → the
+  // canonical `:root`/dark `--background` tokens render unchanged.
+  const htmlStyle = resolvedUi.theme.background
+    ? ({ "--background": resolvedUi.theme.background } as React.CSSProperties)
+    : undefined;
+
   return (
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      style={htmlStyle}
     >
       <body className="min-h-full flex flex-col">
         <a

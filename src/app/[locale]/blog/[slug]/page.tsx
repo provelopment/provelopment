@@ -13,7 +13,7 @@ import {
   readingTimeMinutes,
 } from "@/core/posts";
 import type { PostContent } from "@/core/posts";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const postsRepository = createFileSystemPageContentRepository<PostContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -62,7 +62,7 @@ export async function generateMetadata({ params }: BlogPostPageProps): Promise<M
 
   const title = content.title;
   const canonical = `${siteConfig.url}/${locale}/blog/${slug}`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,

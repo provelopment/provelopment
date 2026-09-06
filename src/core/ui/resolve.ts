@@ -55,7 +55,7 @@ export interface UiConfigInput {
     readonly href?: string;
     readonly style?: CtaStyle;
   };
-  readonly theme?: { readonly mode?: ThemeMode; readonly radius?: ThemeRadius };
+  readonly theme?: { readonly mode?: ThemeMode; readonly radius?: ThemeRadius; readonly background?: string };
 }
 
 /**
@@ -147,7 +147,7 @@ export interface ResolvedUiConfig {
     readonly href?: string;
     readonly style: CtaStyle;
   };
-  readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius };
+  readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius; readonly background?: string };
 }
 
 const VOCAB_MEMBERSHIP: Readonly<Record<string, readonly string[]>> = {
@@ -267,6 +267,11 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
     theme: {
       mode: resolveLeaf(raw.theme?.mode, undefined, FOUNDATION_UI_DEFAULTS.theme.mode),
       radius: resolveLeaf(raw.theme?.radius, undefined, FOUNDATION_UI_DEFAULTS.theme.radius),
+      // FS-5 — background is ADOPTER-OWNED presentation (an optional hex color).
+      // Absent → undefined → the existing `--background` design token renders.
+      // Validated by the config schema (COLOR_HEX_PATTERN); the resolver only
+      // passes the (already-validated) value through.
+      background: raw.theme?.background,
     },
   };
 

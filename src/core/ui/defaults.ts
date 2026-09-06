@@ -72,7 +72,7 @@ export interface UiFoundationDefaults {
     /** CTA visual prominence;presets may override via `cta.style`。 */
    readonly style: CtaStyle;
   };
-  readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius };
+  readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius; readonly background?: string };
 }
 
 /**

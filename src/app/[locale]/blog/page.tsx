@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -10,7 +10,7 @@ import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import { interpolateCount, isDraft, readingTimeMinutes, sortPosts } from "@/core/posts";
 import type { PostContent } from "@/core/posts";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const postsRepository = createFileSystemPageContentRepository<PostContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: BlogPageProps): Promise<Metad
   const dictionary = getDictionary(locale);
   const title = dictionary.blog?.heading ?? "Blog";
   const canonical = `${siteConfig.url}/${locale}/blog`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -106,5 +106,6 @@ export default async function BlogPage({ params }: BlogPageProps) {
     </Section>
   );
 }
+
 
 

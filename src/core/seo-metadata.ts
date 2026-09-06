@@ -82,6 +82,21 @@ export interface TwitterDataOptions {
   readonly imageUrl: string;
 }
 
+/**
+ * FS-4 — resolve a page's social-preview image URL. When the canonical asset
+ * configuration supplies `site.assets.ogImage`, that shared adopter-owned
+ * asset is used; otherwise the per-locale generated OpenGraph route is the
+ * default. Pure + config-arg driven (the caller passes both resolved values),
+ * so it stays framework-free and unit-testable.
+ */
+export function resolveOgImageUrl(
+  configOgImage: string | undefined,
+  baseUrl: string,
+  locale: string,
+): string {
+  return configOgImage ?? `${baseUrl}/${locale}/opengraph-image`;
+}
+
 export interface TwitterData {
   readonly card: "summary_large_image";
   readonly title: string;

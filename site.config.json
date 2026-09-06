@@ -1,9 +1,14 @@
 {
   "site": {
     "url": "https://www.example.com",
-    "name": "Your Business Site",
-    "tagline": "A fast, multilingual website for your small business",
-    "description": "Replace this description with your own. Your Business Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
+    "name": "Provelopment Foundation",
+    "tagline": "A production-grade, configurable website foundation for small businesses",
+    "description": "Provelopment Foundation is an open website foundation for small businesses — a multilingual, configuration-first template that turns JSON, Markdown, and assets into a complete, accessible site. Reuse the proven base instead of starting from scratch.",
+    "assets": {
+      "logo": "https://www.example.com/assets/logo.svg",
+      "ogImage": "https://www.example.com/assets/og-image.png",
+      "favicon": "https://www.example.com/icon.svg"
+    }
   },
   "i18n": {
     "defaultLocale": "en",
@@ -1335,16 +1340,7 @@
     "blog": true
   },
   "ui": {
-    "preset": "classic",
-    "shell": {
-      "header": "standard",
-      "footer": "standard"
-    },
-    "navigation": {
-      "desktop": "top",
-      "tablet": "top-compact",
-      "mobile": "drawer"
-    },
+    "preset": "adaptive",
     "density": "comfortable",
     "content": {
       "width": "standard"
@@ -1353,11 +1349,19 @@
       "enabled": true,
       "action": "book",
       "label": "Book Now",
-      "style": "standard"
+      "style": "standard",
+      "href": "https://example.com/book"
     },
     "theme": {
       "mode": "system",
       "radius": "medium"
+    },
+    "presetComparison": {
+      "adaptive": "https://foundation.provelopment.com",
+      "classic": "https://classic.foundation.provelopment.com",
+      "focus": "https://focus.foundation.provelopment.com",
+      "workspace": "https://workspace.foundation.provelopment.com",
+      "immersive": "https://immersive.foundation.provelopment.com"
     }
   },
   "legal": [

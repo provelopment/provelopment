@@ -1105,6 +1105,79 @@ describe("UI-01 — the ui contract namespace", () => {
     expect(config.ui?.preset).toBeUndefined();
   });
 
+  it("maps site.assets through the loader (FS-4)", () => {
+    const assets = {
+      logo: "https://example.com/assets/logo.svg",
+      ogImage: "https://example.com/assets/og-image.png",
+      favicon: "https://example.com/icon.svg",
+    };
+    const config = parseSiteConfig({ ...validConfig, site: { ...validConfig.site, assets } });
+    expect(config.assets).toEqual(assets);
+  });
+
+  it("rejects a non-URL site.assets value (FS-4)", () => {
+    expect(() =>
+      parseSiteConfig({ ...validConfig, site: { ...validConfig.site, assets: { logo: "not-a-url" } } }),
+    ).toThrow(/logo/);
+  });
+
+  it("accepts a valid ui.theme.background hex (FS-5)", () => {
+    const config = parseSiteConfig({
+      ...validConfig,
+      ui: { theme: { mode: "system", radius: "medium", background: "#fafafa" } },
+    });
+    expect(config.ui?.theme?.background).toBe("#fafafa");
+  });
+
+  it("rejects a non-hex ui.theme.background (FS-5)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        ui: { theme: { background: "background: url(...)" } },
+      }),
+    ).toThrow(/hex/);
+  });
+
+  it("rejects a 4-digit hex ui.theme.background (FS-5)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        ui: { theme: { background: "#12345" } },
+      }),
+    ).toThrow(/hex/);
+  });
+
+  it("maps ui.presetComparison through the loader (FS-3)", () => {
+    const comparison = {
+      adaptive: "https://foundation.provelopment.com",
+      classic: "https://classic.foundation.provelopment.com",
+      focus: "https://focus.foundation.provelopment.com",
+      workspace: "https://workspace.foundation.provelopment.com",
+      immersive: "https://immersive.foundation.provelopment.com",
+    };
+    const config = parseSiteConfig({ ...validConfig, ui: { preset: "adaptive", presetComparison: comparison } });
+    expect(config.ui).toEqual({ preset: "adaptive", presetComparison: comparison });
+    expect(config.presetComparison).toEqual(comparison);
+  });
+
+  it("rejects a non-URL presetComparison destination (FS-3)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        ui: { presetComparison: { adaptive: "not-a-url" } },
+      }),
+    ).toThrow(/adaptive/);
+  });
+
+  it("rejects an unknown presetComparison key (FS-3)", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        ui: { presetComparison: { nyc: "https://example.com" } },
+      }),
+    ).toThrow(/nyc/);
+  });
+
   it("rejects an unknown preset value with the full expected list", () => {
     expect(() =>
       parseSiteConfig({ ...validConfig, ui: { preset: "glamorous" } }),
