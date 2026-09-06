@@ -1,8 +1,9 @@
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+﻿import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { buildLanguageAlternates } from "@/core/locale";
 import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
@@ -71,10 +72,12 @@ export default async function AboutPage({ params }: PageParams) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <Heading level={1} tone="title">{content.title}</Heading>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
     </Section>
   );
 }
+
+

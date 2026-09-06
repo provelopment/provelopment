@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { siteConfig } from "@/config";
@@ -45,7 +46,7 @@ const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Phase L — segment two dispatch: `/{locale}/{item}`.
+ * Phase L â€” segment two dispatch: `/{locale}/{item}`.
  *
  *  - When `item` is a configured REGION LANDING for the locale (a landing
  *    entry `{ locale, region }`), this renders the regional home: the locale's
@@ -177,7 +178,7 @@ export default async function ItemPage({ params }: ItemPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <Heading level={1} tone="title">{content.title}</Heading>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
@@ -198,3 +199,5 @@ export default async function ItemPage({ params }: ItemPageProps) {
     </Section>
   );
 }
+
+

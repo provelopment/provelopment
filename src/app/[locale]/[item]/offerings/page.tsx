@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { OfferingList } from "@/components/site/offering-list";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
@@ -51,7 +52,7 @@ export async function generateMetadata({
 
   const dictionary = getDictionary(locale);
   const regionLabel = regionDisplayName(locale, region);
-  const title = `${dictionary.offerings.heading} — ${regionLabel}`;
+  const title = `${dictionary.offerings.heading} â€” ${regionLabel}`;
   const canonical = `${siteConfig.url}/${locale}/${item}/offerings`;
   const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
 
@@ -115,9 +116,9 @@ export default async function RegionalOfferingsPage({
   if (canonicalSlugs.length === 0) {
     return (
       <Section as="article">
-        <h1 className="text-3xl font-bold tracking-tight">
+        <Heading level={1} tone="title">
           {dictionary.offerings.heading}
-        </h1>
+        </Heading>
         <p className="mt-1 text-lg text-muted-foreground">{regionLabel}</p>
         <p className="mt-4 text-muted-foreground">{dictionary.offerings.emptyState}</p>
       </Section>
@@ -143,9 +144,9 @@ export default async function RegionalOfferingsPage({
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">
+      <Heading level={1} tone="title">
         {dictionary.offerings.heading}
-      </h1>
+      </Heading>
       <p className="mt-1 text-lg text-muted-foreground">{regionLabel}</p>
 
       <aside
@@ -178,3 +179,5 @@ export default async function RegionalOfferingsPage({
     </Section>
   );
 }
+
+

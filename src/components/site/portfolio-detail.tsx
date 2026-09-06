@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { PortfolioItem } from "@/core/portfolio";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { MarkdownContent } from "./markdown-content";
 
 interface PortfolioDetailProps {
@@ -30,10 +31,10 @@ export function PortfolioDetail({
           ← {backLabel}
         </Link>
       </p>
-      <h1 className="text-3xl font-bold tracking-tight">
+      <Heading level={1} tone="title">
         {item.title}
         {item.year ? <span className="text-muted-foreground"> · {item.year}</span> : null}
-      </h1>
+      </Heading>
       <p className="mt-3 max-w-2xl text-lg text-muted-foreground">{item.summary}</p>
       {item.tags && item.tags.length > 0 ? (
         <p className="mt-4 text-sm text-muted-foreground">
