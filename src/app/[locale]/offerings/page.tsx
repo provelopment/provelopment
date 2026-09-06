@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -10,7 +10,7 @@ import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { resolveOfferingPrice, sortOfferings } from "@/core/offerings";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: OfferingsPageProps): Promise<
 
   const title = getDictionary(locale).offerings.heading;
   const canonical = `${siteConfig.url}/${locale}/offerings`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -130,5 +130,6 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
     </Section>
   );
 }
+
 
 

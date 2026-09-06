@@ -143,6 +143,30 @@ export interface UiThemeConfig {
   readonly mode?: ThemeMode;
   /** Semantic corner-radius intent (aligns with the `--radius-*` tokens). */
   readonly radius?: ThemeRadius;
+  /** FS-5 — adopter-owned page/background hex color (overrides `--background`). */
+  readonly background?: string;
+}
+
+/**
+ * FS-3 — preset-comparison deployment metadata. Maps each presentable preset to
+ * the deployment URL that demonstrates the Foundation through that preset.
+ * Absent keys are simply not part of the comparison set for this deployment.
+ */
+export interface UiPresetComparisonConfig {
+  readonly adaptive?: string;
+  readonly classic?: string;
+  readonly focus?: string;
+  readonly workspace?: string;
+  readonly immersive?: string;
+}
+
+export interface SiteAssetsConfig {
+  /** Structured-data brand logo (absolute URL); absent → JSON-LD omits it. */
+  readonly logo?: string;
+  /** Open Graph / social image (absolute URL); absent → per-locale generated route. */
+  readonly ogImage?: string;
+  /** Browser favicon / icon (absolute URL); absent → app-routed `icon.svg`. */
+  readonly favicon?: string;
 }
 
 export interface SiteConfig {
@@ -157,6 +181,8 @@ export interface SiteConfig {
   readonly description: string;
   /** Optional brand logo (absolute URL) for structured data (Phase S). */
   readonly logo?: string;
+  /** FS-4 — canonical visual asset configuration (favicon/logo/OG image). */
+  readonly assets?: SiteAssetsConfig;
   readonly contact: ContactConfig;
   readonly socialLinks: readonly SocialLink[];
   readonly navigation: readonly NavigationItem[];
@@ -168,6 +194,11 @@ export interface SiteConfig {
    * until UI-02+; see ARCHITECTURE.md — UI System Architecture.
    */
   readonly ui?: UiConfig;
+  /**
+   * FS-3 — preset-comparison deployment destinations, lifted from `ui` for direct
+   * consumption by the header preset switcher (never read from `ui` at runtime).
+   */
+  readonly presetComparison?: UiPresetComparisonConfig;
   /** Normalized business profile (from `business` block or legacy contact). */
   readonly business: Business;
   /**

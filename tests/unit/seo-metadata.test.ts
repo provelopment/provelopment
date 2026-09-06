@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const base = {
   baseUrl: "https://example.com",
@@ -73,6 +73,27 @@ describe("buildTwitterData (Phase S)", () => {
     expect(data.images).toEqual(["https://example.com/en/opengraph-image"]);
   });
 
+describe("resolveOgImageUrl (FS-4)", () => {
+  it("uses the configured ogImage asset when supplied", () => {
+    expect(resolveOgImageUrl("https://cdn.example.com/og.png", "https://example.com", "en")).toBe(
+      "https://cdn.example.com/og.png",
+    );
+  });
+
+  it("falls back to the per-locale generated OpenGraph route when not configured", () => {
+    expect(resolveOgImageUrl(undefined, "https://example.com", "fr")).toBe(
+      "https://example.com/fr/opengraph-image",
+    );
+  });
+
+  it("is deterministic for every supported locale", () => {
+    for (const loc of ["en", "es", "fr", "de", "ja", "zh", "ko", "id", "ru"]) {
+      expect(resolveOgImageUrl(undefined, "https://example.com", loc)).toBe(
+        `https://example.com/${loc}/opengraph-image`,
+      );
+    }
+  });
+});
   it("falls back to the site description when no page description is given", () => {
     const data = buildTwitterData({
       title: "About",

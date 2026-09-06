@@ -8,7 +8,7 @@ import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { PortfolioItem } from "@/core/portfolio";
 import { isCanonicalPortfolioItem } from "@/core/portfolio";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const portfolioRepository = createFileSystemPageContentRepository<PortfolioItem>({
   defaultLocale: siteConfig.defaultLocale,
@@ -51,7 +51,7 @@ export async function generateMetadata({
 
   const title = content.title;
   const canonical = `${siteConfig.url}/${locale}/portfolio/${slug}`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,

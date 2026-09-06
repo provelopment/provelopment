@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
@@ -12,7 +12,7 @@ import { siteConfig } from "@/config";
 import { resolveRegionalPageContext } from "@/application/page-context";
 import { buildLanguageAlternates } from "@/core/locale";
 import { regionsForLocale, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -93,7 +93,7 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
   if (!content) return {};
 
   const title = content.title;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   if (isRegionalLanding(locale, item)) {
     const alternates = buildRegionalLanguageAlternates({
@@ -199,5 +199,6 @@ export default async function ItemPage({ params }: ItemPageProps) {
     </Section>
   );
 }
+
 
 

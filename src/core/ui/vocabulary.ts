@@ -96,3 +96,6 @@ export type ThemeMode = (typeof THEME_MODES)[number];
  */
 export const THEME_RADII = ["none", "small", "medium", "large"] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
+
+/** A normalized hex color (`#rgb`, `#rrggbb`, or `#rrggbbaa`) — RE for config validation. */
+export const COLOR_HEX_PATTERN = /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$|^#[0-9a-fA-F]{8}$/;

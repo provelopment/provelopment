@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -12,7 +12,7 @@ import { regionDisplayName } from "@/core/display-labels";
 import { buildRegionalLanguageAlternates, hasPageEntry } from "@/core/regional-pages";
 import type { OfferingsContent } from "@/core/offerings";
 import { resolveOfferingPrice, sortOfferings } from "@/core/offerings";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -54,7 +54,7 @@ export async function generateMetadata({
   const regionLabel = regionDisplayName(locale, region);
   const title = `${dictionary.offerings.heading} â€” ${regionLabel}`;
   const canonical = `${siteConfig.url}/${locale}/${item}/offerings`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   const alternates = buildRegionalLanguageAlternates({
     baseUrl: siteConfig.url,
@@ -179,5 +179,6 @@ export default async function RegionalOfferingsPage({
     </Section>
   );
 }
+
 
 

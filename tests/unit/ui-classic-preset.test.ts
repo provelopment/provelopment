@@ -98,19 +98,19 @@ describe("UI-06 — Classic CTA neutrality (D1/D2)", () => {
   });
 });
 
-describe("UI-06 — the shipped demo is explicit Classic with byte-identical effect", () => {
-  it("the demo ui block resolves preset classic with its classic leaves", () => {
+describe("FS-2 — the shipped Foundation reference site is Adaptive with effective effect", () => {
+  it("the reference site ui block resolves preset adaptive with its profile", () => {
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("classic");
-    expect(demoResolved.navigation).toEqual(uiPresetProfiles.classic.navigation);
-    // The explicit leaves equal the profile, so the EFFECTIVE composition is
-    // the same as the pre-UI-06 (preset-less) demo:
+    expect(demoResolved.preset).toBe("adaptive");
+    expect(demoResolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
+    // No explicit leaves are shipped, so the adaptive profile governs the
+    // EFFECTIVE composition of the canonical Foundation reference site:
     expect(demoResolved.navigation).toEqual({
-      desktop: "top",
-      tablet: "top-compact",
-      mobile: "drawer",
+      desktop: "sidebar",
+      tablet: "collapsed-sidebar",
+      mobile: "bottom-bar",
     });
-    expect(demoResolved.shell).toEqual(uiPresetProfiles.classic.shell);
+    expect(demoResolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
     expect(demoResolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
     expect(demoResolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
     expect(demoResolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);

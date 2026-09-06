@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -9,7 +9,7 @@ import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: ContactPageProps): Promise<Me
 
   const title = content?.title ?? "Contact";
   const canonical = `${siteConfig.url}/${locale}/contact`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -105,5 +105,6 @@ export default async function ContactPage({ params }: ContactPageProps) {
     </Section>
   );
 }
+
 
 

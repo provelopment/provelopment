@@ -121,7 +121,7 @@ describe("RSS XML (Phase T)", () => {
   const feedOptions = {
     feedUrl: "https://example.com/en/blog/rss.xml",
     siteUrl: "https://example.com",
-    siteName: "Your Business Site",
+    siteName: "Provelopment Foundation",
     description: "The site description",
     language: "en",
   };

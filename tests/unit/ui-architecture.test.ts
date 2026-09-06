@@ -221,18 +221,16 @@ describe("UI-01 — no default preset (the contract decision)", () => {
   });
 });
 
-describe("UI-06 — the shipped demo explicitly selects Classic", () => {
-  it("site.config.json ui block chooses the classic preset (plus explicit leaves)", () => {
+describe("FS-2 — the shipped Foundation reference site selects Adaptive", () => {
+  it("site.config.json ui block chooses the adaptive preset (canonical reference site)", () => {
     expect(siteConfig.ui).toBeDefined();
-    expect(siteConfig.ui?.preset).toBe("classic");
-    // The demo keeps its explicit classic leaves — D1 (Option B): the preset
-    // makes the personality truthful while the leaves stay as explicit
-    // overrides that repeat profile values (byte-identical effective config).
-    expect(siteConfig.ui?.navigation).toEqual({
-      desktop: "top",
-      tablet: "top-compact",
-      mobile: "drawer",
-    });
+    expect(siteConfig.ui?.preset).toBe("adaptive");
+    // The reference site ships no explicit navigation/shell leaves (FS-2), so
+    // the adaptive profile governs: sidebar ≥md / collapsed-sidebar tablet /
+    // bottom-bar <md — personality == effective composition for the canonical
+    // Foundation deployment.
+    expect(siteConfig.ui?.navigation).toBeUndefined();
+    expect(siteConfig.ui?.shell).toBeUndefined();
   });
 });
 
@@ -278,8 +276,8 @@ describe("UI-01 — loader mapping", () => {
     expect(config.ui?.preset).toBe("classic");
   });
 
-  it("the shipped demo ui block maps through the validated loader with the classic preset", () => {
+  it("the shipped Foundation reference site ui block maps through the validated loader with the adaptive preset", () => {
     const config = parseSiteConfig({ ...baseConfig, ui: siteConfig.ui ?? {} });
-    expect(config.ui?.preset).toBe("classic");
+    expect(config.ui?.preset).toBe("adaptive");
   });
 });

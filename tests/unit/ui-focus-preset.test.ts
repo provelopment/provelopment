@@ -96,12 +96,12 @@ describe("UI-07 — explicit Focus selection (declarative profile)", () => {
     expect(resolveUiConfig({}).preset).toBe("adaptive");
   });
 
-  it("the shipped demo (explicit Classic) is unchanged by UI-07", () => {
+  it("the shipped Foundation reference site (Adaptive) is unchanged by UI-07", () => {
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
-    expect(demoResolved.preset).toBe("classic");
-    expect(demoResolved.cta.enabled).toBe(true); // the demo's explicit block
+    expect(demoResolved.preset).toBe("adaptive");
+    expect(demoResolved.cta.enabled).toBe(true); // the site's explicit block
     expect(demoResolved.cta.label).toBe("Book Now");
-    expect(demoResolved.cta.href).toBeUndefined(); // no destination → still renders nothing
+    expect(demoResolved.cta.href).toBe("https://example.com/book"); // display/example destination (FS-2 reference CTA)
     expect(demoResolved.cta.style).toBe("standard");
   });
 });

@@ -4,18 +4,19 @@ import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 
 /**
- * Phase M — template presentation identity: the visitor-facing foundation is
- * branded "Your Business Site" (not the generic "My Site").
+ * FS-1 — canonical reference identity: the Foundation reference site is
+ * branded "Provelopment Foundation" (the Foundation itself is the business
+ * being represented by this site).
  */
-describe("Phase M — template branding", () => {
-  it("the site name is the demonstrative template identity", () => {
-    expect(siteConfig.name).toBe("Your Business Site");
+describe("FS-1 — Foundation reference identity", () => {
+  it("the site name is the canonical Provelopment Foundation identity", () => {
+    expect(siteConfig.name).toBe("Provelopment Foundation");
   });
 
-  it("the English home description no longer uses the old placeholder identity", () => {
+  it("the English home description identifies the canonical Foundation identity", () => {
     const en = getDictionary("en");
     expect(en.home.description).not.toMatch(/My Site/);
-    expect(en.home.description).toMatch(/Your Business Site/);
+    expect(en.home.description).toMatch(/Provelopment Foundation/);
   });
 
   it("every dictionary's home description drops the old placeholder identity", () => {

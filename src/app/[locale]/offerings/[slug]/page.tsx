@@ -12,7 +12,7 @@ import { resolveBusinessForLocale } from "@/core/business";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { OfferingsContent } from "@/core/offerings";
 import { isCanonicalOffering, resolveOfferingAction, resolveOfferingPrice } from "@/core/offerings";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const offeringsRepository = createFileSystemPageContentRepository<OfferingsContent>({
   defaultLocale: siteConfig.defaultLocale,
@@ -70,7 +70,7 @@ export async function generateMetadata({
 
   const title = content.title;
   const canonical = `${siteConfig.url}/${locale}/offerings/${slug}`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,

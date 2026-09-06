@@ -39,9 +39,13 @@
   "language": {
     "label": "Bahasa"
   },
+  "presetComparison": {
+    "label": "Lihat situs ini dalam prasetel lain",
+    "current": "saat ini"
+  },
   "location": {
     "label": "Lokasi",
-    "unspecified": "Tidak ditentukan"
+    "unspecified": "Global"
   },
   "business": {
     "open": "Buka sekarang",

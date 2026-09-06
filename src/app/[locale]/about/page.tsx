@@ -1,4 +1,4 @@
-﻿import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MarkdownContent } from "@/components/site/markdown-content";
@@ -6,7 +6,7 @@ import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { buildLanguageAlternates } from "@/core/locale";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const pageContentRepository = createFileSystemPageContentRepository({
   defaultLocale: siteConfig.defaultLocale,
@@ -35,7 +35,7 @@ export async function generateMetadata({
 
   const title = content?.title ?? "About";
   const canonical = `${siteConfig.url}/${locale}/about`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -79,5 +79,6 @@ export default async function AboutPage({ params }: PageParams) {
     </Section>
   );
 }
+
 
 

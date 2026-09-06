@@ -314,3 +314,24 @@ describe("P0-1 — the sidebar capability leaf is declarative and shared (no pre
     expect(() => assertResolvedUiConfigComplete(sansSidebar)).toThrow(/shell\.sidebar\.collapsible/);
   });
 });
+describe("FS-5 — theme background (adopter-owned presentation leaf)", () => {
+  it("defaults the background to undefined (existing token renders)", () => {
+    const resolved = resolveUiConfig({});
+    expect(resolved.theme.background).toBeUndefined();
+    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
+  });
+
+  it("passes a configured background hex through resolution", () => {
+    const resolved = resolveUiConfig({ theme: { background: "#fafafa" } });
+    expect(resolved.theme.background).toBe("#fafafa");
+    expect(resolved.theme.mode).toBe("system");
+  });
+
+  it("keeps the background preset-agnostic (no preset-name branch)", () => {
+    for (const preset of UI_PRESETS) {
+      const resolved = resolveUiConfig({ preset, theme: { background: "#123456" } });
+      expect(resolved.theme.background).toBe("#123456");
+      expect(resolved.preset).toBe(preset);
+    }
+  });
+});

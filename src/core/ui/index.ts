@@ -5,6 +5,7 @@
  * from `@/core/ui`; never import the inner modules directly from consumers.
  */
 export {
+  COLOR_HEX_PATTERN,
   CONTENT_WIDTHS,
   CTA_ACTIONS,
   CTA_STYLES,

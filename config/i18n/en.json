@@ -1,7 +1,7 @@
 {
   "home": {
-    "tagline": "A fast, multilingual website for your small business",
-    "description": "Replace this description with your own. Your Business Site is a demonstration of the Provelopment Foundation template: edit site.config.json, the Markdown content, and your assets to make it yours."
+    "tagline": "A production-grade, configurable website foundation for small businesses",
+    "description": "Provelopment Foundation is an open website foundation for small businesses — a multilingual, configuration-first template that turns JSON, Markdown, and assets into a complete, accessible site. Reuse the proven base instead of starting from scratch."
   },
   "sections": {
     "about": "About",
@@ -42,7 +42,11 @@
   },
   "location": {
     "label": "Location",
-    "unspecified": "Unspecified"
+    "unspecified": "Global"
+  },
+  "presetComparison": {
+    "label": "View this site in another preset",
+    "current": "current"
   },
   "business": {
     "open": "Open now",

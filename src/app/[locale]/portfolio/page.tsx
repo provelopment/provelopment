@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
@@ -10,7 +10,7 @@ import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import type { PortfolioItem } from "@/core/portfolio";
 import { sortPortfolio } from "@/core/portfolio";
-import { buildOpenGraphData, buildTwitterData } from "@/core/seo-metadata";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
 const portfolioRepository = createFileSystemPageContentRepository<PortfolioItem>({
   defaultLocale: siteConfig.defaultLocale,
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: PortfolioPageProps): Promise<
   const dictionary = getDictionary(locale);
   const title = dictionary.portfolio?.heading ?? "Portfolio";
   const canonical = `${siteConfig.url}/${locale}/portfolio`;
-  const ogImage = `${siteConfig.url}/${locale}/opengraph-image`;
+  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
@@ -102,5 +102,6 @@ export default async function PortfolioPage({ params }: PortfolioPageProps) {
     </Section>
   );
 }
+
 
 
