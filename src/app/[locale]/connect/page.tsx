@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { Grid } from "@/components/ui/grid";
 import { connectMethodLabel } from "@/components/site/connect-method-label";
 import { siteConfig } from "@/config";
@@ -65,7 +66,7 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
 }
 
 /**
- * The Connect page (Phase M) — the first-class communication/connection hub.
+ * The Connect page (Phase M) â€” the first-class communication/connection hub.
  * Content is markdown (`content/pages/<locale>/connect.md`); for each
  * configured connection method a card is rendered with the method's label and
  * target. Methods marked `demoOnly` carry a visible demo badge, and the page
@@ -81,7 +82,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{dictionary.connect.heading}</h1>
+      <Heading level={1} tone="title">{dictionary.connect.heading}</Heading>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
@@ -127,3 +128,5 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
     </Section>
   );
 }
+
+

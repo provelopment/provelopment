@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 
 import { createBookingActionResolver } from "@/adapters/booking";
 import { BookingAction } from "@/components/site/booking-action";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -90,9 +91,9 @@ export default async function HomePage({
         className="mx-auto max-w-page px-4 pb-16"
       >
         <div className="rounded-lg border border-border bg-muted p-6">
-          <h2 id="home-about-heading" className="text-xl font-semibold">
+          <Heading level={2} tone="section" id="home-about-heading">
             {dictionary.sections.about}
-          </h2>
+          </Heading>
           <p className="mt-2 text-muted-foreground">
             {dictionary.home.description}
           </p>

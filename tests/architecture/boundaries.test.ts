@@ -761,6 +761,27 @@ describe("Phase D — design-system boundaries", () => {
     expect(source).toMatch(/from "\.\/nav-badge"/);
     expect(source).not.toMatch(/<span className="nav-item-badge">\{badge\}<\/span>/);
   });
+
+  it("P2-12 — page/app consumers compose the shared Heading for the page-title contract", () => {
+    // No page.tsx under [locale] may inline the raw page-title h1 classes; the
+    // demonstrated title consumers must compose `<Heading level={1} tone="title">`.
+    const pageFiles = listTypeScriptFiles(path.join(APP_DIRECTORY, "[locale]")).filter(
+      (file) => file.endsWith("page.tsx"),
+    );
+    let composing = 0;
+    let raw = 0;
+    for (const file of pageFiles) {
+      const source = readFileSync(file, "utf8");
+      if (source.includes("<Heading level={1} tone=\"title\">")) composing++;
+      if (source.includes('<h1 className="text-3xl font-bold tracking-tight"')) raw++;
+      expect(
+        source,
+        `${path.relative(process.cwd(), file)} must not inline the raw page-title h1 classes`,
+      ).not.toContain('<h1 className="text-3xl font-bold tracking-tight"');
+    }
+    expect(composing).toBeGreaterThanOrEqual(10);
+    expect(raw).toBe(0);
+  });
 });
 describe("Phase C — offerings boundaries", () => {
   const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
