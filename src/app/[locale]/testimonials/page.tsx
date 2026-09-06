@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { TestimonialList } from "@/components/site/testimonial-list";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -90,7 +91,7 @@ export default async function TestimonialsPage({ params }: TestimonialsPageProps
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{chrome.heading}</h1>
+      <Heading level={1} tone="title">{chrome.heading}</Heading>
       <div className="mt-8">
         <TestimonialList
           testimonials={sorted}
@@ -102,3 +103,5 @@ export default async function TestimonialsPage({ params }: TestimonialsPageProps
     </Section>
   );
 }
+
+

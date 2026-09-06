@@ -44,6 +44,7 @@ import {
   Stack,
   FieldError,
   CardImage,
+  Heading,
 } from "@/components/ui";
 
 /** Small JSX-free node helper for the repo's `.test.ts` component convention. */
@@ -462,5 +463,19 @@ describe("P2-10 — CardImage (shared collection-card image primitive)", () => {
   it("passes alt through verbatim (caller owns accessible copy; the primitive never invents alt)", () => {
     const html = renderToStaticMarkup(CardImage({ src: "/a.png", alt: "My Portfolio Item" }));
     expect(html).toContain('alt="My Portfolio Item"');
+  });
+});
+
+describe("P2-12 — Heading (shared page-title/section-heading typography primitive)", () => {
+  it("renders h1 with the demonstrated page-title contract for tone=title", () => {
+    const html = renderToStaticMarkup(Heading({ level: 1, tone: "title", children: "About us" }));
+    expect(html).toContain('<h1 class="text-3xl font-bold tracking-tight">About us</h1>');
+  });
+
+  it("renders h2 with the demonstrated section-heading contract for tone=section", () => {
+    const html = renderToStaticMarkup(
+      Heading({ level: 2, tone: "section", id: "home-about-heading", children: "About" }),
+    );
+    expect(html).toContain('<h2 id="home-about-heading" class="text-xl font-semibold">About</h2>');
   });
 });

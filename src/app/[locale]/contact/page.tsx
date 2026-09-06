@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { ContactForm } from "@/components/site/contact-form";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
@@ -81,9 +82,9 @@ export default async function ContactPage({ params }: ContactPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">
+      <Heading level={1} tone="title">
         {dictionary.contact.heading}
-      </h1>
+      </Heading>
 
       {demoMode ? (
         <p className="mt-4 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
@@ -104,3 +105,5 @@ export default async function ContactPage({ params }: ContactPageProps) {
     </Section>
   );
 }
+
+
