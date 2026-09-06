@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { isCanonicalLegalSlug, resolveLegalDocs } from "@/core/legal";
@@ -22,7 +23,7 @@ interface LegalPageProps {
 }
 
 /**
- * Statically generates every exposed legal detail page (each locale × slug
+ * Statically generates every exposed legal detail page (each locale Ã— slug
  * present in both the `legal` config block and default-locale content). Any
  * other slug returns a 404 via `dynamicParams`.
  */
@@ -99,9 +100,9 @@ export async function generateMetadata({
 /**
  * `/legal/[slug]` (Phase D). A legal document is exposed only when it is BOTH:
  *  - in the `legal` config block (config governs exposure), and
- *  - canonical (exists in the default locale — content governs existence).
+ *  - canonical (exists in the default locale â€” content governs existence).
  * Otherwise it is a proper 404 (no `/legal` index; legal docs are reached from
- * the footer). Rendering uses the same content repository `findBySlug` locale →
+ * the footer). Rendering uses the same content repository `findBySlug` locale â†’
  * default fallback as every other collection.
  */
 export default async function LegalPage({ params }: LegalPageProps) {
@@ -120,7 +121,7 @@ export default async function LegalPage({ params }: LegalPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <Heading level={1} tone="title">{content.title}</Heading>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
@@ -130,3 +131,5 @@ export default async function LegalPage({ params }: LegalPageProps) {
     </Section>
   );
 }
+
+

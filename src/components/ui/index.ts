@@ -30,6 +30,9 @@ export type { FieldErrorProps } from "./field-error";
 export { CardImage } from "./card-image";
 export type { CardImageProps } from "./card-image";
 
+export { Heading } from "./heading";
+export type { HeadingProps } from "./heading";
+
 export { Stack } from "./stack";
 export type { StackProps } from "./stack";
 

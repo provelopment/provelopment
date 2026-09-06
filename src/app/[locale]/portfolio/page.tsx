@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { PortfolioList } from "@/components/site/portfolio-list";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -89,7 +90,7 @@ export default async function PortfolioPage({ params }: PortfolioPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{chrome.heading}</h1>
+      <Heading level={1} tone="title">{chrome.heading}</Heading>
       <div className="mt-8">
         <PortfolioList
           items={sorted}
@@ -101,3 +102,5 @@ export default async function PortfolioPage({ params }: PortfolioPageProps) {
     </Section>
   );
 }
+
+

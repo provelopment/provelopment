@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { PostContent } from "@/core/posts";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { MarkdownContent } from "./markdown-content";
 
 interface PostDetailProps {
@@ -30,7 +31,7 @@ export function PostDetail({
           ← {backLabel}
         </Link>
       </p>
-      <h1 className="text-3xl font-bold tracking-tight">{post.title}</h1>
+      <Heading level={1} tone="title">{post.title}</Heading>
       <p className="mt-3 text-sm text-muted-foreground">
         {post.date} · {readingTimeLabel}
       </p>

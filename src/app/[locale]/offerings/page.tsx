@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { OfferingList } from "@/components/site/offering-list";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -62,13 +63,13 @@ export async function generateMetadata({ params }: OfferingsPageProps): Promise<
 /**
  * `/offerings` (Phase C). Three independent concerns:
  *  - content (`content/offerings/`) determines which offerings exist;
- *  - `features.offerings` enables/disables the routes (disabled → 404);
+ *  - `features.offerings` enables/disables the routes (disabled â†’ 404);
  *  - `navigation[]` determines discoverability (config-authoritative).
  */
 export default async function OfferingsPage({ params }: OfferingsPageProps) {
   const { locale } = await params;
 
-  // Feature disabled → the offering catalog is not exposed at all. Strongest
+  // Feature disabled â†’ the offering catalog is not exposed at all. Strongest
   // "capability not enabled" semantics: no placeholder page.
   if (!siteConfig.offeringsFeature) {
     notFound();
@@ -82,9 +83,9 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
   if (canonicalSlugs.length === 0) {
     return (
       <Section as="article">
-        <h1 className="text-3xl font-bold tracking-tight">
+        <Heading level={1} tone="title">
           {dictionary.offerings.heading}
-        </h1>
+        </Heading>
         <p className="mt-4 text-muted-foreground">{dictionary.offerings.emptyState}</p>
       </Section>
     );
@@ -106,9 +107,9 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">
+      <Heading level={1} tone="title">
         {dictionary.offerings.heading}
-      </h1>
+      </Heading>
 
       <aside
         aria-label={dictionary.offerings.disclaimerTitle}
@@ -129,3 +130,5 @@ export default async function OfferingsPage({ params }: OfferingsPageProps) {
     </Section>
   );
 }
+
+

@@ -1,10 +1,11 @@
-import Image from "next/image";
+﻿import Image from "next/image";
 import Link from "next/link";
 
 import type { OfferingsContent, ResolvedOfferingAction } from "@/core/offerings";
 
 import { MarkdownContent } from "./markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 
 export interface OfferingDetailLabels {
   /** "What's included" section heading. */
@@ -33,15 +34,15 @@ interface OfferingDetailProps {
 }
 
 /**
- * Phase C — offering detail presentation.
+ * Phase C â€” offering detail presentation.
  *
- * Deterministic section order: image → `<h1>` title → featured badge → blurb →
- * price → Markdown body → "What's included" (`<ul>`) → FAQ (native
- * `<details>/<summary>` disclosure — keyboard/focus behavior comes from the
- * browser, no JS) → resolved CTA → back link.
+ * Deterministic section order: image â†’ `<h1>` title â†’ featured badge â†’ blurb â†’
+ * price â†’ Markdown body â†’ "What's included" (`<ul>`) â†’ FAQ (native
+ * `<details>/<summary>` disclosure â€” keyboard/focus behavior comes from the
+ * browser, no JS) â†’ resolved CTA â†’ back link.
  *
  * The CTA renders ONLY when the resolved action is a link AND a localized
- * label exists — a `none` action (e.g. booking disabled) leaves zero visual or
+ * label exists â€” a `none` action (e.g. booking disabled) leaves zero visual or
  * focusable residue. FAQ answers are plain text (deterministic, no nested
  * markdown parsing).
  */
@@ -60,7 +61,7 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
         </div>
       ) : null}
 
-      <h1 className="text-3xl font-bold tracking-tight">{offering.title}</h1>
+      <Heading level={1} tone="title">{offering.title}</Heading>
       {offering.featured ? (
         <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-primary">
           {labels.featuredBadge}
@@ -89,9 +90,9 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
 
       {offering.deliverables && offering.deliverables.length > 0 ? (
         <section aria-labelledby="offering-deliverables-heading" className="mt-8">
-          <h2 id="offering-deliverables-heading" className="text-xl font-semibold">
+          <Heading level={2} tone="section" id="offering-deliverables-heading">
             {labels.deliverablesHeading}
-          </h2>
+          </Heading>
           <ul className="mt-3 list-inside list-disc space-y-1">
             {offering.deliverables.map((item) => (
               <li key={item}>{item}</li>
@@ -102,9 +103,9 @@ export function OfferingDetail({ offering, action, backHref, labels }: OfferingD
 
       {offering.faq && offering.faq.length > 0 ? (
         <section aria-labelledby="offering-faq-heading" className="mt-8">
-          <h2 id="offering-faq-heading" className="text-xl font-semibold">
+          <Heading level={2} tone="section" id="offering-faq-heading">
             {labels.faqHeading}
-          </h2>
+          </Heading>
           <div className="mt-3 space-y-2">
             {offering.faq.map((item) => (
               <details

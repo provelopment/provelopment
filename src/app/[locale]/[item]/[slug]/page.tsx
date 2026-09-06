@@ -1,10 +1,11 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
 import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { siteConfig } from "@/config";
@@ -23,10 +24,10 @@ const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
 /**
- * Phase L — regional content page `/{locale}/{region}/{page}`.
+ * Phase L â€” regional content page `/{locale}/{region}/{page}`.
  *
  * Only configured `(locale, region, slug)` combinations are generated
- * (`dynamicParams` → unknown combinations are a proper 404). The content page
+ * (`dynamicParams` â†’ unknown combinations are a proper 404). The content page
  * body reuses the locale's flat content file (`content/pages/{locale}/{slug}.md`,
  * Phase K decision); the region supplies the complete operational identity
  * (timezone/address/contact/hours/holidays/status/directions/JSON-LD).
@@ -121,7 +122,7 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
 
   return (
     <Section as="article">
-      <h1 className="text-3xl font-bold tracking-tight">{content.title}</h1>
+      <Heading level={1} tone="title">{content.title}</Heading>
       <div className="mt-6">
         <MarkdownContent markdown={content.body} />
       </div>
@@ -138,3 +139,5 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
     </Section>
   );
 }
+
+
