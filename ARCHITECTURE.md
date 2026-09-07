@@ -459,7 +459,7 @@ Page = locale + region + page      (e.g. /en/toronto/about)
   dispatches segment two (regional landing vs flat content page) and
   `[locale]/[item]/[slug]/page.tsx` renders configured regional pages; both
   `dynamicParams = false`, so an unconfigured combination is a proper 404
-  (e.g. `/ja/toronto`, `/en/montreal/contact`).
+  (e.g. `/ja/toronto`, `/en/toronto/contact`).
 - **Config shape (`business.pages`).** Entries are `{ locale, region }`
   (landing) or `{ locale, region, slug }` (regional page). Every bound
   `(locale, region)` MUST have a landing entry (validated at build time);
