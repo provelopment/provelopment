@@ -406,6 +406,8 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       triggerId: t ? t.id : null,
       expanded: t ? t.getAttribute('aria-expanded') : null,
       controls: t ? t.getAttribute('aria-controls') : null,
+      triggerText: t ? t.textContent.trim() : null,
+      triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
       ariaCurrent: document.querySelectorAll('a[aria-current="page"]').length,
     };
   })()`);
@@ -414,6 +416,10 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "closed.trigger.id", closed.triggerId === "shell-mobile-nav");
   check(rows, "closed.trigger.expanded", closed.expanded === "false");
   check(rows, "closed.trigger.controls", closed.controls === "shell-mobile-nav-panel");
+  // P5-1 — the closed mobile trigger is never a bare Primary navigation/icon-only
+  // control: it exposes the recognizable open-sidebar icon + the explicit label.
+  check(rows, "closed.trigger.label.viewSidebar", closed.triggerText === "View Sidebar");
+  check(rows, "closed.trigger.icon", !!closed.triggerIcon);
   check(rows, "closed.ariaCurrent", closed.ariaCurrent >= 1);
 
   const opened = await openTrigger(cdp, TRIGGER, PANEL);
@@ -471,9 +477,12 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "open.nav.liSharedMarker", !!o && !!o.currentLiShared);
   check(rows, "open.footer.badgeShared", !!o && !!o.footerBadgeShared);
 
-  // P0-1 — immersive OVERLAY sidebar contract: vertical navigation,
-  // content-appropriate bounded width, and an explicit bottom close control.
-  if (preset.name === "immersive") {
+  // P0-1/P5-1 — every drawer/overlay mobile disclosure follows the ONE shared
+  // sidebar contract: content-appropriate bounded width (never a full-viewport
+  // takeover), vertical navigation for the overlay pattern,and an explicit bottom
+  // Close Sidebar control with the recognizable close icon — for EVERY preset
+  // (P5-1 extended the previously immersive-only contract to the drawer presets).
+  if (preset.name !== "adaptive") {
     const ov = await cdp.evaluate(`(() => {
       const d = document.querySelector(${JSON.stringify(PANEL)});
       if (!d) return null;
@@ -488,13 +497,17 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
         closeLabel: closeBtn ? closeBtn.textContent.trim() : null,
         closeVisible: !!closeBtn && closeRect.width > 0 && closeRect.height > 0,
         closeBelowNav: !!closeBtn && !!ul && closeBtn.getBoundingClientRect().top > ul.getBoundingClientRect().bottom - 4,
+        closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
       };
     })()`);
-    check(rows, "overlay.nav.vertical", !!ov && ov.navVertical);
-    check(rows, "overlay.panel.bounded", !!ov && ov.panelWidth >= 240 && ov.panelWidth < ov.viewportWidth && ov.panelWidth <= Math.min(288, ov.viewportWidth * 0.8) + 2);
-    check(rows, "overlay.close.visible", !!ov && ov.closeVisible);
-    check(rows, "overlay.close.label", !!ov && ov.closeLabel === "Close Sidebar");
-    check(rows, "overlay.close.belowNav", !!ov && ov.closeBelowNav);
+    check(rows, "panel.bounded", !!ov && ov.panelWidth >= 240 && ov.panelWidth < ov.viewportWidth && ov.panelWidth <= Math.min(288, ov.viewportWidth * 0.8) + 2, ov ? `w=${ov.panelWidth} vp=${ov.viewportWidth}` : "null");
+    check(rows, "panel.close.visible", !!ov && ov.closeVisible);
+    check(rows, "panel.close.label", !!ov && ov.closeLabel === "Close Sidebar");
+    check(rows, "panel.close.belowNav", !!ov && ov.closeBelowNav);
+    check(rows, "panel.close.icon", !!ov && !!ov.closeIcon);
+    if (preset.name === "immersive") {
+      check(rows, "overlay.nav.vertical", !!ov && ov.navVertical);
+    }
   }
 
   let trapped = true;
@@ -538,10 +551,11 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   }
   check(rows, "cycles.clean", clean);
 
-  // P0-1 — activating the explicit "Close Sidebar" control closes the mobile
+  // P0-1/P5-1 — activating the explicit "Close Sidebar" control closes the mobile
   // disclosure, returns focus to the trigger, and restores inert + scroll
   // (the SAME Drawer close mechanism as Escape/backdrop — not a second path).
-  if (preset.name === "immersive") {
+  // P5-1: this behavioral coverage now runs for EVERY drawer/overlay preset
+  if (preset.name !== "adaptive") {
     const reopen = await openTrigger(cdp, TRIGGER, PANEL);
     check(rows, "closeBtn.opens", reopen);
     const closeBtnClick = await cdp.clickCenter("#shell-mobile-nav-panel .ui-drawer-close");
@@ -622,6 +636,79 @@ async function runAdaptiveMobile(rows, cdp) {
   const mb = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
   check(rows, "more.backdrop.closed", mb.dialogs === 0);
   check(rows, "more.backdrop.inertCleared", mb.mainInert === false);
+
+  // P5-1 — adaptive More drawer follows the SAME shared sidebar contract:
+  // bounded width + explicit Close Sidebar control with icon (preserved More entry).
+  await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
+  const mp = await cdp.evaluate(`(() => {
+    const d = document.querySelector('#shell-bottom-more-panel');
+    const t = document.getElementById('shell-bottom-more');
+    if (!d) return null;
+    const ul = d.querySelector('ul');
+    const closeBtn = d.querySelector('.ui-drawer-close');
+    const pr = d.getBoundingClientRect();
+    const cr = closeBtn ? closeBtn.getBoundingClientRect() : null;
+    return {
+      panelWidth: Math.round(pr.width),
+      viewportWidth: document.documentElement.clientWidth,
+      closeLabel: closeBtn ? closeBtn.textContent.trim() : null,
+      closeVisible: !!closeBtn && !!cr && cr.width > 0 && cr.height > 0,
+      closeBelowNav: !!closeBtn && !!ul && cr.top > ul.getBoundingClientRect().bottom - 4,
+      closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
+      triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
+    };
+  })()`);
+  check(rows, "more.panel.bounded", !!mp && mp.panelWidth > 0 && mp.panelWidth < mp.viewportWidth && mp.panelWidth <= Math.min(288, mp.viewportWidth * 0.8) + 2);
+  check(rows, "more.trigger.icon", !!mp && !!mp.triggerIcon);
+  check(rows, "more.close.visible", !!mp && !!mp.closeVisible);
+  check(rows, "more.close.label", !!mp && !!mp.closeLabel && mp.closeLabel === "Close Sidebar", mp ? `label=[${mp.closeLabel}]` : "null");
+  check(rows, "more.close.belowNav", !!mp && !!mp.closeBelowNav);
+  check(rows, "more.close.icon", !!mp && !!mp.closeIcon);
+  const moreCloseClick = await cdp.clickCenter("#shell-bottom-more-panel .ui-drawer-close");
+  await sleep(250);
+  const mcc = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, activeId: document.activeElement && document.activeElement.id, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
+  check(rows, "more.closeBtn.clicked", moreCloseClick);
+  check(rows, "more.closeBtn.closed", mcc.dialogs === 0);
+  check(rows, "more.closeBtn.focusReturn", mcc.activeId === "shell-bottom-more");
+  check(rows, "more.closeBtn.inertCleared", mcc.mainInert === false);
+
+  // P5-1 — footer clearance at mobile + tablet: the STICKY bar participates in
+  // document flow after the footer (never obscuring it; no spacer needed).
+  await cdp.evaluate("window.scrollTo(0, document.body.scrollHeight);");
+  await sleep(300);
+  const ft = await cdp.evaluate(`(() => {
+    const bar = document.querySelector('.ui-shell-bottom-bar');
+    const foot = document.querySelector('footer');
+    const br = bar ? bar.getBoundingClientRect() : null;
+    const fr = foot ? foot.getBoundingClientRect() : null;
+    return {
+      barVisible: !!br && br.height > 0,
+      barSticky: !!bar && getComputedStyle(bar).position === 'sticky',
+      footerVisible: !!fr && fr.height > 0,
+      footerAboveBar: !!fr && !!br && fr.height > 0 && fr.bottom <= br.top + 1,
+    };
+  })()`);
+  check(rows, "footer.bar.sticky", !!ft && !!ft.barSticky && !!ft.barVisible, ft ? `bs=${ft.barSticky} bv=${ft.barVisible}` : "null");
+  check(rows, "footer.reachableAtEnd", !!ft && ft.footerVisible && ft.footerAboveBar, ft ? `fv=${ft.footerVisible} fab=${ft.footerAboveBar}` : "null");
+
+  await cdp.setViewport(700, 820);
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  await cdp.evaluate("window.scrollTo(0, document.body.scrollHeight);");
+  await sleep(300);
+  const ftT = await cdp.evaluate(`(() => {
+    const bar = document.querySelector('.ui-shell-bottom-bar');
+    const foot = document.querySelector('footer');
+    const br = bar ? bar.getBoundingClientRect() : null;
+    const fr = foot ? foot.getBoundingClientRect() : null;
+    return {
+      barVisible: !!br && br.height > 0 && br.top > 0 && br.top < document.documentElement.clientHeight,
+      barSticky: !!bar && getComputedStyle(bar).position === 'sticky',
+      footerAboveBar: !!fr && !!br && fr.height > 0 && fr.bottom <= br.top + 1,
+    };
+  })()`);
+  check(rows, "tablet.bar.sticky", !!ftT && !!ftT.barVisible && !!ftT.barSticky, ftT ? `bv=${ftT.barVisible} bs=${ftT.barSticky}` : "null");
+  check(rows, "tablet.footer.reachableAtEnd", !!ftT && !!ftT.footerAboveBar, ftT ? `fab=${ftT.footerAboveBar}` : "null");
 }
 
 /**
@@ -792,4 +879,6 @@ async function main() {
 }
 
 main();
+
+
 

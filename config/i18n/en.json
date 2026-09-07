@@ -15,6 +15,7 @@
     "moreMenu": "More",
     "sidebarToggle": "Collapse navigation",
     "closeSidebar": "Close Sidebar",
+    "viewSidebar": "View Sidebar",
     "items": {
       "/": "Home",
       "/about": "About",

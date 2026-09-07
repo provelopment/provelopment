@@ -65,6 +65,8 @@ export interface ShellEngineProps {
     readonly moreLabel: string;
     readonly links: readonly ShellBottomBarLink[];
     readonly demoBadgeLabel?: string;
+    /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer. */
+    readonly closeLabel?: string;
   };
   /** Client nav context: current locale + configured region page bindings. */
   readonly locale: string;
@@ -225,19 +227,22 @@ export function ShellEngine({
   function buildMobile() {
     if (decision.mobile.primitiveKind === "bottom-bar" && bottomNav) {
       return (
-        <ShellBottomBar
-          label={bottomNav.label}
-          moreLabel={bottomNav.moreLabel}
-          links={bottomNav.links}
-          locale={locale}
-          pageBindings={pageBindings}
-          demoBadgeLabel={bottomNav.demoBadgeLabel}
-          cta={
-            ctaNode !== null && decision.mobile.ctaSlot === "bottom" && ctaLabel && ctaHref
-              ? { label: ctaLabel, href: ctaHref }
-              : undefined
-          }
-        />
+        <>
+          <ShellBottomBar
+            label={bottomNav.label}
+            moreLabel={bottomNav.moreLabel}
+            links={bottomNav.links}
+            locale={locale}
+            pageBindings={pageBindings}
+            demoBadgeLabel={bottomNav.demoBadgeLabel}
+            closeLabel={bottomNav.closeLabel}
+            cta={
+              ctaNode !== null && decision.mobile.ctaSlot === "bottom" && ctaLabel && ctaHref
+                ? { label: ctaLabel, href: ctaHref }
+                : undefined
+            }
+          />
+        </>
       );
     }
     return mobileNavigation;

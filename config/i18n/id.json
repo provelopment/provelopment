@@ -14,6 +14,8 @@
     "footerLabel": "Navigasi kaki halaman",
     "moreMenu": "Lainnya",
     "sidebarToggle": "Ciutkan navigasi",
+    "closeSidebar": "Tutup sidebar",
+    "viewSidebar": "Lihat sidebar",
     "items": {
       "/": "Beranda",
       "/about": "Tentang",

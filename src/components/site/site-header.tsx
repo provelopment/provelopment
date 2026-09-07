@@ -140,13 +140,9 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                     <ShellMobileNav
                         pattern={mobilePattern}
                         id="shell-mobile-nav"
-                        triggerLabel={dictionary.navigation.primaryLabel}
+                        triggerLabel={dictionary.navigation.viewSidebar ?? "View Sidebar"}
                         className="md:hidden"
-                        closeLabel={
-                            mobilePattern === "overlay"
-                                ? (dictionary.navigation.closeSidebar ?? "Close Sidebar")
-                                : undefined
-                        }
+                        closeLabel={dictionary.navigation.closeSidebar ?? "Close Sidebar"}
                     >
                         {mobileNavListElement}
                         {mobileDrawerCta}

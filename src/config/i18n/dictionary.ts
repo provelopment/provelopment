@@ -40,6 +40,9 @@ export const dictionarySchema = z.object({
      * today); locale files without the key are valid.
      */
     closeSidebar: z.string().optional(),
+    /** P5-1 — label for the mobile "open sidebar" trigger action ("View Sidebar"). OPTIONAL:
+     * locale files without the key fall back to the English string in the composer. */
+    viewSidebar: z.string().optional(),
   }),
   notFound: z.object({
     title: z.string(),

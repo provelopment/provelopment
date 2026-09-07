@@ -21,6 +21,46 @@ import { createInitialDisclosure, disclosureReducer } from "@/components/ui/stat
  * Full focus-trap/focus-return/Escape/scroll-lock behavioral matrix is the
  * mandatory UI-10 browser gate.
  */
+/** P5-1 — recognizable "open sidebar" icon (a sidebar panel + rows). Stroke-based,
+ * token-colored (`currentColor`), decorative (`aria-hidden`): the visible label is the
+ * accessible name, so the control never needs a separate tooltip/visually-hidden text. */
+function SidebarOpenIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="ui-mobile-nav-icon h-4 w-4 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+      <path d="M7.5 9.5h9M7.5 13h9M7.5 16.5h4.5" />
+    </svg>
+  );
+}
+
+/** P5-1 — recognizable "close sidebar" icon (an X). Same decorative contract. */
+function SidebarCloseIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="ui-mobile-nav-icon h-4 w-4 shrink-0"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+    >
+      <path d="M6 6L18 18M18 6L6 18" />
+    </svg>
+  );
+}
+
 export interface ShellMobileNavProps {
   /** "drawer" or "overlay" — which client dialog primitive to compose. */
   readonly pattern: "drawer" | "overlay";
@@ -54,8 +94,9 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className,
         <button
           type="button"
           onClick={close}
-          className="ui-drawer-close mt-4 flex w-full items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+          className="ui-drawer-close mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
+          <SidebarCloseIcon />
           {closeLabel}
         </button>
       ) : null}
@@ -70,8 +111,9 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className,
         aria-expanded={open === "open"}
         aria-controls={`${id}-panel`}
         onClick={toggle}
-        className="md:hidden"
+        className="ui-shell-mobile-nav-trigger inline-flex items-center gap-1.5 md:hidden"
       >
+        <SidebarOpenIcon />
         {triggerLabel}
       </button>
       {pattern === "overlay" ? (

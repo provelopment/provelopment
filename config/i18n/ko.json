@@ -14,6 +14,8 @@
     "footerLabel": "푸터 탐색",
     "moreMenu": "더 보기",
     "sidebarToggle": "내비게이션 접기",
+    "closeSidebar": "사이드바 닫기",
+    "viewSidebar": "사이드바 보기",
     "items": {
       "/": "홈",
       "/about": "소개",
