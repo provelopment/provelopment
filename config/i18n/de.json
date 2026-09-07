@@ -14,6 +14,8 @@
     "footerLabel": "Fußzeilennavigation",
     "moreMenu": "Mehr",
     "sidebarToggle": "Navigation einklappen",
+    "closeSidebar": "Sidebar schließen",
+    "viewSidebar": "Sidebar anzeigen",
     "items": {
       "/": "Startseite",
       "/about": "Über uns",

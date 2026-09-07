@@ -213,22 +213,31 @@ body {
   inset: 0 auto auto 0;
   z-index: 50;
   height: 100%;
+  width: min(18rem, 80vw);
   min-width: 16rem;
-  max-width: 22rem;
   overflow-y: auto;
   overscroll-behavior: contain;
   background-color: var(--background);
   padding: 1rem;
 }
 
-/* P0-1 — the OVERLAY disclosure is sized content-appropriately (a sidebar
- * that hugs its labels) instead of stretching toward the shared 22rem cap,
- * while never exceeding a comfortable share of the viewport. Scoped to the
- * overlay pattern via ShellMobileNav's composition class; the shared Drawer
- * primitive and drawer-pattern panel sizing are unchanged. */
+/* P0-1/P5-1 — the OVERLAY disclosure is sized content-appropriately (a sidebar
+ * that hugs its labels): it stays within the shared panel bounds
+ * (min-width 16rem; width min(18rem,80vw)) while preferring content width and
+ * never exceeding a comfortable share of the viewport. Scoped to the overlay
+ * pattern via ShellMobileNav's composition class; the shared Drawer primitive
+ * and drawer-pattern panel sizing are unchanged. */
 .ui-overlay-panel {
   width: max-content;
   max-width: min(18rem, 80vw);
+}
+
+/* P5-1 — the bottom bar is STICKY (participates in document flow after the
+ * footer) so it can never obscure the footer: it reserves its own natural height,
+ * and its background extends into the home-indicator safe area on notched devices.
+ * Shared across every bottom-bar composition — no per-page padding, no spacer. */
+.ui-shell-bottom-bar {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /*

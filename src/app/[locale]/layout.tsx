@@ -128,6 +128,7 @@ export default async function LocaleLayout({
         label: dictionary.navigation.primaryLabel,
         moreLabel: dictionary.navigation.moreMenu,
         links: navLinks,
+        closeLabel: dictionary.navigation.closeSidebar ?? "Close Sidebar",
       }
     : undefined;
 

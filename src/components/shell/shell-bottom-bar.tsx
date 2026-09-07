@@ -52,6 +52,9 @@ export interface ShellBottomBarProps {
   readonly demoBadgeLabel?: string;
   /** Primary CTA composed only when the engine resolved `cta.enabled`+labels. */
   readonly cta?: { readonly label: string; readonly href: string };
+  /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer
+   * (the shared sidebar contract; absent → no close control renders). */
+  readonly closeLabel?: string;
 }
 
 export function ShellBottomBar({
@@ -62,6 +65,7 @@ export function ShellBottomBar({
   pageBindings,
   demoBadgeLabel,
   cta,
+  closeLabel,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
   const parsed = parseRegionalPath(pageBindings, pathname ?? `/${locale}`);
@@ -86,10 +90,10 @@ export function ShellBottomBar({
   const { primary, remainder } = splitBottomNavItems([...ctaItems, ...resolved]);
 
   return (
-    <div className="ui-shell-bottom-bar fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background md:hidden">
+    <div className="ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden">
       <BottomNavigation label={label} items={primary} className="flex items-center justify-around gap-x-1" />
       {remainder.length > 0 ? (
-        <ShellMobileNav pattern="drawer" id="shell-bottom-more" triggerLabel={moreLabel}>
+        <ShellMobileNav pattern="drawer" id="shell-bottom-more" triggerLabel={moreLabel} closeLabel={closeLabel}>
           <ul>
             {remainder.map((item) => (
               <NavItem key={item.key ?? item.href} item={item} />
