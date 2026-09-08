@@ -157,3 +157,57 @@ describe("ContextNavLinks — P0-5 shared link path", () => {
         expect(html.match(/<a /g) ?? []).toHaveLength(3);
     });
 });
+
+/**
+ * P5-6 — duplicate-destination identity. Two navigation entries sharing one
+ * `href` is VALID configuration; React identity comes from `key` (the
+ * position-derived key stamped by `getSiteNavLinks`), NEVER from `href`.
+ * Locks: every same-href entry renders; each keeps its own label/icon/disabled
+ * state; sorting by region keeps both entries correctly ordered.
+ */
+describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
+  it("renders every same-href entry with its own label", () => {
+    mockPath = "/en";
+    const html = renderToStaticMarkup(
+      ContextNavLinks({
+        locale: "en",
+        links: [
+          { href: "/pricing", label: "Alpha", key: "nav:0" },
+          { href: "/pricing", label: "Beta", key: "nav:1" },
+        ],
+      }),
+    );
+    expect(html).toContain(">Alpha</span>");
+    expect(html).toContain(">Beta</span>");
+    expect(html.match(/href="\/en\/pricing"/g) ?? []).toHaveLength(2);
+  });
+
+  it("keeps each same-href entry's own icon, disabled state and region under sort", () => {
+    mockPath = "/en";
+    const html = renderToStaticMarkup(
+      ContextNavLinks({
+        locale: "en",
+        links: [
+          { href: "/pricing", label: "Alpha", icon: "alpha.svg", position: "top", key: "nav:0" },
+          { href: "/pricing", label: "Beta", icon: "beta.svg", position: "bottom", disabled: true, key: "nav:1" },
+          { href: "/mid", label: "Mid", icon: "mid.svg", key: "nav:2" },
+        ],
+        sortByRegion: true,
+      }),
+    );
+    // Beta (disabled) is the span[aria-disabled] item with its OWN icon + label.
+    const betaSpan = html.indexOf('aria-disabled="true"');
+    expect(betaSpan).toBeGreaterThan(-1);
+    expect(html.indexOf('src="/assets/beta.svg"')).toBeGreaterThan(betaSpan);
+    expect(html.slice(betaSpan).includes("Beta")).toBe(true);
+    // Region sort: Alpha(top) → Mid(middle) → Beta(bottom); both duplicates present.
+    const alphaLink = html.indexOf('href="/en/pricing"');
+    const midText = html.indexOf(">Mid</span>");
+    const betaText = html.indexOf(">Beta</span>");
+    expect(alphaLink).toBeGreaterThan(-1);
+    expect(midText).toBeGreaterThan(alphaLink);
+    expect(betaText).toBeGreaterThan(midText);
+    // Alpha (enabled) keeps its OWN icon.
+    expect(html.indexOf('src="/assets/alpha.svg"')).toBeGreaterThan(-1);
+  });
+});

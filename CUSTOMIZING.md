@@ -439,9 +439,16 @@ Each `navigation` entry may carry:
   (P5-5A hardening: this leaf is now schema-validated and round-trips into the
   renderer — earlier it could be silently stripped by validation.)
 
-`href` **must be unique** across `navigation` — it is the stable React list
-key (and the localization key for the label). A duplicate silently breaks
-list identity (items may render with the wrong label/state).
+`href` may be **duplicated** across entries — two navigation rows pointing at
+the same destination is valid adopter configuration (e.g. a prominent short
+label and a verbose one, or an enabled + a disabled entry for the same route).
+Each entry keeps its own `label`, `icon`, `disabled` and `position` because
+navigation identity is **position-derived** (the internal `key` stamped from
+the configured array order by the content layer), never derived from `href`
+(P5-6). One note: dictionary localization keys labels by `href`
+(`dictionary.navigation.items[href]`), so two same-`href` entries share a
+dictionary-provided label when one exists; for destinations without a
+dictionary entry, each `navigation[].label` is used verbatim.
 
 
 

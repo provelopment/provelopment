@@ -930,6 +930,112 @@ async function runPreset(preset, chrome) {
   return rows.map((r) => ({ preset: preset.name, ...r }));
 }
 
+/**
+ * P5-6 — duplicate-destination navigation acceptance (browser-real).
+ * Two nav entries sharing one `href` are valid; their React identity must come
+ * from the position-derived `key` (getSiteNavLinks), never `href`. Proves, in
+ * real dev renders: desktop header (classic) + aside rail (adaptive) render
+ * BOTH same-href entries with OWN label/icon/disabled state; mobile drawer +
+ * bottom-More (390/700) keep both one-per-row; no duplicate-key console
+ * warnings anywhere. Own dev server per preset; config restored after.
+ */
+async function runDuplicateNavScenario(chrome) {
+  const DUP_NAV = [
+    { label: "First", href: "/first", icon: "first.svg", position: "middle" },
+    { label: "Second", href: "/second", icon: "second.svg", position: "middle" },
+    { label: "Third", href: "/third", icon: "third.svg", position: "middle" },
+    { label: "Fourth", href: "/fourth", icon: "fourth.svg", position: "middle" },
+    { label: "Alpha", href: "/pricing", icon: "alpha.svg", position: "top" },
+    { label: "Beta", href: "/pricing", icon: "beta.svg", position: "bottom", disabled: true },
+  ];
+  const HOOK = `(() => { window.__dupKeyWarnings = []; const o = window.console.error; window.console.error = (...a) => { const s = a.map(String).join(" "); if (/same key|duplicate|two children/i.test(s)) window.__dupKeyWarnings.push(s); o.apply(window.console, a); }; })();`;
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+
+  const bootPhase = async (preset, label, portSuffix) => {
+    const port = BASE_PORT + 99 + portSuffix;
+    const url = `http://localhost:${port}/en`;
+    BASE_URL = `http://localhost:${port}`;
+    const config = JSON.parse(original);
+    config.ui = { preset };
+    config.navigation = DUP_NAV;
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+    const server = startDevServer(port);
+    let cdp = null;
+    try {
+      await waitForServer(url);
+      cdp = await Cdp.connect(chrome);
+      await cdp.send("Page.enable");
+      await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: HOOK });
+      await cdp.setViewport(1280, 900);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      const d = await cdp.evaluate(`(() => {
+        const root = ${preset === "classic"} ? document.querySelector("header nav ul") : document.querySelector("#shell-sidebar-desktop-panel ul");
+        if (!root) return null;
+        const labels = [...root.querySelectorAll("li .ui-nav-item-label")].map((s) => s.textContent);
+        const alpha = [...root.querySelectorAll("a")].find((a) => a.querySelector(".ui-nav-item-label")?.textContent === "Alpha");
+        const betaLi = [...root.querySelectorAll("li")].find((li) => li.querySelector(".ui-nav-item-label")?.textContent === "Beta");
+        return {
+          both: labels.includes("Alpha") && labels.includes("Beta"),
+          alphaIsLink: !!alpha && alpha.getAttribute("href") === "/en/pricing",
+          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='alpha.svg']"),
+          betaDisabled: !!betaLi && !!betaLi.querySelector("[aria-disabled='true']"),
+          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='beta.svg']"),
+          warnings: window.__dupKeyWarnings.length,
+        };
+      })()`);
+      if (d === null) { check(rows, `${label}.desktop.renders`, false); } else {
+        check(rows, `${label}.desktop.bothPricingEntries`, d.both);
+        check(rows, `${label}.desktop.alpha.navigable.ownIcon`, d.alphaIsLink && d.alphaIcon);
+        check(rows, `${label}.desktop.beta.disabled.ownIcon`, d.betaDisabled && d.betaIcon);
+        check(rows, `${label}.desktop.noDupKeyConsole`, d.warnings === 0);
+      }
+      // Mobile 390 + 700: disclosure (drawer for classic, More for adaptive).
+      for (const w of [390, 700]) {
+        await cdp.setViewport(w, 844);
+        await cdp.navigate(url);
+        await waitReady(cdp);
+        const trigger = preset === "adaptive" ? "#shell-bottom-more" : "#shell-mobile-nav";
+        const panel = preset === "adaptive" ? "#shell-bottom-more-panel" : "#shell-mobile-nav-panel";
+        const opened = await openTrigger(cdp, trigger, panel);
+        check(rows, `${label}.w${w}.opens`, opened);
+        if (!opened) continue;
+        const m = await cdp.evaluate(`(() => {
+          const p = document.querySelector(${JSON.stringify(panel)});
+          const lis = [...p.querySelectorAll("ul > li")].filter((li) => li.getBoundingClientRect().width > 0);
+          const labels = lis.map((li) => li.querySelector(".ui-nav-item-label")?.textContent ?? "");
+          const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
+          const alpha = lis.find((li) => li.querySelector(".ui-nav-item-label")?.textContent === "Alpha");
+          const beta = lis.find((li) => li.querySelector(".ui-nav-item-label")?.textContent === "Beta");
+          return {
+            onePerRow: new Set(tops).size === tops.length,
+            hasBoth: labels.includes("Alpha") && labels.includes("Beta"),
+            alphaLink: !!alpha && !!alpha.querySelector("a[href='/en/pricing']"),
+            betaDisabled: !!beta && !!beta.querySelector("[aria-disabled='true']"),
+            warnings: window.__dupKeyWarnings.length,
+          };
+        })()`);
+        check(rows, `${label}.w${w}.onePerRow`, !!m && m.onePerRow);
+        check(rows, `${label}.w${w}.both.in.disclosure`, !!m && m.hasBoth);
+        check(rows, `${label}.w${w}.alpha.navigable`, !!m && m.alphaLink);
+        check(rows, `${label}.w${w}.beta.disabled.identity`, !!m && m.betaDisabled);
+        check(rows, `${label}.w${w}.noDupKeyConsole`, !!m && m.warnings === 0);
+        await cdp.pressKey("Escape");
+        await sleep(120);
+      }
+    } finally {
+      if (cdp) await cdp.close();
+      stopServer(server);
+    }
+  };
+
+  await bootPhase("classic", "dup.classic", 1);
+  await bootPhase("adaptive", "dup.adaptive", 2);
+  await writeFile(CONFIG_PATH, original, "utf8");
+  return rows;
+}
+
 /** Iterate the five presets (config swap + dev server each), restoring config at the end. */
 async function runMatrix(chrome, onlyPreset) {
   let allRows = [];
@@ -945,6 +1051,13 @@ async function runMatrix(chrome, onlyPreset) {
       allRows = allRows.concat(rows);
       const fails = rows.filter((r) => !r.ok).length;
       console.log(`[matrix] ${preset.name}: ${rows.length - fails}/${rows.length} checks passed${fails ? ` FAIL=${fails}` : ""}`);
+    }
+    // P5-6 — duplicate-destination acceptance (own servers, config restored below).
+    if (!onlyPreset) {
+      const dupRows = await runDuplicateNavScenario(chrome);
+      allRows = allRows.concat(dupRows.map((r) => ({ preset: "dup-nav", ...r })));
+      const dupFails = dupRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] dup-nav: ${dupRows.length - dupFails}/${dupRows.length} checks passed${dupFails ? ` FAIL=${dupFails}` : ""}`);
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
