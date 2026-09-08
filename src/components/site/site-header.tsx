@@ -101,7 +101,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         ) : null;
 
     return (
-        <header className="border-b border-border">
+        <header className="ui-site-header border-b border-border">
             <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
                 <ContextNavLinks
                     locale={locale}

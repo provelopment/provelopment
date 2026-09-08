@@ -113,7 +113,9 @@ describe("ShellEngine — Focus SSR shell (no sidebar, no bottom bar, neutral CT
     const html = renderToStaticMarkup(
       ShellEngine({ resolved: resolveUiConfig({ preset: "focus" }), header: headerPlain, main, footer, mainId: "main", ...base }),
     );
-    expect(html).toContain('class="flex flex-col flex-1"');
+    // P5-3 — Focus resolves the narrow content column, so the wrapper carries
+    // `max-w-screen-md` (the narrow intent), not the plain default wrapper.
+    expect(html).toContain('class="flex flex-col flex-1 max-w-screen-md"');
     expect(html).not.toContain("shell-sidebar");
     expect(html).not.toContain("ui-shell-sidebar");
     expect(html).not.toContain("lg:flex-row");

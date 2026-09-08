@@ -32,7 +32,7 @@ to the default locale.
 1. Edit `site.config.json` — site name, tagline, contact, social links,
    navigation, enabled features. Every field is validated at build time.
 2. Replace the Markdown pages in `content/pages/<locale>/` with your own.
-3. Swap the placeholder icon (`src/app/icon.svg`) for your logo.
+3. Swap the placeholder icon (`src/app/icon.svg`) and assets (`public/assets/logo.svg`) for your logo.
 4. Add locales, deploy to Vercel, and keep up to date with upstream —
    all documented in [`CUSTOMIZING.md`](CUSTOMIZING.md).
 
@@ -53,14 +53,16 @@ See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the authoritative description
 of the hexagonal (ports and adapters) boundaries:
 
 ```
-src/app         # Next.js routes under src/app/[locale]
-src/components  # Presentation components
-src/core        # Framework-independent domain concepts
-src/application # Use-case ports
-src/adapters    # Concrete integrations (filesystem content, …)
-src/config      # Site configuration, i18n dictionaries, design tokens
-content/pages   # Per-locale Markdown content
-tests           # Cross-boundary unit and architecture tests
+src/app         # Next.js routes under src/app/[locale], layouts, globals.css tokens
+src/components  # Presentation components (site, shell, and shared ui primitives)
+src/core        # Framework-independent domain concepts and UI preset engine
+src/application # Use-case ports and services
+src/adapters    # Concrete integrations (filesystem content, analytics, booking, maps)
+src/config      # Site configuration schema and loaders
+config/i18n     # Localized JSON dictionaries (9 supported locales)
+content         # Markdown collections (pages, legal, offerings, posts, testimonials, portfolio)
+public/assets   # Canonical brand assets (logo.svg, og-image.png)
+tests           # Architecture boundary, unit, and CDP browser matrix tests
 ```
 
 ## Documentation

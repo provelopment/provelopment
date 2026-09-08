@@ -11,6 +11,11 @@ export {
   CTA_STYLES,
   DESKTOP_NAVIGATION_PATTERNS,
   MOBILE_NAVIGATION_PATTERNS,
+  PRESENTATION_HEADERS,
+  PRESENTATION_HEROES,
+  PRESENTATION_RHYTHMS,
+  PRESENTATION_SURFACES,
+  PRESENTATION_TYPOGRAPHIES,
   SHELL_VARIANTS,
   TABLET_NAVIGATION_PATTERNS,
   THEME_MODES,
@@ -24,6 +29,11 @@ export type {
   CtaStyle,
   DesktopNavigationPattern,
   MobileNavigationPattern,
+  PresentationHeader,
+  PresentationHero,
+  PresentationRhythm,
+  PresentationSurface,
+  PresentationTypography,
   ShellVariant,
   TabletNavigationPattern,
   ThemeMode,
@@ -34,6 +44,13 @@ export type {
 
 export { uiPresetProfiles } from "./presets";
 export type { UiCapabilityLevel, UiPresetCapabilities, UiPresetProfile } from "./presets";
+
+export {
+  PRESENTATION_DEFAULTS,
+  presentationDataAttributes,
+  radiusDataAttribute,
+} from "./presentation";
+export type { UiPresentation } from "./presentation";
 
 export { FOUNDATION_UI_DEFAULTS } from "./defaults";
 export type { UiFoundationDefaults } from "./defaults";

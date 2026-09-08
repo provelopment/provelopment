@@ -66,17 +66,19 @@ export default async function HomePage({
 
   return (
     <>
-      <header className="mx-auto max-w-page px-4 pt-16 pb-10">
-        <p className="text-sm font-medium uppercase tracking-widest text-primary">
-          {siteConfig.name}
-        </p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
-          {dictionary.home.tagline}
-        </h1>
-        <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-          {dictionary.home.description}
-        </p>
-        <div className="mt-6">
+      <header className="home-hero mx-auto max-w-page px-4 pt-16 pb-10">
+        <div className="home-hero-copy">
+          <p className="text-sm font-medium uppercase tracking-widest text-primary">
+            {siteConfig.name}
+          </p>
+          <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance sm:text-5xl">
+            {dictionary.home.tagline}
+          </h1>
+          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
+            {dictionary.home.description}
+          </p>
+        </div>
+        <div className="home-hero-actions mt-6">
           {dictionary.booking?.book ? (
             <BookingAction
               action={bookingActionResolver.resolve({ locale })}
@@ -90,7 +92,7 @@ export default async function HomePage({
         aria-labelledby="home-about-heading"
         className="mx-auto max-w-page px-4 pb-16"
       >
-        <div className="rounded-lg border border-border bg-muted p-6">
+        <div className="home-card rounded-lg border border-border bg-muted p-6">
           <Heading level={2} tone="section" id="home-about-heading">
             {dictionary.sections.about}
           </Heading>

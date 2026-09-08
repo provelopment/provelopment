@@ -9,7 +9,12 @@ import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
-import { resolveShellPattern, resolveUiConfig } from "@/core/ui";
+import {
+  presentationDataAttributes,
+  radiusDataAttribute,
+  resolveShellPattern,
+  resolveUiConfig,
+} from "@/core/ui";
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks } from "@/components/site/nav-links";
@@ -141,11 +146,22 @@ export default async function LocaleLayout({
     ? ({ "--background": resolvedUi.theme.background } as React.CSSProperties)
     : undefined;
 
+  // P5-3 — the RESOLVED presentation intent flows into the shared renderer as
+  // inert `data-ui-*` attributes on `<html>` (see globals.css — P5-3
+  // presentation tokens). These are generalized vocabulary values (never
+  // preset names), so the CSS token layer implements presentation without any
+  // preset identity. Static SSR strings; no hydration risk.
+  const htmlPresentationAttrs = {
+    ...presentationDataAttributes(resolvedUi.presentation),
+    ...radiusDataAttribute(resolvedUi.theme.radius),
+  };
+
   return (
     <html
       lang={locale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       style={htmlStyle}
+      {...htmlPresentationAttrs}
     >
       <body className="min-h-full flex flex-col">
         <a

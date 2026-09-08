@@ -373,3 +373,162 @@ body {
 }
 
 .prose th { font-weight: 600; }
+
+/*
+ * ── P5-3 presentation token layer ─────────────────────────────────────────
+ *
+ * The RENDERER implementation of the resolved `ui.presentation` intent. The
+ * layout writes the generalized vocabulary values onto `<html>` as inert
+ * `data-ui-*` attributes (see `src/app/[locale]/layout.tsx`); these rules
+ * implement each value with semantic tokens only — NO preset-name selectors
+ * ever appear here. The balanced/default values (Adaptive) emit nothing, so
+ * the default mask is byte-identical to the pre-P5-3 appearance. Downstream
+ * sites restyle by changing tokens/attributes, never components.
+ */
+
+/* Radius → corner language. `@theme` hooks map the semantic `--radius-*`
+ * tokens into Tailwind utilities; remapping them per resolved radius scales
+ * the ENTIRE corner language (cards, prose, CTAs, focus ring corners). */
+html[data-ui-radius="small"] {
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+}
+html[data-ui-radius="large"] {
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+}
+html[data-ui-radius="none"] {
+  --radius-md: 0;
+  --radius-lg: 0;
+}
+
+/* Typography → display voice. Scope to the primary display elements (titles +
+ * section headings) that shared components render; `.prose` body is tuned
+ * separately. Every rule is token-based (no raw colors) and AA-safe at the
+ * unchanged contrast tokens. */
+html[data-ui-typography="editorial"] main h1,
+html[data-ui-typography="editorial"] .prose h1,
+html[data-ui-typography="editorial"] .prose h2 {
+  letter-spacing: -0.025em;
+  font-weight: 700;
+}
+html[data-ui-typography="editorial"] .prose {
+  line-height: 1.65;
+}
+html[data-ui-typography="minimal"] main h1 {
+  font-weight: 550;
+  letter-spacing: -0.015em;
+}
+html[data-ui-typography="minimal"] .prose {
+  letter-spacing: 0.005em;
+  line-height: 1.75;
+}
+html[data-ui-typography="utility"] main h1 {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  letter-spacing: -0.015em;
+}
+html[data-ui-typography="utility"] main h2 {
+  font-size: clamp(1.1rem, 2.5vw, 1.3rem);
+}
+html[data-ui-typography="expressive"] main h1 {
+  font-size: clamp(2.25rem, 6.5vw, 3.75rem);
+  letter-spacing: -0.03em;
+  font-weight: 650;
+  line-height: 1.1;
+}
+
+/* Surfaces → card treatment family. The shared card primitives carry the
+ * `ui-card` marker (see the *Card components); each surface family restyles
+ * it via the semantic tokens. */
+html[data-ui-surface="paper"] .ui-card {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+  border-color: var(--border);
+}
+html[data-ui-surface="minimal"] .ui-card {
+  background-color: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+html[data-ui-surface="instrument"] .ui-card {
+  border-color: var(--input);
+  border-radius: 0;
+  box-shadow: none;
+}
+html[data-ui-surface="layered"] .ui-card {
+  box-shadow: 0 6px 18px -6px rgb(0 0 0 / 0.14);
+  border-color: var(--border);
+}
+
+/* Header → band treatment. Scoped to the shell `<header>` (`ui-site-header`). */
+html[data-ui-header="rule"] .ui-site-header {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--border);
+}
+html[data-ui-header="bare"] .ui-site-header {
+  border-bottom-style: none;
+}
+html[data-ui-header="compact"] .ui-site-header > div {
+  padding-block: 0.35rem;
+}
+html[data-ui-header="elevated"] .ui-site-header {
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  background-color: var(--background);
+}
+
+/* Rhythm → section pacing + prose breathing room (the home hero + page
+ * sections use the shared classes below). */
+html[data-ui-rhythm="airy"] .home-hero {
+  padding-top: 5.5rem;
+  padding-bottom: 3.5rem;
+}
+html[data-ui-rhythm="airy"] .home-card,
+html[data-ui-rhythm="airy"] .prose {
+  line-height: 1.8;
+}
+html[data-ui-rhythm="dense"] .home-hero {
+  padding-top: 2.5rem;
+  padding-bottom: 2rem;
+}
+html[data-ui-rhythm="dense"] .home-card {
+  padding: 1.25rem;
+}
+html[data-ui-rhythm="spacious"] .home-hero {
+  padding-top: 7rem;
+  padding-bottom: 5rem;
+}
+html[data-ui-rhythm="spacious"] .home-card {
+  padding: 2.5rem;
+}
+
+/* Hero composition (home) — `data-ui-hero` selects how the SAME hero content
+ * is laid out (center/split/concise/showcase), via structural modifiers the
+ * HomeHero component applies from the resolved value. */
+html[data-ui-hero="center"] .home-hero {
+  text-align: center;
+  margin-inline: auto;
+  max-width: 44rem;
+}
+html[data-ui-hero="center"] .home-hero-actions {
+  display: flex;
+  justify-content: center;
+}
+html[data-ui-hero="split"] .home-hero {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 768px) {
+  html[data-ui-hero="split"] .home-hero {
+    grid-template-columns: 1fr;
+  }
+}
+html[data-ui-hero="concise"] .home-hero {
+  padding-top: 2rem;
+  padding-bottom: 2.5rem;
+  max-width: 60rem;
+}
+html[data-ui-hero="showcase"] .home-hero {
+  padding-top: 6rem;
+  padding-bottom: 4rem;
+}

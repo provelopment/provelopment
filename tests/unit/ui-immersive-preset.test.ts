@@ -35,14 +35,24 @@ describe("UI-09 — explicit Immersive selection (declarative profile)", () => {
     });
     expect(resolved.shell).toEqual({ header: "minimal", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("standard");
-    // Leaves Immersive does NOT define fall to Foundation defaults:
-    expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
-    expect(resolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
+    // P5-3 — Immersive now DEFINES its spacious/visual presentation:
+    // spacious density, a wide content column, large corner language, layered
+    // surfaces, an elevated header and a showcase hero.
+    expect(resolved.density).toBe("spacious");
+    expect(resolved.content.width).toBe("wide");
+    expect(resolved.presentation).toEqual({
+      typography: "expressive",
+      rhythm: "spacious",
+      surface: "layered",
+      header: "elevated",
+      hero: "showcase",
+    });
+    expect(resolved.theme.mode).toBe(FOUNDATION_UI_DEFAULTS.theme.mode);
+    expect(resolved.theme.radius).toBe("large");
     expect(resolved.cta.enabled).toBe(false);
     expect(resolved.cta.action).toBeUndefined();
     expect(resolved.cta.label).toBeUndefined();
     expect(resolved.cta.href).toBeUndefined();
-    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 
   it("leaf overrides win without canceling the immersive personality", () => {

@@ -51,7 +51,7 @@ lint, tests, and a production build on every push and pull request.
 
 Recommended branch protection for `main`:
 
-- Require the **CI** check to pass before merging.
+- Require the **`validate`** check to pass before merging.
 - Require pull requests before direct pushes (except by trusted maintainers).
 
 Vercel deployments can additionally be gated on the same checks in

@@ -9,6 +9,11 @@ import {
   COLOR_HEX_PATTERN,
   DESKTOP_NAVIGATION_PATTERNS,
   MOBILE_NAVIGATION_PATTERNS,
+  PRESENTATION_HEADERS,
+  PRESENTATION_HEROES,
+  PRESENTATION_RHYTHMS,
+  PRESENTATION_SURFACES,
+  PRESENTATION_TYPOGRAPHIES,
   SHELL_VARIANTS,
   TABLET_NAVIGATION_PATTERNS,
   THEME_MODES,
@@ -589,6 +594,37 @@ const uiContentSchema = z
   })
   .strict();
 
+/** P5-3 — generalized presentation intent (closed vocabulary, shared by every preset). */
+const uiPresentationSchema = z
+  .object({
+    typography: z
+      .enum(PRESENTATION_TYPOGRAPHIES, {
+        message: `must be one of: ${PRESENTATION_TYPOGRAPHIES.join(", ")}`,
+      })
+      .optional(),
+    rhythm: z
+      .enum(PRESENTATION_RHYTHMS, {
+        message: `must be one of: ${PRESENTATION_RHYTHMS.join(", ")}`,
+      })
+      .optional(),
+    surface: z
+      .enum(PRESENTATION_SURFACES, {
+        message: `must be one of: ${PRESENTATION_SURFACES.join(", ")}`,
+      })
+      .optional(),
+    header: z
+      .enum(PRESENTATION_HEADERS, {
+        message: `must be one of: ${PRESENTATION_HEADERS.join(", ")}`,
+      })
+      .optional(),
+    hero: z
+      .enum(PRESENTATION_HEROES, {
+        message: `must be one of: ${PRESENTATION_HEROES.join(", ")}`,
+      })
+      .optional(),
+  })
+  .strict();
+
 const uiCtaSchema = z
   .object({
     enabled: z.boolean().optional(),
@@ -667,6 +703,8 @@ export const uiConfigSchema = z
       .enum(UI_DENSITIES, { message: `must be one of: ${UI_DENSITIES.join(", ")}` })
       .optional(),
     content: uiContentSchema.optional(),
+    /** P5-3 — generalized presentation intent (preset profile supplies the rest). */
+    presentation: uiPresentationSchema.optional(),
     cta: uiCtaSchema.optional(),
     theme: uiThemeSchema.optional(),
     /** FS-3 — preset-comparison deployment destinations (preset → deployment URL). */

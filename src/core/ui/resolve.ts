@@ -1,10 +1,16 @@
 import { FOUNDATION_UI_DEFAULTS } from "./defaults";
+import { PRESENTATION_DEFAULTS, type UiPresentation } from "./presentation";
 import { uiPresetProfiles } from "./presets";
 import {
   CONTENT_WIDTHS,
   CTA_STYLES,
   DESKTOP_NAVIGATION_PATTERNS,
   MOBILE_NAVIGATION_PATTERNS,
+  PRESENTATION_HEADERS,
+  PRESENTATION_HEROES,
+  PRESENTATION_RHYTHMS,
+  PRESENTATION_SURFACES,
+  PRESENTATION_TYPOGRAPHIES,
   SHELL_VARIANTS,
   TABLET_NAVIGATION_PATTERNS,
   THEME_MODES,
@@ -15,6 +21,11 @@ import {
   type CtaStyle,
   type DesktopNavigationPattern,
   type MobileNavigationPattern,
+  type PresentationHeader,
+  type PresentationHero,
+  type PresentationRhythm,
+  type PresentationSurface,
+  type PresentationTypography,
   type ShellVariant,
   type TabletNavigationPattern,
   type ThemeMode,
@@ -48,6 +59,14 @@ export interface UiConfigInput {
   };
   readonly density?: UiDensity;
   readonly content?: { readonly width?: ContentWidth };
+  /** P5-3 — generalized presentation intent (optional; preset profile supplies the rest). */
+  readonly presentation?: {
+    readonly typography?: PresentationTypography;
+    readonly rhythm?: PresentationRhythm;
+    readonly surface?: PresentationSurface;
+    readonly header?: PresentationHeader;
+    readonly hero?: PresentationHero;
+  };
   readonly cta?: {
     readonly enabled?: boolean;
     readonly action?: CtaAction;
@@ -139,6 +158,8 @@ export interface ResolvedUiConfig {
   };
   readonly density: UiDensity;
   readonly content: { readonly width: ContentWidth };
+  /** P5-3 — the fully-resolved presentation intent (renderer consumes it). */
+  readonly presentation: UiPresentation;
   readonly cta: {
     readonly enabled: boolean;
     readonly action?: CtaAction;
@@ -161,6 +182,11 @@ const VOCAB_MEMBERSHIP: Readonly<Record<string, readonly string[]>> = {
   "cta.style": CTA_STYLES,
   "theme.mode": THEME_MODES,
   "theme.radius": THEME_RADII,
+  "presentation.typography": PRESENTATION_TYPOGRAPHIES,
+  "presentation.rhythm": PRESENTATION_RHYTHMS,
+  "presentation.surface": PRESENTATION_SURFACES,
+  "presentation.header": PRESENTATION_HEADERS,
+  "presentation.hero": PRESENTATION_HEROES,
 };
 
 function resolveLeaf<T>(
@@ -212,6 +238,11 @@ export function assertResolvedUiConfigComplete(
   check("cta.style", resolved.cta?.style);
   check("theme.mode", resolved.theme?.mode);
   check("theme.radius", resolved.theme?.radius);
+  check("presentation.typography", resolved.presentation?.typography);
+  check("presentation.rhythm", resolved.presentation?.rhythm);
+  check("presentation.surface", resolved.presentation?.surface);
+  check("presentation.header", resolved.presentation?.header);
+  check("presentation.hero", resolved.presentation?.hero);
 
   if (issues.length > 0) {
     throw new UiConfigResolutionError(issues);
@@ -253,9 +284,20 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
       tablet: resolveLeaf(raw.navigation?.tablet, profile?.navigation.tablet, FOUNDATION_UI_DEFAULTS.navigation.tablet),
       mobile: resolveLeaf(raw.navigation?.mobile, profile?.navigation.mobile, FOUNDATION_UI_DEFAULTS.navigation.mobile),
     },
-    density: resolveLeaf(raw.density, undefined, FOUNDATION_UI_DEFAULTS.density),
+    density: resolveLeaf(raw.density, profile?.density, FOUNDATION_UI_DEFAULTS.density),
     content: {
-      width: resolveLeaf(raw.content?.width, undefined, FOUNDATION_UI_DEFAULTS.content.width),
+      width: resolveLeaf(raw.content?.width, profile?.content.width, FOUNDATION_UI_DEFAULTS.content.width),
+    },
+    presentation: {
+      typography: resolveLeaf(
+        raw.presentation?.typography,
+        profile?.presentation.typography,
+        PRESENTATION_DEFAULTS.typography,
+      ),
+      rhythm: resolveLeaf(raw.presentation?.rhythm, profile?.presentation.rhythm, PRESENTATION_DEFAULTS.rhythm),
+      surface: resolveLeaf(raw.presentation?.surface, profile?.presentation.surface, PRESENTATION_DEFAULTS.surface),
+      header: resolveLeaf(raw.presentation?.header, profile?.presentation.header, PRESENTATION_DEFAULTS.header),
+      hero: resolveLeaf(raw.presentation?.hero, profile?.presentation.hero, PRESENTATION_DEFAULTS.hero),
     },
     cta: {
       enabled: resolveLeaf(raw.cta?.enabled, undefined, FOUNDATION_UI_DEFAULTS.cta.enabled),
@@ -266,7 +308,7 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
     },
     theme: {
       mode: resolveLeaf(raw.theme?.mode, undefined, FOUNDATION_UI_DEFAULTS.theme.mode),
-      radius: resolveLeaf(raw.theme?.radius, undefined, FOUNDATION_UI_DEFAULTS.theme.radius),
+      radius: resolveLeaf(raw.theme?.radius, profile?.theme.radius, FOUNDATION_UI_DEFAULTS.theme.radius),
       // FS-5 — background is ADOPTER-OWNED presentation (an optional hex color).
       // Absent → undefined → the existing `--background` design token renders.
       // Validated by the config schema (COLOR_HEX_PATTERN); the resolver only

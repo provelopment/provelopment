@@ -19,7 +19,7 @@ export function PortfolioCard({ item, href, featuredLabel }: PortfolioCardProps)
   return (
     <Link
       href={href}
-      className="block h-full rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
+      className="ui-card block h-full rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary"
     >
       {item.image ? <CardImage src={item.image} alt={item.title} /> : null}
       <h2 className="text-xl font-semibold">

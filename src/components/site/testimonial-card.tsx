@@ -25,7 +25,7 @@ export function TestimonialCard({
   const attribution = [testimonial.role, testimonial.company].filter(Boolean).join(", ");
 
   return (
-    <figure className="flex h-full flex-col rounded-lg border border-border bg-card p-6">
+    <figure className="ui-card flex h-full flex-col rounded-lg border border-border bg-card p-6">
       {testimonial.featured && featuredLabel ? (
         <p className="text-xs font-semibold uppercase tracking-wide text-primary">
           {featuredLabel}
