@@ -29,11 +29,15 @@ presentations of the SAME canonical site** — never five separate businesses:
 
 | Deployment | Preset | What the visitor sees |
 | --- | --- | --- |
-| `foundation.provelopment.com` | Adaptive | the canonical Foundation site (sidebar + bottom-nav shell) |
-| `classic.foundation.provelopment.com` | Classic | same site with top navigation + drawer |
-| `focus.foundation.provelopment.com` | Focus | same site with reduced navigation + prominent CTA |
-| `workspace.foundation.provelopment.com` | Workspace | same site with a sidebar + drawer shell |
-| `immersive.foundation.provelopment.com` | Immersive | same site with floating rail + overlay mobile |
+| `foundation.provelopment.com` | Adaptive | the canonical Foundation baseline — balanced/presentation-neutral (sidebar ≥md, bottom-nav <md, neutral typography/surfaces) |
+| `classic.foundation.provelopment.com` | Classic | top navigation + drawer; **editorial** display scale, paper cards, rule header, split hero, small radius |
+| `focus.foundation.provelopment.com` | Focus | reduced navigation + prominent CTA; **minimal** typography, transparent surfaces, bare header, centered narrow hero, airy rhythm |
+| `workspace.foundation.provelopment.com` | Workspace | sidebar + drawer shell; **utility/dense** — wide column, squared instrument cards, compact header, concise hero |
+| `immersive.foundation.provelopment.com` | Immersive | floating rail + overlay mobile; **expressive** scale, layered shadow cards, elevated header, showcase hero, large radius |
+
+Each presentation is implemented by the **shared** token renderer described
+under *The `ui.presentation` block* below — the five rows here are five
+*distinct presentations of one content model*, not five website implementations.
 
 All five present the **same canonical content and configuration** (drawn from
 the same `site.config.json`, `content/`, `config/i18n/`, and `public/assets/`).
@@ -114,13 +118,14 @@ the sitemap, canonical URLs, and hreflang alternates.
 Read configuration only through the loader exports from `src/config`; never
 import the JSON file directly from components.
 
-### The `ui` namespace (UI-05 — presets are live; the resolved default personality is Adaptive)
+### The `ui` namespace (UI-05/P5-3 — presets are live; the resolved default personality is Adaptive)
 
 The optional top-level `ui` key is the intent-level UI configuration namespace
-(preset, shell, navigation, density, content width, CTA, theme), validated at
-build time. `resolveUiConfig` resolves it deterministically: **explicit
-developer overrides → preset profile (explicit preset OR the resolved default
-personality) → neutral Foundation defaults → completeness guard.**
+(preset, shell, navigation, density, content width, CTA, theme,
+**presentation** — P5-3), validated at build time. `resolveUiConfig` resolves it
+deterministically: **explicit developer overrides → preset profile (explicit
+preset OR the resolved default personality) → neutral Foundation defaults →
+completeness guard.**
 
 **You configure semantic intent, never component internals or CSS.** One JSON
 switch selects a complete modern UI personality:
@@ -158,9 +163,59 @@ An override does not cancel the preset — it overrides a single dimension:
 (`FOUNDATION_UI_DEFAULTS.defaultPreset`, selected at the resolver's single
 `raw.preset ?? …` point). The canonical **Foundation reference site at
 `foundation.provelopment.com` explicitly selects `"preset": "adaptive"`**
-(FS-2), so it demonstrates the sidebar + bottom-nav shell; the other four
-deployments each select one of the other presets. A fresh clone that omits
-`preset` behaves exactly like the Adaptive reference site.
+(FS-2), so it demonstrates the balanced/presentation-neutral baseline; the other four
+presets demonstrate the differentiated presentations described next.
+
+### The `ui.presentation` block (P5-3 — generalized preset differentiation)
+
+Each preset profile owns a coherent **presentation intent**: its default
+density, content width, and corner radius, plus the generalized `presentation`
+block (typography / rhythm / surface / header / hero). These resolve onto the
+shared design-token renderer as inert `data-ui-*` attributes on `<html>` — no
+preset CSS components, no per-preset forks. When a preset is active, its
+profile supplies these values unless an explicit leaf overrides them:
+
+```jsonc
+//  Adaptive   → balanced / general-purpose (the neutral baseline)
+//  Classic    → editorial typography, structured rhythm, paper cards,
+//               rule header, split hero, small radius
+//  Focus      → minimal typography, airy rhythm, minimal surfaces, bare
+//               header, centered hero, narrow column
+//  Workspace  → utility typography, dense rhythm, instrument/squared cards,
+//               compact header, concise hero, wide column
+//  Immersive  → expressive typography, spacious rhythm, layered shadow cards,
+//               elevated header, showcase hero, large radius
+{ "ui": { "preset": "classic" } }
+```
+
+The `presentation` leaves are GENERALIZED vocabulary (never preset names), so
+custom configurations can compose the same intent without selecting a preset:
+
+```jsonc
+{
+  "ui": {
+    "presentation": {
+      "typography": "editorial",
+      "rhythm": "structured",
+      "surface": "paper",
+      "header": "rule",
+      "hero": "split"
+    }
+  }
+}
+```
+
+Any single leaf may be overridden without canceling the preset (explicit
+leaves win per-leaf, exactly like the other dimensions).
+
+P5-4 — the responsive mobile sidebar navigation (the "View Sidebar" drawer /
+overlay disclosure) always renders ONE navigation item per line on every
+preset and custom composition; follow the shared list composition in
+`site-header.tsx` rather than per-preset styling.
+
+The four other preset deployments each select one of the other four presets; a
+fresh clone that omits `preset` behaves exactly like the Adaptive reference
+site.
 
 Every other preset stays explicitly selectable and unaffected:
 
