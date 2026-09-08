@@ -25,9 +25,15 @@ describe("UI-05 — the deliberate Adaptive default decision", () => {
 
   it("omitting preset resolves the adaptive personality; shipping no ui block behaves the same", () => {
     expect(resolveUiConfig({}).preset).toBe("adaptive");
-    expect(resolveUiConfig({} as Parameters<typeof resolveUiConfig>[0]).navigation).toEqual(
-      uiPresetProfiles.adaptive.navigation,
-    );
+    const resolved = resolveUiConfig({} as Parameters<typeof resolveUiConfig>[0]);
+    // P5-5 — the profile drives the three pattern leaves; the control leaves
+    // (sidebar/top/bottom mode) are neutral + preset-agnostic.
+    expect(resolved.navigation.desktop).toEqual(uiPresetProfiles.adaptive.navigation.desktop);
+    expect(resolved.navigation.tablet).toEqual(uiPresetProfiles.adaptive.navigation.tablet);
+    expect(resolved.navigation.mobile).toEqual(uiPresetProfiles.adaptive.navigation.mobile);
+    expect(resolved.navigation.sidebar.mode).toBe("open");
+    expect(resolved.navigation.top.mode).toBe("open");
+    expect(resolved.navigation.bottom.mode).toBe("open");
   });
 
   it("explicit per-leaf overrides still win over the default personality", () => {
@@ -45,7 +51,14 @@ describe("UI-05 — the deliberate Adaptive default decision", () => {
     for (const preset of UI_PRESETS) {
       const resolved = resolveUiConfig({ preset });
       expect(resolved.preset).toBe(preset);
-      expect(resolved.navigation).toEqual(uiPresetProfiles[preset].navigation);
+      expect(resolved.navigation.desktop).toBe(uiPresetProfiles[preset].navigation.desktop);
+      expect(resolved.navigation.tablet).toBe(uiPresetProfiles[preset].navigation.tablet);
+      expect(resolved.navigation.mobile).toBe(uiPresetProfiles[preset].navigation.mobile);
+      // P5-5 — the control leaves (sidebar/top/bottom mode) are neutral and preset-agnostic:
+      // they never come from a preset profile (explicit adopter configuration only).
+      expect(resolved.navigation.sidebar.mode).toBe("open");
+      expect(resolved.navigation.top.mode).toBe("open");
+      expect(resolved.navigation.bottom.mode).toBe("open");
       expect(resolved.shell).toEqual(uiPresetProfiles[preset].shell);
       expect(resolved.cta.style).toBe(uiPresetProfiles[preset].cta.style);
     }
@@ -58,8 +71,15 @@ describe("UI-05 — the deliberate Adaptive default decision", () => {
     // tablet / bottom-bar <md. Personality == effective composition here.
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
     expect(demoResolved.preset).toBe("adaptive");
-    expect(demoResolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
-    expect(demoResolved.navigation).not.toEqual(uiPresetProfiles.classic.navigation);
+    // P5-5 — the profile drives the three pattern leaves; the control leaves
+    // (sidebar/top/bottom mode) are neutral + preset-agnostic.
+    expect(demoResolved.navigation.desktop).toEqual(uiPresetProfiles.adaptive.navigation.desktop);
+    expect(demoResolved.navigation.tablet).toEqual(uiPresetProfiles.adaptive.navigation.tablet);
+    expect(demoResolved.navigation.mobile).toEqual(uiPresetProfiles.adaptive.navigation.mobile);
+    expect(demoResolved.navigation.sidebar.mode).toBe("open");
+    expect(demoResolved.navigation.top.mode).toBe("open");
+    expect(demoResolved.navigation.bottom.mode).toBe("open");
+    expect(demoResolved.navigation.desktop).not.toEqual(uiPresetProfiles.classic.navigation.desktop);
     expect(demoResolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
   });
 });

@@ -335,6 +335,151 @@ Foundation never invents a business action. When you enable a CTA, supply
 semantic (`standard`/`prominent`). The Foundation never derives `href` from
 `action` — an enabled CTA without label+href renders nothing.
 
+### Configurable controls, assets & presentation modes (P5-5)
+
+P5-5 makes the "change the configuration, not the Foundation" experience real
+for the controls and menus: **icon assets, disclosure controls, sidebar/top/
+bottom presentation modes, navigation regions, and the primary CTA** are all
+configurable through validated `ui` + `navigation` leaves. The Foundation stays
+a coherent design system — every value is a **semantic vocabulary member**
+(never raw CSS), schema-validated, and rendered by the ONE shared component
+pipeline (configuration → resolver → shared primitives → semantic classes).
+
+#### Asset replacement contract (icons, images, replacement assets)
+
+Two equivalent ways to replace a UI asset:
+
+1. **Replace the file** — keep the configured filename and drop your file into
+   `public/assets/` (e.g. overwrite `sidebar-open.svg`). No configuration
+   change.
+2. **Change the configured filename** — point the leaf at a different file also
+   under `public/assets/` (e.g. `"icon": "my-sidebar-icon.svg"`).
+
+Only **plain filenames** are accepted (letters, digits, `.`, `_`, `-`, ending in
+`.svg`/`.png`/`.webp`/`.jpg`/`.jpeg`/`.gif`/`.ico`). Paths and URLs are
+rejected at build time (no traversal, no remote, no arbitrary CSS). Icons are
+rendered at a **fixed control size** (`1em`, `object-fit: contain`) so any
+intrinsic dimension can never break layout; aspect ratios are respected;
+controls keep ≥44px touch targets; the label (or an explicit accessible name)
+remains the accessible name — never a bare image.
+
+#### Empty-string semantics (explicit, tested)
+
+For **control leaves** (`navigation.sidebar.open/close`, `ui.cta.icon` /
+`ui.cta.label`):
+
+| Configuration | Meaning |
+| --- | --- |
+| leaf **missing** | Foundation fallback: shipped default asset / localized dictionary label |
+| `"text": ""` | **Icon-only** control (no visible text; the accessible name stays the fallback label via `aria-label`) |
+| `"icon": ""` | **Text-only** control (no icon) |
+| `"icon": ""` **and** `"text": ""` | The control is **not rendered** — a derived disabled state; no invented `enabled` boolean |
+
+Missing ≠ `null` ≠ `""`: missing falls back, `null` is rejected by the schema,
+and `""` is the deliberate "hide this element" value.
+
+#### Sidebar modes (`ui.navigation.sidebar.mode`)
+
+The sidebar (the ≥md aside rail) has three explicit presentation modes:
+
+| Mode | Behavior |
+| --- | --- |
+| `open` | Normal sidebar — icons (when configured) **and** labels. **Default.** |
+| `compact` | Sidebar stays visible but renders **icon-only** navigation: labels of icon-bearing items are visually hidden (kept for screen readers); items without an icon keep their label so nothing becomes invisible. The same class marker implements top/bottom menus. |
+| `closed` | The persistent rail is **not displayed**; the responsive "View Sidebar" disclosure remains the way navigation is reached. Distinct from `compact`. |
+
+The distinction is modeled explicitly in the configuration/state (never a CSS
+accident): `mode` is a validated vocabulary value, and the renderer hides
+labels only for icon-bearing items.
+
+#### Top & bottom menus (`ui.navigation.top.mode` / `ui.navigation.bottom.mode`)
+
+The ≥md header navigation and the mobile bottom bar share the **same**
+three-state contract as the sidebar — `open` (icon + text), `compact`
+(icon-only), `closed` (menu not composed). One vocabulary, one renderer, three
+surfaces — not three unrelated systems.
+
+#### Navigation items — icons, regions, disabled
+
+Each `navigation` entry may carry:
+
+```jsonc
+{
+  "navigation": [
+    { "label": "Home", "href": "/", "icon": "home.svg", "position": "top" },
+    { "label": "About", "href": "/about" },                    // middle (default)
+    { "label": "Legacy", "href": "/legacy", "icon": "", "disabled": true }
+  ]
+}
+```
+
+- `icon` — optional item icon (plain `public/assets/` filename).
+- `position` — `top` | `middle` | `bottom` **sidebar region group** (default
+  `middle`). On the sidebar rail and the mobile sidebar disclosure the list
+  orders deterministically `top → middle → bottom` (stable within each group;
+  keyboard/AT natural — no absolute positioning).
+- `disabled` — semantic disabled state: rendered `aria-disabled="true"`, not
+  navigable, removed from the tab order, visually muted; never silently dropped.
+
+
+
+#### Buttons — the primary CTA (`ui.cta`)
+
+The CTA is the Foundation's demonstrated configurable button (the native form
+`Button` stays a semantic `<button>` with browser-native hover/focus/active
+states plus the global focus ring). `ui.cta` adds:
+
+```jsonc
+{
+  "ui": {
+    "cta": {
+      "enabled": true,
+      "action": "book",               // semantic action = accessible name source
+      "label": "Book Now",            // omit or "" for an icon-only CTA
+      "href": "/booking",             // adopter-owned destination (never inferred)
+      "style": "prominent",
+      "icon": "calendar.svg",         // plain public/assets filename, or ""
+      "iconPosition": "start",        // "start" | "end"
+      "state": "default"             // "default" | "disabled"
+    }
+  }
+}
+```
+
+Presentations: **icon-only** (`label` missing/`""` + `icon`), **text-only**
+(no icon), **icon + text**; `iconPosition` chooses leading/trailing. States are
+a finite vocabulary — `default` and `disabled` — plus the browser-native
+`:hover`/`:focus-visible`/`:active`; arbitrary CSS through JSON is never
+exposed. An enabled CTA without `href` (or without any visible content, or
+without any accessible name) renders nothing — the Foundation never infers a
+destination and never ships an empty accessible label.
+
+#### Derived disable example (empty sidebar-open)
+
+```jsonc
+{ "ui": { "navigation": { "sidebar": { "open": { "icon": "", "text": "" } } } } }
+```
+
+The "View Sidebar" control is not rendered (the adopter explicitly chose to
+hide both its elements); nothing else changes. Escapes, backdrop, and focus
+return still apply to any disclosure that IS rendered.
+
+#### Summary of the P5-5 vocabulary
+
+| Leaf | Values |
+| --- | --- |
+| `ui.navigation.sidebar.mode` | `open` \| `compact` \| `closed` |
+| `ui.navigation.top.mode` / `.bottom.mode` | `open` \| `compact` \| `closed` |
+| `navigation[].position` | `top` \| `middle` \| `bottom` |
+| `ui.cta.iconPosition` | `start` \| `end` |
+| `ui.cta.state` | `default` \| `disabled` |
+| icon leaves | plain asset filename, or `""` on control leaves |
+
+The resolved modes are observable on `<html>` as `data-ui-sidebar-mode`,
+`data-ui-top-mode`, `data-ui-bottom-mode`, `data-ui-cta-state` — the same
+generalized attribute surface as the P5-3 presentation layer (no preset
+identity, so downstream CSS may key on vocabulary values if desired).
+
 ### Theme presentation — `ui.theme`
 
 - `ui.theme.mode` (`system` | `light` | `dark`) — the light/dark preference.
@@ -1501,3 +1646,4 @@ Before committing or deploying, run the validation gate:
 ```bash
 pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build
 ```
+

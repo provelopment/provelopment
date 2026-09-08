@@ -8,6 +8,7 @@ import {
   parseRegionalPath,
   resolveNavHref,
 } from "@/core/regional-pages";
+import { regionOrder, type NavRegion } from "@/core/ui";
 import { NavItem } from "@/components/ui/nav-item";
 
 export interface ContextNavLink {
@@ -17,6 +18,12 @@ export interface ContextNavLink {
   readonly key?: string;
   /** Marks configured demonstration entries with a badge (Phase M refinement). */
   readonly demoOnly?: boolean;
+  /** P5-5 — optional navigation-item icon (plain public/assets filename). */
+  readonly icon?: string;
+  /** P5-5 — sidebar region group (`top` | `middle` | `bottom`). */
+  readonly position?: NavRegion;
+  /** P5-5 — semantically disabled (aria-disabled, not navigable). */
+  readonly disabled?: boolean;
 }
 
 interface ContextNavLinksProps {
@@ -29,6 +36,13 @@ interface ContextNavLinksProps {
   readonly linkClassName?: string;
   /** Localized demo badge label (rendered for `demoOnly` links). */
   readonly demoBadgeLabel?: string;
+  /**
+   * P5-5 — when true, links are ordered by their configured sidebar region
+   * (top → middle → bottom, stable within each group). Used by the sidebar
+   * surfaces (aside rail + mobile sidebar disclosure); the header top-nav and
+   * footer keep configuration order.
+   */
+  readonly sortByRegion?: boolean;
 }
 
 /**
@@ -59,6 +73,7 @@ export function ContextNavLinks({
   className,
   linkClassName,
   demoBadgeLabel,
+  sortByRegion = false,
 }: ContextNavLinksProps) {
   const pathname = usePathname();
   const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
@@ -78,12 +93,21 @@ export function ContextNavLinks({
     active: !link.external && pathname === link.href,
   }));
 
+  // P5-5 — sidebar surfaces order by configured region (top → middle → bottom),
+  // stable within each group: predictable, keyboard/AT natural, no absolute
+  // positioning, no preset dependence.
+  const ordered = sortByRegion
+    ? [...resolvedWithActive].sort(
+        (a, b) => regionOrder(a.position) - regionOrder(b.position),
+      )
+    : resolvedWithActive;
+
   const listClassName = className ?? "space-y-2";
   const linkClass = linkClassName ?? "hover:text-primary";
 
   return (
     <ul aria-label={ariaLabel} className={listClassName}>
-      {resolvedWithActive.map((link) => (
+      {ordered.map((link) => (
         <NavItem
           key={link.key ?? link.href}
           item={{
@@ -92,6 +116,8 @@ export function ContextNavLinks({
             active: link.active,
             external: link.external,
             badge: link.demoOnly && demoBadgeLabel ? demoBadgeLabel : undefined,
+            icon: link.icon,
+            disabled: link.disabled,
           }}
           className={linkClass}
         />

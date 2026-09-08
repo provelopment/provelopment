@@ -5,9 +5,13 @@ import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import type {
   ContentWidth,
   CtaAction,
+  CtaState,
   CtaStyle,
   DesktopNavigationPattern,
+  IconPosition,
+  MenuMode,
   MobileNavigationPattern,
+  NavRegion,
   ShellVariant,
   TabletNavigationPattern,
   ThemeMode,
@@ -38,6 +42,12 @@ export interface SocialLink {
 export interface NavigationItem {
   readonly label: string;
   readonly href: string;
+  /** P5-5 — optional navigation-item icon (plain `public/assets/` filename). */
+  readonly icon?: string;
+  /** P5-5 — sidebar region group (`top` | `middle` | `bottom`; default `middle`). */
+  readonly position?: NavRegion;
+  /** P5-5 — semantically disabled state (`aria-disabled`, not navigable). */
+  readonly disabled?: boolean;
 }
 
 /** Phase M — a single connection mode exposed on the Connect page. */
@@ -116,6 +126,27 @@ export interface UiNavigationConfig {
   readonly desktop?: DesktopNavigationPattern;
   readonly tablet?: TabletNavigationPattern;
   readonly mobile?: MobileNavigationPattern;
+  /** P5-5 — sidebar presentation intent (mode + open/close disclosure content). */
+  readonly sidebar?: UiSidebarConfig;
+  /** P5-5 — ≥md top-navigation menu presentation mode. */
+  readonly top?: { readonly mode?: MenuMode };
+  /** P5-5 — mobile bottom-navigation menu presentation mode. */
+  readonly bottom?: { readonly mode?: MenuMode };
+}
+
+/** P5-5 — one icon+text disclosure control (sidebar open/close). */
+export interface UiSidebarControlConfig {
+  /** Plain public/assets icon filename, or `""` for no icon. */
+  readonly icon?: string;
+  /** Visible text; `""` = icon-only. Missing = localized fallback label. */
+  readonly text?: string;
+}
+
+/** P5-5 — sidebar presentation intent. */
+export interface UiSidebarConfig {
+  readonly mode?: MenuMode;
+  readonly open?: UiSidebarControlConfig;
+  readonly close?: UiSidebarControlConfig;
 }
 
 export interface UiContentConfig {
@@ -127,7 +158,10 @@ export interface UiCtaConfig {
   readonly enabled?: boolean;
   /** Semantic business action (roadmap §19). */
   readonly action?: CtaAction;
-  /** Adopter-provided label for the action. */
+  /**
+   * Adopter-provided visible label. P5-5: `""` (or a missing label with an
+   * icon) = icon-only CTA; the accessible name then comes from `action`.
+   */
   readonly label?: string;
   /**
    * Adopter-owned CTA destination (UI-07 D1). Optional; the Foundation never
@@ -136,6 +170,12 @@ export interface UiCtaConfig {
   readonly href?: string;
   /** Visual prominence requested from the preset (roadmap §11). */
   readonly style?: CtaStyle;
+  /** P5-5 — optional CTA icon (plain public/assets filename; `""` = none). */
+  readonly icon?: string;
+  /** P5-5 — icon placement within the CTA (`start` leading, `end` trailing). */
+  readonly iconPosition?: IconPosition;
+  /** P5-5 — semantic CTA state (`default` | `disabled`). */
+  readonly state?: CtaState;
 }
 
 export interface UiThemeConfig {

@@ -25,12 +25,14 @@ describe("UI-08 — explicit Workspace selection (declarative profile)", () => {
   it("preset-only workspace resolves the full Workspace profile", () => {
     const resolved = resolveUiConfig({ preset: "workspace" });
     expect(resolved.preset).toBe("workspace");
-    expect(resolved.navigation).toEqual(uiPresetProfiles.workspace.navigation);
-    expect(resolved.navigation).toEqual({
-      desktop: "sidebar",
-      tablet: "collapsed-sidebar",
-      mobile: "drawer",
-    });
+    // P5-5 — the preset drives the three pattern leaves; the control leaves
+    // (sidebar/top/bottom mode) are NEUTRAL and preset-agnostic.
+    expect(resolved.navigation.desktop).toBe("sidebar");
+    expect(resolved.navigation.tablet).toBe("collapsed-sidebar");
+    expect(resolved.navigation.mobile).toBe("drawer");
+    expect(resolved.navigation.sidebar.mode).toBe("open");
+    expect(resolved.navigation.top.mode).toBe("open");
+    expect(resolved.navigation.bottom.mode).toBe("open");
     expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: true } });
     expect(resolved.cta.style).toBe("standard");
     // P5-3 — Workspace now DEFINES its dense/utility presentation: compact
@@ -92,7 +94,14 @@ describe("UI-08 — explicit Workspace selection (declarative profile)", () => {
     for (const preset of UI_PRESETS) {
       const resolved = resolveUiConfig({ preset });
       expect(resolved.preset).toBe(preset);
-      expect(resolved.navigation).toEqual(uiPresetProfiles[preset].navigation);
+      expect(resolved.navigation.desktop).toBe(uiPresetProfiles[preset].navigation.desktop);
+      expect(resolved.navigation.tablet).toBe(uiPresetProfiles[preset].navigation.tablet);
+      expect(resolved.navigation.mobile).toBe(uiPresetProfiles[preset].navigation.mobile);
+      // P5-5 — the control leaves (sidebar/top/bottom mode) are neutral and preset-agnostic:
+      // they never come from a preset profile (explicit adopter configuration only).
+      expect(resolved.navigation.sidebar.mode).toBe("open");
+      expect(resolved.navigation.top.mode).toBe("open");
+      expect(resolved.navigation.bottom.mode).toBe("open");
       expect(resolved.shell).toEqual(uiPresetProfiles[preset].shell);
       expect(resolved.cta.style).toBe(uiPresetProfiles[preset].cta.style);
     }

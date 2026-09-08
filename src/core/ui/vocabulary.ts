@@ -162,3 +162,47 @@ export const PRESENTATION_HEROES = [
   "showcase",
 ] as const;
 export type PresentationHero = (typeof PRESENTATION_HEROES)[number];
+
+/**
+ * P5-5 — Configurable controls & navigation-presentation vocabulary.
+ *
+ * Closed value sets for the adopter-configurable control/menu intent that P5-5
+ * introduces. Like every other vocabulary, these are the SINGLE source of
+ * allowed values: the configuration schema derives from them, and the shared
+ * renderer implements each value with a small semantic rule — never arbitrary
+ * CSS-through-JSON and never preset identity.
+ */
+
+/** Menu/control presentation modes — the SAME three-state contract used by the
+ * sidebar, the ≥md top navigation, and the mobile bottom navigation. */
+export const MENU_MODES = ["open", "compact", "closed"] as const;
+export type MenuMode = (typeof MENU_MODES)[number];
+
+/** Sidebar navigation region groups (deterministic order: top → middle → bottom). */
+export const NAV_REGIONS = ["top", "middle", "bottom"] as const;
+export type NavRegion = (typeof NAV_REGIONS)[number];
+
+/** Icon placement within a control ("start" = leading, "end" = trailing). */
+export const ICON_POSITIONS = ["start", "end"] as const;
+export type IconPosition = (typeof ICON_POSITIONS)[number];
+
+/** Semantic CTA state (a finite vocabulary, not arbitrary CSS). */
+export const CTA_STATES = ["default", "disabled"] as const;
+export type CtaState = (typeof CTA_STATES)[number];
+
+/**
+ * P5-5 — the configurable UI asset (icon) filename contract.
+ *
+ * A plain filename that resolves under `public/assets/` (via the shared
+ * /assets/ URL). Paths, traversal, query strings, and URLs are REJECTED — the
+ * adopter replaces an asset in place or swaps the configured filename, never a
+ * server path. Allowed formats: svg, png, webp, jpg/jpeg, gif, ico (png/webp
+ * icons are rendered at a fixed control size so intrinsic dimensions can never
+ * overflow layout).
+ */
+export const ICON_ASSET_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:svg|png|webp|jpg|jpeg|gif|ico)$/;
+
+/** Whether a string is a valid configurably-replaceable asset filename. */
+export function isIconAssetName(value: string): boolean {
+  return ICON_ASSET_PATTERN.test(value);
+}

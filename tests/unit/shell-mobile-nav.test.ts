@@ -54,7 +54,11 @@ describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
       }),
     );
     expect(html).toContain("View Sidebar");
-    expect(html).toMatch(/<svg[^>]*class="[^"]*ui-mobile-nav-icon/);
+    // P5-5 — the open control icon is now a configurable asset (`<img>` with
+    // the shared ui-mobile-nav-icon marker); the P5-1 browser contract (the
+    // marker + the visible "View Sidebar" label) is unchanged.
+    expect(html).toMatch(/<img[^>]*class="[^"]*ui-mobile-nav-icon/);
+    expect(html).toContain('/assets/sidebar-open.svg');
     // The trigger is not an icon-only control: the visible action label is the
     // accessible name, with the icon decorative (aria-hidden by the SVG itself).
     expect(html).toContain('aria-expanded="false"');

@@ -5,7 +5,7 @@ import { Cta, isCtaRenderable } from "@/components/ui/cta";
 import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
-import { contentWidthClass, densityClass, resolveShellPattern } from "@/core/ui";
+import { contentWidthClass, densityClass, resolveShellPattern, type MenuMode } from "@/core/ui";
 
 import { ShellBottomBar, type ShellBottomBarLink } from "./shell-bottom-bar";
 
@@ -67,6 +67,10 @@ export interface ShellEngineProps {
     readonly demoBadgeLabel?: string;
     /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer. */
     readonly closeLabel?: string;
+    /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
+    readonly mode?: MenuMode;
+    /** P5-5 — configuration for the shared "Close Sidebar" disclosure control. */
+    readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
   };
   /** Client nav context: current locale + configured region page bindings. */
   readonly locale: string;
@@ -107,14 +111,25 @@ export function ShellEngine({
 
   // P0-2 — the primary CTA is the one shared `Cta` capability. The engine owns
   // WHERE the CTA is composed (from the decision-core per-viewport ctaSlot);
-  // `Cta` owns WHETHER one exists (enabled ∧ label ∧ href, the single presence
-  // predicate) and its prominence. Nothing here invents a label or href.
-  const ctaNode = isCtaRenderable(resolved.cta.enabled, ctaLabel, ctaHref) ? (
+  // `Cta` owns WHETHER one exists (enabled ∧ href ∧ (label ∨ icon) ∧ a real
+  // accessible name) and its prominence/presentation. Nothing here invents a
+  // label or href; P5-5 icon/state flow through from the resolved CTA intent.
+  const ctaNode = isCtaRenderable(
+    resolved.cta.enabled,
+    ctaLabel,
+    ctaHref,
+    resolved.cta.icon,
+    resolved.cta.action,
+  ) ? (
     <Cta
       enabled={resolved.cta.enabled}
       style={resolved.cta.style}
       label={ctaLabel}
       href={ctaHref}
+      action={resolved.cta.action}
+      icon={resolved.cta.icon}
+      iconPosition={resolved.cta.iconPosition}
+      state={resolved.cta.state}
       className="ui-shell-cta"
     />
   ) : null;
@@ -236,6 +251,8 @@ export function ShellEngine({
             pageBindings={pageBindings}
             demoBadgeLabel={bottomNav.demoBadgeLabel}
             closeLabel={bottomNav.closeLabel}
+            mode={bottomNav.mode}
+            sidebarClose={bottomNav.sidebarClose}
             cta={
               ctaNode !== null && decision.mobile.ctaSlot === "bottom" && ctaLabel && ctaHref
                 ? { label: ctaLabel, href: ctaHref }

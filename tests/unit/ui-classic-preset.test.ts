@@ -21,12 +21,14 @@ describe("UI-06 — explicit Classic selection (declarative preset)", () => {
   it("preset-only classic resolves the full Classic profile", () => {
     const resolved = resolveUiConfig({ preset: "classic" });
     expect(resolved.preset).toBe("classic");
-    expect(resolved.navigation).toEqual(uiPresetProfiles.classic.navigation);
-    expect(resolved.navigation).toEqual({
-      desktop: "top",
-      tablet: "top-compact",
-      mobile: "drawer",
-    });
+    // P5-5 — the preset drives the three pattern leaves; the control leaves
+    // (sidebar/top/bottom mode) are NEUTRAL and preset-agnostic.
+    expect(resolved.navigation.desktop).toBe("top");
+    expect(resolved.navigation.tablet).toBe("top-compact");
+    expect(resolved.navigation.mobile).toBe("drawer");
+    expect(resolved.navigation.sidebar.mode).toBe("open");
+    expect(resolved.navigation.top.mode).toBe("open");
+    expect(resolved.navigation.bottom.mode).toBe("open");
     expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("standard");
     // P5-3 — Classic now DEFINES its presentation: editorial typography,
@@ -75,7 +77,14 @@ describe("UI-06 — explicit Classic selection (declarative preset)", () => {
     for (const preset of UI_PRESETS) {
       const resolved = resolveUiConfig({ preset });
       expect(resolved.preset).toBe(preset);
-      expect(resolved.navigation).toEqual(uiPresetProfiles[preset].navigation);
+      expect(resolved.navigation.desktop).toBe(uiPresetProfiles[preset].navigation.desktop);
+      expect(resolved.navigation.tablet).toBe(uiPresetProfiles[preset].navigation.tablet);
+      expect(resolved.navigation.mobile).toBe(uiPresetProfiles[preset].navigation.mobile);
+      // P5-5 — the control leaves (sidebar/top/bottom mode) are neutral and preset-agnostic:
+      // they never come from a preset profile (explicit adopter configuration only).
+      expect(resolved.navigation.sidebar.mode).toBe("open");
+      expect(resolved.navigation.top.mode).toBe("open");
+      expect(resolved.navigation.bottom.mode).toBe("open");
       expect(resolved.shell).toEqual(uiPresetProfiles[preset].shell);
       expect(resolved.cta.style).toBe(uiPresetProfiles[preset].cta.style);
     }
@@ -112,14 +121,14 @@ describe("FS-2 — the shipped Foundation reference site is Adaptive with effect
   it("the reference site ui block resolves preset adaptive with its profile", () => {
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
     expect(demoResolved.preset).toBe("adaptive");
-    expect(demoResolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
-    // No explicit leaves are shipped, so the adaptive profile governs the
-    // EFFECTIVE composition of the canonical Foundation reference site:
-    expect(demoResolved.navigation).toEqual({
-      desktop: "sidebar",
-      tablet: "collapsed-sidebar",
-      mobile: "bottom-bar",
-    });
+    // P5-5 — the profile drives the three pattern leaves; the control leaves
+    // (sidebar/top/bottom mode) are neutral + preset-agnostic.
+    expect(demoResolved.navigation.desktop).toBe("sidebar");
+    expect(demoResolved.navigation.tablet).toBe("collapsed-sidebar");
+    expect(demoResolved.navigation.mobile).toBe("bottom-bar");
+    expect(demoResolved.navigation.sidebar.mode).toBe("open");
+    expect(demoResolved.navigation.top.mode).toBe("open");
+    expect(demoResolved.navigation.bottom.mode).toBe("open");
     expect(demoResolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
     // P5-3 — Adaptive is the balanced/general-purpose presentation: its profile
     // matches the Foundation defaults for density/content/radius, so the

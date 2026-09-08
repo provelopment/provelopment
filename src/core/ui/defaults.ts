@@ -1,8 +1,11 @@
 import type {
   ContentWidth,
   CtaAction,
+  CtaState,
   CtaStyle,
   DesktopNavigationPattern,
+  IconPosition,
+  MenuMode,
   MobileNavigationPattern,
   ShellVariant,
   TabletNavigationPattern,
@@ -52,6 +55,16 @@ export interface UiFoundationDefaults {
     readonly desktop: DesktopNavigationPattern;
     readonly tablet: TabletNavigationPattern;
     readonly mobile: MobileNavigationPattern;
+    /** P5-5 — sidebar presentation intent (mode + open/close control content). */
+    readonly sidebar: {
+      readonly mode: MenuMode;
+      readonly open: { readonly icon?: string; readonly text?: string };
+      readonly close: { readonly icon?: string; readonly text?: string };
+    };
+    /** P5-5 — ≥md top-navigation menu presentation mode. */
+    readonly top: { readonly mode: MenuMode };
+    /** P5-5 — mobile bottom-navigation menu presentation mode. */
+    readonly bottom: { readonly mode: MenuMode };
   };
   readonly density: UiDensity;
   readonly content: { readonly width: ContentWidth };
@@ -74,6 +87,12 @@ export interface UiFoundationDefaults {
     readonly href?: string;
     /** CTA visual prominence;presets may override via `cta.style`。 */
    readonly style: CtaStyle;
+    /** P5-5 — optional leading/trailing icon asset (plain public/assets filename). */
+    readonly icon?: string;
+    /** P5-5 — icon placement within the CTA ("start" or "end"). */
+    readonly iconPosition: IconPosition;
+    /** P5-5 — semantic CTA state ("default" | "disabled"). */
+    readonly state: CtaState;
   };
   readonly theme: { readonly mode: ThemeMode; readonly radius: ThemeRadius; readonly background?: string };
 }
@@ -100,6 +119,12 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
     desktop: "top",
     tablet: "top-compact",
     mobile: "drawer",
+    // P5-5 — neutral defaults: sidebar fully open (labels + shipped icons),
+    // top/bottom menus open. `open`/`close` text falls back to the localized
+    // dictionary labels and icon to the shipped assets at composition time.
+    sidebar: { mode: "open", open: { icon: undefined, text: undefined }, close: { icon: undefined, text: undefined } },
+    top: { mode: "open" },
+    bottom: { mode: "open" },
   },
   density: "comfortable",
   content: { width: "standard" },
@@ -112,6 +137,10 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
     // invents or infers a href (no action→URL registry, no route inference).
     href: undefined,
     style: "standard",
+    // P5-5 — no icon, leading placement, enabled by default when composed.
+    icon: undefined,
+    iconPosition: "start",
+    state: "default",
   },
   theme: { mode: "system", radius: "medium" },
 };
