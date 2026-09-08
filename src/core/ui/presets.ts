@@ -1,11 +1,15 @@
 import type {
+  ContentWidth,
   CtaStyle,
   DesktopNavigationPattern,
   MobileNavigationPattern,
   ShellVariant,
   TabletNavigationPattern,
+  ThemeRadius,
+  UiDensity,
   UiPreset,
 } from "./vocabulary";
+import type { UiPresentation } from "./presentation";
 
 /**
  * UI preset profiles (UI-01 — Architecture & Contract).
@@ -89,6 +93,14 @@ export interface UiPresetProfile {
   };
   /** Default CTA prominence requested by the preset. */
   readonly cta: { readonly style: CtaStyle };
+  /** P5-3 — the preset's generalized presentation intent (the HOW of styling). */
+  readonly presentation: UiPresentation;
+  /** P5-3 — the preset's default density (effective until an explicit override). */
+  readonly density: UiDensity;
+  /** P5-3 — the preset's default content width (effective until an explicit override). */
+  readonly content: { readonly width: ContentWidth };
+  /** P5-3 — the preset's default corner language (radius; effective until an explicit override). */
+  readonly theme: { readonly radius: ThemeRadius };
   /** This preset's row of the roadmap §24 capability matrix. */
   readonly capabilities: UiPresetCapabilities;
 }
@@ -132,6 +144,18 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
     shell: { header: "standard", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "standard" },
+    // P5-3 — structured/editorial presentation: heavier display type, a
+    // hairline-rule header, paper cards, small corner language.
+    presentation: {
+      typography: "editorial",
+      rhythm: "structured",
+      surface: "paper",
+      header: "rule",
+      hero: "split",
+    },
+    density: "comfortable",
+    content: { width: "standard" },
+    theme: { radius: "small" },
     capabilities: capabilities({
       topNavigation: "supported",
       bottomMobileNavigation: "optional",
@@ -148,6 +172,17 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "bottom-bar" },
     shell: { header: "standard", footer: "standard", sidebar: { collapsible: true } },
     cta: { style: "standard" },
+    // P5-3 — balanced/general-purpose presentation (the neutral defaults).
+    presentation: {
+      typography: "balanced",
+      rhythm: "balanced",
+      surface: "default",
+      header: "default",
+      hero: "default",
+    },
+    density: "comfortable",
+    content: { width: "standard" },
+    theme: { radius: "medium" },
     capabilities: capabilities({
       topNavigation: "optional",
       sidebar: "supported",
@@ -171,6 +206,18 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     navigation: { desktop: "minimal", tablet: "top-compact", mobile: "drawer" },
     shell: { header: "minimal", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "prominent" },
+    // P5-3 — minimal/content-first presentation: lighter display type, airy
+    // rhythm, bare surfaces, a borderless header, and a centered narrow hero.
+    presentation: {
+      typography: "minimal",
+      rhythm: "airy",
+      surface: "minimal",
+      header: "bare",
+      hero: "center",
+    },
+    density: "comfortable",
+    content: { width: "narrow" },
+    theme: { radius: "medium" },
     capabilities: capabilities({
       topNavigation: "supported",
       bottomMobileNavigation: "optional",
@@ -190,6 +237,18 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
     shell: { header: "standard", footer: "standard", sidebar: { collapsible: true } },
     cta: { style: "standard" },
+    // P5-3 — dense/utility presentation: compact display type, dense rhythm,
+    // instrument (flat) surfaces, a compact header, and a concise hero.
+    presentation: {
+      typography: "utility",
+      rhythm: "dense",
+      surface: "instrument",
+      header: "compact",
+      hero: "concise",
+    },
+    density: "compact",
+    content: { width: "wide" },
+    theme: { radius: "none" },
     capabilities: capabilities({
       topNavigation: "optional",
       sidebar: "supported",
@@ -212,6 +271,18 @@ export const uiPresetProfiles: Readonly<Record<UiPreset, UiPresetProfile>> = {
     navigation: { desktop: "floating", tablet: "floating", mobile: "overlay" },
     shell: { header: "minimal", footer: "standard", sidebar: { collapsible: false } },
     cta: { style: "standard" },
+    // P5-3 — spacious/visual presentation: expressive display type, spacious
+    // rhythm, layered soft-shadow surfaces, an elevated header, showcase hero.
+    presentation: {
+      typography: "expressive",
+      rhythm: "spacious",
+      surface: "layered",
+      header: "elevated",
+      hero: "showcase",
+    },
+    density: "spacious",
+    content: { width: "wide" },
+    theme: { radius: "large" },
     capabilities: capabilities({
       topNavigation: "optional",
       mobileDrawer: "supported",

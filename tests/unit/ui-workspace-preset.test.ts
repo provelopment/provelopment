@@ -33,14 +33,24 @@ describe("UI-08 — explicit Workspace selection (declarative profile)", () => {
     });
     expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: true } });
     expect(resolved.cta.style).toBe("standard");
-    // Leaves Workspace does NOT define fall to Foundation defaults:
-    expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
-    expect(resolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
+    // P5-3 — Workspace now DEFINES its dense/utility presentation: compact
+    // density, a wide content column, zero corner radius, instrument surfaces,
+    // a compact header and a concise hero.
+    expect(resolved.density).toBe("compact");
+    expect(resolved.content.width).toBe("wide");
+    expect(resolved.presentation).toEqual({
+      typography: "utility",
+      rhythm: "dense",
+      surface: "instrument",
+      header: "compact",
+      hero: "concise",
+    });
+    expect(resolved.theme.mode).toBe(FOUNDATION_UI_DEFAULTS.theme.mode);
+    expect(resolved.theme.radius).toBe("none");
     expect(resolved.cta.enabled).toBe(false);
     expect(resolved.cta.action).toBeUndefined();
     expect(resolved.cta.label).toBeUndefined();
     expect(resolved.cta.href).toBeUndefined();
-    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 
   it("leaf overrides win without canceling the workspace personality", () => {

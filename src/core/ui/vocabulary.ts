@@ -99,3 +99,66 @@ export type ThemeRadius = (typeof THEME_RADII)[number];
 
 /** A normalized hex color (`#rgb`, `#rrggbb`, or `#rrggbbaa`) — RE for config validation. */
 export const COLOR_HEX_PATTERN = /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$|^#[0-9a-fA-F]{8}$/;
+
+/**
+ * P5-3 — Presentation vocabulary (generalized preset-presentation dimensions).
+ *
+ * These are the closed value sets for the `ui.presentation` namespace. Each
+ * dimension is a GENERALIZED presentation intent (never a preset name): a
+ * preset profile selects one value per dimension, and any custom configuration
+ * may too. The renderer (CSS token layer + shared components) implements each
+ * value; the resolver/schema derive from these arrays so the documented
+ * vocabulary and the schema can never drift.
+ *
+ * Framework-neutral by design (see ARCHITECTURE.md — UI System Architecture).
+ */
+
+/** Display/heading "voice": how display typography is tuned (P5-3). */
+export const PRESENTATION_TYPOGRAPHIES = [
+  "balanced",
+  "editorial",
+  "minimal",
+  "utility",
+  "expressive",
+] as const;
+export type PresentationTypography = (typeof PRESENTATION_TYPOGRAPHIES)[number];
+
+/** Section/page vertical rhythm (P5-3). */
+export const PRESENTATION_RHYTHMS = [
+  "balanced",
+  "structured",
+  "airy",
+  "dense",
+  "spacious",
+] as const;
+export type PresentationRhythm = (typeof PRESENTATION_RHYTHMS)[number];
+
+/** Surface/card treatment family (P5-3). */
+export const PRESENTATION_SURFACES = [
+  "default",
+  "paper",
+  "minimal",
+  "instrument",
+  "layered",
+] as const;
+export type PresentationSurface = (typeof PRESENTATION_SURFACES)[number];
+
+/** Header band treatment (P5-3). */
+export const PRESENTATION_HEADERS = [
+  "default",
+  "rule",
+  "bare",
+  "compact",
+  "elevated",
+] as const;
+export type PresentationHeader = (typeof PRESENTATION_HEADERS)[number];
+
+/** Home hero composition (P5-3). */
+export const PRESENTATION_HEROES = [
+  "default",
+  "split",
+  "center",
+  "concise",
+  "showcase",
+] as const;
+export type PresentationHero = (typeof PRESENTATION_HEROES)[number];

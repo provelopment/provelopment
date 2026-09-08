@@ -77,13 +77,18 @@ describe("UI-02 - all five explicit presets resolve their profiles", () => {
     }
   });
 
-  it("an explicit preset selection never leaks into the density/content/cta-enabled/theme leaves", () => {
+  it("P5-3 — presets define density/content/radius/presentation; CTA + theme.mode stay neutral", () => {
     for (const preset of UI_PRESETS) {
       const resolved = resolveUiConfig({ preset });
-      // Presets do NOT define these: they must fall through to the Foundation
-      // defaults (deterministic; no invented values).
-      expect(resolved.density).toBe("comfortable");
-      expect(resolved.content.width).toBe("standard");
+      const profile = uiPresetProfiles[preset];
+      // P5-3: each preset now owns its presentation (density, content width,
+      // radius, presentation intent) — the effective differentiation.
+      expect(resolved.density).toBe(profile.density);
+      expect(resolved.content.width).toBe(profile.content.width);
+      expect(resolved.theme.radius).toBe(profile.theme.radius);
+      expect(resolved.presentation).toEqual(profile.presentation);
+      // Still neutral: the CTA stays business-neutral and theme.mode follows
+      // the Foundation default (a preset never forces a color scheme).
       expect(resolved.cta.enabled).toBe(false);
       expect(resolved.theme.mode).toBe("system");
     }

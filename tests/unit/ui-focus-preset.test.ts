@@ -30,12 +30,22 @@ describe("UI-07 — explicit Focus selection (declarative profile)", () => {
     });
     expect(resolved.shell).toEqual({ header: "minimal", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("prominent");
-    // Leaves Focus does NOT define fall to Foundation defaults:
-    expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
-    expect(resolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
+    // P5-3 — Focus now DEFINES its minimal/content-first presentation: a
+    // narrow content column, comfortable density, medium radius, minimal
+    // surfaces, a bare header and a centered hero.
+    expect(resolved.density).toBe("comfortable");
+    expect(resolved.content.width).toBe("narrow");
+    expect(resolved.presentation).toEqual({
+      typography: "minimal",
+      rhythm: "airy",
+      surface: "minimal",
+      header: "bare",
+      hero: "center",
+    });
+    expect(resolved.theme.mode).toBe(FOUNDATION_UI_DEFAULTS.theme.mode);
+    expect(resolved.theme.radius).toBe("medium");
     expect(resolved.cta.enabled).toBe(false);
     expect(resolved.cta.href).toBeUndefined();
-    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 
   it("leaf overrides win without canceling the focus personality", () => {

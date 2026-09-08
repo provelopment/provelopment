@@ -11,6 +11,7 @@ import type {
   UiDensity,
   UiPreset,
 } from "./vocabulary";
+import { PRESENTATION_DEFAULTS, type UiPresentation } from "./presentation";
 
 /**
  * Foundation-level UI defaults (UI-02 — Configuration Infrastructure).
@@ -54,6 +55,8 @@ export interface UiFoundationDefaults {
   };
   readonly density: UiDensity;
   readonly content: { readonly width: ContentWidth };
+  /** P5-3 — the neutral resolved presentation intent (balanced/Adaptive). */
+  readonly presentation: UiPresentation;
   readonly cta: {
     /** DELIBERATE neutral default (D1, owner-approved): the shipped classic
      *  composition renders no CTA;an action is a business decision, never invented
@@ -100,6 +103,7 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
   },
   density: "comfortable",
   content: { width: "standard" },
+  presentation: PRESENTATION_DEFAULTS,
   cta: {
     enabled: false,
     action: undefined,

@@ -29,11 +29,21 @@ describe("UI-06 — explicit Classic selection (declarative preset)", () => {
     });
     expect(resolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: false } });
     expect(resolved.cta.style).toBe("standard");
-    // Leaves Classic does not define fall to Foundation defaults:
-    expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
-    expect(resolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
+    // P5-3 — Classic now DEFINES its presentation: editorial typography,
+    // structured rhythm, paper surfaces, a rule header, split hero, medium
+    // corner language (its density/content match the neutral values).
+    expect(resolved.density).toBe("comfortable");
+    expect(resolved.content.width).toBe("standard");
+    expect(resolved.presentation).toEqual({
+      typography: "editorial",
+      rhythm: "structured",
+      surface: "paper",
+      header: "rule",
+      hero: "split",
+    });
+    expect(resolved.theme.mode).toBe(FOUNDATION_UI_DEFAULTS.theme.mode);
+    expect(resolved.theme.radius).toBe("small");
     expect(resolved.cta.enabled).toBe(false);
-    expect(resolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
   });
 
   it("leaf overrides win without canceling the classic personality", () => {
@@ -111,8 +121,12 @@ describe("FS-2 — the shipped Foundation reference site is Adaptive with effect
       mobile: "bottom-bar",
     });
     expect(demoResolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
+    // P5-3 — Adaptive is the balanced/general-purpose presentation: its profile
+    // matches the Foundation defaults for density/content/radius, so the
+    // canonical reference site remains byte-identical.
     expect(demoResolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
     expect(demoResolved.content.width).toBe(FOUNDATION_UI_DEFAULTS.content.width);
     expect(demoResolved.theme).toEqual(FOUNDATION_UI_DEFAULTS.theme);
+    expect(demoResolved.presentation).toEqual(uiPresetProfiles.adaptive.presentation);
   });
 });

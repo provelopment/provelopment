@@ -16,7 +16,7 @@ interface PostCardProps {
  */
 export function PostCard({ post, href, readingTimeLabel }: PostCardProps) {
   return (
-    <article className="rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary">
+    <article className="ui-card rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary">
       <Link href={href} className="block">
         <h2 className="text-xl font-semibold">{post.title}</h2>
         <p className="mt-1 text-sm text-muted-foreground">
