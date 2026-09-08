@@ -593,3 +593,76 @@ html[data-ui-hero="showcase"] .home-hero {
 [aria-disabled="true"].ui-drawer-cta > a {
   opacity: 0.55;
 }
+
+/* ── P6-1 sidebar disclosure contract (one vocabulary, one control) ─────
+ *
+ * The SHARED renderer for the sidebar rail + its Show/Hide disclosure toggle,
+ * so desktop, tablet, and mobile present the SAME sidebar concept:
+ *
+ *  - `.ui-shell-sidebar` — the rail frame composed by the engine: a generous
+ *    HORIZONTAL INSET (spacing tokens) so navigation never kisses the viewport
+ *    edge, plus vertical rhythm. The rail is only composed when the sidebar is
+ *    present with content — closed mode renders no rail, so there is no ghost
+ *    spacing and no empty placeholder.
+ *  - `.ui-shell-sidebar ul` — the navigation list sits a FURTHER consistent
+ *    inset beneath the disclosure control, so items clearly belong inside the
+ *    sidebar (control level → item level hierarchy).
+ *  - `.ui-sidebar-toggle` — the REAL interactive disclosure control on the
+ *    rail: a semantic button with border/surface, hover, active/pressed, and
+ *    pointer affordances — it can never be mistaken for static heading text.
+ *    The same contract drives the mobile drawer/overlay trigger + close (see
+ *    ShellMobileNav); only placement/size differ.
+ *  - `.ui-sidebar-toggle-icon` — fixed 1rem control size for the show/hide
+ *    asset (intrinsic image dimensions can never overflow layout).
+ *
+ * Token-only (no raw colors); the single global :focus-visible ring (P1-3)
+ * covers keyboard focus. The reduced-motion rule above strips transitions.
+ */
+.ui-shell-sidebar {
+  margin-inline-start: 1.25rem;
+  padding-block: 1rem 1.5rem;
+  padding-inline: 1.25rem;
+}
+
+.ui-shell-sidebar ul {
+  padding-inline-start: 1.25rem;
+}
+
+.ui-sidebar-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-block-end: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--card);
+  color: var(--card-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    border-color 150ms;
+}
+
+.ui-sidebar-toggle:hover {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.ui-sidebar-toggle:active {
+  background-color: var(--muted-foreground);
+  color: var(--background);
+}
+
+.ui-sidebar-toggle-icon {
+  width: 1rem;
+  height: 1rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}

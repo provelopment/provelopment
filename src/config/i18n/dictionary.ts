@@ -31,18 +31,16 @@ export const dictionarySchema = z.object({
     items: z.record(z.string(), z.string()),
     /** UI-05 — label for the adaptive bottom-bar "More" drawer trigger. */
     moreMenu: z.string(),
-    /** UI-05 — label for the adaptive desktop sidebar collapse/expand toggle. */
-    sidebarToggle: z.string(),
     /**
-     * P0-1 — label for the explicit mobile-disclosure close control
-     * ("Close Sidebar" in the owner-approved sidebar contract). OPTIONAL: the
-     * control renders only when the composer opts in (the overlay pattern
-     * today); locale files without the key are valid.
+     * P6-1 — the ONE sidebar-disclosure vocabulary on every breakpoint. The
+     * rail toggle (desktop/tablet), the mobile drawer/overlay trigger and its
+     * close control all say the same thing: `showSidebar` when the disclosure
+     * is closed ("Show Sidebar" — the action), `hideSidebar` when open
+     * ("Hide Sidebar"). These are also the localized fallbacks for the P5-5
+     * `ui.navigation.sidebar.open/close.text` configuration leaves.
      */
-    closeSidebar: z.string().optional(),
-    /** P5-1 — label for the mobile "open sidebar" trigger action ("View Sidebar"). OPTIONAL:
-     * locale files without the key fall back to the English string in the composer. */
-    viewSidebar: z.string().optional(),
+    showSidebar: z.string(),
+    hideSidebar: z.string(),
   }),
   notFound: z.object({
     title: z.string(),

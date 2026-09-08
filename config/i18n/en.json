@@ -13,9 +13,8 @@
     "primaryLabel": "Primary navigation",
     "footerLabel": "Footer navigation",
     "moreMenu": "More",
-    "sidebarToggle": "Collapse navigation",
-    "closeSidebar": "Close Sidebar",
-    "viewSidebar": "View Sidebar",
+    "showSidebar": "Show Sidebar",
+    "hideSidebar": "Hide Sidebar",
     "items": {
       "/": "Home",
       "/about": "About",

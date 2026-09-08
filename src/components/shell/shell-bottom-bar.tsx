@@ -56,12 +56,12 @@ export interface ShellBottomBarProps {
   readonly demoBadgeLabel?: string;
   /** Primary CTA composed only when the engine resolved `cta.enabled`+labels. */
   readonly cta?: { readonly label: string; readonly href: string };
-  /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer
+  /** P6-1 — label for the explicit "Hide Sidebar" control in the More drawer
    * (the shared sidebar contract; absent → no close control renders). */
   readonly closeLabel?: string;
   /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
   readonly mode?: MenuMode;
-  /** P5-5 — configuration for the shared "Close Sidebar" disclosure control. */
+  /** P5-5 — configuration for the shared "Hide Sidebar" disclosure control. */
   readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
 }
 

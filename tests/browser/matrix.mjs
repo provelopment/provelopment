@@ -267,34 +267,68 @@ async function runAsidePreset(rows, preset, cdp) {
 
     // P0-1 INITIAL state — a real collapse is NOT aria-only: a collapsed band
     // hides its panel from layout + tab order; the toggle stays (expand control).
+    // P6-1 — also captures the disclosure CONTROL contract: semantic element,
+    // state-flipping label, real loaded icon, rail/content insets, no broken
+    // image anywhere on the page.
     const init = await cdp.evaluate(`(() => {
       const rail = document.querySelector(${JSON.stringify(railSel)});
+      const shell = document.querySelector('.ui-shell-sidebar');
       const panel = document.querySelector(${JSON.stringify(vpName === "desktop" ? "#shell-sidebar-desktop-panel" : "#shell-sidebar-tablet-panel")});
       const toggle = rail ? rail.querySelector('[aria-controls="${controlsId}"]') : null;
       const pr = panel ? panel.getBoundingClientRect() : null;
+      const tr = toggle ? toggle.getBoundingClientRect() : null;
+      const sr = shell ? shell.getBoundingClientRect() : null;
+      const firstItem = rail ? rail.querySelector('ul li') : null;
+      const fir = firstItem ? firstItem.getBoundingClientRect() : null;
+      const toggleIcon = toggle ? toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon') : null;
       return {
         hasRail: !!rail,
         panelVisible: !!pr && pr.width > 0 && pr.height > 0,
         panelHiddenClass: !!panel && panel.classList.contains('hidden'),
         togglePresent: !!toggle,
         toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+        // P6-1 — the disclosure is a real interactive control with a visible,
+        // LOADED icon and the state-correct Show/Hide Sidebar label.
+        toggleTag: toggle ? toggle.tagName : null,
+        toggleText: toggle ? toggle.textContent.trim() : null,
+        toggleIcon: !!toggleIcon,
+        toggleIconLoaded: !!toggleIcon && toggleIcon.complete && toggleIcon.naturalWidth > 0,
+        // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
+        railLeft: sr ? Math.round(sr.left) : null,
+        toggleLeft: tr ? Math.round(tr.left) : null,
+        itemLeft: fir ? Math.round(fir.left) : null,
+        noBrokenImages: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
       };
     })()`);
     check(rows, `${vpName}.aside.present`, !!init.hasRail);
     if (collapsible) {
       check(rows, `${vpName}.aside.toggle.present`, !!init.togglePresent);
+      check(rows, `${vpName}.aside.toggle.semanticButton`, !!init.togglePresent && init.toggleTag === "BUTTON");
+      check(rows, `${vpName}.aside.toggle.icon`, !!init.toggleIcon);
+      check(rows, `${vpName}.aside.toggle.icon.loaded`, !!init.toggleIconLoaded);
       if (vpName === "desktop") {
         check(rows, `${vpName}.aside.expanded.initial`, init.toggleExpanded === "true" && init.panelVisible);
+        // P6-1 — ONE vocabulary: open rail → "Hide Sidebar".
+        check(rows, `${vpName}.aside.toggle.labelHide`, init.toggleText === "Hide Sidebar");
+        // P6-1 — edge spacing + second-level inset (control vs navigation items).
+        check(rows, `${vpName}.aside.spacing.railInset`, !!(init.railLeft != null && init.railLeft >= 16), `railLeft=${init.railLeft}`);
+        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(init.toggleLeft != null && init.railLeft != null && init.toggleLeft >= init.railLeft + 8), `toggle=${init.toggleLeft} rail=${init.railLeft}`);
+        check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(init.itemLeft != null && init.toggleLeft != null && init.itemLeft >= init.toggleLeft + 4), `item=${init.itemLeft} toggle=${init.toggleLeft}`);
+        check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(init.itemLeft != null && init.itemLeft >= 24), `itemLeft=${init.itemLeft}`);
       } else {
         // `collapsed-sidebar` MEANS collapsed-by-default + always expandable.
         check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.panelHiddenClass && !init.panelVisible);
         check(rows, `${vpName}.aside.collapsed.notDeadEnd`, init.togglePresent);
+        // P6-1 — collapsed rail → "Show Sidebar".
+        check(rows, `${vpName}.aside.toggle.labelShow`, init.toggleText === "Show Sidebar");
       }
     } else {
       // immersive floating rail: static, expanded, no toggle (capability off).
       check(rows, `${vpName}.aside.static.panelVisible`, init.panelVisible);
       check(rows, `${vpName}.aside.static.noToggle`, !init.togglePresent);
     }
+    // P6-1 — no broken-image placeholder anywhere on the rail viewport.
+    check(rows, `${vpName}.aside.noBrokenImages`, !!init.noBrokenImages);
 
     if (collapsible && vpName === "tablet") {
       await cdp.clickCenter(toggleSel); // expand before content checks
@@ -336,6 +370,8 @@ const s = await cdp.evaluate(`(() => ({
           notVisible: !pr || (pr.width === 0 && pr.height === 0),
           togglePresent: !!toggle,
           toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+          toggleText: toggle ? toggle.textContent.trim() : null,
+          toggleIcon: !!toggle && !!toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon'),
           // P0-2: the CTA must follow the sidebar's structural collapse —
           // when the panel is collapsed the CTA inside it is NOT reachable.
           ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
@@ -345,6 +381,9 @@ const s = await cdp.evaluate(`(() => ({
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
       check(rows, `${vpName}.aside.collapse.ctaNotReachable`, !collapsed.ctaReachable);
+      // P6-1 — the SAME toggle now says "Show Sidebar" and keeps its icon.
+      check(rows, `${vpName}.aside.collapse.labelShow`, collapsed.toggleText === "Show Sidebar");
+      check(rows, `${vpName}.aside.collapse.icon`, !!collapsed.toggleIcon);
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const restored = await cdp.evaluate(`(() => {
@@ -353,17 +392,56 @@ const s = await cdp.evaluate(`(() => ({
         const pr = panel ? panel.getBoundingClientRect() : null;
         const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
-        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
+        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
       })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible);
       check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true");
       check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
+      // P6-1 — re-expanded rail returns to "Hide Sidebar".
+      check(rows, `${vpName}.aside.expand.labelHide`, restored.toggleText === "Hide Sidebar");
       // P0-2: re-expanding restores the CTA (it follows the same collapse
       // semantics as the navigation — never orphaned, never stranded).
       check(rows, `${vpName}.aside.expand.ctaReachable`, restored.ctaReachable);
     } else if (collapsible && vpName === "tablet") {
       const restored = await cdp.evaluate(`(() => { const panel = document.querySelector("#shell-sidebar-tablet-panel"); const pr = panel ? panel.getBoundingClientRect() : null; return !panel.classList.contains('hidden') && pr.width > 0 && pr.height > 0; })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored);
+    }
+  }
+
+// P6-1 — desktop rail spacing/hierarchy/one-per-row validated at every
+  // realistic desktop width (1280/1440/1920). The rail is a fixed-width
+  // column with token insets, so these assertions prove the same result at
+  // each width: a comfortable horizontal inset, the control inset before the
+  // navigation items, the "Hide Sidebar" state, and zero broken images.
+  if (collapsible) {
+    for (const w of [1280, 1440, 1920]) {
+      await cdp.setViewport(w, 900);
+      await cdp.navigate(`${BASE_URL}/en`);
+      await waitReady(cdp);
+      const sp = await cdp.evaluate(`(() => {
+        const rail = document.querySelector('#shell-sidebar-desktop-rail');
+        const shell = document.querySelector('.ui-shell-sidebar');
+        const toggle = rail ? rail.querySelector("[aria-controls='shell-sidebar-desktop-panel']") : null;
+        const item = rail ? rail.querySelector('ul li') : null;
+        const rr = shell ? shell.getBoundingClientRect() : null;
+        const tr = toggle ? toggle.getBoundingClientRect() : null;
+        const ir = item ? item.getBoundingClientRect() : null;
+        const tops = [...rail.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).map((li) => Math.round(li.getBoundingClientRect().top));
+        return {
+          railLeft: rr ? Math.round(rr.left) : null,
+          toggleLeft: tr ? Math.round(tr.left) : null,
+          itemLeft: ir ? Math.round(ir.left) : null,
+          text: toggle ? toggle.textContent.trim() : null,
+          onePerRow: tops.length > 0 && new Set(tops).size === tops.length,
+          noBroken: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
+        };
+      })()`);
+      check(rows, `p6-1.${w}.railInset`, !!sp && sp.railLeft != null && sp.railLeft >= 16, `rail=${sp && sp.railLeft}`);
+      check(rows, `p6-1.${w}.toggleInset`, !!sp && sp.toggleLeft != null && sp.railLeft != null && sp.toggleLeft >= sp.railLeft + 8, `toggle=${sp && sp.toggleLeft} rail=${sp && sp.railLeft}`);
+      check(rows, `p6-1.${w}.itemDeeper`, !!sp && sp.itemLeft != null && sp.toggleLeft != null && sp.itemLeft >= sp.toggleLeft + 4, `item=${sp && sp.itemLeft} toggle=${sp && sp.toggleLeft}`);
+      check(rows, `p6-1.${w}.labelHide`, !!sp && sp.text === "Hide Sidebar", `text=[${sp && sp.text}]`);
+      check(rows, `p6-1.${w}.onePerRow`, !!sp && sp.onePerRow);
+      check(rows, `p6-1.${w}.noBrokenImages`, !!sp && sp.noBroken);
     }
   }
 }
@@ -415,6 +493,7 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       controls: t ? t.getAttribute('aria-controls') : null,
       triggerText: t ? t.textContent.trim() : null,
       triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
+      triggerIconLoaded: (() => { const ic = t ? t.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
       // P5-5 — the trigger icon is a CONFIGURABLE asset (the shipped default
       // /assets/sidebar-open.svg) rendered with the shared ui-mobile-nav-icon
       // marker; the adopter replaces the file or the configured filename.
@@ -434,10 +513,13 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "closed.trigger.id", closed.triggerId === "shell-mobile-nav");
   check(rows, "closed.trigger.expanded", closed.expanded === "false");
   check(rows, "closed.trigger.controls", closed.controls === "shell-mobile-nav-panel");
-  // P5-1 — the closed mobile trigger is never a bare Primary navigation/icon-only
-  // control: it exposes the recognizable open-sidebar icon + the explicit label.
-  check(rows, "closed.trigger.label.viewSidebar", closed.triggerText === "View Sidebar");
+  // P5-1/P6-1 — the closed mobile trigger is never a bare Primary
+  // navigation/icon-only control: it exposes the recognizable open-sidebar icon
+  // + the explicit label, using the ONE Show/Hide Sidebar vocabulary.
+  check(rows, "closed.trigger.label.showSidebar", closed.triggerText === "Show Sidebar");
   check(rows, "closed.trigger.icon", !!closed.triggerIcon);
+  // P6-1 — a real, LOADED icon (never a broken-image element on the page).
+  check(rows, "closed.trigger.icon.loaded", !!closed.triggerIconLoaded);
   // P5-5 — the icon is the replaceable default ASSET (not hard-coded SVG):
   // file replacement or a configured filename changes it without source edits.
   check(rows, "closed.trigger.icon.assetDefault", closed.triggerIconSrc === "/assets/sidebar-open.svg");
@@ -527,14 +609,17 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
         closeVisible: !!closeBtn && closeRect.width > 0 && closeRect.height > 0,
         closeBelowNav: !!closeBtn && !!ul && closeBtn.getBoundingClientRect().top > ul.getBoundingClientRect().bottom - 4,
         closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
+        closeIconLoaded: (() => { const ic = closeBtn ? closeBtn.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
         closeIconSrc: (() => { const ic = closeBtn ? closeBtn.querySelector('.ui-mobile-nav-icon') : null; return ic ? (ic.getAttribute('src') || '') : ''; })(),
       };
     })()`);
     check(rows, "panel.bounded", !!ov && ov.panelWidth >= 240 && ov.panelWidth < ov.viewportWidth && ov.panelWidth <= Math.min(288, ov.viewportWidth * 0.8) + 2, ov ? `w=${ov.panelWidth} vp=${ov.viewportWidth}` : "null");
     check(rows, "panel.close.visible", !!ov && ov.closeVisible);
-    check(rows, "panel.close.label", !!ov && ov.closeLabel === "Close Sidebar");
+    check(rows, "panel.close.label", !!ov && ov.closeLabel === "Hide Sidebar");
     check(rows, "panel.close.belowNav", !!ov && ov.closeBelowNav);
     check(rows, "panel.close.icon", !!ov && !!ov.closeIcon);
+    // P6-1 — the close icon is a real, loaded asset (never broken-image).
+    check(rows, "panel.close.icon.loaded", !!ov && !!ov.closeIconLoaded);
     check(rows, "panel.close.icon.assetDefault", !!ov && ov.closeIconSrc === "/assets/sidebar-close.svg");
     // P5-4 — the mobile sidebar disclosure is the SAME vertical list (one item
     // per row) on EVERY drawer/overlay preset: the behavior previously unique
@@ -740,17 +825,22 @@ async function runAdaptiveMobile(rows, cdp) {
       closeVisible: !!closeBtn && !!cr && cr.width > 0 && cr.height > 0,
       closeBelowNav: !!closeBtn && !!ul && cr.top > ul.getBoundingClientRect().bottom - 4,
       closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
+      closeIconLoaded: (() => { const ic = closeBtn ? closeBtn.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
       triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
+      triggerIconLoaded: (() => { const ic = t ? t.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
       // P5-4 — one navigation item per row in the More disclosure too.
       itemsPerRow: (() => { const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); if (lis.length === 0) return false; const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top)); return new Set(tops).size === tops.length; })(),
     };
   })()`);
   check(rows, "more.panel.bounded", !!mp && mp.panelWidth > 0 && mp.panelWidth < mp.viewportWidth && mp.panelWidth <= Math.min(288, mp.viewportWidth * 0.8) + 2);
   check(rows, "more.trigger.icon", !!mp && !!mp.triggerIcon);
+  check(rows, "more.trigger.icon.loaded", !!mp && !!mp.triggerIconLoaded);
   check(rows, "more.close.visible", !!mp && !!mp.closeVisible);
-  check(rows, "more.close.label", !!mp && !!mp.closeLabel && mp.closeLabel === "Close Sidebar", mp ? `label=[${mp.closeLabel}]` : "null");
+  // P6-1 — the More drawer uses the ONE vocabulary: "Hide Sidebar".
+  check(rows, "more.close.label", !!mp && !!mp.closeLabel && mp.closeLabel === "Hide Sidebar", mp ? `label=[${mp.closeLabel}]` : "null");
   check(rows, "more.close.belowNav", !!mp && !!mp.closeBelowNav);
   check(rows, "more.close.icon", !!mp && !!mp.closeIcon);
+  check(rows, "more.close.icon.loaded", !!mp && !!mp.closeIconLoaded);
   check(rows, "more.nav.onePerRow", !!mp && !!mp.itemsPerRow);
   const moreCloseClick = await cdp.clickCenter("#shell-bottom-more-panel .ui-drawer-close");
   await sleep(250);
@@ -940,13 +1030,18 @@ async function runPreset(preset, chrome) {
  * warnings anywhere. Own dev server per preset; config restored after.
  */
 async function runDuplicateNavScenario(chrome) {
+  // P6-1: the fixture icons must be REAL shipped assets (a configured icon with
+  // no backing file is now a LOUD build failure) — Alpha/Beta take the two
+  // distinct shipped sidebar defaults to prove each same-`href` entry keeps
+  // its OWN icon; the other entries are icon-less (their icons were never
+  // asserted — only Alpha/Beta identity is).
   const DUP_NAV = [
-    { label: "First", href: "/first", icon: "first.svg", position: "middle" },
-    { label: "Second", href: "/second", icon: "second.svg", position: "middle" },
-    { label: "Third", href: "/third", icon: "third.svg", position: "middle" },
-    { label: "Fourth", href: "/fourth", icon: "fourth.svg", position: "middle" },
-    { label: "Alpha", href: "/pricing", icon: "alpha.svg", position: "top" },
-    { label: "Beta", href: "/pricing", icon: "beta.svg", position: "bottom", disabled: true },
+    { label: "First", href: "/first", position: "middle" },
+    { label: "Second", href: "/second", position: "middle" },
+    { label: "Third", href: "/third", position: "middle" },
+    { label: "Fourth", href: "/fourth", position: "middle" },
+    { label: "Alpha", href: "/pricing", icon: "sidebar-open.svg", position: "top" },
+    { label: "Beta", href: "/pricing", icon: "sidebar-close.svg", position: "bottom", disabled: true },
   ];
   const HOOK = `(() => { window.__dupKeyWarnings = []; const o = window.console.error; window.console.error = (...a) => { const s = a.map(String).join(" "); if (/same key|duplicate|two children/i.test(s)) window.__dupKeyWarnings.push(s); o.apply(window.console, a); }; })();`;
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -979,9 +1074,9 @@ async function runDuplicateNavScenario(chrome) {
         return {
           both: labels.includes("Alpha") && labels.includes("Beta"),
           alphaIsLink: !!alpha && alpha.getAttribute("href") === "/en/pricing",
-          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='alpha.svg']"),
+          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='sidebar-open.svg']"),
           betaDisabled: !!betaLi && !!betaLi.querySelector("[aria-disabled='true']"),
-          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='beta.svg']"),
+          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='sidebar-close.svg']"),
           warnings: window.__dupKeyWarnings.length,
         };
       })()`);

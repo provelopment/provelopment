@@ -13,9 +13,8 @@
     "primaryLabel": "Navigasi utama",
     "footerLabel": "Navigasi kaki halaman",
     "moreMenu": "Lainnya",
-    "sidebarToggle": "Ciutkan navigasi",
-    "closeSidebar": "Tutup sidebar",
-    "viewSidebar": "Lihat sidebar",
+    "showSidebar": "Tampilkan sidebar",
+    "hideSidebar": "Sembunyikan sidebar",
     "items": {
       "/": "Beranda",
       "/about": "Tentang",

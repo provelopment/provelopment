@@ -3,10 +3,10 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import { DisclosureIcon } from "@/components/ui/disclosure-icon";
 import {
   DEFAULT_SIDEBAR_CLOSE_ICON,
   DEFAULT_SIDEBAR_OPEN_ICON,
-  iconAssetUrl,
   resolveControlPresentation,
 } from "@/core/ui";
 import { Drawer } from "@/components/ui/drawer";
@@ -28,20 +28,18 @@ import { createInitialDisclosure, disclosureReducer } from "@/components/ui/stat
  * mandatory UI-10 browser gate.
  */
 /**
- * P5-5 — one configurable icon+text disclosure control (open or close).
+ * P5-5/P6-1 — one configurable icon+text disclosure control (open or close).
  *
  * `resolveControlPresentation` applies the documented empty-string semantics:
  * missing icon → shipped default asset; `icon: ""` → no icon; missing text →
  * the localized fallback label; `text: ""` → icon-only (the accessible name
  * stays the fallback label via `aria-label`); both `""` → not rendered. The
  * `ui-mobile-nav-icon` marker is preserved on the icon asset so the P5-1
- * browser contract (recognizable open/close icons) is unchanged.
+ * browser contract (recognizable open/close icons) is unchanged. The icon is
+ * rendered through the SHARED `DisclosureIcon` (the same element as the
+ * desktop/tablet rail toggle in `Sidebar`), whose framework caller already
+ * screened the filename against public/assets — never a broken image.
  */
-function DisclosureIcon({ asset, className }: { asset: string | undefined; className: string }) {
-  if (!asset) return null;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={iconAssetUrl(asset)} alt="" aria-hidden="true" className={className} />;
-}
 
 export interface ShellMobileNavProps {
   /** "drawer" or "overlay" — which client dialog primitive to compose. */
@@ -61,7 +59,7 @@ export interface ShellMobileNavProps {
    */
   readonly open?: { readonly icon?: string; readonly text?: string };
   /**
-   * P0-1/P5-5 — the "Close Sidebar" control, with the SAME configurable
+   * P0-1/P5-5/P6-1 — the "Hide Sidebar" control, with the SAME configurable
    * presentation as the open control. Wired to the Drawer close mechanism.
    */
   readonly close?: { readonly icon?: string; readonly text?: string };
@@ -92,7 +90,7 @@ export function ShellMobileNav({
   });
   const closeControl = resolveControlPresentation(close ?? {}, {
     defaultIcon: DEFAULT_SIDEBAR_CLOSE_ICON,
-    fallbackText: closeLabel ?? "Close Sidebar",
+    fallbackText: closeLabel ?? "Hide Sidebar",
   });
 
   const dialogContent = (

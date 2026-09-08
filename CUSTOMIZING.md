@@ -208,7 +208,7 @@ custom configurations can compose the same intent without selecting a preset:
 Any single leaf may be overridden without canceling the preset (explicit
 leaves win per-leaf, exactly like the other dimensions).
 
-P5-4 — the responsive mobile sidebar navigation (the "View Sidebar" drawer /
+P5-4/P6-1 — the responsive mobile sidebar navigation (the "Show Sidebar" drawer /
 overlay disclosure) always renders ONE navigation item per line on every
 preset and custom composition; follow the shared list composition in
 `site-header.tsx` rather than per-preset styling.
@@ -363,6 +363,14 @@ intrinsic dimension can never break layout; aspect ratios are respected;
 controls keep ≥44px touch targets; the label (or an explicit accessible name)
 remains the accessible name — never a bare image.
 
+**Missing vs unavailable (P6-1):** if a configured icon leaf names a file that
+does **not exist** under `public/assets/`, the build **fails loudly** naming
+the exact leaf (`ui.navigation.sidebar.open.icon`, `ui.navigation.sidebar.close.icon`,
+`ui.cta.icon`, or `navigation[i].icon`) and the expected file — a misspelled
+asset can never ship. At render time the same guard is applied again, so an
+icon that ever becomes unavailable resolves to **no icon** (never a broken
+browser image): the DOM contains no `broken-image` placeholder in any state.
+
 #### Empty-string semantics (explicit, tested)
 
 For **control leaves** (`navigation.sidebar.open/close`, `ui.cta.icon` /
@@ -378,6 +386,42 @@ For **control leaves** (`navigation.sidebar.open/close`, `ui.cta.icon` /
 Missing ≠ `null` ≠ `""`: missing falls back, `null` is rejected by the schema,
 and `""` is the deliberate "hide this element" value.
 
+On the **desktop/tablet collapsible rail** there is one P0-1 exception: a
+collapsible rail is **never a dead-end**, so when `open` and `close` are both
+fully empty (`icon: ""` + `text: ""`) the rail toggle stays reachable and falls
+back to the localized label ("Show Sidebar"/"Hide Sidebar") — no invented text,
+no broken image, no empty box.
+
+#### Sidebar disclosure — ONE vocabulary, one control (P6-1)
+
+Every sidebar disclosure across every breakpoint says the same thing:
+
+| State | Desktop/tablet rail toggle (covers the aside rail) | Mobile drawer/overlay trigger + close |
+| --- | --- | --- |
+| disclosure **closed** | `Show Sidebar` (flips to this while collapsed) | trigger label `Show Sidebar` |
+| disclosure **open** | `Hide Sidebar` (flips to this while open) | close control `Hide Sidebar` |
+
+- The labels are the localized `navigation.showSidebar` / `navigation.hideSidebar`
+  dictionary values (one per locale), reused by the `ui.navigation.sidebar.open/close.text`
+  configuration leaves as their fallback — the SAME vocabulary on desktop,
+  tablet, and mobile (no per-breakpoint labels).
+- The **desktop/tablet rail toggle is a real interactive control**: a semantic
+  button (`aria-expanded` + `aria-controls`), bordered control surface with
+  hover / focus-visible / active (pressed) affordances, pointer cursor, a
+  recognizable show/hide **icon** beside the label, and keyboard activation.
+  It can never look like ordinary static heading text.
+- **Default icon assets:** `public/assets/sidebar-open.svg` (show) and
+  `sidebar-close.svg` (hide) — **project-owned original SVG artwork** (24×24,
+  stroke-based, `currentColor`-aware) shipped with the template and replaceable
+  by file or by configuration (see *Asset replacement contract* above).
+  Provenance: original project artwork, no external licensing concerns.
+- **Hierarchy/spacing:** the rail has a comfortable horizontal inset and the
+  navigation list sits at a further consistent inset beneath the disclosure
+  control (control level → item level), verified at 1280/1440/1920: nothing
+  clips the viewport edge and items clearly belong inside the sidebar.
+- **Compact mode** (icon-only rail) keeps the same insets; icon-less items keep
+  their labels per the established P5-5A semantics.
+
 #### Sidebar modes (`ui.navigation.sidebar.mode`)
 
 The sidebar (the ≥md aside rail) has three explicit presentation modes:
@@ -386,7 +430,7 @@ The sidebar (the ≥md aside rail) has three explicit presentation modes:
 | --- | --- |
 | `open` | Normal sidebar — icons (when configured) **and** labels. **Default.** |
 | `compact` | Sidebar stays visible but renders **icon-only** navigation: labels of icon-bearing items are visually hidden (kept for screen readers); items without an icon keep their label so nothing becomes invisible. The same class marker implements top/bottom menus. |
-| `closed` | The persistent rail is **not displayed**; the responsive "View Sidebar" disclosure remains the way navigation is reached. Distinct from `compact`. |
+| `closed` | The persistent rail is **not displayed**; the responsive "Show Sidebar" disclosure remains the way navigation is reached. Distinct from `compact`. |
 
 The distinction is modeled explicitly in the configuration/state (never a CSS
 accident): `mode` is a validated vocabulary value, and the renderer hides
@@ -413,7 +457,7 @@ top-nav, or bottom bar).
 at all — the header navigation landmark (≥md), the bottom bar (<md), or the
 aside rail respectively disappears. No empty placeholder, no orphaned
 `aria-controls` target, no layout gap. On surfaces that own other navigation
-(the responsive "View Sidebar" disclosure), that other mechanism is untouched.
+(the responsive "Show Sidebar" disclosure), that other mechanism is untouched.
 
 #### Navigation items — icons, regions, disabled
 
@@ -507,9 +551,12 @@ the control that consumes them.
 { "ui": { "navigation": { "sidebar": { "open": { "icon": "", "text": "" } } } } }
 ```
 
-The "View Sidebar" control is not rendered (the adopter explicitly chose to
-hide both its elements); nothing else changes. Escapes, backdrop, and focus
-return still apply to any disclosure that IS rendered.
+On the **mobile** disclosure the "Show Sidebar" trigger is not rendered (the
+adopter explicitly chose to hide both its elements); nothing else changes —
+Escape, backdrop, and focus return still apply to any disclosure that IS
+rendered. On the **desktop/tablet collapsible rail** the toggle stays reachable
+with the localized label (P0-1: a collapsible rail is never a dead-end — see
+*Sidebar disclosure* above).
 
 #### Summary of the P5-5 vocabulary
 

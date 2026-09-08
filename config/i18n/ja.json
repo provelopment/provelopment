@@ -13,9 +13,8 @@
     "primaryLabel": "メインナビゲーション",
     "footerLabel": "フッターナビゲーション",
     "moreMenu": "もっと見る",
-    "sidebarToggle": "ナビゲーションを折りたたむ",
-    "closeSidebar": "サイドバーを閉じる",
-    "viewSidebar": "サイドバーを表示",
+    "showSidebar": "サイドバーを表示",
+    "hideSidebar": "サイドバーを非表示",
     "items": {
       "/": "ホーム",
       "/about": "概要",

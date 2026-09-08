@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config";
+import { availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
@@ -63,7 +64,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     );
 
     // P5-4 — Shared responsive navigation contract: the mobile sidebar
-    // disclosure (drawer AND overlay — the whole "View Sidebar" contract)
+    // disclosure (drawer AND overlay — the whole "Show Sidebar" contract)
     // presents navigation as a clean VERTICAL list, one item per line. The
     // horizontal `flex flex-wrap` class belongs ONLY to the ≥md header
     // top-navigation; previously the drawer pattern reused that horizontal
@@ -102,7 +103,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                 label={ctaLabel}
                 href={ctaHref}
                 action={resolved.cta.action}
-                icon={resolved.cta.icon}
+                icon={availableIconName(resolved.cta.icon)}
                 iconPosition={resolved.cta.iconPosition}
                 state={resolved.cta.state}
                 className="ui-drawer-cta"
@@ -149,17 +150,19 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                     <ShellMobileNav
                         pattern={mobilePattern}
                         id="shell-mobile-nav"
-                        triggerLabel={dictionary.navigation.viewSidebar ?? "View Sidebar"}
+                        triggerLabel={dictionary.navigation.showSidebar}
                         className="md:hidden"
-                        closeLabel={dictionary.navigation.closeSidebar ?? "Close Sidebar"}
-                        // P5-5 — the sidebar disclosure content is configured by
-                        // `ui.navigation.sidebar` (icon asset + visible text).
+                        closeLabel={dictionary.navigation.hideSidebar}
+                        // P5-5/P6-1 — the sidebar disclosure content is configured by
+                        // `ui.navigation.sidebar` (icon asset + visible text). Icons are
+                        // screened against public/assets here (the framework boundary) so
+                        // the DOM never contains a broken-image element.
                         open={{
-                            icon: resolved.navigation.sidebar.open.icon,
+                            icon: availableIconName(resolved.navigation.sidebar.open.icon),
                             text: resolved.navigation.sidebar.open.text,
                         }}
                         close={{
-                            icon: resolved.navigation.sidebar.close.icon,
+                            icon: availableIconName(resolved.navigation.sidebar.close.icon),
                             text: resolved.navigation.sidebar.close.text,
                         }}
                     >

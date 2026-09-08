@@ -13,9 +13,8 @@
     "primaryLabel": "Hauptnavigation",
     "footerLabel": "Fußzeilennavigation",
     "moreMenu": "Mehr",
-    "sidebarToggle": "Navigation einklappen",
-    "closeSidebar": "Sidebar schließen",
-    "viewSidebar": "Sidebar anzeigen",
+    "showSidebar": "Sidebar anzeigen",
+    "hideSidebar": "Sidebar ausblenden",
     "items": {
       "/": "Startseite",
       "/about": "Über uns",
