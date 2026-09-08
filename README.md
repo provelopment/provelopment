@@ -8,6 +8,18 @@ Clone it, make it yours by editing **configuration, content, and assets
 only**, then deploy — [`CUSTOMIZING.md`](CUSTOMIZING.md) walks you through
 the whole process.
 
+## Five presentations, one Foundation
+
+The Foundation is demonstrated through **five deployments — five
+presentations of the SAME canonical site** (same `content/`, `config/i18n/`,
+`site.config.json`, `public/assets/`): **Adaptive** (the canonical
+`foundation.provelopment.com`), plus **Classic**, **Focus**, **Workspace** and
+**Immersive** preset demonstrations (`*.foundation.provelopment.com`). Each
+preset resolves a coherent presentation intent (typography, rhythm, surface,
+header, hero + density/content-width/radius) onto the **shared** renderer via
+`data-ui-*` attributes — no preset-specific CSS, no per-preset forks. See
+`CUSTOMIZING.md` → *The `ui.presentation` block* for the full matrix.
+
 ## Tech Stack
 
 - [Next.js](https://nextjs.org) 16 (App Router) · React 19 · TypeScript
