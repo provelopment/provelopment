@@ -8,6 +8,7 @@ import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
 import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
+import { navItemKey } from "./nav-links";
 
 interface SiteFooterProps {
     readonly locale: string;
@@ -32,8 +33,12 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
     const legalLinks = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs);
 
-    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item) => ({
+    // P5-6 — the footer nav list uses the same position-derived identity as the
+    // header/aside/disclosure so duplicate destinations keep distinct React
+    // identity everywhere (`href` is a destination, not an identity).
+    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item, index) => ({
         href: item.href,
+        key: navItemKey(index),
         label: dictionary.navigation.items[item.href] ?? item.label,
     }));
 
