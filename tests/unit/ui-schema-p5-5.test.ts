@@ -76,6 +76,23 @@ describe("P5-5 — navigation item icon/region/disabled schema", () => {
     }
   });
 
+  it("P5-5A — `disabled` ROUND-TRIPS through the schema (this was silently stripped before)", () => {
+    // Regression lock: P5-5 implemented/rendered/documented `disabled` but the
+    // schema omitted it, so Zod stripped it before the renderer ever saw it.
+    const parsed = navigationItemSchema.safeParse({ label: "Legacy", href: "/legacy", disabled: true });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.disabled).toBe(true);
+    }
+    expect(navigationItemSchema.safeParse({ label: "Home", href: "/", disabled: false }).data?.disabled).toBe(false);
+    expect(navigationItemSchema.safeParse({ label: "Home", href: "/" }).data?.disabled).toBeUndefined();
+  });
+
+  it("P5-5A — unknown navigation-item keys are REJECTED loudly (strict, no silent strip)", () => {
+    expect(navigationItemSchema.safeParse({ label: "Home", href: "/", onMouseHover: "red" }).success).toBe(false);
+    expect(navigationItemSchema.safeParse({ label: "Home", href: "/", style: "color: red" }).success).toBe(false);
+  });
+
   it("rejects invalid region values and unsafe icon references on navigation items", () => {
     expect(navigationItemSchema.safeParse({ label: "Home", href: "/", position: "side" }).success).toBe(false);
     expect(navigationItemSchema.safeParse({ label: "Home", href: "/", icon: "a/b.svg" }).success).toBe(false);

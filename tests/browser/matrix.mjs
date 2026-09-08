@@ -28,6 +28,9 @@ const VIEWPORTS = {
   desktop: { width: 1280, height: 900 },
   tablet: { width: 900, height: 800 },
   mobile: { width: 390, height: 844 },
+  // P5-5A — the P5-4 one-item-per-row mobile contract is verified across the
+  // whole <md range (the DO "~390/700/900" acceptance), not only at 390px.
+  mobileWide: { width: 700, height: 844 },
 };
 
 const CTR = { enabled: true, action: "book", label: "Book Now", href: "/en/contact" };
@@ -597,6 +600,35 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
     check(rows, "closeBtn.inertCleared", cc.mainInert === false);
     check(rows, "closeBtn.scrollRestored", cc.overflow === "");
   }
+
+  // P5-5A — the P5-4 one-item-per-row contract must hold across the WHOLE <md
+  // range (the DO "~390/700/900" acceptance): re-verify the drawer/overlay
+  // disclosure at 700px (still mobile primitives below the md = 768 breakpoint).
+  await cdp.setViewport(VIEWPORTS.mobileWide.width, VIEWPORTS.mobileWide.height);
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const wideOpened = await openTrigger(cdp, TRIGGER, PANEL);
+  check(rows, "wide700.open", wideOpened);
+  const w = await cdp.evaluate(`(() => {
+    const d = document.querySelector(${JSON.stringify(PANEL)});
+    if (!d) return null;
+    const t = document.querySelector(${JSON.stringify(TRIGGER)});
+    const ul = d.querySelector('ul');
+    const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    if (lis.length === 0) return { triggerVisible: !!t && t.getBoundingClientRect().width > 0, navVertical: false, onePerRow: false, empty: true };
+    const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
+    return {
+      triggerVisible: !!t && t.getBoundingClientRect().width > 0,
+      navVertical: ul ? getComputedStyle(ul).flexDirection === 'column' : false,
+      onePerRow: new Set(tops).size === tops.length,
+      empty: false,
+    };
+  })()`);
+  check(rows, "wide700.trigger.visible", !!w && w.triggerVisible);
+  check(rows, "wide700.nav.vertical", !!w && !!w.navVertical);
+  check(rows, "wide700.nav.onePerRow", !!w && !!w.onePerRow);
+  await cdp.pressKey("Escape");
+  await sleep(120);
 }
 
 /** Adaptive mobile: bottom bar + its More disclosure (the shared drawer path). */
@@ -666,6 +698,29 @@ async function runAdaptiveMobile(rows, cdp) {
   const mb = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
   check(rows, "more.backdrop.closed", mb.dialogs === 0);
   check(rows, "more.backdrop.inertCleared", mb.mainInert === false);
+
+  // P5-5A — the one-item-per-row contract extends to the adaptive More drawer
+  // across the whole <md range (the DO "~390/700/900" acceptance viewport).
+  await cdp.setViewport(VIEWPORTS.mobileWide.width, VIEWPORTS.mobileWide.height);
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const wideMore = await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
+  check(rows, "wide700.more.open", wideMore);
+  const wm = await cdp.evaluate(`(() => {
+    const d = document.querySelector('#shell-bottom-more-panel');
+    if (!d) return null;
+    const bar = document.querySelector('.ui-shell-bottom-bar');
+    const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
+    return {
+      barVisible: !!bar && bar.getBoundingClientRect().height > 0,
+      onePerRow: lis.length === 0 ? true : new Set(tops).size === tops.length,
+    };
+  })()`);
+  check(rows, "wide700.more.barVisible", !!wm && !!wm.barVisible);
+  check(rows, "wide700.more.onePerRow", !!wm && !!wm.onePerRow);
+  await cdp.pressKey("Escape");
+  await sleep(120);
 
   // P5-1 — adaptive More drawer follows the SAME shared sidebar contract:
   // bounded width + explicit Close Sidebar control with icon (preserved More entry).

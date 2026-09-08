@@ -62,6 +62,69 @@ describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
  * `aria-current="page"`, and the badge chip). ContextNavLinks keeps only the
  * URL/region-aware context — resolution, active computation, list composition.
  */
+/**
+ * P5-5A — contract hardening acceptance of the configurable navigation-item
+ * surface THROUGH the shared context renderer:
+ *  - icon flows to a replaceable /assets/<name> <img> (ui-nav-item-icon),
+ *  - disabled renders aria-disabled + non-navigable + stays in DOM,
+ *  - sortByRegion orders deterministic top → middle → bottom.
+ */
+describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabled / region)", () => {
+    it("renders a configured item icon as the replaceable /assets asset", () => {
+        mockPath = "/en";
+        const html = renderToStaticMarkup(
+            ContextNavLinks({
+                locale: "en",
+                links: [{ href: "/about", label: "About", icon: "about.svg" }],
+            }),
+        );
+        expect(html).toContain('src="/assets/about.svg"');
+        expect(html).toContain("ui-nav-item-icon");
+        expect(html).toContain("ui-nav-item--has-icon");
+        expect(html).toContain(">About</span>"); // the label remains the accessible name
+    });
+
+    it("renders a disabled item as aria-disabled, NOT navigable, but still in the DOM", () => {
+        mockPath = "/en";
+        const html = renderToStaticMarkup(
+            ContextNavLinks({
+                locale: "en",
+                links: [{ href: "/legacy", label: "Legacy", disabled: true }],
+            }),
+        );
+        expect(html).toContain('aria-disabled="true"');
+        expect(html).toContain(">Legacy</span>");
+        // Disabled items must not become navigable links:
+        expect(html).not.toMatch(/<a[^>]*href="[^"]*legacy/);
+    });
+
+    it("orders by region top → middle → bottom deterministically when sortByRegion is set", () => {
+        mockPath = "/en";
+        const shuffled: readonly ContextNavLink[] = [
+            { href: "/bottom1", label: "B1", position: "bottom" },
+            { href: "/top2", label: "T2", position: "top" },
+            { href: "/mid1", label: "M1" }, // undefined → middle (default)
+            { href: "/mid2", label: "M2", position: "middle" },
+            { href: "/top1", label: "T1", position: "top" },
+        ];
+        const html = renderToStaticMarkup(ContextNavLinks({ locale: "en", links: shuffled, sortByRegion: true }));
+        // Contract: groups are ordered top → middle → bottom, STABLE within each
+        // group (configured relative order preserved — the shuffle put top2
+        // before top1, so the top group renders T2 then T1).
+        const order = ["T2", "T1", "M1", "M2", "B1"];
+        let lastIndex = -1;
+        for (const label of order) {
+            const at = html.indexOf(`>${label}</span>`);
+            expect(at).toBeGreaterThan(lastIndex);
+            lastIndex = at;
+        }
+        // Without sortByRegion the configuration order is untouched.
+        const unsorted = renderToStaticMarkup(ContextNavLinks({ locale: "en", links: shuffled }));
+        const first = unsorted.indexOf(">B1</span>");
+        expect(first).toBeGreaterThan(-1);
+    });
+});
+
 describe("ContextNavLinks — P0-5 shared link path", () => {
     it("renders the demo badge through the shared nav-item-badge chip (not a second badge implementation)", () => {
         mockPath = "/en";

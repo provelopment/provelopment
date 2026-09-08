@@ -411,18 +411,30 @@ export const uiIconAssetSchema = z
  */
 export const uiControlIconSchema = z.union([z.literal(""), uiIconAssetSchema]);
 
-export const navigationItemSchema = z.object({
-  label: z.string().min(1, "must not be empty"),
-  href: z.string().min(1, "must not be empty"),
-  /** P5-5 — optional navigation-item icon (plain public/assets filename). */
-  icon: uiIconAssetSchema.optional(),
-  /** P5-5 — sidebar region group (top | middle | bottom; default middle). */
-  position: z
-    .enum(NAV_REGIONS, {
-      message: `must be one of: ${NAV_REGIONS.join(", ")}`,
-    })
-    .optional(),
-});
+export const navigationItemSchema = z
+  .object({
+    label: z.string().min(1, "must not be empty"),
+    href: z.string().min(1, "must not be empty"),
+    /** P5-5 — optional navigation-item icon (plain public/assets filename). */
+    icon: uiIconAssetSchema.optional(),
+    /** P5-5 — sidebar region group (top | middle | bottom; default middle). */
+    position: z
+      .enum(NAV_REGIONS, {
+        message: `must be one of: ${NAV_REGIONS.join(", ")}`,
+      })
+      .optional(),
+    /**
+     * P5-5A (contract hardening) — semantically disabled navigation item:
+     * rendered `aria-disabled="true"`, not navigable, removed from the tab
+     * order, visually muted (see NavItem/globals.css). This field was
+     * implemented/rendered/documented since P5-5 but MISSING from the schema,
+     * so Zod silently STRIPPED it from validated configuration — the documented
+     * capability did not actually reach the renderer. It is now validated
+     * (and round-trips), exactly like every other navigation leaf.
+     */
+    disabled: z.boolean().optional(),
+  })
+  .strict();
 
 /** Safe method id for the `connect.methods` list (must be URL-friendly). */
 const connectMethodIdPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
