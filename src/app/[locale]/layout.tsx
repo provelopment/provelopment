@@ -115,16 +115,26 @@ export default async function LocaleLayout({
   const { locale } = await params;
   const dictionary = getDictionary(locale);
   const navLinks = getSiteNavLinks(locale);
+  // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
+  // is not composed (the responsive disclosure/`View Sidebar` control remains
+  // the way navigation is reached). Distinct from `compact` (rail present,
+  // icon-only) and `open`.
+  const sidebarClosed = resolvedUi.navigation.sidebar.mode === "closed";
+  const sidebarCompact = resolvedUi.navigation.sidebar.mode === "compact";
   const usesAside =
-    shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside";
+    !sidebarClosed &&
+    (shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside");
   const usesBottomBar = shellDecision.mobile.primitiveKind === "bottom-bar";
 
   const asideContent = usesAside ? (
     <ContextNavLinks
       locale={locale}
       links={navLinks}
-      className="space-y-2"
+      className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
       linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+      // P5-5 — the aside rail orders by configured region (top → middle →
+      // bottom), stable within each group; labels stay readable.
+      sortByRegion
     />
   ) : undefined;
 
@@ -134,6 +144,13 @@ export default async function LocaleLayout({
         moreLabel: dictionary.navigation.moreMenu,
         links: navLinks,
         closeLabel: dictionary.navigation.closeSidebar ?? "Close Sidebar",
+        // P5-5 — the bottom navigation shares the same three-state menu
+        // contract (open | compact | closed) as the top/sidebar menus.
+        mode: resolvedUi.navigation.bottom.mode,
+        sidebarClose: {
+          icon: resolvedUi.navigation.sidebar.close.icon,
+          text: resolvedUi.navigation.sidebar.close.text,
+        },
       }
     : undefined;
 
@@ -151,9 +168,15 @@ export default async function LocaleLayout({
   // presentation tokens). These are generalized vocabulary values (never
   // preset names), so the CSS token layer implements presentation without any
   // preset identity. Static SSR strings; no hydration risk.
+  // P5-5 — the resolved control/menu modes join the same `data-ui-*` surface
+  // for the same reason (single observability + test hook, no preset CSS).
   const htmlPresentationAttrs = {
     ...presentationDataAttributes(resolvedUi.presentation),
     ...radiusDataAttribute(resolvedUi.theme.radius),
+    "data-ui-sidebar-mode": resolvedUi.navigation.sidebar.mode,
+    "data-ui-top-mode": resolvedUi.navigation.top.mode,
+    "data-ui-bottom-mode": resolvedUi.navigation.bottom.mode,
+    "data-ui-cta-state": resolvedUi.cta.state,
   };
 
   return (

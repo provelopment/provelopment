@@ -7,7 +7,7 @@ import { NavItem } from "@/components/ui/nav-item";
 import type { NavItemModel } from "@/components/ui/nav-item";
 import type { PageRegionBinding } from "@/core/region";
 import { isInternalHref, parseRegionalPath, resolveNavHref } from "@/core/regional-pages";
-import { splitBottomNavItems } from "@/core/ui";
+import { menuModeClass, splitBottomNavItems, type MenuMode } from "@/core/ui";
 
 import { ShellMobileNav } from "./shell-mobile-nav";
 
@@ -36,6 +36,10 @@ export interface ShellBottomBarLink {
   readonly label: string;
   readonly key?: string;
   readonly demoOnly?: boolean;
+  /** P5-5 — optional navigation-item icon (plain public/assets filename). */
+  readonly icon?: string;
+  /** P5-5 — semantically disabled (aria-disabled, not navigable). */
+  readonly disabled?: boolean;
 }
 
 export interface ShellBottomBarProps {
@@ -55,6 +59,10 @@ export interface ShellBottomBarProps {
   /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer
    * (the shared sidebar contract; absent → no close control renders). */
   readonly closeLabel?: string;
+  /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
+  readonly mode?: MenuMode;
+  /** P5-5 — configuration for the shared "Close Sidebar" disclosure control. */
+  readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
 }
 
 export function ShellBottomBar({
@@ -66,8 +74,13 @@ export function ShellBottomBar({
   demoBadgeLabel,
   cta,
   closeLabel,
+  mode,
+  sidebarClose,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
+  // P5-5 — "closed" means the menu is not composed at all (adopter choice;
+  // Escape/backdrop/focus machinery is untouched when present).
+  if (mode === "closed") return null;
   const parsed = parseRegionalPath(pageBindings, pathname ?? `/${locale}`);
   const region = parsed.region;
 
@@ -82,6 +95,8 @@ export function ShellBottomBar({
         active: pathname === href,
         external: !isInternalHref(link.href),
         badge: link.demoOnly && demoBadgeLabel ? demoBadgeLabel : undefined,
+        icon: link.icon,
+        disabled: link.disabled,
       },
     ];
   });
@@ -90,10 +105,16 @@ export function ShellBottomBar({
   const { primary, remainder } = splitBottomNavItems([...ctaItems, ...resolved]);
 
   return (
-    <div className="ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden">
+    <div className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}>
       <BottomNavigation label={label} items={primary} className="flex items-center justify-around gap-x-1" />
       {remainder.length > 0 ? (
-        <ShellMobileNav pattern="drawer" id="shell-bottom-more" triggerLabel={moreLabel} closeLabel={closeLabel}>
+        <ShellMobileNav
+          pattern="drawer"
+          id="shell-bottom-more"
+          triggerLabel={moreLabel}
+          closeLabel={closeLabel}
+          close={sidebarClose}
+        >
           <ul>
             {remainder.map((item) => (
               <NavItem key={item.key ?? item.href} item={item} />

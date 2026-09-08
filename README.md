@@ -45,7 +45,13 @@ to the default locale.
    navigation, enabled features. Every field is validated at build time.
 2. Replace the Markdown pages in `content/pages/<locale>/` with your own.
 3. Swap the placeholder icon (`src/app/icon.svg`) and assets (`public/assets/logo.svg`) for your logo.
-4. Add locales, deploy to Vercel, and keep up to date with upstream —
+4. **Change the appearance without touching source:** side-bar/top/bottom menu
+   presentation modes, sidebar disclosure icons/text (`ui.navigation.sidebar`),
+   navigation icons/regions, and the primary CTA's icon/state
+   (`ui.cta.*`) are all configuration. Replace any icon in `public/assets/`
+   (in place or via `"icon": "my-icon.svg"`) — see
+   `CUSTOMIZING.md` → *Configurable controls, assets & presentation modes (P5-5)*.
+5. Add locales, deploy to Vercel, and keep up to date with upstream —
    all documented in [`CUSTOMIZING.md`](CUSTOMIZING.md).
 
 ## Scripts

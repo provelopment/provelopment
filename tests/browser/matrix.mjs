@@ -412,6 +412,17 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       controls: t ? t.getAttribute('aria-controls') : null,
       triggerText: t ? t.textContent.trim() : null,
       triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
+      // P5-5 — the trigger icon is a CONFIGURABLE asset (the shipped default
+      // /assets/sidebar-open.svg) rendered with the shared ui-mobile-nav-icon
+      // marker; the adopter replaces the file or the configured filename.
+      triggerIconSrc: (() => { const ic = t ? t.querySelector('.ui-mobile-nav-icon') : null; return ic ? (ic.getAttribute('src') || '') : ''; })(),
+      // P5-5 — the resolved control/menu modes surface on <html> as the same
+      // generalized "data-ui-*" observability attributes as the presentation
+      // layer (no preset identity).
+      dataUiSidebar: document.documentElement.getAttribute('data-ui-sidebar-mode') || '',
+      dataUiTop: document.documentElement.getAttribute('data-ui-top-mode') || '',
+      dataUiBottom: document.documentElement.getAttribute('data-ui-bottom-mode') || '',
+      dataUiCtaState: document.documentElement.getAttribute('data-ui-cta-state') || '',
       ariaCurrent: document.querySelectorAll('a[aria-current="page"]').length,
     };
   })()`);
@@ -424,7 +435,16 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   // control: it exposes the recognizable open-sidebar icon + the explicit label.
   check(rows, "closed.trigger.label.viewSidebar", closed.triggerText === "View Sidebar");
   check(rows, "closed.trigger.icon", !!closed.triggerIcon);
+  // P5-5 — the icon is the replaceable default ASSET (not hard-coded SVG):
+  // file replacement or a configured filename changes it without source edits.
+  check(rows, "closed.trigger.icon.assetDefault", closed.triggerIconSrc === "/assets/sidebar-open.svg");
   check(rows, "closed.ariaCurrent", closed.ariaCurrent >= 1);
+  // P5-5 — the resolved control/menu modes are observable per generalized
+  // vocabulary (the shipped canonical site uses the neutral open/open/default).
+  check(rows, "p5-5.ui.sidebar.mode", closed.dataUiSidebar === "open");
+  check(rows, "p5-5.ui.top.mode", closed.dataUiTop === "open");
+  check(rows, "p5-5.ui.bottom.mode", closed.dataUiBottom === "open");
+  check(rows, "p5-5.ui.cta.state", closed.dataUiCtaState === "default");
 
   const opened = await openTrigger(cdp, TRIGGER, PANEL);
   check(rows, "open.triggerOpens", opened);
@@ -504,6 +524,7 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
         closeVisible: !!closeBtn && closeRect.width > 0 && closeRect.height > 0,
         closeBelowNav: !!closeBtn && !!ul && closeBtn.getBoundingClientRect().top > ul.getBoundingClientRect().bottom - 4,
         closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
+        closeIconSrc: (() => { const ic = closeBtn ? closeBtn.querySelector('.ui-mobile-nav-icon') : null; return ic ? (ic.getAttribute('src') || '') : ''; })(),
       };
     })()`);
     check(rows, "panel.bounded", !!ov && ov.panelWidth >= 240 && ov.panelWidth < ov.viewportWidth && ov.panelWidth <= Math.min(288, ov.viewportWidth * 0.8) + 2, ov ? `w=${ov.panelWidth} vp=${ov.viewportWidth}` : "null");
@@ -511,6 +532,7 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
     check(rows, "panel.close.label", !!ov && ov.closeLabel === "Close Sidebar");
     check(rows, "panel.close.belowNav", !!ov && ov.closeBelowNav);
     check(rows, "panel.close.icon", !!ov && !!ov.closeIcon);
+    check(rows, "panel.close.icon.assetDefault", !!ov && ov.closeIconSrc === "/assets/sidebar-close.svg");
     // P5-4 — the mobile sidebar disclosure is the SAME vertical list (one item
     // per row) on EVERY drawer/overlay preset: the behavior previously unique
     // to the immersive overlay is now the shared responsive nav contract.

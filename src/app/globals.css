@@ -535,3 +535,61 @@ html[data-ui-hero="showcase"] .home-hero {
   padding-top: 6rem;
   padding-bottom: 4rem;
 }
+/* ── P5-5 configurable controls & navigation-presentation layer ────────────
+ *
+ * The RENDERER for the P5-5 resolved control/menu intent. Shared semantic
+ * class markers, token-only, NO preset-name selectors:
+ *
+ *  - `.ui-nav-item--has-icon` / `.ui-nav-item-icon` — configurable item icon
+ *    (asset-replaceable) laid out inline with the label at a fixed control
+ *    size (intrinsic image dimensions can never overflow layout).
+ *  - `.ui-nav-mode-compact` — the EXPLICIT compact mode (config
+ *    `mode: "compact"`): labels are visually hidden (kept for screen readers)
+ *    ONLY on items that have an icon; icon-less items keep their label so no
+ *    item ever becomes invisible or loses its accessible name.
+ *  - `[aria-disabled="true"]` — the semantic disabled state (config
+ *    `state: "disabled"` / `disabled: true`): non-navigable, non-interactive
+ *    cursor; the CTA treatment also mutes.
+ */
+
+.ui-nav-item-icon {
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.ui-nav-item--has-icon > a,
+.ui-nav-item--has-icon > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* P5-5 — compact mode: an explicit config state, never a CSS accident. The
+ * label is visually hidden with the sr-only technique (kept for assistive
+ * tech) and only when the item HAS an icon; an item without an icon keeps its
+ * label visible. This is applied by the SAME class on every surface (sidebar
+ * rail, top nav, bottom bar). */
+.ui-nav-mode-compact li.ui-nav-item--has-icon .ui-nav-item-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+[aria-disabled="true"] {
+  cursor: default;
+}
+
+[aria-disabled="true"].nav-item-cta,
+[aria-disabled="true"].ui-shell-cta > a,
+[aria-disabled="true"].ui-drawer-cta > a {
+  opacity: 0.55;
+}

@@ -5,10 +5,15 @@ import { isIanaTimeZone } from "@/core/business-hours";
 import {
   CONTENT_WIDTHS,
   CTA_ACTIONS,
+  CTA_STATES,
   CTA_STYLES,
   COLOR_HEX_PATTERN,
   DESKTOP_NAVIGATION_PATTERNS,
+  ICON_ASSET_PATTERN,
+  ICON_POSITIONS,
+  MENU_MODES,
   MOBILE_NAVIGATION_PATTERNS,
+  NAV_REGIONS,
   PRESENTATION_HEADERS,
   PRESENTATION_HEROES,
   PRESENTATION_RHYTHMS,
@@ -383,9 +388,40 @@ export const socialLinkSchema = z.object({
   href: z.url("must be an absolute URL including protocol"),
 });
 
+/**
+ * P5-5 — plain configurable asset filename under `public/assets/` (icon/
+ * image). Paths, traversal, query strings, and URLs are rejected; the adopter
+ * replaces the file in place or swaps the validated filename. An explicit `""`
+ * is NOT valid here — omit the key instead (empty means "no icon" only on
+ * control leaves that model it, e.g. `ui.cta.icon`, `navigation.sidebar.*`).
+ */
+export const uiIconAssetSchema = z
+  .string()
+  .regex(
+    ICON_ASSET_PATTERN,
+    "must be a plain asset filename stored in public/assets/ (letters, digits, ., _, -) ending in .svg, .png, .webp, .jpg, .jpeg, .gif, or .ico — paths and URLs are not allowed",
+  );
+
+/**
+ * P5-5 — a control's optional icon leaf. Unlike a content/asset reference, a
+ * CONTROL icon may be an explicit `""` (meaning "render no icon; text-only")
+ * or a valid asset filename. This is what makes the derived disabled state
+ * (`icon: ""` + `text: ""` → control not rendered) expressible without an
+ * invented boolean.
+ */
+export const uiControlIconSchema = z.union([z.literal(""), uiIconAssetSchema]);
+
 export const navigationItemSchema = z.object({
   label: z.string().min(1, "must not be empty"),
   href: z.string().min(1, "must not be empty"),
+  /** P5-5 — optional navigation-item icon (plain public/assets filename). */
+  icon: uiIconAssetSchema.optional(),
+  /** P5-5 — sidebar region group (top | middle | bottom; default middle). */
+  position: z
+    .enum(NAV_REGIONS, {
+      message: `must be one of: ${NAV_REGIONS.join(", ")}`,
+    })
+    .optional(),
 });
 
 /** Safe method id for the `connect.methods` list (must be URL-friendly). */
@@ -564,6 +600,44 @@ const uiShellSchema = z
   })
   .strict();
 
+/**
+ * P5-5 — one icon+text disclosure control (e.g. the sidebar open/close).
+ *
+ * Explicit `""` semantics (documented + tested): a MISSING text falls back to
+ * the localized dictionary label; `text: ""` means "no visible text (icon
+ * only)"; a MISSING icon falls back to the shipped asset; `icon: ""` means
+ * "no icon (text only)". When BOTH `icon: ""` and `text: ""` are set the
+ * control is not rendered at all (derived disabled state — no invented
+ * boolean).
+ */
+const uiSidebarControlSchema = z
+  .object({
+    icon: uiControlIconSchema.optional(),
+    text: z.string().optional(),
+  })
+  .strict();
+
+/** P5-5 — the shared three-state menu/control presentation mode. */
+const uiMenuModeSchema = z
+  .enum(MENU_MODES, { message: `must be one of: ${MENU_MODES.join(", ")}` })
+  .optional();
+
+/** P5-5 — sidebar presentation intent (mode + open/close disclosure content). */
+const uiSidebarSchema = z
+  .object({
+    mode: uiMenuModeSchema,
+    open: uiSidebarControlSchema.optional(),
+    close: uiSidebarControlSchema.optional(),
+  })
+  .strict();
+
+/** P5-5 — a menu surface's shared presentation mode (top / bottom). */
+const uiMenuSurfaceSchema = z
+  .object({
+    mode: uiMenuModeSchema,
+  })
+  .strict();
+
 const uiNavigationSchema = z
   .object({
     desktop: z
@@ -581,6 +655,12 @@ const uiNavigationSchema = z
         message: `must be one of: ${MOBILE_NAVIGATION_PATTERNS.join(", ")}`,
       })
       .optional(),
+    /** P5-5 — sidebar presentation (mode + open/close disclosure content). */
+    sidebar: uiSidebarSchema.optional(),
+    /** P5-5 — ≥md top-navigation menu presentation mode. */
+    top: uiMenuSurfaceSchema.optional(),
+    /** P5-5 — mobile bottom-navigation menu presentation mode. */
+    bottom: uiMenuSurfaceSchema.optional(),
   })
   .strict();
 
@@ -631,7 +711,13 @@ const uiCtaSchema = z
     action: z
       .enum(CTA_ACTIONS, { message: `must be one of: ${CTA_ACTIONS.join(", ")}` })
       .optional(),
-    label: z.string().min(1, "must not be empty").optional(),
+    /**
+     * Adopter-provided visible label. P5-5: an explicit `""` is valid and means
+     * "icon-only CTA" (the accessible name then comes from `action`); a MISSING
+     * label with an icon counts as icon-only as well. An enabled CTA with
+     * neither label nor icon + href renders nothing.
+     */
+    label: z.string().optional(),
     /**
      * Adopter-owned CTA destination (UI-07 D1). Optional and NEVER inferred:
      * the Foundation does not derive a route from `action` or invent one. An
@@ -640,6 +726,20 @@ const uiCtaSchema = z
     href: z.string().min(1, "must not be empty").optional(),
     style: z
       .enum(CTA_STYLES, { message: `must be one of: ${CTA_STYLES.join(", ")}` })
+      .optional(),
+    /** P5-5 — optional CTA icon (plain public/assets filename; "" = none). */
+    icon: uiControlIconSchema.optional(),
+    /** P5-5 — icon placement within the CTA ("start" leading, "end" trailing). */
+    iconPosition: z
+      .enum(ICON_POSITIONS, {
+        message: `must be one of: ${ICON_POSITIONS.join(", ")}`,
+      })
+      .optional(),
+    /** P5-5 — semantic CTA state ("default" | "disabled"). */
+    state: z
+      .enum(CTA_STATES, {
+        message: `must be one of: ${CTA_STATES.join(", ")}`,
+      })
       .optional(),
   })
   .strict();

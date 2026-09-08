@@ -3,6 +3,12 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import {
+  DEFAULT_SIDEBAR_CLOSE_ICON,
+  DEFAULT_SIDEBAR_OPEN_ICON,
+  iconAssetUrl,
+  resolveControlPresentation,
+} from "@/core/ui";
 import { Drawer } from "@/components/ui/drawer";
 import { OverlayNavigation } from "@/components/ui/overlay-navigation";
 import { createInitialDisclosure, disclosureReducer } from "@/components/ui/state";
@@ -21,50 +27,26 @@ import { createInitialDisclosure, disclosureReducer } from "@/components/ui/stat
  * Full focus-trap/focus-return/Escape/scroll-lock behavioral matrix is the
  * mandatory UI-10 browser gate.
  */
-/** P5-1 — recognizable "open sidebar" icon (a sidebar panel + rows). Stroke-based,
- * token-colored (`currentColor`), decorative (`aria-hidden`): the visible label is the
- * accessible name, so the control never needs a separate tooltip/visually-hidden text. */
-function SidebarOpenIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      className="ui-mobile-nav-icon h-4 w-4 shrink-0"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
-      <path d="M7.5 9.5h9M7.5 13h9M7.5 16.5h4.5" />
-    </svg>
-  );
-}
-
-/** P5-1 — recognizable "close sidebar" icon (an X). Same decorative contract. */
-function SidebarCloseIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      className="ui-mobile-nav-icon h-4 w-4 shrink-0"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-    >
-      <path d="M6 6L18 18M18 6L6 18" />
-    </svg>
-  );
+/**
+ * P5-5 — one configurable icon+text disclosure control (open or close).
+ *
+ * `resolveControlPresentation` applies the documented empty-string semantics:
+ * missing icon → shipped default asset; `icon: ""` → no icon; missing text →
+ * the localized fallback label; `text: ""` → icon-only (the accessible name
+ * stays the fallback label via `aria-label`); both `""` → not rendered. The
+ * `ui-mobile-nav-icon` marker is preserved on the icon asset so the P5-1
+ * browser contract (recognizable open/close icons) is unchanged.
+ */
+function DisclosureIcon({ asset, className }: { asset: string | undefined; className: string }) {
+  if (!asset) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={iconAssetUrl(asset)} alt="" aria-hidden="true" className={className} />;
 }
 
 export interface ShellMobileNavProps {
   /** "drawer" or "overlay" — which client dialog primitive to compose. */
   readonly pattern: "drawer" | "overlay";
-  /** Accessible label for the trigger button. */
+  /** Accessible label for the trigger button (fallback name for icon-only). */
   readonly triggerLabel: string;
   /** Deterministic id for the trigger (aria-controls targets the panel). */
   readonly id: string;
@@ -72,32 +54,59 @@ export interface ShellMobileNavProps {
   readonly children: ReactNode;
   readonly className?: string;
   /**
-   * P0-1 (owner-approved sidebar contract): optional explicit close control
-   * label (e.g. "Close Sidebar"). When set, a clearly identifiable close
-   * button is rendered AFTER the children at the bottom of the open
-   * disclosure, wired to the SAME Drawer close mechanism (onClose → the UI-10
-   * focus-return/inert/scroll contract). Consumers opt in; an absent label
-   * renders no control and changes nothing.
+   * P5-5 — configurable OPEN control (`navigation.sidebar.open`): icon asset
+   * filename and/or visible text. Missing leaves fall back to the shipped
+   * asset + `triggerLabel`; `text: ""` → icon-only; `icon: ""` + `text: ""` →
+   * the trigger is not rendered at all.
    */
+  readonly open?: { readonly icon?: string; readonly text?: string };
+  /**
+   * P0-1/P5-5 — the "Close Sidebar" control, with the SAME configurable
+   * presentation as the open control. Wired to the Drawer close mechanism.
+   */
+  readonly close?: { readonly icon?: string; readonly text?: string };
+  /** P5-5 — localized fallback label for the close control. */
   readonly closeLabel?: string;
 }
 
-export function ShellMobileNav({ pattern, triggerLabel, id, children, className, closeLabel }: ShellMobileNavProps) {
-  const [open, setOpen] = useState(createInitialDisclosure(false));
+export function ShellMobileNav({
+  pattern,
+  triggerLabel,
+  id,
+  children,
+  className,
+  open,
+  close,
+  closeLabel,
+}: ShellMobileNavProps) {
+  const [openState, setOpen] = useState(createInitialDisclosure(false));
   const toggle = () => setOpen((current) => disclosureReducer(current, { type: "toggle" }));
-  const close = () => setOpen("closed");
+  const closeDisclosure = () => setOpen("closed");
+
+  // P5-5 — both controls resolve through the SAME presentation helper. The
+  // shipped default assets (`/assets/sidebar-open.svg` / close) are
+  // replaceable in place, or via the configured filename.
+  const openControl = resolveControlPresentation(open ?? {}, {
+    defaultIcon: DEFAULT_SIDEBAR_OPEN_ICON,
+    fallbackText: triggerLabel,
+  });
+  const closeControl = resolveControlPresentation(close ?? {}, {
+    defaultIcon: DEFAULT_SIDEBAR_CLOSE_ICON,
+    fallbackText: closeLabel ?? "Close Sidebar",
+  });
 
   const dialogContent = (
     <>
       {children}
-      {closeLabel ? (
+      {closeControl.visible ? (
         <button
           type="button"
-          onClick={close}
+          onClick={closeDisclosure}
+          aria-label={closeControl.text === "" ? (closeLabel ?? "Close Sidebar") : undefined}
           className="ui-drawer-close mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
-          <SidebarCloseIcon />
-          {closeLabel}
+          <DisclosureIcon asset={closeControl.icon} className="ui-mobile-nav-icon h-4 w-4 shrink-0" />
+          {closeControl.text === "" ? null : <span>{closeControl.text}</span>}
         </button>
       ) : null}
     </>
@@ -105,21 +114,24 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className,
 
   return (
     <div className={className}>
-      <button
-        type="button"
-        id={id}
-        aria-expanded={open === "open"}
-        aria-controls={`${id}-panel`}
-        onClick={toggle}
-        className="ui-shell-mobile-nav-trigger inline-flex items-center gap-1.5 md:hidden"
-      >
-        <SidebarOpenIcon />
-        {triggerLabel}
-      </button>
+      {openControl.visible ? (
+        <button
+          type="button"
+          id={id}
+          aria-expanded={openState === "open"}
+          aria-controls={`${id}-panel`}
+          onClick={toggle}
+          aria-label={openControl.text === "" ? triggerLabel : undefined}
+          className="ui-shell-mobile-nav-trigger inline-flex items-center gap-1.5 md:hidden"
+        >
+          <DisclosureIcon asset={openControl.icon} className="ui-mobile-nav-icon h-4 w-4 shrink-0" />
+          {openControl.text === "" ? null : <span>{openControl.text}</span>}
+        </button>
+      ) : null}
       {pattern === "overlay" ? (
         <OverlayNavigation
-          open={open === "open"}
-          onClose={close}
+          open={openState === "open"}
+          onClose={closeDisclosure}
           labelledBy={id}
           id={`${id}-panel`}
           // P0-1: the overlay pattern is sized content-appropriately (a
@@ -131,7 +143,7 @@ export function ShellMobileNav({ pattern, triggerLabel, id, children, className,
           {dialogContent}
         </OverlayNavigation>
       ) : (
-        <Drawer open={open === "open"} onClose={close} labelledBy={id} id={`${id}-panel`}>
+        <Drawer open={openState === "open"} onClose={closeDisclosure} labelledBy={id} id={`${id}-panel`}>
           {dialogContent}
         </Drawer>
       )}

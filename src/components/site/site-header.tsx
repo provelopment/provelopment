@@ -2,7 +2,7 @@ import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
-import { resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
+import { menuModeClass, resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
 import { Cta } from "@/components/ui/cta";
 import { Stack } from "@/components/ui/stack";
@@ -28,7 +28,9 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     // composition places navigation in the header slot (top-bar patterns). With
     // an aside composition (adaptive sidebar) the single nav landmark lives in
     // the shell sidebar instead — exactly one exposed landmark per viewport.
-    const hasHeaderNav = desktopSlot === "header" || tabletSlot === "header";
+    const hasHeaderNav = (desktopSlot === "header" || tabletSlot === "header") && resolved.navigation.top.mode !== "closed";
+    const topModeClass = menuModeClass(resolved.navigation.top.mode);
+    const sidebarModeClass = menuModeClass(resolved.navigation.sidebar.mode);
     const desktopNavClassName = !hasHeaderNav
         ? undefined
         : desktopSlot === "header" && tabletSlot === "header"
@@ -55,7 +57,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         <ContextNavLinks
             locale={locale}
             links={navLinks}
-            className="flex flex-wrap items-center gap-x-4 gap-y-2"
+            className={`flex flex-wrap items-center gap-x-4 gap-y-2 ${topModeClass ?? ""}`}
             linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
         />
     );
@@ -73,8 +75,11 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         <ContextNavLinks
             locale={locale}
             links={navLinks}
-            className="flex flex-col items-start gap-y-2"
+            className={`flex flex-col items-start gap-y-2 ${sidebarModeClass ?? ""}`}
             linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            // P5-5 — the mobile sidebar disclosure orders by configured
+            // region (top → middle → bottom) like the aside rail.
+            sortByRegion
         />
     );
 
@@ -82,10 +87,10 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     // capability as the engine's header/aside/bottom compositions. The
     // placement decision remains vocabulary-driven (`decision.mobile.ctaSlot`
     // is "drawer" exactly for the drawer/overlay compositions); `Cta` owns the
-    // single presence predicate (enabled ∧ label ∧ href) + prominence, so no
-    // enabled/label/href condition or `ui-cta-prominent` logic is duplicated.
-    // Closed SSR renders no dialog (and therefore no CTA / no focusable);
-    // opening exposes the CTA among the disclosure's children.
+    // single presence predicate (enabled ∧ href ∧ visible content ∧ accessible
+    // name) + prominence + P5-5 icon/state. Closed SSR renders no dialog (and
+    // therefore no CTA / no focusable); opening exposes the CTA among the
+    // disclosure's children.
     const ctaLabel = resolved.cta.label;
     const ctaHref = resolved.cta.href;
     const mobileDrawerCta =
@@ -96,6 +101,10 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                 style={resolved.cta.style}
                 label={ctaLabel}
                 href={ctaHref}
+                action={resolved.cta.action}
+                icon={resolved.cta.icon}
+                iconPosition={resolved.cta.iconPosition}
+                state={resolved.cta.state}
                 className="ui-drawer-cta"
             />
         ) : null;
@@ -143,6 +152,16 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                         triggerLabel={dictionary.navigation.viewSidebar ?? "View Sidebar"}
                         className="md:hidden"
                         closeLabel={dictionary.navigation.closeSidebar ?? "Close Sidebar"}
+                        // P5-5 — the sidebar disclosure content is configured by
+                        // `ui.navigation.sidebar` (icon asset + visible text).
+                        open={{
+                            icon: resolved.navigation.sidebar.open.icon,
+                            text: resolved.navigation.sidebar.open.text,
+                        }}
+                        close={{
+                            icon: resolved.navigation.sidebar.close.icon,
+                            text: resolved.navigation.sidebar.close.text,
+                        }}
                     >
                         {mobileNavListElement}
                         {mobileDrawerCta}

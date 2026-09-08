@@ -8,9 +8,15 @@ export {
   COLOR_HEX_PATTERN,
   CONTENT_WIDTHS,
   CTA_ACTIONS,
+  CTA_STATES,
   CTA_STYLES,
   DESKTOP_NAVIGATION_PATTERNS,
+  ICON_ASSET_PATTERN,
+  ICON_POSITIONS,
+  isIconAssetName,
+  MENU_MODES,
   MOBILE_NAVIGATION_PATTERNS,
+  NAV_REGIONS,
   PRESENTATION_HEADERS,
   PRESENTATION_HEROES,
   PRESENTATION_RHYTHMS,
@@ -26,9 +32,13 @@ export {
 export type {
   ContentWidth,
   CtaAction,
+  CtaState,
   CtaStyle,
   DesktopNavigationPattern,
+  IconPosition,
+  MenuMode,
   MobileNavigationPattern,
+  NavRegion,
   PresentationHeader,
   PresentationHero,
   PresentationRhythm,
@@ -73,3 +83,13 @@ export type {
   ShellPatternDecision,
   ShellPrimitiveKind,
 } from "./shell";
+
+export {
+  DEFAULT_SIDEBAR_CLOSE_ICON,
+  DEFAULT_SIDEBAR_OPEN_ICON,
+  iconAssetUrl,
+  menuModeClass,
+  regionOrder,
+  resolveControlPresentation,
+} from "./controls";
+export type { ControlPresentation } from "./controls";

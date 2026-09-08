@@ -17,5 +17,10 @@ export function getSiteNavLinks(locale: string): readonly ContextNavLink[] {
   return siteConfig.navigation.map((item) => ({
     href: item.href,
     label: dictionary.navigation.items[item.href] ?? item.label,
+    // P5-5 — icon/region/disabled flow straight through the shared link path
+    // (Configuration → validated schema → NavItem renderer; no component fork).
+    icon: item.icon,
+    position: item.position,
+    disabled: item.disabled,
   }));
 }

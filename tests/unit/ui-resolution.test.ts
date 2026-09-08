@@ -47,7 +47,14 @@ describe("UI-02/UI-05 - no explicit preset -> Adaptive default personality", () 
   it("resolveUiConfig({}) resolves the default personality (adaptive) with its full profile", () => {
     const resolved = resolveUiConfig({});
     expect(resolved.preset).toBe("adaptive");
-    expect(resolved.navigation).toEqual(uiPresetProfiles.adaptive.navigation);
+    // P5-5 — the profile drives the three pattern leaves; the P5-5 control
+    // leaves (sidebar/top/bottom mode) are neutral + preset-agnostic.
+    expect(resolved.navigation.desktop).toEqual(uiPresetProfiles.adaptive.navigation.desktop);
+    expect(resolved.navigation.tablet).toEqual(uiPresetProfiles.adaptive.navigation.tablet);
+    expect(resolved.navigation.mobile).toEqual(uiPresetProfiles.adaptive.navigation.mobile);
+    expect(resolved.navigation.sidebar.mode).toBe("open");
+    expect(resolved.navigation.top.mode).toBe("open");
+    expect(resolved.navigation.bottom.mode).toBe("open");
     expect(resolved.shell).toEqual(uiPresetProfiles.adaptive.shell);
     // Leaves the preset does NOT define fall through to Foundation defaults:
     expect(resolved.density).toBe(FOUNDATION_UI_DEFAULTS.density);
@@ -71,7 +78,14 @@ describe("UI-02 - all five explicit presets resolve their profiles", () => {
       const resolved = resolveUiConfig({ preset });
       expect(resolved.preset).toBe(preset);
       const profile = uiPresetProfiles[preset];
-      expect(resolved.navigation).toEqual(profile.navigation);
+      // P5-5 — the profile drives the three pattern leaves; the control leaves
+      // (sidebar/top/bottom mode) are neutral + preset-agnostic.
+      expect(resolved.navigation.desktop).toEqual(profile.navigation.desktop);
+      expect(resolved.navigation.tablet).toEqual(profile.navigation.tablet);
+      expect(resolved.navigation.mobile).toEqual(profile.navigation.mobile);
+      expect(resolved.navigation.sidebar.mode).toBe("open");
+      expect(resolved.navigation.top.mode).toBe("open");
+      expect(resolved.navigation.bottom.mode).toBe("open");
       expect(resolved.shell).toEqual(profile.shell);
       expect(resolved.cta.style).toBe(profile.cta.style);
     }
