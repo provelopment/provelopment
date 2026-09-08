@@ -11,10 +11,10 @@ import { describe, expect, it, vi } from "vitest";
  * behavioral matrix (keyboard/focus/Escape/scroll/reduced-motion/close control/
  * width) is the mandatory UI-10/P5-1 browser gate.
 
- * P5-1 — Sidebar-parity SSR contract (what closed markup must ALWAYS expose):
+ * P5-1/P6-1 — Sidebar-parity SSR contract (what closed markup must ALWAYS expose):
  *  - the mobile trigger renders the recognizable open-sidebar icon (svg with
  *    the shared `ui-mobile-nav-icon` marker) PLUS the explicit action label
- *    ("View Sidebar" per the owner-approved naming — never a bare "Menu"/
+ *    ("Show Sidebar" — the ONE P6-1 vocabulary — never a bare "Menu"/
  *    "Primary navigation" trigger on the closed control);
  *  - the trigger conveys disclosure state via `aria-expanded="false"` and
  *    `aria-controls="<id>-panel"` (deterministic B1 relationship);
@@ -42,21 +42,21 @@ const el = (type: string, props: Record<string, unknown> | null, ...children: Re
   createElement(type, props, ...children);
 
 describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
-  it("trigger exposes the recognizable open icon + \"View Sidebar\" action label", () => {
+  it("trigger exposes the recognizable open icon + \"Show Sidebar\" action label", () => {
     const html = renderToStaticMarkup(
       ShellMobileNav({
         pattern: "drawer",
-        triggerLabel: "View Sidebar",
+        triggerLabel: "Show Sidebar",
         id: "shell-mobile-nav",
         className: "md:hidden",
-        closeLabel: "Close Sidebar",
+        closeLabel: "Hide Sidebar",
         children: el("nav", null, "Nav content"),
       }),
     );
-    expect(html).toContain("View Sidebar");
-    // P5-5 — the open control icon is now a configurable asset (`<img>` with
+    expect(html).toContain("Show Sidebar");
+    // P5-5/P6-1 — the open control icon is now a configurable asset (`<img>` with
     // the shared ui-mobile-nav-icon marker); the P5-1 browser contract (the
-    // marker + the visible "View Sidebar" label) is unchanged.
+    // marker + the visible "Show Sidebar" label) is unchanged.
     expect(html).toMatch(/<img[^>]*class="[^"]*ui-mobile-nav-icon/);
     expect(html).toContain('/assets/sidebar-open.svg');
     // The trigger is not an icon-only control: the visible action label is the
@@ -69,10 +69,10 @@ describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
     const html = renderToStaticMarkup(
       ShellMobileNav({
         pattern: "overlay",
-        triggerLabel: "View Sidebar",
+        triggerLabel: "Show Sidebar",
         id: "shell-mobile-nav",
         className: "md:hidden",
-        closeLabel: "Close Sidebar",
+        closeLabel: "Hide Sidebar",
         children: el("nav", null, "Nav content"),
       }),
     );
@@ -88,7 +88,7 @@ describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
     const html = renderToStaticMarkup(
       ShellMobileNav({
         pattern: "drawer",
-        triggerLabel: "View Sidebar",
+        triggerLabel: "Show Sidebar",
         id: "shell-client-nav",
         className: "md:hidden",
         children: el("ul", null),

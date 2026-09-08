@@ -67,7 +67,7 @@ afterEach(() => {
  *    inside its existing children;
  *  - the consumer branches purely on decision-core VALUES — the same consumer
  *    serves a Classic config with a complete CTA (not Focus-specific);
- *  - D3: `moreMenu`/`sidebarToggle` values stay absent from the Focus
+ *  - D3: `moreMenu`/Show-Hide vocabulary values stay absent from the Focus
  *    assembly.
  */
 
@@ -267,11 +267,18 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
   });
 });
 
-describe("SiteHeader — D3 genericity: Focus never emits the adaptive-only i18n values", () => {
-  it("moreMenu and sidebarToggle dictionary values are absent from the Focus assembly", () => {
+describe("SiteHeader — D3 genericity: Focus never emits the adaptive-only desktop rail", () => {
+  it("the Focus assembly has no rail disclosure, no adaptive bottom-bar label, and no close-control text in SSR", () => {
     const dictionary = getDictionary("en");
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolveUiConfig({ preset: "focus" }) }));
+    // P6-1 — the Show/Hide Sidebar vocabulary is SHARED (not adaptive-only):
+    // the Focus drawer trigger correctly says "Show Sidebar" in the header.
+    expect(html).toContain(dictionary.navigation.showSidebar);
+    // What MUST stay absent: the adaptive bottom-bar label + the desktop rail
+    // disclosure control (and its "Hide Sidebar" close text only exists inside
+    // the CLOSED-by-default drawer → no rail control and no hide label in SSR).
     expect(html).not.toContain(dictionary.navigation.moreMenu);
-    expect(html).not.toContain(dictionary.navigation.sidebarToggle);
+    expect(html).not.toContain(dictionary.navigation.hideSidebar);
+    expect(html).not.toContain("ui-sidebar-toggle");
   });
 });

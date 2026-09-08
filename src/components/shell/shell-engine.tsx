@@ -5,7 +5,15 @@ import { Cta, isCtaRenderable } from "@/components/ui/cta";
 import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
-import { contentWidthClass, densityClass, resolveShellPattern, type MenuMode } from "@/core/ui";
+import {
+  contentWidthClass,
+  DEFAULT_SIDEBAR_CLOSE_ICON,
+  DEFAULT_SIDEBAR_OPEN_ICON,
+  densityClass,
+  resolveControlPresentation,
+  resolveShellPattern,
+  type MenuMode,
+} from "@/core/ui";
 
 import { ShellBottomBar, type ShellBottomBarLink } from "./shell-bottom-bar";
 
@@ -57,15 +65,28 @@ export interface ShellEngineProps {
   readonly navigationLabel?: string;
   /** Content for the aside (sidebar) slot; rendered when desktop/tablet is aside. */
   readonly asideContent?: ReactNode;
-  /** Localized label for the desktop sidebar collapse/expand toggle. */
-  readonly sidebarToggleLabel?: string;
+  /**
+   * P6-1 — localized labels for the sidebar disclosure toggle: `show` while
+   * the rail is collapsed ("Show Sidebar"), `hide` while open ("Hide Sidebar").
+   * Same vocabulary as the mobile drawer/overlay trigger + close control.
+   */
+  readonly sidebarLabels?: { readonly show: string; readonly hide: string };
+  /**
+   * P6-1 — the sidebar "show" control content (icon asset filename + optional
+   * visible text) resolved by the content layer from `ui.navigation.sidebar.open`
+   * (icons pre-screened against public/assets by the framework layer; missing
+   * leaves → shipped asset + localized label via resolveControlPresentation).
+   */
+  readonly sidebarOpen?: { readonly icon?: string; readonly text?: string };
+  /** P6-1 — the sidebar "hide" control content (see `sidebarOpen`). */
+  readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
   /** Region-aware bottom-bar spec (mobile "bottom-bar" pattern). */
   readonly bottomNav?: {
     readonly label: string;
     readonly moreLabel: string;
     readonly links: readonly ShellBottomBarLink[];
     readonly demoBadgeLabel?: string;
-    /** P5-1 — label for the explicit "Close Sidebar" control in the More drawer. */
+    /** P6-1 — label for the explicit "Hide Sidebar" control in the More drawer. */
     readonly closeLabel?: string;
     /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
     readonly mode?: MenuMode;
@@ -92,7 +113,9 @@ export function ShellEngine({
   mainClassName,
   navigationLabel,
   asideContent,
-  sidebarToggleLabel,
+  sidebarLabels,
+  sidebarOpen,
+  sidebarClose,
   bottomNav,
   locale,
   pageBindings,
@@ -192,6 +215,19 @@ export function ShellEngine({
 
   function buildAside() {
     if (!asideActive || !asideContent) return null;
+    // P6-1 — the rail disclosure uses the SAME resolved control (icon + text)
+    // contract as the mobile layer: missing leaves → shipped default asset +
+    // the localized Show/Hide label; `text: ""` → icon-only; `icon: ""` →
+    // text-only. The content layer already screened the icon filenames against
+    // public/assets (availableIconName), so no broken image can be composed.
+    const openControl = resolveControlPresentation(sidebarOpen ?? {}, {
+      defaultIcon: DEFAULT_SIDEBAR_OPEN_ICON,
+      fallbackText: sidebarLabels?.show ?? "Show Sidebar",
+    });
+    const closeControl = resolveControlPresentation(sidebarClose ?? {}, {
+      defaultIcon: DEFAULT_SIDEBAR_CLOSE_ICON,
+      fallbackText: sidebarLabels?.hide ?? "Hide Sidebar",
+    });
     // P0-1 — the sidebar capability is configured (not hard-coded per band):
     // `resolved.shell.sidebar.collapsible` is the declarative intent. The
     // tablet `collapsed-sidebar` COMPOSITION additionally means
@@ -220,7 +256,13 @@ export function ShellEngine({
           label={navigationLabel ?? "Navigation"}
           collapsible={collapsible}
           collapsed={collapsedInitial}
-          toggleLabel={sidebarToggleLabel}
+          // P6-1 — the disclosure consumes the SAME resolved control shape as
+          // the mobile layer: missing leaves fall back to the shipped asset +
+          // the localized Show/Hide label (resolveControlPresentation).
+          showLabel={sidebarLabels?.show}
+          hideLabel={sidebarLabels?.hide}
+          open={openControl}
+          close={closeControl}
         >
           {asideContent}
           {bandCta}

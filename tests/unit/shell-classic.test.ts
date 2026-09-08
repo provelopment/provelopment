@@ -44,7 +44,7 @@ import { resolveShellPattern, resolveUiConfig } from "@/core/ui";
  *  - CTA stays neutral (no label/href → nothing), and a complete CTA lands in
  *    the header slot only.
  *  - D3: the Classic assembly never emits the adaptive-only i18n values
- *    (`moreMenu`, `sidebarToggle`).
+ *    (`moreMenu`, the Show/Hide vocabulary).
  */
 
 const el = (type: string, props: Record<string, unknown> | null, ...children: ReactNode[]) =>
@@ -188,12 +188,13 @@ describe("ShellEngine — Classic CTA neutrality (D1/D2)", () => {
 });
 
 describe("ShellEngine — D3: Classic never emits the adaptive-only i18n values", () => {
-  it("moreMenu and sidebarToggle dictionary values are absent from the Classic assembly", () => {
+  it("moreMenu and the Show/Hide Sidebar vocabulary are absent from the Classic assembly", () => {
     const dictionary = getDictionary("en");
     const html = renderToStaticMarkup(
       ShellEngine({ resolved: resolveUiConfig({ preset: "classic" }), header: classicHeader(), main, footer, mainId: "main", ...base }),
     );
     expect(html).not.toContain(dictionary.navigation.moreMenu);
-    expect(html).not.toContain(dictionary.navigation.sidebarToggle);
+    expect(html).not.toContain(dictionary.navigation.showSidebar);
+    expect(html).not.toContain(dictionary.navigation.hideSidebar);
   });
 });

@@ -13,9 +13,8 @@
     "primaryLabel": "Navigation principale",
     "footerLabel": "Navigation de pied de page",
     "moreMenu": "Plus",
-    "sidebarToggle": "Réduire la navigation",
-    "closeSidebar": "Fermer la barre latérale",
-    "viewSidebar": "Voir la barre latérale",
+    "showSidebar": "Afficher la barre latérale",
+    "hideSidebar": "Masquer la barre latérale",
     "items": {
       "/": "Accueil",
       "/about": "À propos",

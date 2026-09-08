@@ -283,7 +283,7 @@ describe("UI-03 — Sidebar", () => {
 
   it("collapsible CLOSED is a STRUCTURAL collapse: panel hidden (no layout/tab order), toggle remains as the expand control", () => {
     const html = renderToStaticMarkup(
-      Sidebar({ label: "Rail", collapsible: true, collapsed: true, toggleLabel: "Open", children: span("rail") }),
+      Sidebar({ label: "Rail", collapsible: true, collapsed: true, open: { icon: "", text: "Open" }, close: { icon: "", text: "Close" }, children: span("rail") }),
     );
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-controls="sidebar-panel"');
@@ -294,7 +294,9 @@ describe("UI-03 — Sidebar", () => {
   });
 
   it("collapsible OPEN renders the panel visible again + the toggle with aria-expanded=true", () => {
-    const html = renderToStaticMarkup(Sidebar({ label: "Rail", collapsible: true, children: span("rail") }));
+    const html = renderToStaticMarkup(
+      Sidebar({ label: "Rail", collapsible: true, open: { icon: "", text: "Open" }, close: { icon: "", text: "Close" }, children: span("rail") }),
+    );
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain("<span>rail</span>");
     expect(html).not.toContain('id="sidebar-panel" class="hidden"');

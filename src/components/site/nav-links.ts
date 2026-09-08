@@ -1,4 +1,5 @@
 import { siteConfig } from "@/config";
+import { availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 
 import type { ContextNavLink } from "./context-nav-links";
@@ -35,7 +36,10 @@ export function getSiteNavLinks(locale: string): readonly ContextNavLink[] {
     label: dictionary.navigation.items[item.href] ?? item.label,
     // P5-5 — icon/region/disabled flow straight through the shared link path
     // (Configuration → validated schema → NavItem renderer; no component fork).
-    icon: item.icon,
+    // P6-1 — the icon is screened against public/assets here (the framework
+    // boundary), so a missing/unavailable icon never reaches the renderer as a
+    // broken-image <img>: unavailable → "" (no icon), absent → undefined.
+    icon: item.icon === undefined ? undefined : availableIconName(item.icon),
     position: item.position,
     disabled: item.disabled,
   }));

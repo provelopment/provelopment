@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 
+import { DisclosureIcon } from "./disclosure-icon";
 import { createInitialDisclosure, disclosureReducer, type DisclosureState } from "./state";
 
 /**
@@ -31,6 +32,22 @@ import { createInitialDisclosure, disclosureReducer, type DisclosureState } from
  *    shell-engine's composition responsibility; this primitive owns rail
  *    disclosure semantics.
  *
+ * P6-1 — ONE sidebar vocabulary + ONE control contract on every breakpoint:
+ *  - The toggle label FLIPS with state: `showLabel` when the rail is collapsed
+ *    ("Show Sidebar" — the action that opens it), `hideLabel` when open
+ *    ("Hide Sidebar"). The same two concepts drive the mobile drawer/overlay
+ *    trigger + close control (ShellMobileNav), so desktop/tablet/mobile always
+ *    say the same thing.
+ *  - `open`/`close` are the ALREADY-RESOLVED control presentations
+ *    (`{ icon, text }`, empty-string semantics identical to the mobile
+ *    contract): missing leaves fell back in the composer to the shipped asset +
+ *    the localized label; `text: ""` → icon-only (decorative icon, accessible
+ *    name via `aria-label`); `icon: ""` → text-only (no `<img>`); BOTH `""` →
+ *    P0-1 still wins: the toggle stays reachable with the localized label.
+ *  - The toggle is a REAL interactive control (shared `.ui-sidebar-toggle`
+ *    renderer styling: border, surface, hover/focus-visible/active affordance,
+ *    pointer cursor) so it never reads as ordinary static heading text.
+ *
  * Shared semantics, preset-agnostic: `collapsible === true` means the same
  * thing in every preset/custom composition (the preset only supplies the
  * value). The UI-10 behavioral matrix covers focus/keyboard/scroll for the
@@ -47,22 +64,49 @@ export interface SidebarProps {
   readonly collapsible?: boolean;
   /** Initial collapsed state (default: false). */
   readonly collapsed?: boolean;
-  /** Label for the collapse/expand toggle button (localized by composer). */
-  readonly toggleLabel?: string;
+  /** P6-1 — localized label shown while collapsed ("Show Sidebar"). */
+  readonly showLabel?: string;
+  /** P6-1 — localized label shown while open ("Hide Sidebar"). */
+  readonly hideLabel?: string;
+  /**
+   * P6-1 — the RESOLVED "show" control presentation (icon + optional visible
+   * text), the same shape the mobile trigger uses. Missing leaves resolve in
+   * the composer; `text: ""` → icon-only; BOTH `""` → the localized label
+   * fallback below (P0-1: a collapsible rail is never a dead-end).
+   */
+  readonly open?: { readonly icon?: string; readonly text?: string };
+  /** P6-1 — the RESOLVED "hide" control presentation (see `open`). */
+  readonly close?: { readonly icon?: string; readonly text?: string };
   readonly className?: string;
 }
 
+const DEFAULT_SHOW_LABEL = "Show Sidebar";
+const DEFAULT_HIDE_LABEL = "Hide Sidebar";
 export function Sidebar({
   children,
   label,
   id = "sidebar",
   collapsible = false,
   collapsed = false,
-  toggleLabel = "Toggle sidebar",
+  showLabel,
+  hideLabel,
+  open,
+  close,
   className,
 }: SidebarProps) {
   const [state, setState] = useState<DisclosureState>(() => createInitialDisclosure(!collapsed));
   const isCollapsed = collapsible ? state === "closed" : collapsed;
+
+  // P6-1 — the active control follows the STATE: closed → the "show" (open)
+  // control; open → the "hide" (close) control. Exactly the mobile contract.
+  const active = isCollapsed ? (open ?? {}) : (close ?? {});
+  // P0-1 — never-dead-end fallback: with BOTH leaves empty the toggle stays
+  // reachable using the localized label (never invisible, never an empty box).
+  const fallbackLabel =
+    isCollapsed ? showLabel ?? DEFAULT_SHOW_LABEL : hideLabel ?? DEFAULT_HIDE_LABEL;
+  const visibleText = active.text !== undefined && active.text !== "" ? active.text : "";
+  const toggleText = visibleText !== "" ? visibleText : fallbackLabel;
+  const icon = active.icon === undefined || active.icon === "" ? undefined : active.icon;
 
   return (
     <nav aria-label={label} id={`${id}-rail`} className={className}>
@@ -72,9 +116,13 @@ export function Sidebar({
           onClick={() => setState((current) => disclosureReducer(current, { type: "toggle" }))}
           aria-expanded={!isCollapsed}
           aria-controls={`${id}-panel`}
-          className="ui-sidebar-toggle inline-flex w-full items-center gap-1.5 px-1 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          // Icon-only controls (visible text "" with an icon) keep the
+          // accessible name from the localized label; decorative icon.
+          aria-label={visibleText === "" && icon !== undefined ? fallbackLabel : undefined}
+          className="ui-sidebar-toggle"
         >
-          {toggleLabel}
+          <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
+          <span>{toggleText}</span>
         </button>
       ) : null}
       {/* P0-1 structural collapse: a collapsed panel contributes nothing to

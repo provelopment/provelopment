@@ -210,7 +210,7 @@ describe("ShellEngine — Workspace tablet (collapsed-sidebar) + mutually exclus
         footer,
         mainId: "main",
         navigationLabel: "Primary",
-        sidebarToggleLabel: "Toggle sidebar",
+        sidebarLabels: { show: "Show Sidebar", hide: "Hide Sidebar" },
         asideContent: rail,
         ...base,
       }),
@@ -218,6 +218,8 @@ describe("ShellEngine — Workspace tablet (collapsed-sidebar) + mutually exclus
     // At least one collapse toggle (the desktop band) with deterministic ARIA:
     expect(html).toContain("aria-expanded=");
     expect(html).toContain("aria-controls=");
+    // P6-1 — the disclosure uses the ONE Show/Hide vocabulary.
+    expect(html).toContain("Hide Sidebar");
   });
 
   it("the aside CTA renders inside the aside bands when configured (bands mutually exclusive)", () => {
