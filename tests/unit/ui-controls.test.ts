@@ -149,4 +149,36 @@ describe("P5-5 — resolution of the new ui.navigation/* + ui.cta leaves", () =>
       resolveUiConfig({ cta: { state: "selected" } } as unknown as Parameters<typeof resolveUiConfig>[0]),
     ).toThrow(/cta\.state/);
   });
+
+  it("P5-5A — a downstream override wins over EVERY preset profile (precedence)", () => {
+    for (const preset of ["adaptive", "classic", "focus", "workspace", "immersive"] as const) {
+      const r = resolveUiConfig({
+        preset,
+        navigation: {
+          sidebar: { mode: "closed", open: { icon: "my-open.svg", text: "" }, close: { icon: "", text: "Shut" } },
+          top: { mode: "compact" },
+          bottom: { mode: "closed" },
+        },
+        cta: { icon: "cta.svg", iconPosition: "end", state: "disabled" },
+      });
+      expect(r.navigation.sidebar.mode, preset).toBe("closed");
+      expect(r.navigation.sidebar.open.icon, preset).toBe("my-open.svg");
+      expect(r.navigation.sidebar.open.text, preset).toBe("");
+      expect(r.navigation.sidebar.close.icon, preset).toBe("");
+      expect(r.navigation.top.mode, preset).toBe("compact");
+      expect(r.navigation.bottom.mode, preset).toBe("closed");
+      expect(r.cta.icon, preset).toBe("cta.svg");
+      expect(r.cta.iconPosition, preset).toBe("end");
+      expect(r.cta.state, preset).toBe("disabled");
+    }
+  });
+
+  it("P5-5A — the preset still supplies the pattern/profile leaves (override is scoped, not flattening)", () => {
+    const classic = resolveUiConfig({ preset: "classic", navigation: { sidebar: { mode: "closed" } } });
+    expect(classic.navigation.sidebar.mode).toBe("closed"); // P5-5 leaf overridden
+    expect(classic.navigation.desktop).toBe("top"); // profile leaf untouched
+    const workspace = resolveUiConfig({ preset: "workspace", cta: { state: "disabled" } });
+    expect(workspace.cta.state).toBe("disabled");
+    expect(workspace.navigation.desktop).toBe("sidebar"); // profile leaf untouched
+  });
 });

@@ -399,6 +399,22 @@ three-state contract as the sidebar — `open` (icon + text), `compact`
 (icon-only), `closed` (menu not composed). One vocabulary, one renderer, three
 surfaces — not three unrelated systems.
 
+**Compact semantics (exact, browser-verified):** `compact` hides the visible
+label **only of items that have a configured icon** (labels stay in the DOM,
+visually collapsed via the sr-only technique, so the accessible name is
+unchanged). An item **without an icon keeps its label visible** — nothing ever
+becomes invisible or nameless. Consequence, and by design: on a menu whose
+items have **no icons at all**, `compact` is visually identical to `open`
+(there is nothing to collapse). Configure icons on your navigation items, then
+use `compact` to get the icon-only rail on any surface (sidebar rail, header
+top-nav, or bottom bar).
+
+**Closed semantics (exact, browser-verified):** the menu is **not rendered**
+at all — the header navigation landmark (≥md), the bottom bar (<md), or the
+aside rail respectively disappears. No empty placeholder, no orphaned
+`aria-controls` target, no layout gap. On surfaces that own other navigation
+(the responsive "View Sidebar" disclosure), that other mechanism is untouched.
+
 #### Navigation items — icons, regions, disabled
 
 Each `navigation` entry may carry:
@@ -420,6 +436,12 @@ Each `navigation` entry may carry:
   keyboard/AT natural — no absolute positioning).
 - `disabled` — semantic disabled state: rendered `aria-disabled="true"`, not
   navigable, removed from the tab order, visually muted; never silently dropped.
+  (P5-5A hardening: this leaf is now schema-validated and round-trips into the
+  renderer — earlier it could be silently stripped by validation.)
+
+`href` **must be unique** across `navigation` — it is the stable React list
+key (and the localization key for the label). A duplicate silently breaks
+list identity (items may render with the wrong label/state).
 
 
 
@@ -453,6 +475,24 @@ a finite vocabulary — `default` and `disabled` — plus the browser-native
 exposed. An enabled CTA without `href` (or without any visible content, or
 without any accessible name) renders nothing — the Foundation never infers a
 destination and never ships an empty accessible label.
+
+**Button state model (P5-5A decision, owner-reviewed):** the Foundation's
+semantic state vocabulary is deliberately the minimum that has a real
+consumer:
+
+| State | Where it lives | Configurable? |
+| --- | --- | --- |
+| `default` (interactive, unchanged) | resolved `ui.cta.state` | ✔ `"state": "default"` |
+| `disabled` (non-interactive, `aria-disabled`, not navigable) | resolved `ui.cta.state` | ✔ `"state": "disabled"` |
+| `hover` / `focus-visible` / `active` (pressed) | **browser-native** interaction feedback on the semantic `<a>`/`<button>` (`:hover`, `:focus-visible`, `:active`) | ❌ theme-level only (design tokens), never JSON |
+| current page ("on" for a nav item) | `aria-current="page"` derived from the URL (shared `NavItem`) | ❌ application state, never configuration |
+| `selected` / `on` / `off` (toggle) | **no consumer** in the Foundation today — the CTA is a link, the form `Button` is a submit | ❌ not in the vocabulary (no invented states) |
+
+`selected`/`on`/`off` are application-toggle states, not visual presentation
+choices; the Foundation's current buttons are never toggles, so adding them to
+the vocabulary would be a state system without a consumer. If a future phase
+introduces a real toggle control, its states are introduced then — alongside
+the control that consumes them.
 
 #### Derived disable example (empty sidebar-open)
 
