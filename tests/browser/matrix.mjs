@@ -306,6 +306,9 @@ const s = await cdp.evaluate(`(() => ({
       currentInAside: (() => { for (const sel of ['#shell-sidebar-desktop-rail', '#shell-sidebar-tablet-rail']) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width > 0 && el.querySelector('a[aria-current="page"]')) return true; } return false; })(),
       dialogs: document.querySelectorAll('[role="dialog"]').length,
       bottomBar: ${visible('.ui-shell-bottom-bar')},
+      // P5-4 — the sidebar band presents navigation as ONE vertical list, one
+      // item per row (no two <li> share a horizontal line).
+      itemsOnePerRow: (() => { const lis = [...document.querySelectorAll('.ui-shell-sidebar ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); if (lis.length === 0) return false; const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top)); return new Set(tops).size === tops.length; })(),
     }))()`);
     check(rows, `${vpName}.aside.present`, !!s.sidebar);
     check(rows, `${vpName}.aside.bandExclusive`, (s.desktopRail && !s.tabletRail) || (!s.desktopRail && s.tabletRail));
@@ -313,6 +316,7 @@ const s = await cdp.evaluate(`(() => ({
     check(rows, `${vpName}.aside.ariaCurrent`, !!s.currentInAside);
     check(rows, `${vpName}.no.dialog`, s.dialogs === 0);
     check(rows, `${vpName}.no.bottomBar`, !s.bottomBar);
+    check(rows, `${vpName}.aside.nav.onePerRow`, !!s.itemsOnePerRow);
 
     // P0-1 REAL interaction — desktop collapse → expand cycle (same toggle stays
     // reachable; navigation + panel restore).
@@ -492,6 +496,8 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       const closeRect = closeBtn ? closeBtn.getBoundingClientRect() : null;
       return {
         navVertical: ul ? getComputedStyle(ul).flexDirection === 'column' : false,
+        // P5-4 — one navigation item per row (no two items share a line).
+        itemsPerRow: (() => { const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); if (lis.length === 0) return false; const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top)); return new Set(tops).size === tops.length; })(),
         panelWidth: Math.round(pr.width),
         viewportWidth: document.documentElement.clientWidth,
         closeLabel: closeBtn ? closeBtn.textContent.trim() : null,
@@ -505,9 +511,11 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
     check(rows, "panel.close.label", !!ov && ov.closeLabel === "Close Sidebar");
     check(rows, "panel.close.belowNav", !!ov && ov.closeBelowNav);
     check(rows, "panel.close.icon", !!ov && !!ov.closeIcon);
-    if (preset.name === "immersive") {
-      check(rows, "overlay.nav.vertical", !!ov && ov.navVertical);
-    }
+    // P5-4 — the mobile sidebar disclosure is the SAME vertical list (one item
+    // per row) on EVERY drawer/overlay preset: the behavior previously unique
+    // to the immersive overlay is now the shared responsive nav contract.
+    check(rows, "mobile.nav.vertical", !!ov && ov.navVertical);
+    check(rows, "mobile.nav.onePerRow", !!ov && ov.itemsPerRow);
   }
 
   let trapped = true;
@@ -656,6 +664,8 @@ async function runAdaptiveMobile(rows, cdp) {
       closeBelowNav: !!closeBtn && !!ul && cr.top > ul.getBoundingClientRect().bottom - 4,
       closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
       triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
+      // P5-4 — one navigation item per row in the More disclosure too.
+      itemsPerRow: (() => { const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); if (lis.length === 0) return false; const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top)); return new Set(tops).size === tops.length; })(),
     };
   })()`);
   check(rows, "more.panel.bounded", !!mp && mp.panelWidth > 0 && mp.panelWidth < mp.viewportWidth && mp.panelWidth <= Math.min(288, mp.viewportWidth * 0.8) + 2);
@@ -664,6 +674,7 @@ async function runAdaptiveMobile(rows, cdp) {
   check(rows, "more.close.label", !!mp && !!mp.closeLabel && mp.closeLabel === "Close Sidebar", mp ? `label=[${mp.closeLabel}]` : "null");
   check(rows, "more.close.belowNav", !!mp && !!mp.closeBelowNav);
   check(rows, "more.close.icon", !!mp && !!mp.closeIcon);
+  check(rows, "more.nav.onePerRow", !!mp && !!mp.itemsPerRow);
   const moreCloseClick = await cdp.clickCenter("#shell-bottom-more-panel .ui-drawer-close");
   await sleep(250);
   const mcc = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, activeId: document.activeElement && document.activeElement.id, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);

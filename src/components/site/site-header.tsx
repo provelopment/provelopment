@@ -60,23 +60,23 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         />
     );
 
-    // P0-1 (owner-approved sidebar contract): the OVERLAY mobile disclosure
-    // presents navigation VERTICALLY (a sidebar, not a horizontal strip). This
-    // is a vocabulary-driven branch on the resolved mobile primitive kind — the
-    // same pattern value the engine/decision core composes on. Drawer-pattern
-    // disclosures (classic/focus/workspace) keep the shared horizontal list
-    // unchanged.
-    const mobileNavListElement =
-        mobilePattern === "overlay" ? (
-            <ContextNavLinks
-                locale={locale}
-                links={navLinks}
-                className="flex flex-col items-start gap-y-2"
-                linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            />
-        ) : (
-            navListElement
-        );
+    // P5-4 — Shared responsive navigation contract: the mobile sidebar
+    // disclosure (drawer AND overlay — the whole "View Sidebar" contract)
+    // presents navigation as a clean VERTICAL list, one item per line. The
+    // horizontal `flex flex-wrap` class belongs ONLY to the ≥md header
+    // top-navigation; previously the drawer pattern reused that horizontal
+    // list, so classic/focus/workspace wrapped multiple items per line inside
+    // the drawer (immersive's overlay showed the intended vertical layout).
+    // A single vocabulary-agnostic list now yields the same vertical
+    // presentation for every mobile disclosure (immersive markup is unchanged).
+    const mobileNavListElement = (
+        <ContextNavLinks
+            locale={locale}
+            links={navLinks}
+            className="flex flex-col items-start gap-y-2"
+            linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        />
+    );
 
     // P0-2 — the mobile drawer/overlay CTA uses the SAME shared `Cta`
     // capability as the engine's header/aside/bottom compositions. The
