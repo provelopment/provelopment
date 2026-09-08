@@ -412,6 +412,9 @@ html[data-ui-typography="editorial"] .prose h2 {
   letter-spacing: -0.025em;
   font-weight: 700;
 }
+html[data-ui-typography="editorial"] main h1 {
+  font-size: clamp(2.5rem, 5.5vw, 3.5rem);
+}
 html[data-ui-typography="editorial"] .prose {
   line-height: 1.65;
 }
