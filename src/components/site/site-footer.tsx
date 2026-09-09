@@ -63,7 +63,15 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
 
     return (
         <footer className="mt-16 border-t border-border">
-            <div className="mx-auto grid max-w-page gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
+            {/* D2 footer robustness (reusable): `break-words` (overflow-wrap) on
+                the grid lets any legitimate long unbreakable string — a long
+                email address, phone, nav label, or business name — wrap within
+                its column instead of overflowing into an adjacent one or forcing
+                horizontal page scroll. `overflow-wrap: break-word` only breaks
+                mid-word when a token would otherwise overflow, so normal text is
+                unaffected. Combined with `lg:col-span-4` below so the copyright
+                spans the full width as a coherent single line on desktop. */}
+            <div className="mx-auto grid max-w-page break-words gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 {hasRegions ? null : (
                     <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
                 )}
@@ -132,7 +140,7 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                     </nav>
                 ) : null}
 
-                <p className="self-end text-sm text-muted-foreground sm:text-right lg:text-left">
+                <p className="self-end text-sm text-muted-foreground sm:text-right lg:col-span-4 lg:pt-2 lg:text-left">
                     &copy; {new Date().getFullYear()} {siteConfig.name}
                 </p>
             </div>
