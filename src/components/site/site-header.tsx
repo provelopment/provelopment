@@ -139,10 +139,12 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                                 regionLabels={regionLabels}
                             />
                         ) : null}
-                        <LanguageSwitcher
-                            locale={locale}
-                            label={dictionary.language.label}
-                        />
+                        {siteConfig.locales.length > 1 ? (
+                            <LanguageSwitcher
+                                locale={locale}
+                                label={dictionary.language.label}
+                            />
+                        ) : null}
                     </Stack>
                 </Stack>
 
