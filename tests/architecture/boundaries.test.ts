@@ -1182,3 +1182,29 @@ describe("Phase UI-01 — UI architecture contract boundaries", () => {
     }
   });
 });
+
+
+describe("D2 — footer long-content robustness (source contract)", () => {
+  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
+
+  function readComponent(name: string): string {
+    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
+  }
+
+  it("the footer grid carries a wrap rule so long unbreakable strings (e.g. a long email) wrap within their column", () => {
+    const footer = readComponent("site-footer.tsx");
+    // The reusable footer must never rely on the *content* being short. The grid
+    // wrapper applies `break-words` (overflow-wrap: break-word via Tailwind) so
+    // a legitimate long email/phone/nav/business-name token wraps instead of
+    // bleeding into an adjacent column or forcing horizontal page overflow.
+    expect(footer).toContain('break-words');
+  });
+
+  it("the footer copyright spans the full width on desktop so it reads as one coherent line", () => {
+    const footer = readComponent("site-footer.tsx");
+    // On lg the footer is a 4-column grid; the copyright is the 5th child. It
+    // must span all four columns (`lg:col-span-4`) rather than a single 192px
+    // column, which would wrap a normal business name to multiple lines.
+    expect(footer).toContain("lg:col-span-4");
+  });
+});
