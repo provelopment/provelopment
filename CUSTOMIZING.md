@@ -1053,6 +1053,44 @@ no asset configuration. The `ogImage` value is used by every page's Open Graph
 and Twitter metadata (via the `resolveOgImageUrl` helper); when it is absent,
 the per-locale generated OpenGraph image route is used as the default.
 
+#### Generic branding asset roles (P6-2A)
+
+Branding assets under `public/assets/` use **generic functional filenames**,
+not brand-specific ones. Components (where wired) reference a role's filename,
+never a Provelopment-specific name — so replacing the underlying artwork is a
+**file swap only**, with no component change required.
+
+These are **functional asset roles**. The files are intended to be replaceable
+without changing component source code.
+
+| Generic role | Placeholder file | Intended future purpose |
+| --- | --- | --- |
+| `logo-header` | `public/assets/logo-header.svg` | Site/header logo |
+| `logo-footer` | `public/assets/logo-footer.svg` | Footer logo |
+| `logo-title` | `public/assets/logo-title.jpg` | Page/title-area logo |
+| `sidebar-open` | `public/assets/sidebar-open.svg` | Show Sidebar graphic (already wired — `DEFAULT_SIDEBAR_OPEN_ICON`) |
+| `sidebar-close` | `public/assets/sidebar-close.svg` | Hide Sidebar graphic (already wired — `DEFAULT_SIDEBAR_CLOSE_ICON`) |
+| `favicon` | `public/assets/favicon.svg` | Browser favicon (naming placeholder only — the live favicon path remains `src/app/icon.svg` / `site.assets.favicon` per the table above; not yet rewired) |
+
+Status as of P6-2A (placeholder architecture only, no visual implementation):
+
+- `sidebar-open`/`sidebar-close` already satisfied this convention before
+  P6-2A — the filenames are already generic and already resolved through
+  `DEFAULT_SIDEBAR_OPEN_ICON`/`DEFAULT_SIDEBAR_CLOSE_ICON` (`src/core/ui/controls.ts`)
+  rather than a hardcoded brand name. No source change was needed for them.
+- `logo-header`, `logo-footer`, and `logo-title` are new placeholder files
+  established for future header/footer/title-area logo positions. They are
+  **not yet composed into any component** — the header and footer currently
+  render the brand as text (`siteConfig.name`); adding an image-logo position
+  is a distinct, later visual-implementation task (sizing, positioning, and
+  layout are deliberately out of scope here).
+- `favicon` gets a placeholder file for naming-convention consistency only;
+  the actual favicon resolution path (`src/app/icon.svg`, optionally
+  overridden by `site.assets.favicon`) is unchanged — see the table above.
+- Replace any placeholder in place at its existing path, exactly like the
+  other `public/assets/*` defaults described above — no configuration or
+  component change required.
+
 **Content-level images are separate:** images referenced inside Markdown
 content (offerings, portfolio, posts — e.g. an `image:` frontmatter value)
 come from the content itself and are rendered by the card/detail image
