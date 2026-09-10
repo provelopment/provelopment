@@ -55,19 +55,53 @@ export const localeConfigSchema = z.object({
   englishLabel: z.string().min(1, "must not be empty").optional(),
 });
 
-/** FS-4 — canonical asset configuration (absolute URLs, validated; defaulted). */
+/**
+ * FS-4 — canonical asset configuration (absolute URLs, validated; defaulted).
+ *
+ * P6-2C — the six generic branding asset ROLES established in P6-2A
+ * (`logo-header` / `logo-footer` / `logo-title` / `sidebar-open` /
+ * `sidebar-close` / `favicon`) map onto this configuration surface for every
+ * role that has a real consumer today:
+ *  - `logo`       → `logo-header` (JSON-LD `Organization.logo`; the only
+ *                   currently-wired header/site-logo mechanism — the header
+ *                   itself still renders the brand as text, see CUSTOMIZING.md);
+ *  - `favicon`    → `favicon` (browser tab icon, `metadata.icons.icon`);
+ *  - `logoFooter` → `logo-footer` (RESOLVED + build-validated; not yet
+ *                   composed into the footer component — a later visual task);
+ *  - `logoTitle`  → `logo-title` (RESOLVED + build-validated; not yet composed
+ *                   into any title-area component — a later visual task).
+ * `sidebar-open`/`sidebar-close` are NOT part of this block — they resolve
+ * through the separate plain-filename icon-asset contract
+ * (`ui.navigation.sidebar.open/close.icon`, `src/config/assets.ts`).
+ */
 export const siteAssetsSchema = z.object({
-  /** Structured-data brand logo (JSON-LD `ImageObject`). */
+  /** Structured-data brand logo (JSON-LD `ImageObject`) — the `logo-header` role. */
   logo: z
-    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo.svg")
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-header.svg")
     .optional(),
   /** Open Graph / social sharing image (defaults to the generated per-locale route). */
   ogImage: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/og-image.png")
     .optional(),
-  /** Browser favicon / icon (defaults to the app-routed `icon.svg`). */
+  /** Browser favicon / icon — the `favicon` role (defaults to the app-routed `icon.svg`). */
   favicon: z
-    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/favicon.ico")
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/favicon.svg")
+    .optional(),
+  /**
+   * P6-2C — the `logo-footer` role (absolute URL). RESOLVED and build-validated
+   * like every other `site.assets.*` leaf; not yet consumed by the footer
+   * component (visual composition is a separate, later task).
+   */
+  logoFooter: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-footer.svg")
+    .optional(),
+  /**
+   * P6-2C — the `logo-title` role (absolute URL). RESOLVED and build-validated
+   * like every other `site.assets.*` leaf; not yet consumed by any title-area
+   * component (visual composition is a separate, later task).
+   */
+  logoTitle: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-title.jpg")
     .optional(),
 });
 

@@ -1107,9 +1107,18 @@ describe("UI-01 — the ui contract namespace", () => {
 
   it("maps site.assets through the loader (FS-4)", () => {
     const assets = {
-      logo: "https://example.com/assets/logo.svg",
+      logo: "https://example.com/assets/logo-header.svg",
       ogImage: "https://example.com/assets/og-image.png",
-      favicon: "https://example.com/icon.svg",
+      favicon: "https://example.com/assets/favicon.svg",
+    };
+    const config = parseSiteConfig({ ...validConfig, site: { ...validConfig.site, assets } });
+    expect(config.assets).toEqual(assets);
+  });
+
+  it("maps the P6-2C logoFooter/logoTitle roles through the loader (FS-4 extension)", () => {
+    const assets = {
+      logoFooter: "https://example.com/assets/logo-footer.svg",
+      logoTitle: "https://example.com/assets/logo-title.jpg",
     };
     const config = parseSiteConfig({ ...validConfig, site: { ...validConfig.site, assets } });
     expect(config.assets).toEqual(assets);

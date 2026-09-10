@@ -200,13 +200,25 @@ export interface UiPresetComparisonConfig {
   readonly immersive?: string;
 }
 
+/**
+ * P6-2C — every leaf maps onto one of the six generic branding asset roles
+ * established in P6-2A. `logo`/`favicon` have real consumers today (JSON-LD,
+ * browser tab icon); `logoFooter`/`logoTitle` are resolved + build-validated
+ * but not yet composed into any component (a later visual-implementation
+ * task). `sidebar-open`/`sidebar-close` are NOT part of this block (separate
+ * plain-filename icon-asset contract, `src/config/assets.ts`).
+ */
 export interface SiteAssetsConfig {
-  /** Structured-data brand logo (absolute URL); absent → JSON-LD omits it. */
+  /** Structured-data brand logo (absolute URL); absent → JSON-LD omits it. The `logo-header` role. */
   readonly logo?: string;
   /** Open Graph / social image (absolute URL); absent → per-locale generated route. */
   readonly ogImage?: string;
-  /** Browser favicon / icon (absolute URL); absent → app-routed `icon.svg`. */
+  /** Browser favicon / icon (absolute URL); absent → app-routed `icon.svg`. The `favicon` role. */
   readonly favicon?: string;
+  /** The `logo-footer` role (absolute URL); not yet composed into the footer component. */
+  readonly logoFooter?: string;
+  /** The `logo-title` role (absolute URL); not yet composed into any title-area component. */
+  readonly logoTitle?: string;
 }
 
 export interface SiteConfig {

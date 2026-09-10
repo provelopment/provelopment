@@ -44,7 +44,10 @@ to the default locale.
 1. Edit `site.config.json` — site name, tagline, contact, social links,
    navigation, enabled features. Every field is validated at build time.
 2. Replace the Markdown pages in `content/pages/<locale>/` with your own.
-3. Swap the placeholder icon (`src/app/icon.svg`) and assets (`public/assets/logo.svg`) for your logo.
+3. Swap the placeholder icon (`src/app/icon.svg`) and assets
+   (`public/assets/logo-header.svg`, `logo-footer.svg`, `logo-title.jpg`,
+   `favicon.svg`) for your logo — see `CUSTOMIZING.md` → *Generic branding
+   asset roles*.
 4. **Change the appearance without touching source:** side-bar/top/bottom menu
    presentation modes, sidebar disclosure icons/text (`ui.navigation.sidebar`),
    navigation icons/regions, and the primary CTA's icon/state
@@ -79,7 +82,8 @@ src/adapters    # Concrete integrations (filesystem content, analytics, booking,
 src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (9 supported locales)
 content         # Markdown collections (pages, legal, offerings, posts, testimonials, portfolio)
-public/assets   # Canonical brand assets (logo.svg, og-image.png)
+public/assets   # Canonical brand assets (logo-header.svg, logo-footer.svg, logo-title.jpg, favicon.svg, sidebar-open/close.svg)
+branding        # Branding source/reference package (specification + source graphics; NOT a runtime asset directory)
 tests           # Architecture boundary, unit, and CDP browser matrix tests
 ```
 
