@@ -5,9 +5,10 @@
     "tagline": "A production-grade, configurable website foundation for small businesses",
     "description": "Provelopment Foundation is an open website foundation for small businesses — a multilingual, configuration-first template that turns JSON, Markdown, and assets into a complete, accessible site. Reuse the proven base instead of starting from scratch.",
     "assets": {
-      "logo": "https://www.example.com/assets/logo.svg",
-      "ogImage": "https://www.example.com/assets/og-image.png",
-      "favicon": "https://www.example.com/icon.svg"
+      "logo": "https://www.example.com/assets/logo-header.svg",
+      "favicon": "https://www.example.com/assets/favicon.svg",
+      "logoFooter": "https://www.example.com/assets/logo-footer.svg",
+      "logoTitle": "https://www.example.com/assets/logo-title.jpg"
     }
   },
   "i18n": {

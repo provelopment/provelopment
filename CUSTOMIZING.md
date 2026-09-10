@@ -1023,15 +1023,17 @@ configurable through the validated `site.assets.*` block:
 
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
-| Brand logo (structured data) | `public/assets/logo.svg` | `site.assets.logo` |
-| Open Graph / social share image | `public/assets/og-image.png` (1200×630) | `site.assets.ogImage` |
-| Browser favicon / app icon | `src/app/icon.svg` | `site.assets.favicon` |
+| Brand logo (structured data) — the `logo-header` role | `public/assets/logo-header.svg` | `site.assets.logo` |
+| Open Graph / social share image | `public/assets/og-image.png` (1200×630) if present, else the generated per-locale route | `site.assets.ogImage` |
+| Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (falls back to `src/app/icon.svg` when `site.assets.favicon` is absent) | `site.assets.favicon` |
+| Footer logo — the `logo-footer` role (resolved; not yet composed into the footer) | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
+| Title/page-title logo — the `logo-title` role (resolved; not yet composed into any title-area component) | `public/assets/logo-title.jpg` | `site.assets.logoTitle` |
 
 There are **two equally-supported ways to customize an asset**:
 
 1. **Replace in place** — overwrite the default file at its existing path
-   (`public/assets/logo.svg`, `public/assets/og-image.png`, or
-   `src/app/icon.svg`). No configuration change, no code change.
+   under `public/assets/` (or `src/app/icon.svg` for the unconfigured favicon
+   fallback). No configuration change, no code change.
 2. **Point configuration at your own URL** — keep the Foundation default file
    untouched and set the absolute URL:
 
@@ -1039,9 +1041,11 @@ There are **two equally-supported ways to customize an asset**:
 {
   "site": {
     "assets": {
-      "logo":     "https://cdn.example.com/my-logo.svg",     // replaces JSON-LD logo
-      "ogImage":  "https://cdn.example.com/my-share.png",    // replaces og:image / twitter:image
-      "favicon":  "https://cdn.example.com/my-icon.ico"      // replaces the browser icon
+      "logo":       "https://cdn.example.com/my-logo-header.svg", // replaces JSON-LD logo
+      "ogImage":    "https://cdn.example.com/my-share.png",       // replaces og:image / twitter:image
+      "favicon":    "https://cdn.example.com/my-icon.svg",        // replaces the browser icon
+      "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // resolved; footer composition is a later task
+      "logoTitle":  "https://cdn.example.com/my-logo-title.jpg"   // resolved; title-area composition is a later task
     }
   }
 }
@@ -1051,45 +1055,106 @@ There are **two equally-supported ways to customize an asset**:
 keys fall back to the shipped Foundation default asset, so a fresh clone needs
 no asset configuration. The `ogImage` value is used by every page's Open Graph
 and Twitter metadata (via the `resolveOgImageUrl` helper); when it is absent,
-the per-locale generated OpenGraph image route is used as the default.
+the per-locale generated OpenGraph image route is used as the default (the
+canonical site intentionally leaves `ogImage` absent for this reason).
 
-#### Generic branding asset roles (P6-2A)
+#### Generic branding asset roles (P6-2A, wired P6-2C)
 
 Branding assets under `public/assets/` use **generic functional filenames**,
-not brand-specific ones. Components (where wired) reference a role's filename,
-never a Provelopment-specific name — so replacing the underlying artwork is a
-**file swap only**, with no component change required.
+not brand-specific ones. Components/configuration reference a role's
+filename, never a Provelopment-specific name — so replacing the underlying
+artwork is a **file swap only**, with no component change required.
 
 These are **functional asset roles**. The files are intended to be replaceable
 without changing component source code.
 
-| Generic role | Placeholder file | Intended future purpose |
+| Generic role | Runtime file | Wired to |
 | --- | --- | --- |
-| `logo-header` | `public/assets/logo-header.svg` | Site/header logo |
-| `logo-footer` | `public/assets/logo-footer.svg` | Footer logo |
-| `logo-title` | `public/assets/logo-title.jpg` | Page/title-area logo |
-| `sidebar-open` | `public/assets/sidebar-open.svg` | Show Sidebar graphic (already wired — `DEFAULT_SIDEBAR_OPEN_ICON`) |
-| `sidebar-close` | `public/assets/sidebar-close.svg` | Hide Sidebar graphic (already wired — `DEFAULT_SIDEBAR_CLOSE_ICON`) |
-| `favicon` | `public/assets/favicon.svg` | Browser favicon (naming placeholder only — the live favicon path remains `src/app/icon.svg` / `site.assets.favicon` per the table above; not yet rewired) |
+| `logo-header` | `public/assets/logo-header.svg` | `site.assets.logo` → JSON-LD `Organization.logo` (structured data only; the visible header still renders the brand as text — see below) |
+| `logo-footer` | `public/assets/logo-footer.svg` | `site.assets.logoFooter` (resolved + build-validated; not yet composed into the footer component) |
+| `logo-title` | `public/assets/logo-title.jpg` | `site.assets.logoTitle` (resolved + build-validated; not yet composed into any title-area component) |
+| `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
+| `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
+| `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 
-Status as of P6-2A (placeholder architecture only, no visual implementation):
+Status (P6-2C — asset wiring; **no visual redesign was performed**):
 
-- `sidebar-open`/`sidebar-close` already satisfied this convention before
-  P6-2A — the filenames are already generic and already resolved through
-  `DEFAULT_SIDEBAR_OPEN_ICON`/`DEFAULT_SIDEBAR_CLOSE_ICON` (`src/core/ui/controls.ts`)
-  rather than a hardcoded brand name. No source change was needed for them.
-- `logo-header`, `logo-footer`, and `logo-title` are new placeholder files
-  established for future header/footer/title-area logo positions. They are
-  **not yet composed into any component** — the header and footer currently
-  render the brand as text (`siteConfig.name`); adding an image-logo position
-  is a distinct, later visual-implementation task (sizing, positioning, and
-  layout are deliberately out of scope here).
-- `favicon` gets a placeholder file for naming-convention consistency only;
-  the actual favicon resolution path (`src/app/icon.svg`, optionally
-  overridden by `site.assets.favicon`) is unchanged — see the table above.
-- Replace any placeholder in place at its existing path, exactly like the
-  other `public/assets/*` defaults described above — no configuration or
+- **`favicon`** — fully live: `site.assets.favicon` resolves to
+  `/assets/favicon.svg` and Next.js emits exactly one `<link rel="icon">` for
+  it (no competing/duplicate favicon tag; the file-convention `src/app/icon.svg`
+  remains the fallback used only when `site.assets.favicon` is absent).
+- **`logo-header`** — wired through the only structural position the
+  Foundation currently exposes for a site logo: JSON-LD `Organization.logo`
+  (`site.assets.logo`, consumed by `structured-data.tsx`). The header itself
+  still renders the brand as text (`siteConfig.name`); an in-header **image**
+  logo position is a separate, later visual-implementation task (sizing,
+  placement, and header layout are deliberately out of scope here).
+- **`sidebar-open`/`sidebar-close`** — already fully live before this task
+  (pre-existing generic filenames, already resolved through
+  `DEFAULT_SIDEBAR_OPEN_ICON`/`DEFAULT_SIDEBAR_CLOSE_ICON`,
+  `src/core/ui/controls.ts`). The owner-supplied real graphics at these paths
+  are used exactly as supplied; sidebar geometry/behavior is unchanged.
+- **`logo-footer`/`logo-title`** — RESOLVED and build-validated
+  (`site.assets.logoFooter`/`logoTitle`, schema + loader + `fs4-assets.test.ts`
+  coverage) exactly like every other `site.assets.*` leaf, but **not yet
+  composed into any component** — there is no footer-logo or title-area
+  position in the Foundation yet. Adding those visual positions (and the
+  sidebar-redesign geometry work) are separate, later tasks.
+- Replace any of the six files in place at its existing path, exactly like
+  the other `public/assets/*` defaults described above — no configuration or
   component change required.
+
+#### Branding reference package — `branding/` (P6-2C)
+
+The repository root also carries a **source/reference package**, `branding/`
+— NOT a runtime asset directory and NOT served under `public/`:
+
+```text
+branding/
+├── branding-schema.md   — the brand specification (colors, typography, logo
+│                          anatomy, favicon/asset architecture) a human or a
+│                          future branding agent reads FIRST
+├── <source graphics>    — the full-resolution/source branding artwork a
+│                          branding pass selects from (SVG/PNG/JPEG variants)
+└── placeholders/        — reference-only memory of the P6-2A placeholder
+                           asset roles/filenames/dimensions used during
+                           development; NEVER read at runtime
+```
+
+Architecture (never a second runtime asset system):
+
+```text
+branding/                          (source/reference — this repo only)
+    ↓  (human or branding-agent selects + maps roles, one at a time)
+generic Foundation asset roles      (logo-header, logo-footer, logo-title,
+                                      sidebar-open, sidebar-close, favicon)
+    ↓
+public/assets/                     (the ONLY runtime asset directory)
+    ↓
+Foundation components / site.assets.* configuration
+```
+
+`branding/` is retained alongside the project **for humans and future
+branding agents**, not consumed by any component, script, or build step.
+React/server code must never import from or reference a `branding/...` path.
+
+**Future branding-agent workflow** (documented intent, not automated by this
+task):
+
+1. Read `branding/branding-schema.md` (the specification).
+2. Review the source/reference graphics in `branding/`.
+3. Determine the required branding for the target site.
+4. Populate the six generic runtime roles under `public/assets/` (file swap
+   only — no component change).
+5. Leave the source/reference material in `branding/` for the next agent or
+   developer (never delete it because a copy now lives in `public/assets/`).
+6. Build the Foundation (`pnpm build`).
+7. Verify the assets resolve (no broken images; gate green).
+8. Deploy.
+
+A future customer/branding implementation should never require a Foundation
+component-source change merely to replace branding — only a `public/assets/`
+file swap and/or a `site.assets.*` URL change.
 
 **Content-level images are separate:** images referenced inside Markdown
 content (offerings, portfolio, posts — e.g. an `image:` frontmatter value)

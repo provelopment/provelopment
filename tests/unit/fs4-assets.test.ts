@@ -14,10 +14,27 @@ import { siteConfig } from "@/config";
 describe("FS-4 — canonical asset contract", () => {
   it("the canonical site.assets block resolves to existing static assets", () => {
     const root = process.cwd();
+    // P6-2C — `logo`/`favicon` resolve to the generic runtime roles under
+    // `public/assets/` established in P6-2A (`logo-header.svg`, `favicon.svg`);
+    // `ogImage` is intentionally absent (falls back to the generated per-locale
+    // OpenGraph route, exactly as the schema documents for an absent key).
     const checks: Array<[string, string, () => boolean]> = [
-      ["logo", siteConfig.assets?.logo ?? "", () => existsSync(path.join(root, "public", "assets", "logo.svg"))],
-      ["ogImage", siteConfig.assets?.ogImage ?? "", () => existsSync(path.join(root, "public", "assets", "og-image.png"))],
-      ["favicon", siteConfig.assets?.favicon ?? "", () => existsSync(path.join(root, "src", "app", "icon.svg"))],
+      ["logo", siteConfig.assets?.logo ?? "", () => existsSync(path.join(root, "public", "assets", "logo-header.svg"))],
+      ["favicon", siteConfig.assets?.favicon ?? "", () => existsSync(path.join(root, "public", "assets", "favicon.svg"))],
+    ];
+    for (const [key, url, exists] of checks) {
+      expect(url, `${key} must be configured on the canonical site`).not.toBe("");
+      expect(url.startsWith("https://"), `${key} URL must be absolute`).toBe(true);
+      expect(exists(), `${key} static asset must exist on disk`).toBe(true);
+    }
+    expect(siteConfig.assets?.ogImage, "ogImage is intentionally absent (generated per-locale route default)").toBeUndefined();
+  });
+
+  it("the P6-2C logoFooter/logoTitle roles resolve to existing static assets (resolved, not yet composed)", () => {
+    const root = process.cwd();
+    const checks: Array<[string, string, () => boolean]> = [
+      ["logoFooter", siteConfig.assets?.logoFooter ?? "", () => existsSync(path.join(root, "public", "assets", "logo-footer.svg"))],
+      ["logoTitle", siteConfig.assets?.logoTitle ?? "", () => existsSync(path.join(root, "public", "assets", "logo-title.jpg"))],
     ];
     for (const [key, url, exists] of checks) {
       expect(url, `${key} must be configured on the canonical site`).not.toBe("");
