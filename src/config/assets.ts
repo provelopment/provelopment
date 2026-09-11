@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -100,6 +100,175 @@ export function availableBannerPath(absoluteUrl: string | undefined): string | u
   if (!pathname) return undefined;
   const name = pathname.split("/").pop() ?? "";
   return iconAssetAvailable(name) ? pathname : undefined;
+}
+
+/** An intrinsic pixel size read from an asset header. */
+export interface ImageDimensions {
+  readonly width: number;
+  readonly height: number;
+}
+
+const dimensionsCache = new Map<string, ImageDimensions | undefined>();
+
+/** The header bytes worth reading — enough for every supported container. */
+const MAX_HEADER_BYTES = 512 * 1024;
+
+function svgLength(source: string, attribute: string): number | undefined {
+  const match = new RegExp(`${attribute}\\s*=\\s*["']\\s*([0-9.]+)\\s*(?:px)?\\s*["']`, "i").exec(source);
+  if (!match) return undefined;
+  const value = Number(match[1]);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * SVG: the size declared on the ROOT `<svg …>` element — explicit
+ * width/height (unitless or `px`), else the viewBox. Only the root tag is
+ * consulted, so a nested element (e.g. an embedded `<image width="…">`) can
+ * never be mistaken for the document size; a root length in a non-pixel unit
+ * is left to the viewBox, which describes the artwork's own grid.
+ */
+function svgDimensions(head: string): ImageDimensions | undefined {
+  const rootTag = /<svg\b[^>]*>/i.exec(head)?.[0];
+  if (!rootTag) return undefined;
+  const box = /viewBox\s*=\s*["']\s*-?[\d.]+[\s,]+-?[\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*["']/i.exec(rootTag);
+  const viewWidth = box ? Number(box[1]) : undefined;
+  const viewHeight = box ? Number(box[2]) : undefined;
+  const width = svgLength(rootTag, "width");
+  const height = svgLength(rootTag, "height");
+  if (width !== undefined && height !== undefined) {
+    return { width: Math.round(width), height: Math.round(height) };
+  }
+  if (viewWidth && viewHeight && viewWidth > 0 && viewHeight > 0) {
+    if (width !== undefined) {
+      return { width: Math.round(width), height: Math.round((width * viewHeight) / viewWidth) };
+    }
+    if (height !== undefined) {
+      return { width: Math.round((height * viewWidth) / viewHeight), height: Math.round(height) };
+    }
+    return { width: Math.round(viewWidth), height: Math.round(viewHeight) };
+  }
+  return undefined;
+}
+
+/** PNG: IHDR width/height (big-endian) straight after the signature + length/type. */
+function pngDimensions(head: Buffer): ImageDimensions | undefined {
+  if (head.length < 24) return undefined;
+  return { width: head.readUInt32BE(16), height: head.readUInt32BE(20) };
+}
+
+/** GIF: logical screen descriptor width/height (little-endian). */
+function gifDimensions(head: Buffer): ImageDimensions | undefined {
+  if (head.length < 10) return undefined;
+  return { width: head.readUInt16LE(6), height: head.readUInt16LE(8) };
+}
+
+/** JPEG: walk the segment chain until a Start-Of-Frame carries the frame size. */
+function jpegDimensions(head: Buffer): ImageDimensions | undefined {
+  let offset = 2;
+  while (offset + 9 <= head.length) {
+    if (head[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = head[offset + 1];
+    if (marker === 0xff) {
+      offset += 1;
+      continue;
+    }
+    // Standalone markers (no payload): RSTn / SOI / EOI.
+    if (marker >= 0xd0 && marker <= 0xd9) {
+      offset += 2;
+      continue;
+    }
+    const isStartOfFrame =
+      marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
+    if (isStartOfFrame) {
+      return { height: head.readUInt16BE(offset + 5), width: head.readUInt16BE(offset + 7) };
+    }
+    const segmentLength = head.readUInt16BE(offset + 2);
+    if (segmentLength < 2) return undefined;
+    offset += 2 + segmentLength;
+  }
+  return undefined;
+}
+
+/** WebP: VP8X (extended) / VP8 (lossy) / VP8L (lossless) all expose the canvas size. */
+function webpDimensions(head: Buffer): ImageDimensions | undefined {
+  const chunk = head.toString("ascii", 12, 16);
+  if (chunk === "VP8X" && head.length >= 30) {
+    return {
+      width: 1 + (head[24] | (head[25] << 8) | (head[26] << 16)),
+      height: 1 + (head[27] | (head[28] << 8) | (head[29] << 16)),
+    };
+  }
+  if (chunk === "VP8 " && head.length >= 30) {
+    const width = head.readUInt16LE(26) & 0x3fff;
+    const height = head.readUInt16LE(28) & 0x3fff;
+    return width && height ? { width, height } : undefined;
+  }
+  if (chunk === "VP8L" && head.length >= 25) {
+    const bits = head.readUInt32LE(21);
+    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+  }
+  return undefined;
+}
+
+/** Dispatches on the container's magic bytes (never the file extension). */
+function dimensionsFromBytes(head: Buffer): ImageDimensions | undefined {
+  if (head.length >= 24 && head.readUInt32BE(0) === 0x89504e47) return pngDimensions(head);
+  if (head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) {
+    return jpegDimensions(head);
+  }
+  const gifHeader = head.length >= 6 ? head.toString("ascii", 0, 6) : "";
+  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return gifDimensions(head);
+  if (head.length >= 16 && head.toString("ascii", 0, 4) === "RIFF" && head.toString("ascii", 8, 12) === "WEBP") {
+    return webpDimensions(head);
+  }
+  const text = head.toString("utf8", 0, Math.min(head.length, 4096));
+  return /<svg[\s>]/i.test(text) ? svgDimensions(text) : undefined;
+}
+
+/**
+ * P6-3C — the INTRINSIC pixel size of a configured banner graphic, when it can
+ * be read (server-only; cached per asset filename).
+ *
+ * The banner sizing contract is `displayWidth = min(availableWidth, 1.5 ×
+ * naturalWidth)`. No CSS expression can reference a replaced element's own
+ * intrinsic width, so the framework layer reads the asset's header once at
+ * composition time and the renderer passes the derived cap down as an inline
+ * custom property (the established token-only pattern — no component style
+ * rule). Supported containers: SVG, PNG, JPEG, GIF, WebP.
+ *
+ * Returns `undefined` for anything undecodable, so the renderer falls back to a
+ * never-upscale presentation rather than guessing a size.
+ */
+export function readImageDimensions(sameOriginPath: string | undefined): ImageDimensions | undefined {
+  const pathname = assetPathFromUrl(sameOriginPath);
+  if (!pathname) return undefined;
+  const name = pathname.split("/").pop() ?? "";
+  if (!name) return undefined;
+  if (dimensionsCache.has(name)) return dimensionsCache.get(name);
+
+  let dimensions: ImageDimensions | undefined;
+  const filePath = path.join(publicAssetsDirectory, name);
+  try {
+    const fileSize = statSync(filePath).size;
+    const length = Math.min(fileSize, MAX_HEADER_BYTES);
+    if (length > 0) {
+      const descriptor = openSync(filePath, "r");
+      try {
+        const head = Buffer.alloc(length);
+        const read = readSync(descriptor, head, 0, length, 0);
+        dimensions = dimensionsFromBytes(head.subarray(0, read));
+      } finally {
+        closeSync(descriptor);
+      }
+    }
+  } catch {
+    dimensions = undefined;
+  }
+  dimensionsCache.set(name, dimensions);
+  return dimensions;
 }
 
 interface IconLeafRef {

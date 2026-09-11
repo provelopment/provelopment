@@ -620,16 +620,22 @@ html[data-ui-hero="showcase"] .home-hero {
  *    `display:none`. collapsed width = the icon width + 10% padding each side
  *    → `calc(var(--ui-sidebar-icon-size) * 1.2)` with a `0.1` inline padding.
  *    No hard-coded collapsed px: changing the icon token re-derives the rail.
- *  - `.ui-sidebar-toggle-icon` (>=64px `lg`, >=32px below) and
- *    `.ui-nav-item-icon` share the sidebar icon-size token; `.ui-mobile-nav-icon`
- *    (mobile disclosure) is >=32px. State-paired `.ui-nav-item-icon-open/-closed`
- *    swap on the rail's `data-collapsed`.
+ *  - `.ui-sidebar-toggle-icon` (the show/hide CONTROL; >=32px below `lg`,
+ *    >=64px at `lg`) carries the control-icon token that DERIVES the collapsed
+ *    rail. `.ui-shell-sidebar .ui-nav-item-icon` (the sidebar LIST icons) uses
+ *    its own token — 16px below `lg`, 32px at `lg` (P6-3C). State-paired
+ *    `.ui-nav-item-icon-open/-closed` swap on the rail's `data-collapsed`.
  *
  * Token-only; the global :focus-visible ring covers keyboard focus. The
  * reduced-motion rule above strips transitions.
  */
 :root {
-  /* P6-3B sidebar icon size contract: >=32px below `lg`, >=64px at `lg`. */
+  /* P6-3C navigation-item icon size contract: 16px below `lg`, 32px at `lg`.
+   * This is the size of the ICONS INSIDE the sidebar list (content). */
+  --ui-sidebar-nav-icon-size: 1rem;
+  /* P6-3B sidebar CONTROL (show/hide toggle) icon size — unchanged: this token
+   * DERIVES the collapsed rail width, so the rail geometry the owner approved
+   * is preserved exactly (`icon × 1.2`). */
   --ui-sidebar-icon-size: 2rem;
   /* The intended EXPANDED sidebar rail width. */
   --ui-sidebar-rail-expanded: 13.75rem;
@@ -637,6 +643,7 @@ html[data-ui-hero="showcase"] .home-hero {
 
 @media (min-width: 1024px) {
   :root {
+    --ui-sidebar-nav-icon-size: 2rem;
     --ui-sidebar-icon-size: 4rem;
   }
 }
@@ -754,12 +761,14 @@ html[data-ui-hero="showcase"] .home-hero {
   border: 0;
 }
 
-/* P6-3B — sidebar navigation-item icon sizing (same token as the toggle;
- * the shared `.ui-nav-item-icon` base stays 1em for top-nav / bottom-bar).
- * `max-width: none` defeats preflight's `img { max-width: 100% }` clamp. */
+/* P6-3C — sidebar NAVIGATION-ITEM icon sizing: its own token (32px `lg` /
+ * 16px below), distinct from the control/toggle icon token that derives the
+ * collapsed rail. The shared `.ui-nav-item-icon` base stays 1em for
+ * top-nav / bottom-bar. `max-width: none` defeats preflight's
+ * `img { max-width: 100% }` clamp. */
 .ui-shell-sidebar .ui-nav-item-icon {
-  width: var(--ui-sidebar-icon-size);
-  height: var(--ui-sidebar-icon-size);
+  width: var(--ui-sidebar-nav-icon-size);
+  height: var(--ui-sidebar-nav-icon-size);
   max-width: none;
 }
 
@@ -788,22 +797,38 @@ html[data-ui-hero="showcase"] .home-hero {
   object-fit: contain;
 }
 
-/* The page banner (P6-3B). NO structural padding/margin/border/shadow/radius;
- * full page width; the height follows the supplied graphic's aspect ratio. */
+/* The page banner (P6-3B; P6-3C scaling contract). ALWAYS centered, never
+ * overflowing, no structural padding/margin/border/shadow/radius, and no
+ * artificial height: the rendered height follows the graphic's own aspect
+ * ratio. The container is a centering flex line, so a graphic narrower than the
+ * page (the bounded-upscale case) sits in the middle of the available width. */
 .ui-page-banner {
-  display: block;
+  display: flex;
+  justify-content: center;
   margin: 0;
   padding: 0;
   border: 0;
   line-height: 0;
 }
 
+/* Default (intrinsic size UNKNOWN): display at the graphic's natural size and
+ * only ever scale DOWN to fit. The banner is therefore never enlarged merely to
+ * fill the page when the framework could not read the asset's header. */
 .ui-page-banner-image {
   display: block;
-  width: 100%;
-  max-width: none;
+  width: auto;
+  max-width: 100%;
   height: auto;
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* P6-3C (intrinsic size KNOWN): fill the available page width and stop at the
+ * permitted maximum upscale — `min(available width, 1.5 × natural width)`. The
+ * framework passes 1.5× the graphic's own width as an inline custom property
+ * (never a hard-coded width, so any banner asset works). */
+.ui-page-banner-image[data-banner-sized="true"] {
+  width: 100%;
+  max-width: var(--ui-banner-max-width, 100%);
 }

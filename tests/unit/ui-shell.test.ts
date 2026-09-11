@@ -106,7 +106,7 @@ describe("resolveShellPattern — decision boundaries", () => {
     expect(resolveShellPattern(fromPreset).desktop.primitiveKind).toBe("sidebar");
   });
 
-  it("places CTA per structural slot only when resolved.cta.enabled", () => {
+  it("P6-3C — the CTA slot is the ONE top region for EVERY viewport when resolved.cta.enabled", () => {
     const off = resolveUiConfig({});
     const on = resolveUiConfig({ cta: { enabled: true, action: "book", label: "Book", style: "standard" } });
     const onMobileBottom = resolveUiConfig({
@@ -115,10 +115,14 @@ describe("resolveShellPattern — decision boundaries", () => {
     });
     expect(resolveShellPattern(off).cta.present).toBe(false);
     expect(resolveShellPattern(on).cta.present).toBe(true);
-    // Adaptive default = aside slots → CTA lands in the aside slot.
-    expect(resolveShellPattern(on).desktop.ctaSlot).toBe("aside");
-    expect(resolveShellPattern(on).tablet.ctaSlot).toBe("aside");
-    expect(resolveShellPattern(onMobileBottom).mobile.ctaSlot).toBe("bottom");
+    // The navigation composition NEVER moves the CTA: aside (sidebar/floating),
+    // drawer and bottom-bar viewports all resolve the SAME top slot — never
+    // "aside", "drawer" or "bottom". That is what makes "Book now" live once,
+    // outside the sidebar, at every width.
+    expect(resolveShellPattern(on).desktop.ctaSlot).toBe("top");
+    expect(resolveShellPattern(on).tablet.ctaSlot).toBe("top");
+    expect(resolveShellPattern(on).mobile.ctaSlot).toBe("top");
+    expect(resolveShellPattern(onMobileBottom).mobile.ctaSlot).toBe("top");
   });
 
   it("keeps the mobile layer deterministic (bottom-bar has no trigger; drawer/overlay triggers)", () => {

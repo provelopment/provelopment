@@ -107,7 +107,7 @@ describe("ShellEngine — Adaptive aside composition (UI-05)", () => {
     expect(html).toContain("hidden md:block lg:hidden");
   });
 
-  it("composes the CTA inside the ASIDE slot only when enabled + label/href supplied", () => {
+  it("P6-3C — renders the CTA in the TOP region: exactly once, below the header and above the rail", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: adaptiveWithCta,
@@ -125,8 +125,12 @@ describe("ShellEngine — Adaptive aside composition (UI-05)", () => {
     );
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/book");
+    // One action, in the shell's top region: after the header, BEFORE the aside
+    // rail — so the sidebar can never contain, clip, or obscure it.
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
     const ctaAt = html.indexOf("nav-item-cta");
-    expect(ctaAt).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(ctaAt).toBeGreaterThan(html.indexOf("<header>"));
+    expect(ctaAt).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
   });
 });
 
@@ -176,7 +180,7 @@ describe("ShellEngine — Adaptive bottom-bar composition (UI-05)", () => {
     expect(html).not.toContain("shell-bottom-more");
   });
 
-  it("places the CTA in the bottom bar only when enabled + label/href supplied", () => {
+  it("P6-3C — the bottom bar carries NAVIGATION only; the CTA stays in the top region", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: adaptiveWithCta,
@@ -193,6 +197,10 @@ describe("ShellEngine — Adaptive bottom-bar composition (UI-05)", () => {
     );
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/book");
+    expect(html).toContain("ui-shell-bottom-bar");
+    // Exactly one action, ABOVE the bar — never duplicated into it.
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+    expect(html.indexOf("nav-item-cta")).toBeLessThan(html.indexOf("ui-shell-bottom-bar"));
   });
 });
 

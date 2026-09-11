@@ -61,10 +61,10 @@ afterEach(() => {
  *    "prominent"` (a vocabulary-value branch, never preset identity);
  *  - missing href/label/disabled produces NO CTA anywhere — the Foundation
  *    never invents a destination;
- *  - the latent `ctaSlot: "drawer"` now has its content-layer consumer
- *    (`SiteHeader`), so the Focus mobile CTA is a child of the drawer: closed
- *    SSR contributes nothing focusable; opening the drawer exposes the CTA
- *    inside its existing children;
+ *  - the CTA resolves to the ONE top slot for every viewport (P6-3C): it is
+ *    never composed into the aside rail or a mobile disclosure, so `SiteHeader`
+ *    (the content layer) composes NO CTA at all — closed SSR contributes nothing
+ *    focusable and opening the drawer exposes navigation only;
  *  - the consumer branches purely on decision-core VALUES — the same consumer
  *    serves a Classic config with a complete CTA (not Focus-specific);
  *  - D3: `moreMenu`/Show-Hide vocabulary values stay absent from the Focus
@@ -97,13 +97,13 @@ describe("ShellEngine — Focus decision trajectories (no aside, no bottom bar)"
     expect(d.cta.present).toBe(false);
   });
 
-  it("focus + complete CTA: header/header/drawer ctaSlots (no aside, no bottom)", () => {
+  it("P6-3C — focus + complete CTA: the ONE top slot at every viewport (no aside, no bottom)", () => {
     const d = resolveShellPattern(
       resolveUiConfig({ preset: "focus", cta: { enabled: true, action: "book", label: "Book", href: "/booking", style: "prominent" } }),
     );
-    expect(d.desktop.ctaSlot).toBe("header");
-    expect(d.tablet.ctaSlot).toBe("header");
-    expect(d.mobile.ctaSlot).toBe("drawer");
+    expect(d.desktop.ctaSlot).toBe("top");
+    expect(d.tablet.ctaSlot).toBe("top");
+    expect(d.mobile.ctaSlot).toBe("top");
     expect(d.cta.present).toBe(true);
   });
 });
@@ -192,7 +192,7 @@ describe("ShellEngine — Focus desktop/tablet CTA (header slot, D3 prominent)",
     expect(html).not.toContain("nav-item-cta");
   });
 });
-describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", () => {
+describe("SiteHeader — Focus mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
   const resolvedCta = resolveUiConfig({
     preset: "focus",
     cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
@@ -218,15 +218,14 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("OPEN drawer (forced): the drawer CTA appears INSIDE the dialog as a child of the drawer", () => {
+  it("P6-3C — OPEN drawer (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
-    // Exactly ONE dialog (the mobile drawer) and the CTA lives inside it:
+    // Exactly ONE dialog (the mobile drawer) and NO CTA inside it: the single
+    // Book Now lives in the shell's top region (engine-composed).
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
-    expect(html).toContain("nav-item-cta");
-    expect(html).toContain("/booking");
-    // D3: the Focus profile is prominent — the drawer CTA gets the treatment too.
-    expect(html).toContain("ui-cta-prominent");
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/booking");
     // B1: the trigger owns `shell-mobile-nav`; the dialog panel uses
     // `shell-mobile-nav-panel` and is NAMED BY the trigger (aria-labelledby).
     expect(html).toContain('id="shell-mobile-nav"');
@@ -237,9 +236,6 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
     expect(html).toContain('tabindex="-1"');
     expect(html).toContain("ui-drawer-panel");
     expect(html).toContain("ui-drawer-backdrop");
-    // The CTA lives inside the dialog panel:
-    expect(html).toContain("nav-item-cta");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN drawer with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {
@@ -253,7 +249,7 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
     expect(html).not.toContain("nav-item-cta");
   });
 
-  it("the consumer is generic (vocabulary-driven), NOT Focus-specific: a Classic config with a complete CTA consumes the drawer slot too", () => {
+  it("the disclosure consumer is generic (vocabulary-driven), NOT Focus-specific: a Classic config's open drawer is CTA-free too", () => {
     mockForcedOpen = true;
     const resolvedClassic = resolveUiConfig({
       preset: "classic",
@@ -261,9 +257,10 @@ describe("SiteHeader — Focus mobile drawer CTA (D2 content-layer consumer)", (
     });
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedClassic }));
     expect(html).toContain('role="dialog"');
-    expect(html).toContain("nav-item-cta");
-    expect(html).toContain("/book");
-    expect(html).not.toContain("ui-cta-prominent"); // classic style = standard
+    // P6-3C — no CTA is composed into ANY disclosure, for any preset: the one
+    // action always lives in the shell's top region instead.
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/book");
   });
 });
 

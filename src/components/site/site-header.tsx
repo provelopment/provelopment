@@ -7,7 +7,6 @@ import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
 import { menuModeClass, resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
-import { Cta } from "@/components/ui/cta";
 import { Stack } from "@/components/ui/stack";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
@@ -92,32 +91,11 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         />
     );
 
-    // P0-2 — the mobile drawer/overlay CTA uses the SAME shared `Cta`
-    // capability as the engine's header/aside/bottom compositions. The
-    // placement decision remains vocabulary-driven (`decision.mobile.ctaSlot`
-    // is "drawer" exactly for the drawer/overlay compositions); `Cta` owns the
-    // single presence predicate (enabled ∧ href ∧ visible content ∧ accessible
-    // name) + prominence + P5-5 icon/state. Closed SSR renders no dialog (and
-    // therefore no CTA / no focusable); opening exposes the CTA among the
-    // disclosure's children.
-    const ctaLabel = resolved.cta.label;
-    const ctaHref = resolved.cta.href;
-    const mobileDrawerCta =
-        decision.mobile.ctaSlot === "drawer" &&
-        (mobilePattern === "drawer" || mobilePattern === "overlay") ? (
-            <Cta
-                enabled={resolved.cta.enabled}
-                style={resolved.cta.style}
-                label={ctaLabel}
-                href={ctaHref}
-                action={resolved.cta.action}
-                icon={availableIconName(resolved.cta.icon)}
-                iconPosition={resolved.cta.iconPosition}
-                state={resolved.cta.state}
-                className="ui-drawer-cta"
-            />
-        ) : null;
-
+    // P6-3C — NO mobile drawer/overlay CTA is composed here. The primary CTA
+    // has ONE authoritative home (the shell's top region, below the header), so
+    // the disclosure carries navigation only: opening the drawer can never
+    // expose a second Book Now alongside the always-visible top one.
+    
     return (
         <header className="ui-site-header border-b border-border">
             <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
@@ -192,7 +170,6 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                         }}
                     >
                         {mobileNavListElement}
-                        {mobileDrawerCta}
                     </ShellMobileNav>
                 ) : null}
             </div>

@@ -61,10 +61,11 @@ afterEach(() => {
  *    `hidden lg:block`, tablet `hidden md:block lg:hidden`) with distinct ids and
  *    mutually exclusive responsive classes, so they never simultaneously expose
  *    duplicate structures; the desktop band is collapsible;
- *  - the aside CTA lands in the sidebar when enabled + label + href;
+ *  - the primary CTA renders ONCE in the shell's TOP region (P6-3C) — never
+ *    inside the aside rail and never inside a mobile disclosure;
  *  - mobile is the standard header + the UI-07 ShellMobileNav drawer: closed
- *    SSR contributes no dialog/CTA/focusable; opening the drawer exposes the
- *    drawer CTA via the EXISTING content-layer consumer;
+ *    SSR contributes no dialog/CTA/focusable; opening the drawer exposes
+ *    navigation ONLY (P6-3C — the CTA is never composed into it);
  *  - deterministic IDs/ARIA and no duplicate landmarks/IDs.
  *
  * These tests assert PRESENT STRUCTURE (the Workspace shell) — they do NOT
@@ -90,7 +91,7 @@ const workspaceWithCta = resolveUiConfig({
   cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
 });
 
-describe("ShellEngine — Workspace desktop (sidebar aside) + aside CTA, no bottom bar", () => {
+describe("ShellEngine — Workspace desktop (sidebar aside) + top CTA, no bottom bar", () => {
   it("renders a standard header, the sidebar aside trajectory, and NO bottom-bar composition", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
@@ -154,7 +155,7 @@ describe("ShellEngine — Workspace desktop (sidebar aside) + aside CTA, no bott
     expect(html).not.toContain("nav-item-cta");
   });
 
-  it("enabled + label + href renders the aside CTA inside the sidebar", () => {
+  it("P6-3C — enabled + label + href renders the CTA in the TOP region, OUTSIDE the sidebar", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: workspaceWithCta,
@@ -171,8 +172,11 @@ describe("ShellEngine — Workspace desktop (sidebar aside) + aside CTA, no bott
     );
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/booking");
+    // One action, after the header and BEFORE the aside rail:
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
     const ctaAt = html.indexOf("nav-item-cta");
-    expect(ctaAt).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(ctaAt).toBeGreaterThan(html.indexOf("<header>"));
+    expect(ctaAt).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
   });
 });
 
@@ -222,7 +226,7 @@ describe("ShellEngine — Workspace tablet (collapsed-sidebar) + mutually exclus
     expect(html).toContain("Hide Sidebar");
   });
 
-  it("the aside CTA renders inside the aside bands when configured (bands mutually exclusive)", () => {
+  it("P6-3C — the CTA renders ONCE in the top region, never inside either aside band", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: workspaceWithCta,
@@ -238,7 +242,9 @@ describe("ShellEngine — Workspace tablet (collapsed-sidebar) + mutually exclus
       }),
     );
     expect(html).toContain("/booking");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+    expect(html.indexOf("nav-item-cta")).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(html.indexOf("nav-item-cta")).toBeLessThan(html.indexOf("shell-sidebar-tablet-rail"));
   });
 });
 
@@ -254,16 +260,16 @@ describe("ShellEngine — Workspace decision trajectories (aside, drawer, standa
     expect(d.mobile.trigger).toBe(true);
   });
 
-  it("workspace + complete CTA: aside/drawer ctaSlots (no bottom)", () => {
+  it("P6-3C — workspace + complete CTA: the ONE top slot at every viewport", () => {
     const d = resolveShellPattern(workspaceWithCta);
-    expect(d.desktop.ctaSlot).toBe("aside");
-    expect(d.tablet.ctaSlot).toBe("aside");
-    expect(d.mobile.ctaSlot).toBe("drawer");
+    expect(d.desktop.ctaSlot).toBe("top");
+    expect(d.tablet.ctaSlot).toBe("top");
+    expect(d.mobile.ctaSlot).toBe("top");
     expect(d.cta.present).toBe(true);
   });
 });
 
-describe("SiteHeader — Workspace mobile drawer + drawer CTA (existing UI-07 consumer)", () => {
+describe("SiteHeader — Workspace mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
   const resolvedCta = resolveUiConfig({
     preset: "workspace",
     cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
@@ -287,19 +293,19 @@ describe("SiteHeader — Workspace mobile drawer + drawer CTA (existing UI-07 co
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("OPEN drawer (forced): the drawer CTA appears INSIDE the dialog via the existing consumer", () => {
+  it("P6-3C — OPEN drawer (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
-    expect(html).toContain("nav-item-cta");
-    expect(html).toContain("/booking");
-    expect(html).not.toContain("ui-cta-prominent"); // workspace profile style stays standard
+    // The ONE Book Now lives in the shell's top region (engine-composed), so the
+    // open drawer must not expose a second, sidebar-owned action.
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/booking");
     // B1: trigger owns the id; panel uses `-panel` id and is named by trigger.
     expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-labelledby="shell-mobile-nav"');
     expect(html).toContain("ui-drawer-backdrop");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN drawer with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {

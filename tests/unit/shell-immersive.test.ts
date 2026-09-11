@@ -181,7 +181,7 @@ describe("ShellEngine — Immersive desktop/tablet floating (existing aside comp
     expect(html).not.toContain("nav-item-cta");
   });
 
-  it("enabled + label + href renders the aside CTA inside the sidebar (standard style, no prominent)", () => {
+  it("P6-3C — enabled + label + href renders the CTA in the TOP region, OUTSIDE the floating rail", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: immersiveWithCta,
@@ -199,7 +199,10 @@ describe("ShellEngine — Immersive desktop/tablet floating (existing aside comp
     expect(html).toContain("nav-item-cta");
     expect(html).toContain("/booking");
     expect(html).not.toContain("ui-cta-prominent"); // immersive profile style stays standard
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+    // One action, after the header and BEFORE the floating rail:
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("<header>"));
+    expect(html.indexOf("nav-item-cta")).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
   });
 
   it("disabled + label + href renders nothing", () => {
@@ -238,16 +241,16 @@ describe("ShellEngine — Immersive decision trajectories (floating aside, overl
     expect(d.mobile.trigger).toBe(true);
   });
 
-  it("immersive + complete CTA: aside/aside/drawer ctaSlots (no bottom)", () => {
+  it("P6-3C — immersive + complete CTA: the ONE top slot at every viewport (no aside, no bottom)", () => {
     const d = resolveShellPattern(immersiveWithCta);
-    expect(d.desktop.ctaSlot).toBe("aside");
-    expect(d.tablet.ctaSlot).toBe("aside");
-    expect(d.mobile.ctaSlot).toBe("drawer"); // the overlay uses the drawer CTA decision
+    expect(d.desktop.ctaSlot).toBe("top");
+    expect(d.tablet.ctaSlot).toBe("top");
+    expect(d.mobile.ctaSlot).toBe("top");
     expect(d.cta.present).toBe(true);
   });
 });
 
-describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-layer consumer fix)", () => {
+describe("SiteHeader — Immersive mobile overlay (navigation only; P6-3C: no CTA in the disclosure)", () => {
   const resolvedCta = resolveUiConfig({
     preset: "immersive",
     cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
@@ -271,19 +274,19 @@ describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-l
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("OPEN overlay (forced): the overlay CTA appears INSIDE the dialog via the UI-09 consumer (standard style)", () => {
+  it("P6-3C — OPEN overlay (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
-    expect(html).toContain("nav-item-cta");
-    expect(html).toContain("/booking");
-    expect(html).not.toContain("ui-cta-prominent"); // immersive profile style stays standard
+    // No CTA is composed into the overlay: the ONE Book Now lives in the shell's
+    // top region (engine-composed), independently of the disclosure.
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/booking");
     // B1: trigger owns the id; panel uses `-panel` id and is named by trigger.
     expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-labelledby="shell-mobile-nav"');
     expect(html).toContain("ui-drawer-backdrop");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 
   it("OPEN overlay with enabled + label but NO href: still no CTA inside the dialog (never invented)", () => {
@@ -310,8 +313,9 @@ describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-l
   });
 
   it("the CTA does not leak into the desktop/header path for the overlay composition", () => {
-    // Immersive's desktop/tablet slots are aside, so the header renders NO ≥md nav
-    // and NO header CTA — the only CTA (when open) lives in the overlay dialog.
+    // Immersive's desktop/tablet slots are aside and its mobile layer is the
+    // overlay: `SiteHeader` therefore composes NO CTA in any state (P6-3C — the
+    // single Book Now is engine-composed in the shell's top region).
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
     expect(html).not.toContain("ui-shell-header-row");
     // In the CLOSED header there is no CTA anywhere:
@@ -320,11 +324,11 @@ describe("SiteHeader — Immersive mobile overlay + overlay CTA (UI-09 content-l
   });
 });
 
-describe("SiteHeader — the UI-09 consumer keeps drawer behavior unchanged", () => {
-  // A drawer-based preset (workspace) with a complete CTA still composes the CTA
-  // inside the DRAWER (unchanged from UI-07/UI-08) — the overlay admission must not
-  // regress it. Uses the same forced-open hook.
-  it("a drawer-pattern preset still puts the CTA inside the drawer dialog", () => {
+describe("SiteHeader — the disclosure consumer is CTA-free for every mobile pattern (P6-3C)", () => {
+  // A drawer-based preset (workspace) with a complete CTA composes NO CTA inside
+  // the DRAWER anymore: the one action lives in the shell's top region for every
+  // pattern. Uses the same forced-open hook.
+  it("a drawer-pattern preset composes no CTA inside the drawer dialog", () => {
     mockForcedOpen = true;
     const resolvedDrawer = resolveUiConfig({
       preset: "workspace",
@@ -332,12 +336,11 @@ describe("SiteHeader — the UI-09 consumer keeps drawer behavior unchanged", ()
     });
     const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedDrawer }));
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
-    expect(html).toContain("nav-item-cta");
-    expect(html).toContain("/book");
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/book");
     // B1: drawer-parity path uses the same corrected panel relationship.
     expect(html).toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-labelledby="shell-mobile-nav"');
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf('id="shell-mobile-nav-panel"'));
   });
 });
 
