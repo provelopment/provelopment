@@ -60,6 +60,33 @@ export function availableIconName(name: string | undefined): string | undefined 
   return iconAssetAvailable(name) ? name : "";
 }
 
+/**
+ * P6-2D — resolves a `site.assets.*` value (an FS-4 ABSOLUTE URL, validated
+ * against `site.url`) to a path that always fetches from the CURRENT origin
+ * when rendered as a real `<img src>` — mirroring the existing plain-filename
+ * icon-asset convention above (`iconAssetUrl`: name → `/assets/<name>`).
+ *
+ * Why this exists: `site.url` is the SITE'S OWN canonical origin (used for
+ * `<link rel="canonical">`/JSON-LD/OpenGraph, where an absolute URL is
+ * correct even if it differs from the browser's current origin — e.g. a
+ * staging preview under a different host still points canonical/JSON-LD at
+ * the real production origin). A rendered `<img>` has no such indirection:
+ * the browser fetches literally whatever `src` says, so if `site.url` is a
+ * placeholder/mismatched domain (or the deployment is previewed under a
+ * different host), an absolute asset URL 404s. Every `site.assets.*` value
+ * always resolves to a same-origin `public/assets/<file>` path in EVERY
+ * shipped deployment, so re-deriving the path portion is always correct and
+ * removes the coupling between `site.url` accuracy and real rendered images.
+ */
+export function assetPathFromUrl(absoluteUrl: string | undefined): string | undefined {
+  if (!absoluteUrl) return absoluteUrl;
+  try {
+    return new URL(absoluteUrl).pathname;
+  } catch {
+    return absoluteUrl;
+  }
+}
+
 interface IconLeafRef {
   readonly label: string;
   readonly value: string | undefined;

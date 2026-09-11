@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertConfiguredIconAssetsExist,
+  assetPathFromUrl,
   availableIconName,
   iconAssetAvailable,
   type IconConfigSource,
 } from "@/config/assets";
+import { siteConfig } from "@/config";
 
 /**
  * P6-1 — the icon-asset availability contract (framework layer):
@@ -77,3 +79,67 @@ function minimalConfigWithIcons(
     ],
   };
 }
+
+/**
+ * P6-2D — `assetPathFromUrl` behavior (same-origin rendering of configured
+ * absolute asset URLs).
+ *
+ * `site.assets.*` leaves are FS-4 ABSOLUTE URLs (validated against `site.url`).
+ * They are correct for canonical/JSON-LD/OpenGraph, but a rendered `<img src>`
+ * fetches the literal value — so when `site.url` is a placeholder or the
+ * deployment is previewed under a different host, the absolute URL would 404.
+ * This helper re-derives the pathname so the image always fetches from the
+ * CURRENT origin. These tests assert BEHAVIOR, not source text.
+ */
+describe("P6-2D — assetPathFromUrl", () => {
+  it("passes through the deliberate-absence values verbatim", () => {
+    expect(assetPathFromUrl(undefined)).toBeUndefined();
+    expect(assetPathFromUrl("")).toBe("");
+  });
+
+  it("reduces an absolute asset URL to its same-origin pathname", () => {
+    expect(assetPathFromUrl("https://www.example.com/assets/logo-title.jpg")).toBe(
+      "/assets/logo-title.jpg",
+    );
+    expect(assetPathFromUrl("https://foundation.provelopment.com/assets/logo-footer.svg")).toBe(
+      "/assets/logo-footer.svg",
+    );
+  });
+
+  it("is decoupled from the configured site.url host (placeholder/mismatch still resolves)", () => {
+    // The same pathname is derived regardless of which host names the asset —
+    // this is the whole point: an `<img src>` must not depend on `site.url`.
+    const a = assetPathFromUrl("https://www.example.com/assets/favicon.svg");
+    const b = assetPathFromUrl("https://localhost:3000/assets/favicon.svg");
+    expect(a).toBe("/assets/favicon.svg");
+    expect(b).toBe("/assets/favicon.svg");
+    expect(a).toBe(b);
+  });
+
+  it("strips query and hash from an absolute URL (only the path is fetched)", () => {
+    expect(assetPathFromUrl("https://cdn.example.com/assets/logo-header.svg?v=2#mark")).toBe(
+      "/assets/logo-header.svg",
+    );
+  });
+
+  it("preserves a nested path component (any origin/CDN, any sub-path)", () => {
+    expect(assetPathFromUrl("https://cdn.example.com/brand/runtime/assets/logo.svg")).toBe(
+      "/brand/runtime/assets/logo.svg",
+    );
+  });
+
+  it("returns a non-absolute/relative input verbatim (URL parse failure is safe)", () => {
+    // A bare path has no base, so `new URL` throws — the helper must not crash
+    // and must hand back exactly what it was given.
+    expect(assetPathFromUrl("/assets/logo.svg")).toBe("/assets/logo.svg");
+    expect(assetPathFromUrl("not a url")).toBe("not a url");
+  });
+
+  it("resolves every configured generic branding role to a same-origin /assets/<file> path", () => {
+    const assets = siteConfig.assets;
+    expect(assetPathFromUrl(assets?.logo)).toBe("/assets/logo-header.svg");
+    expect(assetPathFromUrl(assets?.logoFooter)).toBe("/assets/logo-footer.svg");
+    expect(assetPathFromUrl(assets?.logoTitle)).toBe("/assets/logo-title.jpg");
+    expect(assetPathFromUrl(assets?.favicon)).toBe("/assets/favicon.svg");
+  });
+});

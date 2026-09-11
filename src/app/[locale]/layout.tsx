@@ -3,7 +3,7 @@ import { createAnalyticsProvider } from "@/adapters/analytics";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
@@ -19,10 +19,16 @@ import {
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks } from "@/components/site/nav-links";
+import { TitleBar } from "@/components/site/title-bar";
 import "../globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// P6-2D — brand typography (branding/branding-schema.md): the brand's primary
+// heading/body typeface family is Inter, Plus Jakarta Sans, or Geist Sans;
+// Plus Jakarta Sans is the sanctioned brand choice here (the one code-surface
+// change CUSTOMIZING.md documents for re-branding fonts). Monospace stays
+// Geist Mono — the spec makes no monospace statement.
+const brandSans = Plus_Jakarta_Sans({
+  variable: "--font-brand-sans",
   subsets: ["latin"],
 });
 
@@ -190,7 +196,7 @@ export default async function LocaleLayout({
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${brandSans.variable} ${geistMono.variable} h-full antialiased`}
       style={htmlStyle}
       {...htmlPresentationAttrs}
     >
@@ -201,6 +207,7 @@ export default async function LocaleLayout({
         >
           {dictionary.a11y.skipToContent}
         </a>
+        <TitleBar />
         <ShellEngine
           resolved={resolvedUi}
           header={<SiteHeader locale={locale} resolved={resolvedUi} />}

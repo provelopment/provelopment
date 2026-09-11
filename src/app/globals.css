@@ -26,40 +26,42 @@
  * matching Tailwind utility (bg-card, text-success, border-input, …).
  */
 :root {
-  /* Base canvas + default text. */
+  /* Base canvas + default text — Surface (Light) / Neutral Dark. */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #0f172a;
 
-  /* Secondary text / secondary surfaces. */
-  --muted-foreground: #525252;
-  --muted: #f5f5f5;
+  /* Secondary text / secondary surfaces — Body Text / Surface Subtle. */
+  --muted-foreground: #334155;
+  --muted: #f8fafc;
 
-  /* Card surfaces (offerings, connect cards, callouts). */
-  --card: #f5f5f5;
-  --card-foreground: #171717;
+  /* Card surfaces (offerings, connect cards, callouts) — Surface Subtle. */
+  --card: #f8fafc;
+  --card-foreground: #0f172a;
 
-  /* Hairline borders + form control borders. */
-  --border: #e5e5e5;
-  --input: #e5e5e5;
+  /* Hairline borders + form control borders — Border / Divider. */
+  --border: #e2e8f0;
+  --input: #e2e8f0;
 
-  /* Highlight / badge surfaces. */
-  --accent: #f5f5f5;
+  /* Highlight / badge surfaces — Surface Subtle. */
+  --accent: #f8fafc;
 
-  /* Brand + on-brand text. */
-  --primary: #2563eb;
+  /* Brand + on-brand text — Primary (Provelopment Crimson) / hover A11217. */
+  --primary: #c5161d;
+  --primary-hover: #a11217;
   --primary-foreground: #ffffff;
 
-  /* Secondary action surfaces. */
-  --secondary: #f5f5f5;
-  --secondary-foreground: #171717;
+  /* Secondary action surfaces — Accent / Auxiliary (Regulatory Amber Gold) / hover 92400E. */
+  --secondary: #b45309;
+  --secondary-hover: #92400e;
+  --secondary-foreground: #ffffff;
 
   /* Status. */
   --success: #15803d;
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
 
-  /* Keyboard focus ring. */
-  --ring: #2563eb;
+  /* Keyboard focus ring — matches the brand primary. */
+  --ring: #c5161d;
 
   /* Modal disclosure scrim (UI-10 D3) — the backdrop behind open dialogs. */
   --backdrop: #00000066;
@@ -70,26 +72,36 @@
 
 /*
  * Semantic color tokens — dark scheme (system preference; no manual toggle).
+ *
+ * Brand hues are lifted (not reused verbatim) so every WCAG AA pair below
+ * still meets >= 4.5:1 on the dark Neutral-Dark canvas — see
+ * tests/unit/design-tokens.test.ts. Crimson `#C5161D` itself fails as TEXT
+ * on `#0F172A` (2.98:1); `--primary` here is a lighter brand-hue tint used
+ * consistently as both the accessible link/status color and the CTA fill
+ * (`--primary-foreground` is the dark navy, keeping the same fill/on-fill
+ * pairing direction as the light scheme).
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-    --muted-foreground: #a3a3a3;
-    --muted: #171717;
-    --card: #171717;
-    --card-foreground: #ededed;
-    --border: #262626;
-    --input: #262626;
-    --accent: #171717;
-    --primary: #60a5fa;
-    --primary-foreground: #0a0a0a;
-    --secondary: #171717;
-    --secondary-foreground: #ededed;
+    --background: #0f172a;
+    --foreground: #f8fafc;
+    --muted-foreground: #94a3b8;
+    --muted: #1e293b;
+    --card: #1e293b;
+    --card-foreground: #f8fafc;
+    --border: #334155;
+    --input: #334155;
+    --accent: #1e293b;
+    --primary: #fb7185;
+    --primary-hover: #f43f5e;
+    --primary-foreground: #0f172a;
+    --secondary: #92400e;
+    --secondary-hover: #b45309;
+    --secondary-foreground: #ffffff;
     --success: #4ade80;
     --destructive: #f87171;
     --destructive-foreground: #450a0a;
-    --ring: #60a5fa;
+    --ring: #fb7185;
 
     /* Modal disclosure scrim (UI-10 D3) — the backdrop behind open dialogs. */
     --backdrop: #00000099;
@@ -136,15 +148,17 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-ring: var(--ring);
-  --font-sans: var(--font-geist-sans);
+  /* P6-2D — the brand heading/body typeface (branding/branding-schema.md):
+     Plus Jakarta Sans, loaded in src/app/[locale]/layout.tsx via next/font. */
+  --font-sans: var(--font-brand-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  /* Geist (latin) first, then a script-safe fallback stack so ja/zh/ko/ru
-     render through appropriate system fonts. */
+  /* Plus Jakarta Sans (latin) first, then a script-safe fallback stack so
+     ja/zh/ko/ru render through appropriate system fonts. */
   font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Noto Sans JP",
     "Noto Sans KR", "Noto Sans SC", "Noto Sans CJK SC", sans-serif;

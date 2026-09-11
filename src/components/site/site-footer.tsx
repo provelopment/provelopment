@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { siteConfig } from "@/config";
+import { assetPathFromUrl } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { legalLabel, resolveLegalDocs } from "@/core/legal";
@@ -140,8 +141,26 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                     </nav>
                 ) : null}
 
-                <p className="self-end text-sm text-muted-foreground sm:text-right lg:col-span-4 lg:pt-2 lg:text-left">
-                    &copy; {new Date().getFullYear()} {siteConfig.name}
+                {/* P6-2D — the restrained `logo-footer` brand mark (generic role,
+                    `site.assets.logoFooter`). Decorative (alt=""): the adjacent
+                    copyright text already carries the accessible site name, so
+                    the mark is purely supplementary, never a substitute for
+                    text. Absent config → no element (never a broken image).
+                    `assetPathFromUrl` re-derives a same-origin path so the
+                    rendered <img> always resolves (see title-bar.tsx). */}
+                <p className="flex items-center gap-2 self-end text-sm text-muted-foreground sm:justify-end lg:col-span-4 lg:pt-2 lg:justify-start">
+                    {siteConfig.assets?.logoFooter ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                            src={assetPathFromUrl(siteConfig.assets.logoFooter)}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-5 w-auto shrink-0"
+                        />
+                    ) : null}
+                    <span className="break-words">
+                        &copy; {new Date().getFullYear()} {siteConfig.name}
+                    </span>
                 </p>
             </div>
         </footer>
