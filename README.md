@@ -59,6 +59,18 @@ to the default locale.
 5. Add locales, deploy to Vercel, and keep up to date with upstream —
    all documented in [`CUSTOMIZING.md`](CUSTOMIZING.md).
 
+## Operating manuals
+
+This repository ships a complete **instruction-manuals/** package — the operational
+knowledge required to adopt, configure, customize, upgrade, validate and deploy a
+Foundation-derived site.
+
+> **Start with [`instruction-manuals/README.md`](instruction-manuals/README.md).**
+
+The manuals are **distributed artifacts** of a master source retained in the
+Provelopment root project. Do not edit them here; changes are made upstream and
+propagated (the index documents the propagation and parity procedure).
+
 ## Scripts
 
 | Command | Purpose |
@@ -91,6 +103,9 @@ tests           # Architecture boundary, unit, and CDP browser matrix tests
 
 ## Documentation
 
+- [`instruction-manuals/README.md`](instruction-manuals/README.md) — **operating
+  manuals**: adoption, upgrade, customization, branding/assets, content,
+  validation, deployment, agent rules, troubleshooting
 - [`CUSTOMIZING.md`](CUSTOMIZING.md) — downstream user guide: what to edit,
   adding locales, deploying, syncing with upstream
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — boundaries, dependency direction,
