@@ -608,34 +608,62 @@ html[data-ui-hero="showcase"] .home-hero {
   opacity: 0.55;
 }
 
-/* ── P6-1 sidebar disclosure contract (one vocabulary, one control) ─────
+/* ── P6-1/P6-3A sidebar rail contract (persistent horizontal rail) ─────
  *
- * The SHARED renderer for the sidebar rail + its Show/Hide disclosure toggle,
- * so desktop, tablet, and mobile present the SAME sidebar concept:
+ * The SHARED renderer for the sidebar rail + its Show/Hide disclosure toggle:
  *
- *  - `.ui-shell-sidebar` — the rail frame composed by the engine: a generous
- *    HORIZONTAL INSET (spacing tokens) so navigation never kisses the viewport
- *    edge, plus vertical rhythm. The rail is only composed when the sidebar is
- *    present with content — closed mode renders no rail, so there is no ghost
- *    spacing and no empty placeholder.
+ *  - `.ui-shell-sidebar` — the rail frame composed by the engine: a horizontal
+ *    inset so navigation never kisses the viewport edge, plus vertical rhythm.
+ *  - `.ui-sidebar-rail` — P6-3A the PERSISTENT left rail: a fixed-width column
+ *    with a thin border that expands/contracts HORIZONTALLY. Collapse is a
+ *    width change (`data-collapsed`), never `display:none`, so the rail is
+ *    always present and navigation stays in the layout + tab order. Expanded =
+ *    13.75rem (220px rail + the 1.25rem frame inset = the previous 240px `w-60`
+ *    footprint); collapsed = a narrow practical rail that still accommodates
+ *    the configured icon (64px desktop / 32px below `lg`).
  *  - `.ui-shell-sidebar ul` — the navigation list sits a FURTHER consistent
- *    inset beneath the disclosure control, so items clearly belong inside the
- *    sidebar (control level → item level hierarchy).
- *  - `.ui-sidebar-toggle` — the REAL interactive disclosure control on the
- *    rail: a semantic button with border/surface, hover, active/pressed, and
- *    pointer affordances — it can never be mistaken for static heading text.
- *    The same contract drives the mobile drawer/overlay trigger + close (see
- *    ShellMobileNav); only placement/size differ.
- *  - `.ui-sidebar-toggle-icon` — fixed 1rem control size for the show/hide
- *    asset (intrinsic image dimensions can never overflow layout).
+ *    inset beneath the disclosure control.
+ *  - `.ui-sidebar-toggle` — the REAL interactive disclosure control.
+ *  - `.ui-sidebar-toggle-icon` — the show/hide asset at a fixed control size.
  *
- * Token-only (no raw colors); the single global :focus-visible ring (P1-3)
- * covers keyboard focus. The reduced-motion rule above strips transitions.
+ * Token-only; the global :focus-visible ring covers keyboard focus. The
+ * reduced-motion rule above strips transitions.
  */
+:root {
+  /* P6-3A persistent-rail geometry. */
+  --ui-sidebar-rail-expanded: 13.75rem; /* 220px + 1.25rem frame inset = 240px total */
+  --ui-sidebar-rail-collapsed: 4.5rem; /* ≈72px — fits the 64px desktop icon contract */
+  --ui-sidebar-rail-collapsed-sm: 3rem; /* ≈48px — fits the 32px tablet icon contract */
+}
+
 .ui-shell-sidebar {
   margin-inline-start: 1.25rem;
   padding-block: 1rem 1.5rem;
+}
+
+/* P6-3A — the persistent rail: a horizontal width state with a thin border. */
+.ui-sidebar-rail {
+  width: var(--ui-sidebar-rail-expanded);
   padding-inline: 1.25rem;
+  border-inline-end: 1px solid var(--border);
+  overflow-x: hidden;
+  transition: width 200ms ease;
+}
+
+.ui-sidebar-rail[data-collapsed="true"] {
+  width: var(--ui-sidebar-rail-collapsed);
+  padding-inline: 0.5rem;
+}
+
+/* Tablet rail — the 32px icon contract → a narrower collapsed rail. */
+@media (max-width: 1023.98px) {
+  .ui-sidebar-rail[data-collapsed="true"] {
+    width: var(--ui-sidebar-rail-collapsed-sm);
+  }
+}
+
+.ui-sidebar-rail-panel {
+  min-width: 0;
 }
 
 .ui-shell-sidebar ul {
@@ -679,4 +707,39 @@ html[data-ui-hero="showcase"] .home-hero {
   height: 1rem;
   object-fit: contain;
   flex-shrink: 0;
+}
+
+/* P6-3A — collapsed rail: hide labels ONLY for icon-bearing items (the icon
+ * becomes the visual affordance; the label stays for assistive tech). Items
+ * WITHOUT a configured icon keep their label so nothing becomes invisible or
+ * loses its accessible name while nav icons are unconfigured. Mirrors the
+ * P5-5 `.ui-nav-mode-compact` technique; the toggle becomes icon-only when it
+ * has an icon. */
+.ui-sidebar-rail[data-collapsed="true"] li.ui-nav-item--has-icon .ui-nav-item-label,
+.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:has(.ui-sidebar-toggle-icon) > span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* P6-3A — responsive sidebar navigation-icon sizing: 64×64 desktop, 32×32
+ * tablet/mobile. Scoped to the sidebar rail (the shared `.ui-nav-item-icon`
+ * base stays 1em for top-nav / bottom-bar). */
+.ui-shell-sidebar .ui-nav-item-icon {
+  width: 2rem;
+  height: 2rem;
+}
+
+@media (min-width: 1024px) {
+  .ui-shell-sidebar .ui-nav-item-icon {
+    width: 4rem;
+    height: 4rem;
+  }
 }

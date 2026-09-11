@@ -285,6 +285,9 @@ async function runAsidePreset(rows, preset, cdp) {
         hasRail: !!rail,
         panelVisible: !!pr && pr.width > 0 && pr.height > 0,
         panelHiddenClass: !!panel && panel.classList.contains('hidden'),
+        // P6-3A — persistent-rail width state (collapse = a horizontal width).
+        railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : null,
+        dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null,
         togglePresent: !!toggle,
         toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
         // P6-1 — the disclosure is a real interactive control with a visible,
@@ -316,8 +319,10 @@ async function runAsidePreset(rows, preset, cdp) {
         check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(init.itemLeft != null && init.toggleLeft != null && init.itemLeft >= init.toggleLeft + 4), `item=${init.itemLeft} toggle=${init.toggleLeft}`);
         check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(init.itemLeft != null && init.itemLeft >= 24), `itemLeft=${init.itemLeft}`);
       } else {
-        // `collapsed-sidebar` MEANS collapsed-by-default + always expandable.
-        check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.panelHiddenClass && !init.panelVisible);
+        // `collapsed-sidebar` MEANS collapsed-by-default + always expandable —
+        // and P6-3A means it is a PERSISTENT narrow rail (never display:none).
+        check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.dataCollapsed === "true" && init.panelVisible && !init.panelHiddenClass);
+        check(rows, `${vpName}.aside.collapsed.persistentNarrow`, init.railWidth != null && init.railWidth > 0 && init.railWidth <= 64, `railWidth=${init.railWidth}`);
         check(rows, `${vpName}.aside.collapsed.notDeadEnd`, init.togglePresent);
         // P6-1 — collapsed rail → "Show Sidebar".
         check(rows, `${vpName}.aside.toggle.labelShow`, init.toggleText === "Show Sidebar");
@@ -361,47 +366,57 @@ const s = await cdp.evaluate(`(() => ({
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const collapsed = await cdp.evaluate(`(() => {
+        const rail = document.querySelector("#shell-sidebar-desktop-rail");
         const panel = document.querySelector("#shell-sidebar-desktop-panel");
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
+        const rr = rail ? rail.getBoundingClientRect() : null;
         const pr = panel ? panel.getBoundingClientRect() : null;
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
         return {
-          collapsedStructural: !!panel && panel.classList.contains('hidden'),
-          notVisible: !pr || (pr.width === 0 && pr.height === 0),
+          railWidth: rr ? Math.round(rr.width) : null,
+          // P6-3A — the rail is PERSISTENT: collapse is a HORIZONTAL WIDTH
+          // state, never display:none.
+          panelHiddenClass: !!panel && panel.classList.contains('hidden'),
+          panelVisible: !!pr && pr.width > 0 && pr.height > 0,
+          dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null,
           togglePresent: !!toggle,
           toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
           toggleText: toggle ? toggle.textContent.trim() : null,
           toggleIcon: !!toggle && !!toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon'),
-          // P0-2: the CTA must follow the sidebar's structural collapse —
-          // when the panel is collapsed the CTA inside it is NOT reachable.
+          // P6-3A — nav (and CTA) stay reachable when collapsed.
           ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
         };
       })()`);
-      check(rows, `${vpName}.aside.collapse.structural`, collapsed.collapsedStructural && collapsed.notVisible);
+      check(rows, `${vpName}.aside.collapse.persistent`, !collapsed.panelHiddenClass && collapsed.panelVisible);
+      check(rows, `${vpName}.aside.collapse.dataState`, collapsed.dataCollapsed === "true");
+      check(rows, `${vpName}.aside.collapse.narrower`, collapsed.railWidth != null && init.railWidth != null && collapsed.railWidth < init.railWidth, `collapsed=${collapsed.railWidth} expanded=${init.railWidth}`);
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
-      check(rows, `${vpName}.aside.collapse.ctaNotReachable`, !collapsed.ctaReachable);
+      check(rows, `${vpName}.aside.collapse.navReachable`, collapsed.ctaReachable);
       // P6-1 — the SAME toggle now says "Show Sidebar" and keeps its icon.
       check(rows, `${vpName}.aside.collapse.labelShow`, collapsed.toggleText === "Show Sidebar");
       check(rows, `${vpName}.aside.collapse.icon`, !!collapsed.toggleIcon);
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const restored = await cdp.evaluate(`(() => {
+        const rail = document.querySelector("#shell-sidebar-desktop-rail");
         const panel = document.querySelector("#shell-sidebar-desktop-panel");
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
+        const rr = rail ? rail.getBoundingClientRect() : null;
         const pr = panel ? panel.getBoundingClientRect() : null;
         const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
-        return { panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
+        return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
       })()`);
-      check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible);
-      check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true");
+      check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible && restored.railWidth != null && init.railWidth != null && restored.railWidth >= init.railWidth - 2, `restored=${restored.railWidth} expanded=${init.railWidth}`);
+      check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true" && restored.dataCollapsed === "false");
       check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
       // P6-1 — re-expanded rail returns to "Hide Sidebar".
       check(rows, `${vpName}.aside.expand.labelHide`, restored.toggleText === "Hide Sidebar");
-      // P0-2: re-expanding restores the CTA (it follows the same collapse
-      // semantics as the navigation — never orphaned, never stranded).
       check(rows, `${vpName}.aside.expand.ctaReachable`, restored.ctaReachable);
+      // P6-3A — the rail keeps its thin border in BOTH states (never a floating drawer).
+      const border = await cdp.evaluate(`(() => { const el = document.querySelector("#shell-sidebar-desktop-rail"); if (!el) return null; const cs = getComputedStyle(el); return { w: parseFloat(cs.borderRightWidth) || 0, style: cs.borderRightStyle }; })()`);
+      check(rows, `${vpName}.aside.border.present`, !!border && border.w >= 1 && border.style === "solid", JSON.stringify(border));
     } else if (collapsible && vpName === "tablet") {
       const restored = await cdp.evaluate(`(() => { const panel = document.querySelector("#shell-sidebar-tablet-panel"); const pr = panel ? panel.getBoundingClientRect() : null; return !panel.classList.contains('hidden') && pr.width > 0 && pr.height > 0; })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored);

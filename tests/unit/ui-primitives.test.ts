@@ -281,15 +281,18 @@ describe("UI-03 — Sidebar", () => {
     expect(html).not.toContain('type="button"');
   });
 
-  it("collapsible CLOSED is a STRUCTURAL collapse: panel hidden (no layout/tab order), toggle remains as the expand control", () => {
+  it("collapsible CLOSED is a PERSISTENT rail: the panel stays in layout/tab order (collapse is a width state, never display:none); the toggle remains", () => {
     const html = renderToStaticMarkup(
       Sidebar({ label: "Rail", collapsible: true, collapsed: true, open: { icon: "", text: "Open" }, close: { icon: "", text: "Close" }, children: span("rail") }),
     );
     expect(html).toContain('aria-expanded="false"');
     expect(html).toContain('aria-controls="sidebar-panel"');
     expect(html).toContain("Open");
-    // P0-1: the panel is removed from layout + the tab order; the toggle stays.
-    expect(html).toContain('id="sidebar-panel" class="hidden"');
+    // P6-3A: the rail is PERSISTENT — the panel is NOT removed from layout;
+    // collapse is a `data-collapsed` width state and navigation stays reachable.
+    expect(html).toContain('data-collapsed="true"');
+    expect(html).toContain('id="sidebar-panel" class="ui-sidebar-rail-panel"');
+    expect(html).not.toContain('class="hidden"');
     expect(html).toContain('type="button"');
   });
 
@@ -298,8 +301,9 @@ describe("UI-03 — Sidebar", () => {
       Sidebar({ label: "Rail", collapsible: true, open: { icon: "", text: "Open" }, close: { icon: "", text: "Close" }, children: span("rail") }),
     );
     expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('data-collapsed="false"');
     expect(html).toContain("<span>rail</span>");
-    expect(html).not.toContain('id="sidebar-panel" class="hidden"');
+    expect(html).not.toContain('class="hidden"');
   });
 });
 
