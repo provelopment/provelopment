@@ -233,23 +233,37 @@ async function runHeaderPreset(rows, preset, prominent, cdp) {
     check(rows, `${vpName}.no.bottomBar`, !s.bottomBar);
     check(rows, `${vpName}.no.aside`, !s.aside);
   }
-  // P0-2 (resolves the deferred C2 observation): a header-slot preset whose
-  // mobile disclosure also owns the CTA slot must NEVER expose a duplicate
-  // interactive CTA. At <md the ≥md header CTA instance is hidden, so at rest
-  // (drawer/overlay closed) ZERO interactive CTAs are reachable; opening the
-  // disclosure exposes exactly the one panel CTA (asserted in
-  // runDrawerOverlayMobile via `open.cta.single`).
+  // P6-3C — ONE authoritative Book Now: the single instance lives in the shell's
+  // TOP region (below the header, above <main>) and stays reachable at EVERY
+  // width, including below `md`. There is no per-viewport placement any more, so
+  // there is nothing to hide and nothing to duplicate.
   await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
   await cdp.navigate(`${BASE_URL}/en`);
   await waitReady(cdp);
   const mob = await cdp.evaluate(`(() => {
-    const headerCta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
-    const headerCtaRect = headerCta ? headerCta.getBoundingClientRect() : null;
-    const reachableCtas = [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length;
-    return { headerCtaVisible: !!headerCtaRect && headerCtaRect.width > 0, reachableCtas };
+    const cta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
+    const cr = cta ? cta.getBoundingClientRect() : null;
+    const header = document.querySelector('.ui-site-header');
+    const hr = header ? header.getBoundingClientRect() : null;
+    const mr = document.querySelector('#main') ? document.querySelector('#main').getBoundingClientRect() : null;
+    const reachable = [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    return {
+      ctaVisible: !!cr && cr.width > 0 && cr.height > 0,
+      belowHeader: !!cr && !!hr && cr.top >= hr.bottom - 2,
+      aboveMain: !!cr && !!mr && cr.bottom <= mr.top + 2,
+      reachableCount: reachable.length,
+      inAside: reachable.some((el) => !!el.closest('.ui-shell-sidebar')),
+      inBottomBar: reachable.some((el) => !!el.closest('.ui-shell-bottom-bar')),
+      inDisclosure: reachable.some((el) => !!el.closest('[role="dialog"]')),
+    };
   })()`);
-  check(rows, "mobile.headerCta.hiddenBelowMd", !mob.headerCtaVisible);
-  check(rows, "mobile.noDuplicateCta", mob.reachableCtas === 0);
+  check(rows, "mobile.cta.reachable", !!mob.ctaVisible);
+  check(rows, "mobile.cta.single", mob.reachableCount === 1, `count=${mob.reachableCount}`);
+  check(rows, "mobile.cta.belowHeader", !!mob.belowHeader);
+  check(rows, "mobile.cta.aboveMain", !!mob.aboveMain);
+  check(rows, "mobile.cta.notInAside", !mob.inAside);
+  check(rows, "mobile.cta.notInBottomBar", !mob.inBottomBar);
+  check(rows, "mobile.cta.notInDisclosure", !mob.inDisclosure);
 }
 
 /** Aside-slot presets (adaptive / workspace / immersive) — desktop + tablet bands. */
@@ -344,7 +358,11 @@ const s = await cdp.evaluate(`(() => ({
       sidebar: !!document.querySelector('.ui-shell-sidebar'),
       desktopRail: ${visible('#shell-sidebar-desktop-rail')},
       tabletRail: ${visible('#shell-sidebar-tablet-rail')},
-      ctaVisible: (() => { for (const sel of ['#shell-sidebar-desktop-rail', '#shell-sidebar-tablet-rail']) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width > 0) { const c = el.querySelector('.ui-shell-cta'); return !!c && c.getBoundingClientRect().width > 0; } } return false; })(),
+      // P6-3C — the primary CTA is NOT inside the rail in either state; the ONE
+      // instance lives in the shell's top region (below the header).
+      ctaInAside: (() => { for (const sel of ['#shell-sidebar-desktop-rail', '#shell-sidebar-tablet-rail']) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width > 0) { const c = el.querySelector('.ui-shell-cta'); if (c && c.getBoundingClientRect().width > 0) return true; } } return false; })(),
+      ctaInTopRegion: ${visible('.ui-shell-header-row .ui-shell-cta')},
+      ctaReachableCount: [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length,
       currentInAside: (() => { for (const sel of ['#shell-sidebar-desktop-rail', '#shell-sidebar-tablet-rail']) { const el = document.querySelector(sel); if (el && el.getBoundingClientRect().width > 0 && el.querySelector('a[aria-current="page"]')) return true; } return false; })(),
       dialogs: document.querySelectorAll('[role="dialog"]').length,
       bottomBar: ${visible('.ui-shell-bottom-bar')},
@@ -354,7 +372,9 @@ const s = await cdp.evaluate(`(() => ({
     }))()`);
     check(rows, `${vpName}.aside.present`, !!s.sidebar);
     check(rows, `${vpName}.aside.bandExclusive`, (s.desktopRail && !s.tabletRail) || (!s.desktopRail && s.tabletRail));
-    check(rows, `${vpName}.aside.cta.reachable`, !!s.ctaVisible);
+    check(rows, `${vpName}.aside.cta.outsideSidebar`, !!s.sidebar && !s.ctaInAside, `inAside=${s.ctaInAside}`);
+    check(rows, `${vpName}.aside.cta.reachableInTop`, !!s.ctaInTopRegion);
+    check(rows, `${vpName}.aside.cta.single`, s.ctaReachableCount === 1, `count=${s.ctaReachableCount}`);
     check(rows, `${vpName}.aside.ariaCurrent`, !!s.currentInAside);
     check(rows, `${vpName}.no.dialog`, s.dialogs === 0);
     check(rows, `${vpName}.no.bottomBar`, !s.bottomBar);
@@ -372,6 +392,7 @@ const s = await cdp.evaluate(`(() => ({
         const rr = rail ? rail.getBoundingClientRect() : null;
         const pr = panel ? panel.getBoundingClientRect() : null;
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
+        const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
         return {
           railWidth: rr ? Math.round(rr.width) : null,
           // P6-3A — the rail is PERSISTENT: collapse is a HORIZONTAL WIDTH
@@ -383,8 +404,11 @@ const s = await cdp.evaluate(`(() => ({
           toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
           toggleText: toggle ? toggle.textContent.trim() : null,
           toggleIcon: !!toggle && !!toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon'),
-          // P6-3A — nav (and CTA) stay reachable when collapsed.
+          // P6-3A — nav stays reachable when collapsed; P6-3C — the CTA is NOT
+          // part of the rail (it lives in the top region), so its presence here
+          // must be false and its reachability is asserted separately.
           ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
+          navReachable: !!link && link.getBoundingClientRect().width > 0,
         };
       })()`);
       check(rows, `${vpName}.aside.collapse.persistent`, !collapsed.panelHiddenClass && collapsed.panelVisible);
@@ -392,7 +416,7 @@ const s = await cdp.evaluate(`(() => ({
       check(rows, `${vpName}.aside.collapse.narrower`, collapsed.railWidth != null && init.railWidth != null && collapsed.railWidth < init.railWidth, `collapsed=${collapsed.railWidth} expanded=${init.railWidth}`);
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
-      check(rows, `${vpName}.aside.collapse.navReachable`, collapsed.ctaReachable);
+      check(rows, `${vpName}.aside.collapse.navReachable`, collapsed.navReachable);
       // P6-1 — the SAME toggle now says "Show Sidebar" and keeps its icon.
       check(rows, `${vpName}.aside.collapse.labelShow`, collapsed.toggleText === "Show Sidebar");
       check(rows, `${vpName}.aside.collapse.icon`, !!collapsed.toggleIcon);
@@ -406,14 +430,17 @@ const s = await cdp.evaluate(`(() => ({
         const pr = panel ? panel.getBoundingClientRect() : null;
         const link = panel ? panel.querySelector('a[aria-current="page"], a[href*="/en"]') : null;
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
-        return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0 };
+        const topCta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
+        const tr2 = topCta ? topCta.getBoundingClientRect() : null;
+        return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0, ctaInTop: !!tr2 && tr2.width > 0 };
       })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible && restored.railWidth != null && init.railWidth != null && restored.railWidth >= init.railWidth - 2, `restored=${restored.railWidth} expanded=${init.railWidth}`);
       check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true" && restored.dataCollapsed === "false");
       check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
       // P6-1 — re-expanded rail returns to "Hide Sidebar".
       check(rows, `${vpName}.aside.expand.labelHide`, restored.toggleText === "Hide Sidebar");
-      check(rows, `${vpName}.aside.expand.ctaReachable`, restored.ctaReachable);
+      // P6-3C — the CTA is reachable in the TOP region (never in the rail).
+      check(rows, `${vpName}.aside.expand.ctaReachableInTop`, restored.ctaInTop);
       // P6-3A — the rail keeps its thin border in BOTH states (never a floating drawer).
       const border = await cdp.evaluate(`(() => { const el = document.querySelector("#shell-sidebar-desktop-rail"); if (!el) return null; const cs = getComputedStyle(el); return { w: parseFloat(cs.borderRightWidth) || 0, style: cs.borderRightStyle }; })()`);
       check(rows, `${vpName}.aside.border.present`, !!border && border.w >= 1 && border.style === "solid", JSON.stringify(border));
@@ -569,7 +596,7 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
       mainInert: !!document.querySelector('main').closest('[inert]'),
       panelInert: !!d.closest('[inert]'),
       ctaInPanel: !!cta,
-      ctaReachable: !!cta && cta.getBoundingClientRect().width > 0,
+      ctaReachableInPanel: !!cta && cta.getBoundingClientRect().width > 0,
       prominentInPanel: !!d.querySelector('.ui-cta-prominent'),
       currentInPanel: !!d.querySelector('a[aria-current="page"]'),
       // P0-5: the active panel item renders through the shared NavItem path —
@@ -589,9 +616,13 @@ async function runDrawerOverlayMobile(rows, preset, prominent, cdp) {
   check(rows, "open.scroll.locked", !!o && o.overflow === "hidden");
   check(rows, "open.inert.background", !!o && !!o.mainInert);
   check(rows, "open.inert.notDialog", !!o && !o.panelInert);
-  check(rows, "open.cta.inPanel", !!o && !!o.ctaInPanel);
-  check(rows, "open.cta.reachable", !!o && !!o.ctaReachable);
-  check(rows, "open.ctaProminent", prominent ? !!o && !!o.prominentInPanel : !!(o && !o.prominentInPanel));
+  // P6-3C — the disclosure carries NAVIGATION only: the ONE Book Now lives in the
+  // shell's top region (still visible while the disclosure is open), so it must
+  // never appear inside the dialog. `open.cta.single` still proves there is
+  // exactly one reachable action in total.
+  check(rows, "open.cta.notInPanel", !!o && !o.ctaInPanel);
+  check(rows, "open.cta.notReachableInPanel", !!o && !o.ctaReachableInPanel);
+  check(rows, "open.cta.notProminentInPanel", !!o && !o.prominentInPanel);
   // P0-2: exactly ONE interactive CTA is reachable while the mobile disclosure
   // is open (the ≥md header instance is hidden below md now; the aside bands
   // are display:none at <md) — no duplicate desktop+mobile pair, no dual CTA.
@@ -744,6 +775,9 @@ async function runAdaptiveMobile(rows, cdp) {
     barLiShared: (() => { const a = document.querySelector('.ui-shell-bottom-bar a[aria-current="page"]'); return !!a && !!a.parentElement && a.parentElement.classList.contains('aria-current-page'); })(),
     footerBadgeShared: (() => { const b = document.querySelector('footer .nav-item-badge'); return !!b && b.getBoundingClientRect().width > 0; })(),
     barCta: (() => { const c = document.querySelector('.ui-shell-bottom-bar .nav-item-cta'); return !!c && c.getBoundingClientRect().width > 0; })(),
+    // P6-3C — the ONE CTA lives in the top region, above the bar.
+    topCta: ${visible('.ui-shell-header-row .ui-shell-cta')},
+    reachableCtas: [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).length,
     moreTrigger: !!document.querySelector('#shell-bottom-more'),
     dialogs: document.querySelectorAll('[role="dialog"]').length,
   }))()`);
@@ -751,7 +785,9 @@ async function runAdaptiveMobile(rows, cdp) {
   check(rows, "bar.ariaCurrent", !!s.barNavCurrent);
   check(rows, "bar.nav.liSharedMarker", !!s.barLiShared);
   check(rows, "bar.footer.badgeShared", !!s.footerBadgeShared);
-  check(rows, "bar.cta.reachable", !!s.barCta);
+  check(rows, "bar.cta.notInBar", !s.barCta);
+  check(rows, "bar.cta.reachableInTop", !!s.topCta);
+  check(rows, "bar.cta.single", s.reachableCtas === 1, `count=${s.reachableCtas}`);
   check(rows, "bar.no.dialog", s.dialogs === 0);
 
   if (!s.moreTrigger) {
@@ -1029,6 +1065,8 @@ async function runPreset(preset, chrome) {
     // P6-3B — favicon / header logo / page banner (every preset); sidebar rail
     // geometry only where the resolved composition actually has an aside rail.
     await runBrandingChecks(rows, preset.name, cdp);
+    // P6-3C — banner scaling (three cases) + Book Now placement at every width.
+    await runP6cChecks(rows, preset.name, cdp);
     if (preset.name === "adaptive" || preset.name === "workspace" || preset.name === "immersive") {
       await runP6bSidebarChecks(rows, preset.name, cdp);
       await runP6bCollapsedChecks(rows, preset.name, cdp);
@@ -1168,6 +1206,12 @@ async function runBrandingChecks(rows, tag, cdp) {
     const bcs = banner ? getComputedStyle(banner) : null;
     const br = banner ? banner.getBoundingClientRect() : null;
     const ir = bimg ? bimg.getBoundingClientRect() : null;
+    const ics = bimg ? getComputedStyle(bimg) : null;
+    // P6-3C — the cap the framework derived from the graphic's own size.
+    const capPx = bimg && ics && ics.maxWidth.endsWith('px') ? parseFloat(ics.maxWidth) : null;
+    const bimgTop = ir ? ir.top : null;
+    const header = document.querySelector('.ui-site-header');
+    const main = document.querySelector('#main');
     return {
       iconCount: icons.length,
       iconHref: icons.length ? icons[0].getAttribute('href') : null,
@@ -1188,7 +1232,13 @@ async function runBrandingChecks(rows, tag, cdp) {
       imgHeight: ir ? Math.round(ir.height) : null,
       imgNatW: bimg ? bimg.naturalWidth : 0,
       imgNatH: bimg ? bimg.naturalHeight : 0,
+      imgLeft: ir ? Math.round(ir.left) : null,
+      imgRight: ir ? Math.round(ir.right) : null,
+      capPx: capPx,
+      bannerAboveHeader: !!ir && !!header && ir.bottom <= header.getBoundingClientRect().top + 2,
+      bannerAboveMain: !!ir && !!main && ir.bottom <= main.getBoundingClientRect().top + 2,
       viewportWidth: document.documentElement.clientWidth,
+      docScrollWidth: document.documentElement.scrollWidth,
       noBroken: [...document.images].every((i) => i.complete && i.naturalWidth > 0),
     };
   })()`);
@@ -1201,7 +1251,25 @@ async function runBrandingChecks(rows, tag, cdp) {
   check(rows, `${tag}.banner.noPadding`, s.bannerPad === "0px/0px/0px/0px", `pad=${s.bannerPad}`);
   check(rows, `${tag}.banner.noMargin`, s.bannerMargin === "0px/0px/0px/0px", `margin=${s.bannerMargin}`);
   check(rows, `${tag}.banner.noBorder`, s.bannerBorder === "0px" && s.bannerRadius === "0px", `border=${s.bannerBorder} radius=${s.bannerRadius}`);
-  check(rows, `${tag}.banner.fullWidth`, s.bannerWidth != null && Math.abs(s.bannerWidth - s.viewportWidth) <= 1, `w=${s.bannerWidth} vw=${s.viewportWidth}`);
+  // P6-3C — the banner scales to `min(available page width, 1.5 × natural
+  // width)`, is ALWAYS horizontally centered, and can never overflow.
+  const cap = Math.round(s.imgNatW * 1.5);
+  check(
+    rows,
+    `${tag}.banner.widthIsAvailableOrCap`,
+    s.imgWidth != null && Math.abs(s.imgWidth - Math.min(s.viewportWidth, cap)) <= 2,
+    `w=${s.imgWidth} vw=${s.viewportWidth} cap=${cap}`,
+  );
+  check(
+    rows,
+    `${tag}.banner.centered`,
+    s.imgLeft != null && s.imgWidth != null && Math.abs(s.imgLeft - (s.viewportWidth - s.imgWidth) / 2) <= 2,
+    `left=${s.imgLeft} right=${s.imgRight} vw=${s.viewportWidth} w=${s.imgWidth}`,
+  );
+  check(rows, `${tag}.banner.noHorizontalOverflow`, s.imgLeft >= -1 && s.imgRight <= s.viewportWidth + 1 && s.docScrollWidth <= s.viewportWidth + 1, `left=${s.imgLeft} right=${s.imgRight} scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
+  check(rows, `${tag}.banner.capApplied`, s.capPx != null && Math.abs(s.capPx - cap) <= 1, `cap=${s.capPx} expected=${cap}`);
+  check(rows, `${tag}.banner.aboveHeader`, !!s.bannerAboveHeader);
+  check(rows, `${tag}.banner.aboveMain`, !!s.bannerAboveMain);
   // The banner is rendered at its graphic's OWN aspect ratio (intrinsic height —
   // no forced fixed height and no stretch/crop).
   check(
@@ -1259,7 +1327,8 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
       defaultDots: items.filter((li) => ends(li, '.ui-nav-item-icon-open', 'sidebar-default-icon-open.svg')).length,
     };
   })()`);
-  check(rows, `${tag}.p6b.desktop.navIcon64`, !!exp && exp.navIconW != null && exp.navIconW >= 64, `navIconW=${exp && exp.navIconW}`);
+  // P6-3C — sidebar NAVIGATION icons are 32×32 at the desktop breakpoint.
+  check(rows, `${tag}.p6b.desktop.navIcon32`, !!exp && exp.navIconW === 32, `navIconW=${exp && exp.navIconW}`);
   if (exp && exp.hasToggle) {
     check(rows, `${tag}.p6b.desktop.toggleIcon64`, exp.toggleW >= 64 && exp.toggleH >= 64, `w=${exp.toggleW} h=${exp.toggleH}`);
   } else {
@@ -1293,10 +1362,15 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
     const items = [...rail.querySelectorAll('ul > li')];
     const visibleIcon = rail.querySelector('.ui-nav-item-icon-closed') || rail.querySelector('.ui-nav-item-icon-open') || rail.querySelector('.ui-nav-item-icon');
     const ir = visibleIcon && getComputedStyle(visibleIcon).display !== 'none' ? visibleIcon.getBoundingClientRect() : null;
+    // P6-3C — the collapsed WIDTH derives from the CONTROL (toggle) icon; the
+    // navigation-item icons inside it are sized independently (32/16px).
+    const toggleIcon = rail.querySelector('.ui-sidebar-toggle-icon');
+    const tir = toggleIcon && getComputedStyle(toggleIcon).display !== 'none' ? toggleIcon.getBoundingClientRect() : null;
     return {
       dataCollapsed: rail.getAttribute('data-collapsed'),
       railWidth: Math.round(rail.getBoundingClientRect().width),
       iconW: ir ? Math.round(ir.width) : null,
+      toggleIconW: tir ? Math.round(tir.width) : null,
       strayLabels: items.filter((li) => { const l = li.querySelector('.ui-nav-item-label'); if (!l) return false; const r = l.getBoundingClientRect(); return r.width > 2 && r.height > 2; }).length,
       labelsVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-label'))).length,
       closedVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-icon-closed'))).length,
@@ -1304,7 +1378,11 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
     };
   })()`);
   check(rows, `${tag}.p6b.collapsed.state`, !!col && col.dataCollapsed === "true");
-  check(rows, `${tag}.p6b.collapsed.widthDerived`, !!col && col.iconW != null && col.railWidth >= Math.round(col.iconW * 1.15) && col.railWidth <= Math.round(col.iconW * 1.3), `rail=${col && col.railWidth} icon=${col && col.iconW}`);
+  check(rows, `${tag}.p6b.collapsed.widthDerived`, !!col && col.toggleIconW != null && col.railWidth >= Math.round(col.toggleIconW * 1.15) && col.railWidth <= Math.round(col.toggleIconW * 1.3), `rail=${col && col.railWidth} toggleIcon=${col && col.toggleIconW}`);
+  // P6-3C — the collapsed rail's navigation icons are the 32px desktop size and
+  // remain fully inside the rail (never clipped by the derived width).
+  check(rows, `${tag}.p6c.collapsed.navIcon32`, !!col && col.iconW === 32, `navIcon=${col && col.iconW}`);
+  check(rows, `${tag}.p6c.collapsed.navIconFits`, !!col && col.iconW != null && col.railWidth > col.iconW, `rail=${col && col.railWidth} icon=${col && col.iconW}`);
   check(rows, `${tag}.p6b.collapsed.closedIconsVisible`, !!col && col.closedVisible > 0 && col.openVisible === 0);
   check(rows, `${tag}.p6b.collapsed.labelsHidden`, !!col && col.labelsVisible === 0);
   check(rows, `${tag}.p6b.collapsed.noStrayLabels`, !!col && col.strayLabels === 0, `stray=${col && col.strayLabels}`);
@@ -1319,19 +1397,120 @@ async function runP6bTabletSweep(rows, tag, cdp) {
     const s = await cdp.evaluate(`(() => {
       const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 ? { left: Math.round(b.left), right: Math.round(b.right), width: Math.round(b.width) } : null; };
       const rail = rect(document.querySelector('#shell-sidebar-desktop-rail')) || rect(document.querySelector('#shell-sidebar-tablet-rail'));
-      const t = document.querySelector('#shell-sidebar-tablet-rail .ui-sidebar-toggle-icon');
+      // P6-3C — measure the rail band that is actually VISIBLE at this width:
+      // both bands exist in the DOM, but the non-matching one is display:none
+      // (so a naive first-match query would measure a hidden 0×0 element).
+      const railEl = [document.querySelector('#shell-sidebar-desktop-rail'), document.querySelector('#shell-sidebar-tablet-rail')]
+        .find((el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) || null;
+      const t = railEl ? railEl.querySelector('.ui-sidebar-toggle-icon') : null;
       const tr = t ? t.getBoundingClientRect() : null;
       const tVisible = !!tr && tr.width > 2 && tr.height > 2;
-      return { rail, main: rect(document.querySelector('#main')), vw: document.documentElement.clientWidth, tabletToggle: tVisible ? { w: Math.round(tr.width), h: Math.round(tr.height) } : null };
+      // The sidebar is COLLAPSED by default in the tablet band, so the visible
+      // navigation icon is the CLOSED (plus) one — pick whichever icon element
+      // is actually rendered rather than assuming the open-state sibling.
+      const navIcons = railEl ? [...railEl.querySelectorAll('.ui-nav-item-icon-closed, .ui-nav-item-icon-open, .ui-nav-item-icon')] : [];
+      const navIcon = navIcons.find((el) => {
+        if (getComputedStyle(el).display === 'none') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 2 && r.height > 2;
+      }) || null;
+      const nr = navIcon ? navIcon.getBoundingClientRect() : null;
+      return {
+        rail,
+        main: rect(document.querySelector('#main')),
+        vw: document.documentElement.clientWidth,
+        tabletToggle: tVisible ? { w: Math.round(tr.width), h: Math.round(tr.height) } : null,
+        toggleIcon: tVisible ? { w: Math.round(tr.width), h: Math.round(tr.height) } : null,
+        navIcon: nr && nr.width > 2 ? { w: Math.round(nr.width), h: Math.round(nr.height) } : null,
+      };
     })()`);
     if (!s.rail) {
       check(rows, `${tag}.p6b.sweep.${width}.noStackedRail`, true, "no aside rail visible (mobile composition)");
     } else {
       check(rows, `${tag}.p6b.sweep.${width}.railBesideContent`, s.main != null && s.rail.right <= s.main.left + 2 && s.rail.width < s.vw * 0.6, `railRight=${s.rail.right} mainLeft=${s.main && s.main.left} railW=${s.rail.width}`);
     }
-    if (s.tabletToggle) check(rows, `${tag}.p6b.sweep.${width}.tabletToggleIcon32`, s.tabletToggle.w >= 32 && s.tabletToggle.h >= 32, `w=${s.tabletToggle.w} h=${s.tabletToggle.h}`);
+    // The CONTROL (toggle) icon keeps its approved sizes — 32px below `lg`
+    // (tablet band) and 64px at `lg` — independently of the smaller
+    // navigation-item icons (P6-3C token split).
+    if (s.toggleIcon) {
+      const expectedToggle = width < 1024 ? 32 : 64;
+      check(rows, `${tag}.p6b.sweep.${width}.controlIcon${expectedToggle}`, s.toggleIcon.w === expectedToggle && s.toggleIcon.h === expectedToggle, `w=${s.toggleIcon.w} h=${s.toggleIcon.h}`);
+    }
+    // P6-3C — below `lg` the sidebar NAVIGATION icons are 16×16 (the sweep
+    // covers just-below / at / just-above the tablet range).
+    if (s.navIcon && width < 1024) {
+      check(rows, `${tag}.p6c.sweep.${width}.navIcon16`, s.navIcon.w === 16 && s.navIcon.h === 16, `w=${s.navIcon.w} h=${s.navIcon.h}`);
+    }
   }
 }
+/**
+ * P6-3C — banner scaling across the three contract cases + the Book Now
+ * placement contract. Uses the REAL shipped banner graphic: its natural width
+ * defines the cases (narrower than natural → downscale; between natural and
+ * 1.5× → fill; wider than 1.5× → stop at 1.5×).
+ */
+async function runP6cChecks(rows, tag, cdp) {
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const natW = await cdp.evaluate(`(() => { const i = document.querySelector('.ui-page-banner-image'); return i ? i.naturalWidth : 0; })()`);
+  for (const width of [220, 300, 390, 700, 800, 1024, 1280]) {
+    await cdp.setViewport(width, 844);
+    await cdp.reload();
+    await waitReady(cdp);
+    const s = await cdp.evaluate(`(() => {
+      const img = document.querySelector('.ui-page-banner-image');
+      if (!img) return null;
+      const ir = img.getBoundingClientRect();
+      const cs = getComputedStyle(img);
+      const cta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
+      const cr = cta ? cta.getBoundingClientRect() : null;
+      const header = document.querySelector('.ui-site-header');
+      const hr = header ? header.getBoundingClientRect() : null;
+      const mr = document.querySelector('#main') ? document.querySelector('#main').getBoundingClientRect() : null;
+      const reachable = [...document.querySelectorAll('.nav-item-cta')].filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+      return {
+        vw: document.documentElement.clientWidth,
+        scrollW: document.documentElement.scrollWidth,
+        w: Math.round(ir.width), h: Math.round(ir.height),
+        left: Math.round(ir.left), right: Math.round(ir.right),
+        natW: img.naturalWidth, natH: img.naturalHeight,
+        cap: cs.maxWidth.endsWith('px') ? parseFloat(cs.maxWidth) : null,
+        ctaCount: reachable.length,
+        ctaVisible: !!cr && cr.width > 0 && cr.height > 0,
+        ctaBelowHeader: !!cr && !!hr && cr.top >= hr.bottom - 2,
+        ctaAboveMain: !!cr && !!mr && cr.bottom <= mr.top + 2,
+        ctaInAside: reachable.some((el) => !!el.closest('.ui-shell-sidebar')),
+        ctaInBar: reachable.some((el) => !!el.closest('.ui-shell-bottom-bar')),
+        ctaInDialog: reachable.some((el) => !!el.closest('[role="dialog"]')),
+      };
+    })()`);
+    if (!s) {
+      check(rows, `${tag}.p6c.w${width}.banner.present`, false, "no banner image rendered");
+      continue;
+    }
+    const cap = Math.round(s.natW * 1.5);
+    const expected = Math.min(s.vw, cap);
+    check(rows, `${tag}.p6c.w${width}.banner.present`, s.natW === natW && natW > 0, `natW=${s.natW}`);
+    check(rows, `${tag}.p6c.w${width}.banner.width`, Math.abs(s.w - expected) <= 2, `w=${s.w} expected=${expected} vw=${s.vw} natW=${s.natW}`);
+    check(rows, `${tag}.p6c.w${width}.banner.centered`, Math.abs(s.left - (s.vw - s.w) / 2) <= 2, `left=${s.left} right=${s.right} vw=${s.vw} w=${s.w}`);
+    check(rows, `${tag}.p6c.w${width}.banner.noOverflow`, s.left >= -1 && s.right <= s.vw + 1, `left=${s.left} right=${s.right} vw=${s.vw}`);
+    // The banner must not push the PAGE into horizontal overflow either (only
+    // asserted at supported widths — 220px is deliberately below the mobile
+    // minimum, used purely to exercise the downscale case).
+    if (width >= 390) {
+      check(rows, `${tag}.p6c.w${width}.banner.noPageOverflow`, s.scrollW <= s.vw + 1, `scrollW=${s.scrollW} vw=${s.vw}`);
+    }
+    check(rows, `${tag}.p6c.w${width}.banner.ratio`, s.natH > 0 && Math.abs(s.w / s.h - s.natW / s.natH) < 0.03, `rendered=${s.w}x${s.h} natural=${s.natW}x${s.natH}`);
+    check(rows, `${tag}.p6c.w${width}.banner.cap`, s.cap != null && Math.abs(s.cap - cap) <= 1, `cap=${s.cap} expected=${cap}`);
+    // Book Now — ONE action, in the top region, outside every navigation layer.
+    check(rows, `${tag}.p6c.w${width}.cta.single`, s.ctaCount === 1, `count=${s.ctaCount}`);
+    check(rows, `${tag}.p6c.w${width}.cta.visible`, !!s.ctaVisible);
+    check(rows, `${tag}.p6c.w${width}.cta.topRegion`, !!s.ctaBelowHeader && !!s.ctaAboveMain, `belowHeader=${s.ctaBelowHeader} aboveMain=${s.ctaAboveMain}`);
+    check(rows, `${tag}.p6c.w${width}.cta.outsideNavigation`, !s.ctaInAside && !s.ctaInBar && !s.ctaInDialog, `aside=${s.ctaInAside} bar=${s.ctaInBar} dialog=${s.ctaInDialog}`);
+  }
+}
+
+
 
 async function runMatrix(chrome, onlyPreset) {
 

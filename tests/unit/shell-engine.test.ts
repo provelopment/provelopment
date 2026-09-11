@@ -146,41 +146,126 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
     expect(html).toContain('id="shell-sidebar-tablet-panel" class="ui-sidebar-rail-panel"');
     expect(html).toContain('data-collapsed="true"');
     expect(html).toContain('aria-expanded="false"');
-    // The CTA composes INSIDE the sidebar panel — a child of the navigation
-    // region, not positioned independently.
+    // P6-3C — the CTA is NOT composed inside the sidebar: it renders once in
+    // the shell's TOP region, ABOVE the aside rail, so no rail state can
+    // contain, clip, or obscure it.
     expect(html).toContain("nav-item-cta");
-    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(html.indexOf("nav-item-cta")).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
   });
 });
 
-describe("P0-2 — the header CTA is a single shared capability with one responsive rule", () => {
-  it("header CTA is hidden below md when the mobile composition owns the CTA slot (drawer) — no duplicate desktop+mobile pair", () => {
+describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placement)", () => {
+  const completeCta = { enabled: true, action: "book", label: "Book", style: "standard" } as const;
+
+  it("an ASIDE composition (sidebar/floating) keeps the CTA in the top region — never inside the rail", () => {
     const resolved = resolveUiConfig({
-      navigation: { desktop: "top", tablet: "top-compact", mobile: "drawer" },
-      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+      cta: { ...completeCta },
     });
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", locale: "en", pageBindings: [] }),
+      ShellEngine({
+        resolved,
+        header,
+        main,
+        footer,
+        mainId: "main",
+        navigationLabel: "Primary",
+        asideContent: items,
+        ctaLabel: "Book",
+        ctaHref: "/book",
+        locale: "en",
+        pageBindings: [],
+      }),
     );
     expect(html).toContain("ui-shell-header-row");
-    // The ≥md header instance is reachable ≥md but NOT below md (the mobile
-    // drawer owns the CTA there) — the no-duplicate responsive contract.
-    expect(html).toContain('class="hidden md:block"');
-    expect(html).toContain("nav-item-cta");
-    expect(html.indexOf("<header>")).toBeLessThan(html.indexOf("nav-item-cta"));
+    const ctaAt = html.indexOf("nav-item-cta");
+    // Below the header / above the rail — structurally OUTSIDE the aside.
+    expect(ctaAt).toBeGreaterThan(html.indexOf("<header>"));
+    expect(ctaAt).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
+    expect(ctaAt).toBeLessThan(html.indexOf("ui-sidebar-rail-panel"));
+    // Exactly ONE action, and never hidden behind a responsive utility (the one
+    // instance is reachable at every width — no duplicate desktop+mobile pair).
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain('class="hidden md:block"');
   });
 
-  it("header CTA stays directly in the header row when the mobile composition also uses the header slot (single CTA at every width)", () => {
+  it("a BOTTOM-BAR composition keeps the CTA in the top region — never in the bar", () => {
     const resolved = resolveUiConfig({
-      navigation: { desktop: "top", tablet: "top-compact", mobile: "top" },
-      cta: { enabled: true, action: "book", label: "Book", style: "standard" },
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "bottom-bar" },
+      cta: { ...completeCta },
     });
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved, header, main, footer, mainId: "main", ctaLabel: "Book", ctaHref: "/book", locale: "en", pageBindings: [] }),
+      ShellEngine({
+        resolved,
+        header,
+        main,
+        footer,
+        mainId: "main",
+        navigationLabel: "Primary",
+        asideContent: items,
+        bottomNav: { label: "Primary", moreLabel: "More", links: [{ href: "/1", label: "One" }] },
+        ctaLabel: "Book",
+        ctaHref: "/book",
+        locale: "en",
+        pageBindings: [],
+      }),
     );
-    expect(html).toContain("ui-shell-header-row");
-    expect(html).not.toContain('class="hidden md:block"');
-    expect(html).toContain("nav-item-cta");
+    expect(html).toContain("ui-shell-bottom-bar");
+    const ctaAt = html.indexOf("nav-item-cta");
+    expect(ctaAt).toBeGreaterThan(html.indexOf("<header>"));
+    expect(ctaAt).toBeLessThan(html.indexOf("ui-shell-bottom-bar"));
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+  });
+
+  it("a DRAWER composition keeps the CTA in the top region — never in the disclosure", () => {
+    const resolved = resolveUiConfig({
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+      cta: { ...completeCta },
+    });
+    const html = renderToStaticMarkup(
+      ShellEngine({
+        resolved,
+        header,
+        main,
+        footer,
+        mainId: "main",
+        navigationLabel: "Primary",
+        asideContent: items,
+        ctaLabel: "Book",
+        ctaHref: "/book",
+        locale: "en",
+        pageBindings: [],
+      }),
+    );
+    expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("<header>"));
+    expect(html.match(/nav-item-cta/g) ?? []).toHaveLength(1);
+    // A closed disclosure renders no dialog at all — nothing is composed into it.
+    expect(html).not.toContain('role="dialog"');
+  });
+
+  it("composes NO CTA at all when cta.enabled is false (never invented)", () => {
+    const resolved = resolveUiConfig({
+      navigation: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "bottom-bar" },
+    });
+    const html = renderToStaticMarkup(
+      ShellEngine({
+        resolved,
+        header,
+        main,
+        footer,
+        mainId: "main",
+        navigationLabel: "Primary",
+        asideContent: items,
+        ctaLabel: "Book",
+        ctaHref: "/book",
+        locale: "en",
+        pageBindings: [],
+      }),
+    );
+    expect(html).not.toContain("ui-shell-cta");
+    expect(html).not.toContain("nav-item-cta");
+    expect(html).not.toContain("/book");
   });
 });
 

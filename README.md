@@ -50,7 +50,10 @@ to the default locale.
 4. **Change the appearance without touching source:** side-bar/top/bottom menu
    presentation modes, sidebar disclosure icons/text (`ui.navigation.sidebar`),
    navigation icons/regions, and the primary CTA's icon/state
-   (`ui.cta.*`) are all configuration. Replace any icon in `public/assets/`
+   (`ui.cta.*`) are all configuration. The primary CTA renders **once** in the
+   shell's top region (below the header, above the content) at every width —
+   never inside the sidebar, the bottom bar, or a mobile menu (P6-3C). Replace
+   any icon in `public/assets/`
    (in place or via `"icon": "my-icon.svg"`) — see
    `CUSTOMIZING.md` → *Configurable controls, assets & presentation modes (P5-5)*.
 5. Add locales, deploy to Vercel, and keep up to date with upstream —

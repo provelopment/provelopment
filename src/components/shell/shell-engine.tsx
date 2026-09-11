@@ -140,11 +140,15 @@ export function ShellEngine({
   // any composed rail is laid out as a side rail, never a top-of-content list.
   const wrapperClass = `flex flex-col flex-1 ${asideActive ? "md:flex-row md:flex-wrap" : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
 
-  // P0-2 — the primary CTA is the one shared `Cta` capability. The engine owns
-  // WHERE the CTA is composed (from the decision-core per-viewport ctaSlot);
-  // `Cta` owns WHETHER one exists (enabled ∧ href ∧ (label ∨ icon) ∧ a real
-  // accessible name) and its prominence/presentation. Nothing here invents a
-  // label or href; P5-5 icon/state flow through from the resolved CTA intent.
+  // P0-2/P6-3C — the primary CTA is the one shared `Cta` capability. `Cta` owns
+  // WHETHER one exists (enabled ∧ href ∧ (label ∨ icon) ∧ a real accessible
+  // name) and its prominence/presentation; the engine owns WHERE it sits.
+  // P6-3C — that place is the ONE authoritative top region: below the header,
+  // above `<main>`, rendered exactly once for EVERY viewport and structurally
+  // OUTSIDE the aside rail and the mobile navigation layers. The former
+  // per-viewport placements (aside band / bottom bar / drawer / overlay) are
+  // gone, so a Book Now can never be duplicated, collapsed away, or obscured.
+  // Nothing here invents a label or href; P5-5 icon/state flow through as before.
   const ctaNode = isCtaRenderable(
     resolved.cta.enabled,
     ctaLabel,
@@ -164,30 +168,14 @@ export function ShellEngine({
       className="ui-shell-cta"
     />
   ) : null;
+  const topCtaNode = decision.cta.present ? ctaNode : null;
 
-  const headerUsesCta =
-    ctaNode !== null && (decision.desktop.ctaSlot === "header" || decision.tablet.ctaSlot === "header");
-
-  // P0-2 responsive contract (exactly ONE interactive CTA per viewport): when
-  // the mobile composition owns the CTA slot (drawer / overlay / bottom-bar),
-  // the ≥md header CTA instance must NOT remain reachable below `md` — a
-  // header-slot preset whose mobile disclosure also exposes its own CTA must
-  // never render a duplicate desktop+mobile pair. The hide lives on an OUTER
-  // wrapper (not the CTA itself) so the additive `ui-cta-prominent` display
-  // rule can never override it (layered utility vs unlayered token rule).
-  const mobileOwnsCta =
-    decision.mobile.ctaSlot !== "header" && decision.mobile.ctaSlot !== "none";
-  const headerCtaNode =
-    headerUsesCta && ctaNode !== null
-      ? mobileOwnsCta
-        ? <div className="hidden md:block">{ctaNode}</div>
-        : ctaNode
-      : null;
-
-  // Header-slot CTA: composed beside the header only when a real CTA renders
-  // (no-op → header passthrough; the shipped demo stays byte-identical).
-  const headerContent = headerCtaNode ? (
-    <div className="ui-shell-header-row">{header}{headerCtaNode}</div>
+  // The shell's TOP region: the header, then the single CTA beneath it. Neither
+  // belongs to the aside rail, so collapsing or expanding the rail can neither
+  // move the action nor clip it. No responsive duplication is needed at all —
+  // the one instance is reachable at every width.
+  const headerContent = topCtaNode ? (
+    <div className="ui-shell-header-row">{header}{topCtaNode}</div>
   ) : (
     header
   );
@@ -252,12 +240,6 @@ export function ShellEngine({
       // dead-end). Non-collapsed bands follow the configured intent.
       const collapsible = tabletCollapsedSidebar || sidebarCollapsible;
       const collapsedInitial = tabletCollapsedSidebar;
-      const bandCta =
-        ctaNode !== null &&
-        ((band === "desktop" && decision.desktop.ctaSlot === "aside") ||
-          (band === "tablet" && decision.tablet.ctaSlot === "aside"))
-          ? ctaNode
-          : null;
       return (
         <Sidebar
           key={band}
@@ -273,8 +255,10 @@ export function ShellEngine({
           open={openControl}
           close={closeControl}
         >
+          {/* P6-3C — the aside rail carries NAVIGATION ONLY. The primary CTA is
+              never composed here: it lives once in the shell's top region, so no
+              rail state (expanded/collapsed) can obscure or clip it. */}
           {asideContent}
-          {bandCta}
         </Sidebar>
       );
     };
@@ -304,11 +288,6 @@ export function ShellEngine({
             closeLabel={bottomNav.closeLabel}
             mode={bottomNav.mode}
             sidebarClose={bottomNav.sidebarClose}
-            cta={
-              ctaNode !== null && decision.mobile.ctaSlot === "bottom" && ctaLabel && ctaHref
-                ? { label: ctaLabel, href: ctaHref }
-                : undefined
-            }
           />
         </>
       );

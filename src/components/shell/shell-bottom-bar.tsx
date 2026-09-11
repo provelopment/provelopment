@@ -54,8 +54,6 @@ export interface ShellBottomBarProps {
   readonly pageBindings: readonly PageRegionBinding[];
   /** Localized demo badge label (for `demoOnly` items). */
   readonly demoBadgeLabel?: string;
-  /** Primary CTA composed only when the engine resolved `cta.enabled`+labels. */
-  readonly cta?: { readonly label: string; readonly href: string };
   /** P6-1 — label for the explicit "Hide Sidebar" control in the More drawer
    * (the shared sidebar contract; absent → no close control renders). */
   readonly closeLabel?: string;
@@ -72,7 +70,6 @@ export function ShellBottomBar({
   locale,
   pageBindings,
   demoBadgeLabel,
-  cta,
   closeLabel,
   mode,
   sidebarClose,
@@ -101,8 +98,10 @@ export function ShellBottomBar({
     ];
   });
 
-  const ctaItems: NavItemModel[] = cta ? [{ label: cta.label, href: cta.href, variant: "cta" }] : [];
-  const { primary, remainder } = splitBottomNavItems([...ctaItems, ...resolved]);
+  // P6-3C — the bar carries NAVIGATION only. The primary CTA has its single
+  // authoritative home in the shell's TOP region (below the header), so it is
+  // never duplicated into the bar and can never be obscured by it.
+  const { primary, remainder } = splitBottomNavItems(resolved);
 
   return (
     <div className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}>

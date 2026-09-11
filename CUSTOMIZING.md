@@ -233,9 +233,9 @@ same: `"preset": "<name>"` plus optional explicit leaves that override
 individual dimensions of the profile (used by the five preset deployments).
 
 **Focus (UI-07) is conversion-first with a prominent primary CTA.** It required
-the smallest declarative extension — one adopter-owned `cta.href` destination,
-the content-layer drawer CTA consumer, and the vocabulary-driven `prominent`
-treatment:
+the smallest declarative extension — one adopter-owned `cta.href` destination and
+the vocabulary-driven `prominent` treatment (the mobile drawer consumer was
+retired in P6-3C: the CTA is placed once in the shell's top region):
 
 ```jsonc
 {
@@ -251,8 +251,11 @@ treatment:
 }
 ```
 
-- The CTA renders in the header at ≥`md` and inside the mobile drawer at <`md`
-  (when it materially exists — enabled + label + href).
+- **P6-3C — one authoritative placement.** The CTA renders **once**, in the
+  shell's **top region** (below the header, above `<main>`), at **every** width.
+  It is structurally outside the aside rail and outside the mobile disclosure, so
+  no sidebar state (expanded/collapsed) can contain, clip, or obscure it, and
+  there is no duplicated responsive button.
 - `cta.href` is optional and NEVER inferred from `action`. An enabled CTA
   without label+href renders nothing (the Foundation never invents a destination
   or route).
@@ -275,8 +278,9 @@ collapsed-sidebar tablet, drawer <md shell (shared with Adaptive):
 }
 ```
 
-The CTA renders in the sidebar at ≥`md` (aside slot) and inside the mobile drawer
-at <`md` (existing UI-07 consumer). **Truthful scope:** the **Workspace shell** is
+The CTA renders **once** in the shell's **top region** (below the header, above
+`<main>`) — never inside the aside rail and never inside the mobile disclosure
+(P6-3C). **Truthful scope:** the **Workspace shell** is
 implemented and proven; **grouped navigation** and the **optional secondary/context
 panel** remain **deferred pending explicit contracts** (no group data shape, no
 content source, no consumer as of UI-08 — see ARCHITECTURE — Workspace preset). Do
@@ -298,9 +302,9 @@ already-declared mobile **overlay** CTA observable:
 
 Desktop/tablet `floating` resolves through the existing **aside** (sidebar)
 composition; mobile `overlay` uses the existing `OverlayNavigation` path. The CTA
-renders in the aside at ≥`md` and inside the **open overlay** at <`md` (the UI-09
-consumer extends the existing UI-07 drawer-CTA consumer to admit the `overlay`
-pattern). `disabled`/no-`href` → no CTA (never invented). **Truthful scope:** a
+renders **once** in the shell's **top region** (below the header, above `<main>`)
+at every width — never in the aside and never inside the open overlay (P6-3C).
+`disabled`/no-`href` → no CTA (never invented). **Truthful scope:** a
 distinct `floating` visual treatment and the `minimal` header treatment remain
 **deferred** (no concrete contract defines them); **overlay interaction behavior**
 (animation, backdrop, dismissal, Escape, focus, reduced motion) remains the
@@ -421,7 +425,7 @@ Every sidebar disclosure across every breakpoint says the same thing:
   clips the viewport edge and items clearly belong inside the sidebar.
 - **Compact mode** (icon-only rail) keeps the same insets; icon-less items keep
   their labels per the established P5-5A semantics.
-#### Persistent horizontal rail (P6-3A; refined P6-3B — icon system, derived width, full-height border)
+#### Persistent horizontal rail (P6-3A; refined P6-3B icon system/derived width/full-height border; P6-3C icon sizes + CTA placement)
 
 The **desktop/tablet sidebar is a persistent left rail**: collapsing it
 **contracts it horizontally** to a narrow rail — the rail is **never removed**
@@ -437,13 +441,21 @@ and the same left-side vertical position.
   (`transition: width 200ms`, stripped under `prefers-reduced-motion`) — never a
   vertical move, never a disappearance.
 - **The collapsed width is NOT a fixed pixel value.** It is derived from the
-  sidebar icon token, so changing the icon size re-derives the rail:
-  `--ui-sidebar-icon-size` is `2rem` (32px) below `lg` and `4rem` (64px) at ≥`lg`;
-  collapsed width = `icon × 1.2` → **≈38px** below `lg`, **≈77px** at ≥`lg`
-  (browser-measured: `rail=77 icon=64` at 1280; `rail=38` at 800–1023).
-- **Icon sizes.** The Show/Hide disclosure icon and the sidebar navigation icons
-  render **64×64 at ≥`lg`** and **32×32 below `lg`**; the mobile disclosure
-  control icon renders **32×32**. Top-nav / bottom-bar keep the shared `1em` base.
+  sidebar **CONTROL (toggle) icon** token, so changing that icon size re-derives
+  the rail: `--ui-sidebar-icon-size` is `2rem` (32px) below `lg` and `4rem`
+  (64px) at ≥`lg`; collapsed width = `icon × 1.2` → **≈38px** below `lg`,
+  **≈77px** at ≥`lg` (browser-measured: `rail=77 toggleIcon=64` at 1280;
+  `rail=38` with a 32px control icon at 800–1023).
+- **Icon sizes (P6-3C).** The control icon and the navigation-item icons are
+  deliberately **separate tokens** so the rail geometry above is untouched:
+  - **Show/Hide disclosure (control) icon:** **64×64 at ≥`lg`**, **32×32 below
+    `lg`** — unchanged from P6-3B; this is the token the collapsed width derives
+    from, and it keeps the toggle's hit area intact.
+  - **Sidebar navigation-item icons:** **32×32 at ≥`lg`**, **16×16 below `lg`**
+    (browser-measured: `navIconW=32` desktop; `w=16 h=16` at 800/900/1000/1023),
+    via `--ui-sidebar-nav-icon-size` (`2rem` ≥`lg`, `1rem` below).
+  - The mobile disclosure control icon renders **32×32**. Top-nav / bottom-bar
+    keep the shared `1em` base.
 - **Full-height right border.** The rail's `border-inline-end` spans the whole
   sidebar/page-shell row (browser-measured `rail=774` vs `main=774` at 1280),
   not merely the navigation content.
@@ -452,6 +464,13 @@ and the same left-side vertical position.
   (`aria-expanded` reflects the state; `aria-controls` targets the persistent
   panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary. A
   deliberately non-collapsible rail (immersive `floating`) has no toggle.
+- **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
+  mobile disclosure carry **navigation only**: the single Book Now action lives in
+  the shell's top region (`ui-shell-header-row`), so collapsing or expanding the
+  rail can neither move, clip, nor obscure it — and no second copy exists in the
+  bottom bar or the disclosure (browser-verified at desktop **and** tablet:
+  `aside.cta.outsideSidebar inAside=false`, `aside.cta.reachableInTop`,
+  `aside.cta.single count=1`, `open.cta.notInPanel`).
 - **Navigation-item icons (P6-3B).** Every sidebar navigation item shows an icon:
   the default is a **large dot** when expanded (`sidebar-default-icon-open.svg`)
   and a **large plus** when collapsed (`sidebar-default-icon-closed.svg`). Each
@@ -586,6 +605,14 @@ a finite vocabulary — `default` and `disabled` — plus the browser-native
 exposed. An enabled CTA without `href` (or without any visible content, or
 without any accessible name) renders nothing — the Foundation never infers a
 destination and never ships an empty accessible label.
+
+**Placement (P6-3C).** The CTA's position is not a per-viewport decision: the
+shell composes it **once** in its top region (`ui-shell-header-row`, below the
+header and above `<main>`), at every width and for every preset. It is never
+composed into the aside rail, the bottom bar, or a mobile drawer/overlay, so the
+action cannot be duplicated, collapsed away, or obscured (browser-verified:
+`count=1` reachable action at 220–1280px). `ui.cta.enabled: false` (or an
+incomplete CTA) renders nothing anywhere.
 
 **Button state model (P5-5A decision, owner-reviewed):** the Foundation's
 semantic state vocabulary is deliberately the minimum that has a real
@@ -1142,7 +1169,7 @@ without changing component source code.
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 
-Status (P6-2D/P6-3B — brand presentation composed; header mark + page banners):
+Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
 - **`favicon`** — fully live and authoritative: `site.assets.favicon` resolves via
   `assetPathFromUrl` to the same-origin `/assets/favicon.svg` and Next.js emits
@@ -1157,18 +1184,34 @@ Status (P6-2D/P6-3B — brand presentation composed; header mark + page banners)
   via `height: 2rem; width: auto`, `max-width: 100%`). The former text brand
   label was replaced. Absent config → the previous text brand link (never a
   broken image).
-- **`banner-*` (P6-3B)** — **composed**: the server resolves
-  `site.assets.banners` (page-slug → absolute URL) through `availableBannerPath`
-  to same-origin paths for entries whose file exists under `public/assets/`, and
-  `PageBanner` (`src/components/site/page-banner.tsx`) renders the banner for the
-  CURRENT page above the header. A page with **no** entry renders **nothing** —
-  no container, no reserved blank block, never another page's banner
-  (browser-verified: header top = 0 on a no-banner page). The image has **zero**
-  structural padding/margin/border/radius, occupies the full available width, and
-  its height follows the graphic's own aspect ratio (no fixed height, no crop or
-  stretch). `banner-home.jpg` is the migrated former `logo-title.jpg` (a 240×135
-  ≈ 16:9 graphic), so at full desktop width it renders ≈712px tall; supply a wide
-  banner graphic (e.g. 1920×202) to obtain the intended ~135px band.
+- **`banner-*` (P6-3B; scaling contract P6-3C)** — **composed**: the server
+  resolves `site.assets.banners` (page-slug → absolute URL) through
+  `availableBannerPath` to same-origin paths for entries whose file exists under
+  `public/assets/`, reads the graphic's **intrinsic size** (`readImageDimensions`,
+  server-only, cached), and `PageBanner`
+  (`src/components/site/page-banner.tsx`) renders the banner for the CURRENT page
+  above the header. A page with **no** entry renders **nothing** — no container,
+  no reserved blank block, never another page's banner (browser-verified: header
+  top = 0 on a no-banner page). Sizing contract:
+  - **Always centered** horizontally in the available page width (never
+    left-aligned) — including when the graphic is capped and narrower than the
+    page (browser-measured at 1280: `left=453 right=813 vw=1265 w=360`).
+  - **`displayWidth = min(available page width, 1.5 × natural width)`** and the
+    height always follows the graphic's own aspect ratio (**no** fixed height, no
+    crop, no stretch, no structural padding/margin/border/radius).
+  - It therefore **scales down** when the graphic is wider than the page,
+    **fills** the page between the natural width and 1.5×, and **stops at 1.5×**
+    beyond that — it is never enlarged merely to fill the page. The cap is passed
+    down as `--ui-banner-max-width` (never a hard-coded width), and if the
+    intrinsic size cannot be decoded the banner is **downscale-only**
+    (`width: auto; max-width: 100%`).
+  - Browser-measured cases with the shipped graphic (natural 240×135, cap 360):
+    220px viewport → **205** (downscale); 300 → **285** (fill); 390/700/800/1024/1280
+    → **360** (the 1.5× cap); no horizontal overflow at any width.
+  - `banner-home.jpg` is the migrated former `logo-title.jpg` (240×135 ≈ 16:9), so
+    with the 1.5× cap it renders a **centered 360px-wide** banner on desktop;
+    supply a wide banner graphic (e.g. 1920×202) to obtain the intended full-width
+    ~135px band (1.5 × 1920 = 2880 exceeds every viewport, so it fills).
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,

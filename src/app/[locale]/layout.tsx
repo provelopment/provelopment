@@ -12,6 +12,7 @@ import {
   assetPathFromUrl,
   availableBannerPath,
   availableIconName,
+  readImageDimensions,
 } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -147,13 +148,18 @@ export default async function LocaleLayout({
     !sidebarClosed &&
     (shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside");
   const usesBottomBar = shellDecision.mobile.primitiveKind === "bottom-bar";
-  // P6-3B — the per-page banner map (page slug → same-origin path). Only
-  // entries whose file actually exists under `public/assets/` survive, so a
+  // P6-3B/P6-3C — the per-page banner map (page slug → composable banner asset).
+  // Only entries whose file actually exists under `public/assets/` survive, so a
   // stale/typo'd banner URL renders NO banner (never a placeholder or a 404).
+  // P6-3C — the graphic's INTRINSIC size is read here (server-only) so the
+  // renderer can enforce `displayWidth = min(availableWidth, 1.5 × naturalWidth)`
+  // without client measurement, upscaling flash, or layout shift.
   const bannerMap = Object.fromEntries(
     Object.entries(siteConfig.assets?.banners ?? {}).flatMap(([page, url]) => {
       const path = availableBannerPath(url);
-      return path ? [[page, path]] : [];
+      if (!path) return [];
+      const size = readImageDimensions(path);
+      return [[page, { src: path, width: size?.width, height: size?.height }]];
     }),
   );
   const regionIds = configuredRegionIds(siteConfig.regions);

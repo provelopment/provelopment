@@ -39,8 +39,13 @@ export interface PerViewportDecision {
   readonly primitiveKind: ShellPrimitiveKind;
   /** Where the desktop/tablet nav primitive sits in the shell. */
   readonly slot: "header" | "aside";
-  /** CTA slot for this viewport (engine owns the actual placement). */
-  readonly ctaSlot: "header" | "drawer" | "bottom" | "aside" | "none";
+  /**
+   * P6-3C — the CTA's authoritative slot. `"top"` = the shell's TOP region
+   * (rendered once, below the header and above `<main>`, structurally OUTSIDE
+   * the aside rail and outside every mobile navigation layer). `"none"` = no
+   * CTA is composed at all. The navigation composition never moves the CTA.
+   */
+  readonly ctaSlot: "top" | "none";
   /** Whether a client trigger opens the layer (drawer/overlay only; false otherwise). */
   readonly trigger?: boolean;
 }
@@ -56,21 +61,29 @@ export interface ShellPatternDecision {
   readonly cta: { readonly present: boolean };
 }
 
+/**
+ * P6-3C — the primary CTA is placed ONCE, in the shell's top region, for every
+ * viewport: the owner-approved model is "Book now sits at the top of the page,
+ * independently of the sidebar". The navigation decisions below therefore never
+ * carry the CTA into the aside rail, the bottom bar, or the drawer/overlay —
+ * only whether it exists at all.
+ */
+function ctaSlotFor(ctaPresent: boolean): "top" | "none" {
+  return ctaPresent ? "top" : "none";
+}
+
 function desktopDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
   const slot = kind === "sidebar" || kind === "floating" ? "aside" : "header";
-  const ctaSlot = !ctaPresent ? "none" : slot === "aside" ? "aside" : "header";
-  return { primitiveKind: kind, slot, ctaSlot };
+  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent) };
 }
 
 function tabletDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
   const slot = kind === "collapsed-sidebar" || kind === "floating" ? "aside" : "header";
-  const ctaSlot = !ctaPresent ? "none" : slot === "aside" ? "aside" : "header";
-  return { primitiveKind: kind, slot, ctaSlot };
+  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent) };
 }
 
 function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaPresent: boolean): PerViewportDecision {
-  const ctaSlot = !ctaPresent ? "none" : kind === "bottom-bar" ? "bottom" : kind === "top" ? "header" : "drawer";
-  return { primitiveKind: kind, slot: "header", ctaSlot, trigger };
+  return { primitiveKind: kind, slot: "header", ctaSlot: ctaSlotFor(ctaPresent), trigger };
 }
 
 /**

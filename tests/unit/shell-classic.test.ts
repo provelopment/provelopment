@@ -94,13 +94,13 @@ describe("ShellEngine — Classic decision trajectories (no aside, no bottom bar
     expect(d.cta.present).toBe(false);
   });
 
-  it("classic + enabled CTA resolves header slots (tablet shares header), drawer stays drawer", () => {
+  it("P6-3C — classic + enabled CTA: EVERY viewport resolves the ONE top CTA slot", () => {
     const d = resolveShellPattern(
       resolveUiConfig({ preset: "classic", cta: { enabled: true, action: "book", label: "Book", style: "standard" } }),
     );
-    expect(d.desktop.ctaSlot).toBe("header");
-    expect(d.tablet.ctaSlot).toBe("header");
-    expect(d.mobile.ctaSlot).toBe("drawer"); // latent slot (D2): head of a future demonstrated need
+    expect(d.desktop.ctaSlot).toBe("top");
+    expect(d.tablet.ctaSlot).toBe("top");
+    expect(d.mobile.ctaSlot).toBe("top"); // the drawer never carries the CTA (P6-3C)
     expect(d.cta.present).toBe(true);
   });
 
