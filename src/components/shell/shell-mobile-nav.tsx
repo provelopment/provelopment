@@ -103,7 +103,7 @@ export function ShellMobileNav({
           aria-label={closeControl.text === "" ? (closeLabel ?? "Close Sidebar") : undefined}
           className="ui-drawer-close mt-4 flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
         >
-          <DisclosureIcon asset={closeControl.icon} className="ui-mobile-nav-icon h-4 w-4 shrink-0" />
+          <DisclosureIcon asset={closeControl.icon} className="ui-mobile-nav-icon h-8 w-8 shrink-0" />
           {closeControl.text === "" ? null : <span>{closeControl.text}</span>}
         </button>
       ) : null}
@@ -122,7 +122,7 @@ export function ShellMobileNav({
           aria-label={openControl.text === "" ? triggerLabel : undefined}
           className="ui-shell-mobile-nav-trigger inline-flex items-center gap-1.5 md:hidden"
         >
-          <DisclosureIcon asset={openControl.icon} className="ui-mobile-nav-icon h-4 w-4 shrink-0" />
+          <DisclosureIcon asset={openControl.icon} className="ui-mobile-nav-icon h-8 w-8 shrink-0" />
           {openControl.text === "" ? null : <span>{openControl.text}</span>}
         </button>
       ) : null}

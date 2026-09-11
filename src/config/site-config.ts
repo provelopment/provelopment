@@ -44,6 +44,16 @@ export interface NavigationItem {
   readonly href: string;
   /** P5-5 — optional navigation-item icon (plain `public/assets/` filename). */
   readonly icon?: string;
+  /**
+   * P6-3B — optional EXPANDED-state sidebar item icon (plain `public/assets/`
+   * filename). Falls back to `icon`, then the shipped default dot.
+   */
+  readonly iconOpen?: string;
+  /**
+   * P6-3B — optional COLLAPSED-state sidebar item icon (plain `public/assets/`
+   * filename). Falls back to `icon`, then the shipped default plus.
+   */
+  readonly iconClosed?: string;
   /** P5-5 — sidebar region group (`top` | `middle` | `bottom`; default `middle`). */
   readonly position?: NavRegion;
   /** P5-5 — semantically disabled state (`aria-disabled`, not navigable). */
@@ -201,24 +211,28 @@ export interface UiPresetComparisonConfig {
 }
 
 /**
- * P6-2C — every leaf maps onto one of the six generic branding asset roles
- * established in P6-2A. `logo`/`favicon` have real consumers today (JSON-LD,
- * browser tab icon); `logoFooter`/`logoTitle` are resolved + build-validated
- * but not yet composed into any component (a later visual-implementation
- * task). `sidebar-open`/`sidebar-close` are NOT part of this block (separate
+ * P6-2C/P6-3B — generic branding asset roles. `logo`/`favicon` have real
+ * consumers (JSON-LD + rendered header mark, browser tab icon);
+ * `logoFooter` is composed into the footer; `banners` is the per-page banner
+ * record (P6-3B, replacing the former `logoTitle` concept).
+ * `sidebar-open`/`sidebar-close` are NOT part of this block (separate
  * plain-filename icon-asset contract, `src/config/assets.ts`).
  */
 export interface SiteAssetsConfig {
-  /** Structured-data brand logo (absolute URL); absent → JSON-LD omits it. The `logo-header` role. */
+  /** Brand logo (absolute URL); JSON-LD + the rendered header mark. The `logo-header` role. */
   readonly logo?: string;
   /** Open Graph / social image (absolute URL); absent → per-locale generated route. */
   readonly ogImage?: string;
-  /** Browser favicon / icon (absolute URL); absent → app-routed `icon.svg`. The `favicon` role. */
+  /** Browser favicon / icon (absolute URL). The `favicon` role. */
   readonly favicon?: string;
-  /** The `logo-footer` role (absolute URL); not yet composed into the footer component. */
+  /** The `logo-footer` role (absolute URL); composed into the footer. */
   readonly logoFooter?: string;
-  /** The `logo-title` role (absolute URL); not yet composed into any title-area component. */
-  readonly logoTitle?: string;
+  /**
+   * P6-3B — the `banner-*` role (absolute URL), keyed by PAGE SLUG
+   * (`""`/`"home"` = home; `"about"` = About; …). A page with no entry renders
+   * no banner.
+   */
+  readonly banners?: Readonly<Record<string, string>>;
 }
 
 export interface SiteConfig {

@@ -136,7 +136,7 @@ describe("ShellEngine — Immersive desktop/tablet floating (existing aside comp
       }),
     );
     expect(html.match(/aria-label="Primary"/g) ?? []).toHaveLength(2); // both bands present
-    expect(html).toContain("flex flex-col flex-1 lg:flex-row lg:flex-wrap");
+    expect(html).toContain("flex flex-col flex-1 md:flex-row md:flex-wrap");
     const ids = allIds(html);
     expect(new Set(ids).size).toBe(ids.length);
   });

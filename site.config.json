@@ -8,7 +8,9 @@
       "logo": "https://www.example.com/assets/logo-header.svg",
       "favicon": "https://www.example.com/assets/favicon.svg",
       "logoFooter": "https://www.example.com/assets/logo-footer.svg",
-      "logoTitle": "https://www.example.com/assets/logo-title.jpg"
+      "banners": {
+        "home": "https://www.example.com/assets/banner-home.jpg"
+      }
     }
   },
   "i18n": {

@@ -7,7 +7,12 @@ import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
-import { assertConfiguredIconAssetsExist, availableIconName } from "@/config/assets";
+import {
+  assertConfiguredIconAssetsExist,
+  assetPathFromUrl,
+  availableBannerPath,
+  availableIconName,
+} from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
@@ -18,8 +23,9 @@ import {
 } from "@/core/ui";
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
-import { getSiteNavLinks } from "@/components/site/nav-links";
-import { TitleBar } from "@/components/site/title-bar";
+import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
+import { PageBanner } from "@/components/site/page-banner";
+import { configuredRegionIds } from "@/core/regional-pages";
 import "../globals.css";
 
 // P6-2D — brand typography (branding/branding-schema.md): the brand's primary
@@ -103,7 +109,11 @@ export async function generateMetadata(): Promise<Metadata> {
       ...(siteConfig.assets?.ogImage ? { images: [siteConfig.assets.ogImage] } : {}),
     },
     icons: {
-      icon: siteConfig.assets?.favicon,
+      // P6-3B — SINGLE authoritative favicon declaration. `assetPathFromUrl`
+      // re-derives the same-origin path, so the tab icon always fetches from the
+      // current origin (an absolute `site.url` placeholder/mismatch can never
+      // 404 the icon). There is no competing file-based icon route.
+      icon: assetPathFromUrl(siteConfig.assets?.favicon),
     },
     alternates: {
       languages: buildLanguageAlternates({
@@ -137,11 +147,23 @@ export default async function LocaleLayout({
     !sidebarClosed &&
     (shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside");
   const usesBottomBar = shellDecision.mobile.primitiveKind === "bottom-bar";
+  // P6-3B — the per-page banner map (page slug → same-origin path). Only
+  // entries whose file actually exists under `public/assets/` survive, so a
+  // stale/typo'd banner URL renders NO banner (never a placeholder or a 404).
+  const bannerMap = Object.fromEntries(
+    Object.entries(siteConfig.assets?.banners ?? {}).flatMap(([page, url]) => {
+      const path = availableBannerPath(url);
+      return path ? [[page, path]] : [];
+    }),
+  );
+  const regionIds = configuredRegionIds(siteConfig.regions);
 
   const asideContent = usesAside ? (
     <ContextNavLinks
       locale={locale}
-      links={navLinks}
+      // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the
+      // configured `iconOpen`/`iconClosed`, else the shipped dot/plus defaults).
+      links={withSidebarNavIcons(navLinks)}
       className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
       linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
       // P5-5 — the aside rail orders by configured region (top → middle →
@@ -207,7 +229,7 @@ export default async function LocaleLayout({
         >
           {dictionary.a11y.skipToContent}
         </a>
-        <TitleBar />
+        <PageBanner banners={bannerMap} regionIds={regionIds} />
         <ShellEngine
           resolved={resolvedUi}
           header={<SiteHeader locale={locale} resolved={resolvedUi} />}

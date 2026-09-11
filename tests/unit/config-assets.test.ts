@@ -139,7 +139,7 @@ describe("P6-2D — assetPathFromUrl", () => {
     const assets = siteConfig.assets;
     expect(assetPathFromUrl(assets?.logo)).toBe("/assets/logo-header.svg");
     expect(assetPathFromUrl(assets?.logoFooter)).toBe("/assets/logo-footer.svg");
-    expect(assetPathFromUrl(assets?.logoTitle)).toBe("/assets/logo-title.jpg");
+    expect(assetPathFromUrl(assets?.banners?.home)).toBe("/assets/banner-home.jpg");
     expect(assetPathFromUrl(assets?.favicon)).toBe("/assets/favicon.svg");
   });
 });

@@ -20,6 +20,13 @@ export interface ContextNavLink {
   readonly demoOnly?: boolean;
   /** P5-5 — optional navigation-item icon (plain public/assets filename). */
   readonly icon?: string;
+  /**
+   * P6-3B — optional expanded-state sidebar item icon (plain public/assets
+   * filename). Rendered by the sidebar rail when the rail is expanded.
+   */
+  readonly openIcon?: string;
+  /** P6-3B — optional collapsed-state sidebar item icon (see `openIcon`). */
+  readonly closedIcon?: string;
   /** P5-5 — sidebar region group (`top` | `middle` | `bottom`). */
   readonly position?: NavRegion;
   /** P5-5 — semantically disabled (aria-disabled, not navigable). */
@@ -117,6 +124,8 @@ export function ContextNavLinks({
             external: link.external,
             badge: link.demoOnly && demoBadgeLabel ? demoBadgeLabel : undefined,
             icon: link.icon,
+            openIcon: link.openIcon,
+            closedIcon: link.closedIcon,
             disabled: link.disabled,
           }}
           className={linkClass}

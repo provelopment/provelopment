@@ -58,24 +58,21 @@ export const localeConfigSchema = z.object({
 /**
  * FS-4 — canonical asset configuration (absolute URLs, validated; defaulted).
  *
- * P6-2C — the six generic branding asset ROLES established in P6-2A
- * (`logo-header` / `logo-footer` / `logo-title` / `sidebar-open` /
- * `sidebar-close` / `favicon`) map onto this configuration surface for every
- * role that has a real consumer today:
- *  - `logo`       → `logo-header` (JSON-LD `Organization.logo`; the only
- *                   currently-wired header/site-logo mechanism — the header
- *                   itself still renders the brand as text, see CUSTOMIZING.md);
+ * P6-2C/P6-2D established the generic branding asset ROLES
+ * (`logo-header` / `logo-footer` / `sidebar-open` / `sidebar-close` /
+ * `favicon`) and their real consumers:
+ *  - `logo`       → `logo-header` (JSON-LD `Organization.logo` **and**, since
+ *                   P6-3B, the rendered header brand mark);
  *  - `favicon`    → `favicon` (browser tab icon, `metadata.icons.icon`);
- *  - `logoFooter` → `logo-footer` (RESOLVED + build-validated; not yet
- *                   composed into the footer component — a later visual task);
- *  - `logoTitle`  → `logo-title` (RESOLVED + build-validated; not yet composed
- *                   into any title-area component — a later visual task).
+ *  - `logoFooter` → `logo-footer` (composed into the footer, P6-2D);
+ *  - `banners`    → page banners (P6-3B — replaces the former `logoTitle`
+ *                   "title logo" concept with a per-page banner record).
  * `sidebar-open`/`sidebar-close` are NOT part of this block — they resolve
  * through the separate plain-filename icon-asset contract
  * (`ui.navigation.sidebar.open/close.icon`, `src/config/assets.ts`).
  */
 export const siteAssetsSchema = z.object({
-  /** Structured-data brand logo (JSON-LD `ImageObject`) — the `logo-header` role. */
+  /** Structured-data + header brand logo (JSON-LD `ImageObject`) — the `logo-header` role. */
   logo: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-header.svg")
     .optional(),
@@ -83,25 +80,28 @@ export const siteAssetsSchema = z.object({
   ogImage: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/og-image.png")
     .optional(),
-  /** Browser favicon / icon — the `favicon` role (defaults to the app-routed `icon.svg`). */
+  /** Browser favicon / icon — the `favicon` role. */
   favicon: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/favicon.svg")
     .optional(),
   /**
-   * P6-2C — the `logo-footer` role (absolute URL). RESOLVED and build-validated
-   * like every other `site.assets.*` leaf; not yet consumed by the footer
-   * component (visual composition is a separate, later task).
+   * P6-2C — the `logo-footer` role (absolute URL); composed into the footer.
    */
   logoFooter: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-footer.svg")
     .optional(),
   /**
-   * P6-2C — the `logo-title` role (absolute URL). RESOLVED and build-validated
-   * like every other `site.assets.*` leaf; not yet consumed by any title-area
-   * component (visual composition is a separate, later task).
+   * P6-3B — the `banner-*` role (absolute URL). A PAGE banner record keyed by
+   * PAGE SLUG: `""` or `"home"` = the home page; `"about"` = the About page;
+   * etc. A page with NO entry renders NO banner (no placeholder, no reserved
+   * space, never another page's banner). The rendered height is derived from
+   * the supplied graphic (no fixed height, no structural padding).
    */
-  logoTitle: z
-    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/logo-title.jpg")
+  banners: z
+    .record(
+      z.string(),
+      z.url("must be an absolute URL including protocol, e.g. https://example.com/assets/banner-home.jpg"),
+    )
     .optional(),
 });
 
@@ -451,6 +451,16 @@ export const navigationItemSchema = z
     href: z.string().min(1, "must not be empty"),
     /** P5-5 — optional navigation-item icon (plain public/assets filename). */
     icon: uiIconAssetSchema.optional(),
+    /**
+     * P6-3B — optional EXPANDED-state sidebar item icon (plain public/assets
+     * filename). Overrides the expanded default (`sidebar-default-icon-open`).
+     */
+    iconOpen: uiIconAssetSchema.optional(),
+    /**
+     * P6-3B — optional COLLAPSED-state sidebar item icon (plain public/assets
+     * filename). Overrides the collapsed default (`sidebar-default-icon-closed`).
+     */
+    iconClosed: uiIconAssetSchema.optional(),
     /** P5-5 — sidebar region group (top | middle | bottom; default middle). */
     position: z
       .enum(NAV_REGIONS, {

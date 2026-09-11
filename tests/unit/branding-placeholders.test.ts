@@ -21,10 +21,12 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     const roles: Array<[string, string]> = [
       ["logo-header", "logo-header.svg"],
       ["logo-footer", "logo-footer.svg"],
-      ["logo-title", "logo-title.jpg"],
+      ["banner-home", "banner-home.jpg"],
       ["sidebar-open", "sidebar-open.svg"],
       ["sidebar-close", "sidebar-close.svg"],
       ["favicon", "favicon.svg"],
+      ["sidebar-default-icon-open", "sidebar-default-icon-open.svg"],
+      ["sidebar-default-icon-closed", "sidebar-default-icon-closed.svg"],
     ];
     for (const [role, file] of roles) {
       const full = path.join(assetsDir, file);
@@ -41,8 +43,8 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     }
   });
 
-  it("the logo-title placeholder is a REAL JPEG (magic bytes), not a renamed SVG", () => {
-    const bytes = readFileSync(path.join(assetsDir, "logo-title.jpg"));
+  it("the banner-home placeholder is a REAL JPEG (magic bytes), not a renamed SVG", () => {
+    const bytes = readFileSync(path.join(assetsDir, "banner-home.jpg"));
     // JPEG files begin with the SOI marker 0xFFD8 followed by an APP/marker 0xFF.
     expect(bytes[0]).toBe(0xff);
     expect(bytes[1]).toBe(0xd8);
@@ -57,22 +59,20 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     expect(iconAssetAvailable("sidebar-close.svg")).toBe(true);
   });
 
-  it("P6-2D — the logo-title/logo-footer roles are wired through site.assets.*, never a hard-coded filename", () => {
-    // P6-2A shipped these as placeholders-only; P6-2D (brand presentation +
-    // title bar) composes them into TitleBar/SiteFooter. The invariant that
-    // must hold FOREVER is not "never referenced" but "never a hard-coded
-    // Provelopment-specific filename" — every consumer must read the
-    // generic role through `siteConfig.assets?.logoTitle`/`logoFooter`
-    // (config-driven), never the literal string "logo-title.jpg"/
-    // "logo-footer.svg" baked into component source.
-    const titleBar = readFileSync(
-      path.join(process.cwd(), "src", "components", "site", "title-bar.tsx"),
+  it("P6-3B — the banner + logo-footer roles are wired through site.assets.*, never a hard-coded filename", () => {
+    // P6-2A shipped these as placeholders-only; P6-2D/P6-3B compose them into
+    // SiteFooter / PageBanner. The invariant that must hold FOREVER is not
+    // "never referenced" but "never a hard-coded Provelopment-specific
+    // filename" — every consumer must read the generic role through
+    // `siteConfig.assets?.banners`/`logoFooter` (config-driven), never the
+    // literal string baked into component source.
+    const pageBanner = readFileSync(
+      path.join(process.cwd(), "src", "components", "site", "page-banner.tsx"),
       "utf8",
     );
-    expect(titleBar).toContain("siteConfig.assets?.logoTitle");
-    // Config-driven, not hard-coded: the filename must never appear as a
-    // literal JSX/JS string value (quoted) — only in prose doc comments.
-    expect(titleBar).not.toMatch(/["'`]logo-title\.jpg["'`]/);
+    // The banner map is resolved on the server and passed in as a prop — the
+    // component itself never hard-codes a banner filename.
+    expect(pageBanner).toContain("banners");
 
     const siteFooter = readFileSync(
       path.join(process.cwd(), "src", "components", "site", "site-footer.tsx"),
@@ -82,15 +82,14 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     expect(siteFooter).not.toMatch(/["'`]logo-footer\.svg["'`]/);
 
     // No OTHER component/app source may hard-code the generic role
-    // filenames as literal string values (the two sanctioned consumers
-    // above are exhaustive; doc-comment mentions elsewhere are fine).
+    // filenames as literal string values (the sanctioned consumers above are
+    // exhaustive; doc-comment mentions elsewhere are fine).
     const componentsDir = path.join(process.cwd(), "src", "components");
     const appDir = path.join(process.cwd(), "src", "app");
     const sanctioned = new Set([
-      path.join("components", "site", "title-bar.tsx"),
       path.join("components", "site", "site-footer.tsx"),
     ]);
-    const literalPattern = /["'`](logo-header\.svg|logo-footer\.svg|logo-title\.jpg)["'`]/;
+    const literalPattern = /["'`](logo-header\.svg|logo-footer\.svg|banner-home\.jpg)["'`]/;
     const offenders: string[] = [];
     const scan = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -106,6 +105,6 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     };
     scan(componentsDir);
     scan(appDir);
-    expect(offenders, "no OTHER component/app source may hard-code the generic logo role filenames as a literal").toEqual([]);
+    expect(offenders, "no OTHER component/app source may hard-code the generic logo/banner role filenames as a literal").toEqual([]);
   });
 });

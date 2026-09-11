@@ -30,11 +30,11 @@ describe("FS-4 — canonical asset contract", () => {
     expect(siteConfig.assets?.ogImage, "ogImage is intentionally absent (generated per-locale route default)").toBeUndefined();
   });
 
-  it("the P6-2C logoFooter/logoTitle roles resolve to existing static assets (resolved, not yet composed)", () => {
+  it("the P6-2C logoFooter role + the P6-3B home banner resolve to existing static assets", () => {
     const root = process.cwd();
     const checks: Array<[string, string, () => boolean]> = [
       ["logoFooter", siteConfig.assets?.logoFooter ?? "", () => existsSync(path.join(root, "public", "assets", "logo-footer.svg"))],
-      ["logoTitle", siteConfig.assets?.logoTitle ?? "", () => existsSync(path.join(root, "public", "assets", "logo-title.jpg"))],
+      ["banners.home", siteConfig.assets?.banners?.home ?? "", () => existsSync(path.join(root, "public", "assets", "banner-home.jpg"))],
     ];
     for (const [key, url, exists] of checks) {
       expect(url, `${key} must be configured on the canonical site`).not.toBe("");

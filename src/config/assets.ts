@@ -87,6 +87,21 @@ export function assetPathFromUrl(absoluteUrl: string | undefined): string | unde
   }
 }
 
+/**
+ * P6-3B — resolves a configured `site.assets.banners[<page>]` value (an FS-4
+ * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
+ * `public/assets/`; otherwise `undefined` (the page renders NO banner — no
+ * placeholder, no reserved space, never another page's banner). The URL's
+ * basename is what is checked, via the same asset-availability cache the
+ * plain-filename icon contract uses.
+ */
+export function availableBannerPath(absoluteUrl: string | undefined): string | undefined {
+  const pathname = assetPathFromUrl(absoluteUrl);
+  if (!pathname) return undefined;
+  const name = pathname.split("/").pop() ?? "";
+  return iconAssetAvailable(name) ? pathname : undefined;
+}
+
 interface IconLeafRef {
   readonly label: string;
   readonly value: string | undefined;
@@ -103,7 +118,11 @@ export interface IconConfigSource {
     };
     readonly cta?: { readonly icon?: string };
   };
-  readonly navigation?: readonly { readonly icon?: string }[];
+  readonly navigation?: readonly {
+    readonly icon?: string;
+    readonly iconOpen?: string;
+    readonly iconClosed?: string;
+  }[];
 }
 
 /**
@@ -126,6 +145,8 @@ export function assertConfiguredIconAssetsExist(json: IconConfigSource): void {
   push("ui.cta.icon", json.ui?.cta?.icon);
   for (const [index, item] of (json.navigation ?? []).entries()) {
     push(`navigation[${index}].icon`, item.icon);
+    push(`navigation[${index}].iconOpen`, item.iconOpen);
+    push(`navigation[${index}].iconClosed`, item.iconClosed);
   }
 
   const missing = leaves.filter((leaf) => !iconAssetAvailable(leaf.value));

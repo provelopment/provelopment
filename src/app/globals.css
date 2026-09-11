@@ -608,58 +608,73 @@ html[data-ui-hero="showcase"] .home-hero {
   opacity: 0.55;
 }
 
-/* ── P6-1/P6-3A sidebar rail contract (persistent horizontal rail) ─────
+/* ── P6-1/P6-3A/P6-3B sidebar rail contract (persistent horizontal rail) ─
  *
- * The SHARED renderer for the sidebar rail + its Show/Hide disclosure toggle:
- *
- *  - `.ui-shell-sidebar` — the rail frame composed by the engine: a horizontal
- *    inset so navigation never kisses the viewport edge, plus vertical rhythm.
- *  - `.ui-sidebar-rail` — P6-3A the PERSISTENT left rail: a fixed-width column
- *    with a thin border that expands/contracts HORIZONTALLY. Collapse is a
- *    width change (`data-collapsed`), never `display:none`, so the rail is
- *    always present and navigation stays in the layout + tab order. Expanded =
- *    13.75rem (220px rail + the 1.25rem frame inset = the previous 240px `w-60`
- *    footprint); collapsed = a narrow practical rail that still accommodates
- *    the configured icon (64px desktop / 32px below `lg`).
- *  - `.ui-shell-sidebar ul` — the navigation list sits a FURTHER consistent
- *    inset beneath the disclosure control.
- *  - `.ui-sidebar-toggle` — the REAL interactive disclosure control.
- *  - `.ui-sidebar-toggle-icon` — the show/hide asset at a fixed control size.
+ *  - `.ui-shell-sidebar` — the rail frame: a horizontal inset + vertical
+ *    rhythm. It is a stretched flex item in the shell ROW (`md:flex-row`), and
+ *    its band child + the rail fill that height, so the rail's right border
+ *    spans the WHOLE sidebar/page-shell region (never stopping at the end of
+ *    the navigation list).
+ *  - `.ui-sidebar-rail` — the PERSISTENT left rail: expands/contracts
+ *    HORIZONTALLY. Collapse is a width change (`data-collapsed`), never
+ *    `display:none`. collapsed width = the icon width + 10% padding each side
+ *    → `calc(var(--ui-sidebar-icon-size) * 1.2)` with a `0.1` inline padding.
+ *    No hard-coded collapsed px: changing the icon token re-derives the rail.
+ *  - `.ui-sidebar-toggle-icon` (>=64px `lg`, >=32px below) and
+ *    `.ui-nav-item-icon` share the sidebar icon-size token; `.ui-mobile-nav-icon`
+ *    (mobile disclosure) is >=32px. State-paired `.ui-nav-item-icon-open/-closed`
+ *    swap on the rail's `data-collapsed`.
  *
  * Token-only; the global :focus-visible ring covers keyboard focus. The
  * reduced-motion rule above strips transitions.
  */
 :root {
-  /* P6-3A persistent-rail geometry. */
-  --ui-sidebar-rail-expanded: 13.75rem; /* 220px + 1.25rem frame inset = 240px total */
-  --ui-sidebar-rail-collapsed: 4.5rem; /* ≈72px — fits the 64px desktop icon contract */
-  --ui-sidebar-rail-collapsed-sm: 3rem; /* ≈48px — fits the 32px tablet icon contract */
+  /* P6-3B sidebar icon size contract: >=32px below `lg`, >=64px at `lg`. */
+  --ui-sidebar-icon-size: 2rem;
+  /* The intended EXPANDED sidebar rail width. */
+  --ui-sidebar-rail-expanded: 13.75rem;
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --ui-sidebar-icon-size: 4rem;
+  }
 }
 
 .ui-shell-sidebar {
   margin-inline-start: 1.25rem;
-  padding-block: 1rem 1.5rem;
 }
 
-/* P6-3A — the persistent rail: a horizontal width state with a thin border. */
+/* Full-height rail (P6-3B): frame → band child → rail all fill the shell row. */
+.ui-shell-sidebar > div {
+  height: 100%;
+}
+
 .ui-sidebar-rail {
   width: var(--ui-sidebar-rail-expanded);
+  height: 100%;
+  /* Vertical rhythm lives INSIDE the rail so its right border spans the FULL
+   * shell-row height (not just the content height). */
+  padding-block: 1rem 1.5rem;
   padding-inline: 1.25rem;
   border-inline-end: 1px solid var(--border);
   overflow-x: hidden;
   transition: width 200ms ease;
 }
 
+/* P6-3B — collapsed width DERIVED from the sidebar icon size (icon + 10% each
+ * side). */
 .ui-sidebar-rail[data-collapsed="true"] {
-  width: var(--ui-sidebar-rail-collapsed);
-  padding-inline: 0.5rem;
+  width: calc(var(--ui-sidebar-icon-size) * 1.2);
+  padding-inline: calc(var(--ui-sidebar-icon-size) * 0.1);
 }
 
-/* Tablet rail — the 32px icon contract → a narrower collapsed rail. */
-@media (max-width: 1023.98px) {
-  .ui-sidebar-rail[data-collapsed="true"] {
-    width: var(--ui-sidebar-rail-collapsed-sm);
-  }
+/* P6-3B — in the collapsed rail the disclosure control contributes no inline
+ * padding: the rail's own 10% padding frames the icon, and extra inline padding
+ * would clamp the icon below its required size in the narrow rail. */
+.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle {
+  padding-inline: 0;
+  justify-content: center;
 }
 
 .ui-sidebar-rail-panel {
@@ -668,6 +683,10 @@ html[data-ui-hero="showcase"] .home-hero {
 
 .ui-shell-sidebar ul {
   padding-inline-start: 1.25rem;
+}
+
+.ui-sidebar-rail[data-collapsed="true"] ul {
+  padding-inline-start: 0;
 }
 
 .ui-sidebar-toggle {
@@ -702,19 +721,25 @@ html[data-ui-hero="showcase"] .home-hero {
   color: var(--background);
 }
 
+/* P6-3B — show/hide control icon (>=64px `lg`, >=32px below). `max-width: none`
+ * defeats Tailwind preflight's `img { max-width: 100% }`, which would otherwise
+ * clamp the icon inside the narrow collapsed rail. */
 .ui-sidebar-toggle-icon {
-  width: 1rem;
-  height: 1rem;
+  width: var(--ui-sidebar-icon-size);
+  height: var(--ui-sidebar-icon-size);
+  max-width: none;
   object-fit: contain;
   flex-shrink: 0;
 }
 
-/* P6-3A — collapsed rail: hide labels ONLY for icon-bearing items (the icon
- * becomes the visual affordance; the label stays for assistive tech). Items
- * WITHOUT a configured icon keep their label so nothing becomes invisible or
- * loses its accessible name while nav icons are unconfigured. Mirrors the
- * P5-5 `.ui-nav-mode-compact` technique; the toggle becomes icon-only when it
- * has an icon. */
+/* P6-3B — mobile sidebar disclosure control icon (>=32px) is sized at the
+ * component level (`h-8 w-8` in ShellMobileNav) so it does not override the
+ * shared utility classes from an unlayered rule. */
+
+
+/* P6-3B — collapsed rail: labels GENUINELY hidden (sr-only; kept for assistive
+ * tech) — never clipped by the rail edge. Every sidebar item has an icon
+ * (configured pair or the shipped dot/plus defaults), so nothing is invisible. */
 .ui-sidebar-rail[data-collapsed="true"] li.ui-nav-item--has-icon .ui-nav-item-label,
 .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:has(.ui-sidebar-toggle-icon) > span {
   position: absolute;
@@ -729,17 +754,56 @@ html[data-ui-hero="showcase"] .home-hero {
   border: 0;
 }
 
-/* P6-3A — responsive sidebar navigation-icon sizing: 64×64 desktop, 32×32
- * tablet/mobile. Scoped to the sidebar rail (the shared `.ui-nav-item-icon`
- * base stays 1em for top-nav / bottom-bar). */
+/* P6-3B — sidebar navigation-item icon sizing (same token as the toggle;
+ * the shared `.ui-nav-item-icon` base stays 1em for top-nav / bottom-bar).
+ * `max-width: none` defeats preflight's `img { max-width: 100% }` clamp. */
 .ui-shell-sidebar .ui-nav-item-icon {
-  width: 2rem;
-  height: 2rem;
+  width: var(--ui-sidebar-icon-size);
+  height: var(--ui-sidebar-icon-size);
+  max-width: none;
 }
 
-@media (min-width: 1024px) {
-  .ui-shell-sidebar .ui-nav-item-icon {
-    width: 4rem;
-    height: 4rem;
-  }
+/* P6-3B — state-paired icons: OPEN by default; the collapsed rail swaps CLOSED. */
+.ui-nav-item-icon-closed {
+  display: none;
+}
+
+.ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-open {
+  display: none;
+}
+
+.ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-closed {
+  display: inline-block;
+}
+
+/* ── P6-3B header logo + page banner ────────────────────────────────── */
+
+/* The header brand mark (`site.assets.logo` → logo-header.svg). Intrinsic
+ * aspect ratio preserved; responsive; never inflates the header height. */
+.ui-site-header-logo {
+  display: block;
+  height: 2rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+/* The page banner (P6-3B). NO structural padding/margin/border/shadow/radius;
+ * full page width; the height follows the supplied graphic's aspect ratio. */
+.ui-page-banner {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+}
+
+.ui-page-banner-image {
+  display: block;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
