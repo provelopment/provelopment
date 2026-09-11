@@ -80,7 +80,10 @@ describe("ShellEngine — Adaptive aside composition (UI-05)", () => {
     expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('aria-controls="shell-sidebar-tablet-panel"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain('id="shell-sidebar-tablet-panel" class="hidden"');
+    // P6-3A — the tablet `collapsed-sidebar` band is a PERSISTENT rail
+    // (collapsed by default via `data-collapsed`), never a display:none panel.
+    expect(html).toContain('id="shell-sidebar-tablet-panel" class="ui-sidebar-rail-panel"');
+    expect(html).toContain('data-collapsed="true"');
   });
 
   it("inactive bands are display:none wrappers — no focusable content escapes a hidden band", () => {

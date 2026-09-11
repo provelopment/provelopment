@@ -205,7 +205,10 @@ export function ShellEngine({
         main={main}
         footer={asideActive ? <div className="lg:w-full">{footer}</div> : footer}
         sidebar={buildAside()}
-        sidebarClassName="ui-shell-sidebar hidden md:block lg:shrink-0 lg:w-60"
+        // P6-3A — the rail owns its own width (`.ui-sidebar-rail`): a horizontal
+        // width state that persists in both collapsed/expanded states. The frame
+        // keeps only the responsive band visibility + no-shrink.
+        sidebarClassName="ui-shell-sidebar hidden md:block lg:shrink-0"
         mainId={mainId}
         mainClassName={mainClassName}
         mobileNavigation={buildMobile()}

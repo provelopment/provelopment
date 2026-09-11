@@ -109,7 +109,16 @@ export function Sidebar({
   const icon = active.icon === undefined || active.icon === "" ? undefined : active.icon;
 
   return (
-    <nav aria-label={label} id={`${id}-rail`} className={className}>
+    <nav
+      aria-label={label}
+      id={`${id}-rail`}
+      // P6-3A — the rail is PERSISTENT: `data-collapsed` drives a narrow
+      // icon-only presentation (CSS width transition) instead of removing the
+      // panel. The rail NEVER becomes `display:none`, so navigation stays in
+      // the layout and the tab order in both states.
+      data-collapsed={isCollapsed ? "true" : "false"}
+      className={["ui-sidebar-rail", className].filter(Boolean).join(" ")}
+    >
       {collapsible ? (
         <button
           type="button"
@@ -125,9 +134,12 @@ export function Sidebar({
           <span>{toggleText}</span>
         </button>
       ) : null}
-      {/* P0-1 structural collapse: a collapsed panel contributes nothing to
-          layout or the tab order; the toggle above remains to restore it. */}
-      <div id={`${id}-panel`} className={isCollapsed ? "hidden" : undefined}>
+      {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows
+          the rail horizontally (CSS) rather than hiding the panel — labels are
+          visually hidden (but kept for assistive tech) only for icon-bearing
+          items; icon-less items keep their labels so no destination becomes
+          invisible/inaccessible while nav icons are unconfigured. */}
+      <div id={`${id}-panel`} className="ui-sidebar-rail-panel">
         {children}
       </div>
     </nav>

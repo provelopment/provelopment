@@ -421,6 +421,36 @@ Every sidebar disclosure across every breakpoint says the same thing:
   clips the viewport edge and items clearly belong inside the sidebar.
 - **Compact mode** (icon-only rail) keeps the same insets; icon-less items keep
   their labels per the established P5-5A semantics.
+#### Persistent horizontal rail (P6-3A)
+
+The **desktop/tablet sidebar is a persistent left rail**: collapsing it
+**contracts it horizontally** to a narrow rail — the rail is **never removed**
+from the layout (`display:none` is not used). Both states keep the thin border
+and the same left-side vertical position.
+
+| State | Behavior |
+| --- | --- |
+| **Expanded** | Icons (when configured) **and** labels, at the intended width (`.ui-sidebar-rail` = `13.75rem` / 220px; with the frame inset the total footprint is the previous 240px). |
+| **Collapsed** | The rail **remains visible** as a narrow column (`4.5rem` / ≈72px desktop; `3rem` / ≈48px below `lg`): icons stay, labels of **icon-bearing** items are visually hidden (kept for assistive tech; icon-less items keep their labels so nothing becomes invisible), and navigation stays reachable. |
+
+- **Horizontal only.** Collapse/expand is a **width** change
+  (`transition: width 200ms`, stripped under `prefers-reduced-motion`) — never a
+  vertical move, never a disappearance.
+- **Toggle.** The `ui.navigation.sidebar.open/close` (Show/Hide Sidebar)
+  disclosure toggle stays present and keyboard-operable in **both** states
+  (`aria-expanded` reflects the state; `aria-controls` targets the persistent
+  panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary.
+- **Icon sizing.** Sidebar navigation icons are **64×64 at ≥`lg`** and
+  **32×32 below `lg`** (scoped to the sidebar rail; top-nav/bottom-bar keep the
+  shared `1em` base). The contract applies to configured `navigation[].icon`
+  assets — with none configured, the collapsed rail keeps item labels (nothing
+  becomes invisible).
+- **Mobile is unchanged.** The `<md` navigation architecture (bottom bar /
+  drawer / overlay, per preset) is **out of scope** for P6-3A and unchanged.
+- **`mode: closed`** (below) still removes the rail entirely — a deliberate
+  config choice, distinct from *collapse* (which now never removes it).
+
+
 
 #### Sidebar modes (`ui.navigation.sidebar.mode`)
 

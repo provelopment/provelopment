@@ -141,7 +141,10 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
     expect(html).toContain('aria-expanded="true"');
     // Tablet `collapsed-sidebar` renders collapsed-by-default + expandable
     // (never a dead-end).
-    expect(html).toContain('id="shell-sidebar-tablet-panel" class="hidden"');
+    // P6-3A — the tablet `collapsed-sidebar` band is a PERSISTENT rail
+    // (collapsed by default via `data-collapsed`), never a display:none panel.
+    expect(html).toContain('id="shell-sidebar-tablet-panel" class="ui-sidebar-rail-panel"');
+    expect(html).toContain('data-collapsed="true"');
     expect(html).toContain('aria-expanded="false"');
     // The CTA composes INSIDE the sidebar panel — a child of the navigation
     // region, not positioned independently.

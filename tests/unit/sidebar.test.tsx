@@ -86,8 +86,9 @@ describe("P6-1 — Sidebar disclosure (desktop/tablet)", () => {
     expect(html).toContain("Show Sidebar");
     expect(html).not.toContain("Hide Sidebar");
     expect(html).toContain("/assets/sidebar-open.svg");
-    // Nothing leaks into the panel while structurally collapsed.
-    expect(html).toContain('id="s-panel" class="hidden"');
+    // P6-3A — the panel is PERSISTENT (collapse is a width state, not display:none).
+    expect(html).toContain('data-collapsed="true"');
+    expect(html).toContain('id="s-panel" class="ui-sidebar-rail-panel"');
   });
 
   it("icon-only (text: \"\") renders NO visible text and keeps the accessible name via aria-label", () => {
