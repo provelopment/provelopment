@@ -1,5 +1,7 @@
+import Link from "next/link";
+
 import { siteConfig } from "@/config";
-import { availableIconName } from "@/config/assets";
+import { assetPathFromUrl, availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
@@ -53,6 +55,12 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     );
 
     const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale);
+    // P6-3B — the header's left brand slot renders the configured header logo
+    // (the `site.assets.logo` role), replacing the former text label.
+    // `assetPathFromUrl` keeps it same-origin; intrinsic aspect ratio is
+    // preserved (`h-8 w-auto`, responsive); accessible name = the site name.
+    // Absent config → the previous text brand link (graceful, never broken).
+    const headerLogoSrc = assetPathFromUrl(siteConfig.assets?.logo);
 
     const navListElement = (
         <ContextNavLinks
@@ -113,11 +121,26 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     return (
         <header className="ui-site-header border-b border-border">
             <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
-                <ContextNavLinks
-                    locale={locale}
-                    links={[{ href: "/", label: siteConfig.name }]}
-                    className="font-semibold tracking-tight"
-                />
+                {headerLogoSrc ? (
+                    <Link
+                        href={`/${locale}`}
+                        aria-label={siteConfig.name}
+                        className="ui-site-header-brand inline-flex items-center"
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={headerLogoSrc}
+                            alt={siteConfig.name}
+                            className="ui-site-header-logo h-8 w-auto"
+                        />
+                    </Link>
+                ) : (
+                    <ContextNavLinks
+                        locale={locale}
+                        links={[{ href: "/", label: siteConfig.name }]}
+                        className="font-semibold tracking-tight"
+                    />
+                )}
 
                 <Stack direction="row" gap="gap-x-4 gap-y-2" items="items-center">
                     {hasHeaderNav ? (

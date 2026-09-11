@@ -135,7 +135,7 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
     );
     // Aside composition → the header breaks to its own full-width row (P0-1
     // layout fix), not inline beside the rail.
-    expect(html).toContain("lg:w-full");
+    expect(html).toContain("md:w-full");
     // Collapsible desktop band exposes the structural toggle.
     expect(html).toContain('aria-controls="shell-sidebar-desktop-panel"');
     expect(html).toContain('aria-expanded="true"');

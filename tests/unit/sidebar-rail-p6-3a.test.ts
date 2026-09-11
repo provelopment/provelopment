@@ -72,36 +72,55 @@ describe("P6-3A — persistent horizontal sidebar rail", () => {
   });
 });
 
-describe("P6-3A — rail CSS contract (geometry, border, transition, icon sizing)", () => {
-  it("CSS defines explicit expanded + collapsed rail widths, a thin border, and a horizontal width transition", () => {
+describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height border, paired icons)", () => {
+  it("expanded width + a thin border + a horizontal width transition", () => {
     expect(globals).toMatch(/--ui-sidebar-rail-expanded:\s*13\.75rem/);
-    expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*4\.5rem/);
-    expect(globals).toMatch(/--ui-sidebar-rail-collapsed-sm:\s*3rem/);
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-rail-expanded\\)"));
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*border-inline-end:\\s*1px solid var\\(--border\\)"));
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*transition:\\s*width\\s+200ms"));
-    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-rail-collapsed\\)"));
-    expect(globals).toMatch(new RegExp("@media \\(max-width: 1023\\.98px\\)\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-rail-collapsed-sm\\)"));
   });
 
-  it("collapsed rail keeps navigation reachable: labels are hidden only for icon-bearing items", () => {
+  it("collapsed width is DERIVED from the icon size: icon + 10% padding each side (no hard-coded px)", () => {
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*width:\\s*calc\\(var\\(--ui-sidebar-icon-size\\) \\* 1\\.2\\)"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*padding-inline:\\s*calc\\(var\\(--ui-sidebar-icon-size\\) \\* 0\\.1\\)"));
+    // The old hard-coded collapsed tokens are GONE.
+    expect(globals).not.toMatch(/--ui-sidebar-rail-collapsed/);
+  });
+
+  it("full-height border: the frame + band child + rail all stretch to the shell row", () => {
+    expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar\\s*>\\s*div\\s*\\{[^}]*height:\\s*100%"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*height:\\s*100%"));
+  });
+
+  it("sidebar icon sizes: >=32px below `lg`, >=64px at `lg` (toggle + nav items + mobile control)", () => {
+    expect(globals).toMatch(/--ui-sidebar-icon-size:\s*2rem/);
+    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-icon-size:\\s*4rem"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-toggle-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-icon-size\\)"));
+    expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar \\.ui-nav-item-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-icon-size\\)"));
+    // Mobile disclosure control icon >=32px — sized at the component level
+    // (`h-8 w-8` in ShellMobileNav) rather than by an unlayered global override.
+    const shellMobileNav = readFileSync(
+      path.join(process.cwd(), "src", "components", "shell", "shell-mobile-nav.tsx"),
+      "utf8",
+    );
+    expect(shellMobileNav).toContain('className="ui-mobile-nav-icon h-8 w-8 shrink-0"');
+  });
+
+  it("collapsed labels are sr-only (never overflow-clipped) and paired icons swap on data-collapsed", () => {
     expect(globals).toMatch(/\.ui-sidebar-rail\[data-collapsed="true"\]\s*li\.ui-nav-item--has-icon\s*\.ui-nav-item-label/);
-    expect(globals).not.toMatch(/\.ui-sidebar-rail\[data-collapsed="true"\]\s*li\s*\.ui-nav-item-label\s*\{/);
+    expect(globals).toMatch(new RegExp("\\.ui-nav-item-icon-closed\\s*\\{[^}]*display:\\s*none"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\] \\.ui-nav-item-icon-open\\s*\\{[^}]*display:\\s*none"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\] \\.ui-nav-item-icon-closed\\s*\\{[^}]*display:\\s*inline-block"));
   });
 
-  it("responsive sidebar navigation-icon sizing: 32x32 base, 64x64 at >=lg (scoped to the sidebar rail)", () => {
-    expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar\\s+\\.ui-nav-item-icon\\s*\\{[^}]*width:\\s*2rem"));
-    expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar\\s+\\.ui-nav-item-icon\\s*\\{[^}]*height:\\s*2rem"));
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)\\s*\\{[^}]*\\.ui-shell-sidebar\\s+\\.ui-nav-item-icon\\s*\\{[^}]*width:\\s*4rem"));
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)\\s*\\{[^}]*\\.ui-shell-sidebar\\s+\\.ui-nav-item-icon\\s*\\{[^}]*height:\\s*4rem"));
-  });
-
-  it("mobile navigation architecture is untouched: the rail frame is still >=md only, and the rail owns the width", () => {
+  it("responsive shell: the aside row applies at `md` (tablet rail beside content, not stacked above it)", () => {
     const engine = readFileSync(
       path.join(process.cwd(), "src", "components", "shell", "shell-engine.tsx"),
       "utf8",
     );
-    expect(engine).toContain('sidebarClassName="ui-shell-sidebar hidden md:block lg:shrink-0"');
+    expect(engine).toContain("md:flex-row md:flex-wrap");
+    expect(engine).not.toContain("lg:flex-row");
+    expect(engine).toContain('sidebarClassName="ui-shell-sidebar hidden md:block md:shrink-0"');
     expect(engine).not.toContain("lg:w-60");
   });
 });

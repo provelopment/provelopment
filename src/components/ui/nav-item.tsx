@@ -49,6 +49,16 @@ export interface NavItemModel {
    * removing it from the DOM.
    */
   readonly icon?: string;
+  /**
+   * P6-3B — optional EXPANDED-state sidebar item icon (plain public/assets
+   * filename). When supplied (with/without `closedIcon`), the item renders a
+   * state-paired icon: `openIcon` in the expanded sidebar, `closedIcon` when
+   * collapsed (CSS toggles on the rail's `data-collapsed`). Prefer this pair
+   * over the single `icon` for sidebar items.
+   */
+  readonly openIcon?: string;
+  /** P6-3B — optional COLLAPSED-state sidebar item icon (see `openIcon`). */
+  readonly closedIcon?: string;
   /** P5-5 — icon placement within the item ("start" leading, "end" trailing). */
   readonly iconPosition?: IconPosition;
   /**
@@ -72,24 +82,53 @@ export interface NavItemProps {
 
 export function NavItem({ item, className }: NavItemProps) {
   const { label, href, active, external, badge, variant, icon, disabled, ariaLabel } = item;
+  const openIcon = item.openIcon;
+  const closedIcon = item.closedIcon;
   const iconPosition = item.iconPosition ?? "start";
+  const hasIcon = Boolean(icon || openIcon || closedIcon);
   const baseClass = variant === "cta" ? (className ?? "") + " nav-item-cta" : className;
-  const liClass = [active === true ? "aria-current-page" : undefined, icon ? "ui-nav-item--has-icon" : undefined]
+  const liClass = [active === true ? "aria-current-page" : undefined, hasIcon ? "ui-nav-item--has-icon" : undefined]
     .filter(Boolean)
     .join(" ");
 
   // P5-5 — a disabled nav item is semantically disabled: it is not navigable
   // and leaves the tab order, and is announced as disabled. It stays in the
   // DOM (document content) so screen-reader users and the layout are stable.
-  const iconNode = icon ? (
-    // User-replaceable icon asset (SVG/PNG/WebP) rendered at a fixed control
-    // size so intrinsic dimensions can never overflow layout. Decorative
-    // (alt="") — the visible label (or the item's accessible name) is the
-    // accessible name. This is a deliberate plain <img> so adopters can drop
-    // in any asset format without Next Image optimizer/SVG restrictions.
+  //
+  // P6-3B — an item may render a STATE-PAIRED icon (`iconOpen`/`iconClosed`);
+  // the sidebar rail's `data-collapsed` attribute + CSS decides which is
+  // visible, so no client state is needed. The single `icon` remains the
+  // one-icon path used by the header/bottom-bar surfaces (and by sidebar items
+  // that only configure `icon`). Every icon is decorative (`alt=""`); the
+  // visible label (or the item's accessible name) remains the accessible name.
+  const singleIconNode = icon ? (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={toAssetUrl(icon)} alt="" aria-hidden="true" className="ui-nav-item-icon" />
   ) : null;
+  const pairedIconNode =
+    !icon && (openIcon || closedIcon) ? (
+      <>
+        {openIcon ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={toAssetUrl(openIcon)}
+            alt=""
+            aria-hidden="true"
+            className="ui-nav-item-icon ui-nav-item-icon-open"
+          />
+        ) : null}
+        {closedIcon ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={toAssetUrl(closedIcon)}
+            alt=""
+            aria-hidden="true"
+            className="ui-nav-item-icon ui-nav-item-icon-closed"
+          />
+        ) : null}
+      </>
+    ) : null;
+  const iconNode = singleIconNode ?? pairedIconNode;
   const labelNode = <span className="ui-nav-item-label">{label}</span>;
   const content = (
     <>

@@ -129,8 +129,16 @@ export function ShellEngine({
 
   // Default (header-slot) path stays byte-identical (UI-04): flex column,
   // full page width to header/footer. The aside layout switches the page frame
-  // to a wrapping row on large screens so the rail sits beside main.
-  const wrapperClass = `flex flex-col flex-1 ${asideActive ? "lg:flex-row lg:flex-wrap" : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
+  // to a wrapping row at `md` and up (P6-3B — see below) so the rail sits BESIDE
+  // main at every width where a sidebar band is composed.
+  //
+  // P6-3B — the row now applies at `md` (not only `lg`). Previously the aside
+  // composition was a row at `lg` but a STACKED COLUMN at `md`–`lg`, so the
+  // tablet sidebar band (`md:block`) rendered as a full-width vertical list at
+  // the TOP of the page content — the reported tablet defect. The aside band
+  // breakpoints themselves are unchanged (`md:block` / `lg:*`): the fix is that
+  // any composed rail is laid out as a side rail, never a top-of-content list.
+  const wrapperClass = `flex flex-col flex-1 ${asideActive ? "md:flex-row md:flex-wrap" : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
 
   // P0-2 — the primary CTA is the one shared `Cta` capability. The engine owns
   // WHERE the CTA is composed (from the decision-core per-viewport ctaSlot);
@@ -184,16 +192,14 @@ export function ShellEngine({
     header
   );
   // P0-1 (converged from the verified UI-12.2 demo fix): in the ASIDE
-  // composition the page frame becomes a wrapping row on large screens
-  // (`lg:flex-row lg:flex-wrap`). The header is a flex ITEM like the rail and
-  // `<main>`, so without an explicit full-width basis it sits INLINE beside the
-  // sidebar (seen live: header 36%, rail 240px beside it, main squeezed to
-  // 45%). The footer already breaks to its own row via `lg:w-full` below; the
-  // header must do the same so the rail and `<main>` share a row UNDER a
-  // full-width brand row. Header-slot presets (asideActive === false) are
-  // untouched — byte-identical as before.
+  // composition the page frame becomes a wrapping row (`md:flex-row md:flex-wrap`,
+  // P6-3B). The header is a flex ITEM like the rail and `<main>`, so without an
+  // explicit full-width basis it sits INLINE beside the sidebar (seen live:
+  // header 36%, rail 240px beside it, main squeezed to 45%). The header must
+  // break to its own full-width row above the rail/main row; the footer does the
+  // same below. Header-slot presets (asideActive === false) are untouched.
   const headerSlot = asideActive ? (
-    <div className="lg:w-full">{headerContent}</div>
+    <div className="md:w-full">{headerContent}</div>
   ) : (
     headerContent
   );
@@ -203,12 +209,12 @@ export function ShellEngine({
       <AppShell
         header={headerSlot}
         main={main}
-        footer={asideActive ? <div className="lg:w-full">{footer}</div> : footer}
+        footer={asideActive ? <div className="md:w-full">{footer}</div> : footer}
         sidebar={buildAside()}
         // P6-3A — the rail owns its own width (`.ui-sidebar-rail`): a horizontal
         // width state that persists in both collapsed/expanded states. The frame
         // keeps only the responsive band visibility + no-shrink.
-        sidebarClassName="ui-shell-sidebar hidden md:block lg:shrink-0"
+        sidebarClassName="ui-shell-sidebar hidden md:block md:shrink-0"
         mainId={mainId}
         mainClassName={mainClassName}
         mobileNavigation={buildMobile()}

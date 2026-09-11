@@ -5,6 +5,17 @@ import { getDictionary } from "@/config/i18n";
 import type { ContextNavLink } from "./context-nav-links";
 
 /**
+ * P6-3B — the shipped DEFAULT sidebar navigation-item icons. Every sidebar
+ * navigation item shows an icon in the expanded state (the default is a large
+ * dot) and a distinct icon in the collapsed state (the default is a large
+ * plus). These are project-owned generic assets in `public/assets/`, replaceable
+ * in place or per item via `navigation[].iconOpen` / `navigation[].iconClosed`
+ * (`site.config.json`) — never generated in code.
+ */
+export const DEFAULT_SIDEBAR_ITEM_ICON_OPEN = "sidebar-default-icon-open.svg";
+export const DEFAULT_SIDEBAR_ITEM_ICON_CLOSED = "sidebar-default-icon-closed.svg";
+
+/**
  * P5-6 — stable navigation-item identity derived from the ORIGINAL
  * `site.config.json` position. `href` is a destination — two entries may
  * legitimately point at the same route — so it must NEVER be React identity.
@@ -40,7 +51,32 @@ export function getSiteNavLinks(locale: string): readonly ContextNavLink[] {
     // boundary), so a missing/unavailable icon never reaches the renderer as a
     // broken-image <img>: unavailable → "" (no icon), absent → undefined.
     icon: item.icon === undefined ? undefined : availableIconName(item.icon),
+    // P6-3B — the per-state sidebar icons (screened against public/assets like
+    // every other configurable icon). Not defaulted here: the SIDEBAR surface
+    // opts into the shipped defaults (`withSidebarNavIcons`), so the header
+    // top-nav / bottom bar stay byte-identical (no icons unless configured).
+    openIcon: item.iconOpen === undefined ? undefined : availableIconName(item.iconOpen),
+    closedIcon: item.iconClosed === undefined ? undefined : availableIconName(item.iconClosed),
     position: item.position,
     disabled: item.disabled,
+  }));
+}
+
+/**
+ * P6-3B — sidebar-surface decoration: every SIDEBAR navigation item gets an
+ * expanded-state and a collapsed-state icon. Resolution (per the established
+ * asset contract):
+ *   expanded  = `iconOpen`  ?? `icon` ?? `sidebar-default-icon-open.svg`  (dot)
+ *   collapsed = `iconClosed` ?? `icon` ?? `sidebar-default-icon-closed.svg` (plus)
+ * A legacy single `icon` therefore drives BOTH states (P5-5 behavior
+ * preserved); an item with no icon at all gets the shipped defaults. Applied
+ * ONLY to the aside rail content, so the header/bottom-bar surfaces are
+ * unaffected.
+ */
+export function withSidebarNavIcons(links: readonly ContextNavLink[]): readonly ContextNavLink[] {
+  return links.map((link) => ({
+    ...link,
+    openIcon: link.openIcon ?? link.icon ?? DEFAULT_SIDEBAR_ITEM_ICON_OPEN,
+    closedIcon: link.closedIcon ?? link.icon ?? DEFAULT_SIDEBAR_ITEM_ICON_CLOSED,
   }));
 }

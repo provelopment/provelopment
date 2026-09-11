@@ -1115,10 +1115,10 @@ describe("UI-01 — the ui contract namespace", () => {
     expect(config.assets).toEqual(assets);
   });
 
-  it("maps the P6-2C logoFooter/logoTitle roles through the loader (FS-4 extension)", () => {
+  it("maps the P6-3B logoFooter/banners roles through the loader (FS-4 extension)", () => {
     const assets = {
       logoFooter: "https://example.com/assets/logo-footer.svg",
-      logoTitle: "https://example.com/assets/logo-title.jpg",
+      banners: { home: "https://example.com/assets/banner-home.jpg" },
     };
     const config = parseSiteConfig({ ...validConfig, site: { ...validConfig.site, assets } });
     expect(config.assets).toEqual(assets);

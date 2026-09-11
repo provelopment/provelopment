@@ -421,7 +421,7 @@ Every sidebar disclosure across every breakpoint says the same thing:
   clips the viewport edge and items clearly belong inside the sidebar.
 - **Compact mode** (icon-only rail) keeps the same insets; icon-less items keep
   their labels per the established P5-5A semantics.
-#### Persistent horizontal rail (P6-3A)
+#### Persistent horizontal rail (P6-3A; refined P6-3B — icon system, derived width, full-height border)
 
 The **desktop/tablet sidebar is a persistent left rail**: collapsing it
 **contracts it horizontally** to a narrow rail — the rail is **never removed**
@@ -430,23 +430,53 @@ and the same left-side vertical position.
 
 | State | Behavior |
 | --- | --- |
-| **Expanded** | Icons (when configured) **and** labels, at the intended width (`.ui-sidebar-rail` = `13.75rem` / 220px; with the frame inset the total footprint is the previous 240px). |
-| **Collapsed** | The rail **remains visible** as a narrow column (`4.5rem` / ≈72px desktop; `3rem` / ≈48px below `lg`): icons stay, labels of **icon-bearing** items are visually hidden (kept for assistive tech; icon-less items keep their labels so nothing becomes invisible), and navigation stays reachable. |
+| **Expanded** | Icons **and** labels, at the intended width (`13.75rem` / 220px rail; with the frame inset the total footprint is the previous 240px). |
+| **Collapsed** | The rail **remains visible** as a narrow column whose width is **derived from the icon** — `icon + 10% padding-left + 10% padding-right` (`width: calc(var(--ui-sidebar-icon-size) * 1.2)`, `padding-inline: calc(var(--ui-sidebar-icon-size) * 0.1)`). Icons stay; labels are hidden from the visual layout. |
 
 - **Horizontal only.** Collapse/expand is a **width** change
   (`transition: width 200ms`, stripped under `prefers-reduced-motion`) — never a
   vertical move, never a disappearance.
+- **The collapsed width is NOT a fixed pixel value.** It is derived from the
+  sidebar icon token, so changing the icon size re-derives the rail:
+  `--ui-sidebar-icon-size` is `2rem` (32px) below `lg` and `4rem` (64px) at ≥`lg`;
+  collapsed width = `icon × 1.2` → **≈38px** below `lg`, **≈77px** at ≥`lg`
+  (browser-measured: `rail=77 icon=64` at 1280; `rail=38` at 800–1023).
+- **Icon sizes.** The Show/Hide disclosure icon and the sidebar navigation icons
+  render **64×64 at ≥`lg`** and **32×32 below `lg`**; the mobile disclosure
+  control icon renders **32×32**. Top-nav / bottom-bar keep the shared `1em` base.
+- **Full-height right border.** The rail's `border-inline-end` spans the whole
+  sidebar/page-shell row (browser-measured `rail=774` vs `main=774` at 1280),
+  not merely the navigation content.
 - **Toggle.** The `ui.navigation.sidebar.open/close` (Show/Hide Sidebar)
   disclosure toggle stays present and keyboard-operable in **both** states
   (`aria-expanded` reflects the state; `aria-controls` targets the persistent
-  panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary.
-- **Icon sizing.** Sidebar navigation icons are **64×64 at ≥`lg`** and
-  **32×32 below `lg`** (scoped to the sidebar rail; top-nav/bottom-bar keep the
-  shared `1em` base). The contract applies to configured `navigation[].icon`
-  assets — with none configured, the collapsed rail keeps item labels (nothing
-  becomes invisible).
+  panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary. A
+  deliberately non-collapsible rail (immersive `floating`) has no toggle.
+- **Navigation-item icons (P6-3B).** Every sidebar navigation item shows an icon:
+  the default is a **large dot** when expanded (`sidebar-default-icon-open.svg`)
+  and a **large plus** when collapsed (`sidebar-default-icon-closed.svg`). Each
+  item is independently replaceable, per state, through configuration:
+
+  | Configuration (`navigation[]`) | Expanded icon | Collapsed icon |
+  | --- | --- | --- |
+  | *(none)* | `iconOpen ?? icon ?? sidebar-default-icon-open.svg` | `iconClosed ?? icon ?? sidebar-default-icon-closed.svg` |
+  | `"icon": "my-icon.svg"` | `my-icon.svg` | `my-icon.svg` |
+  | `"iconOpen": "a.svg"`, `"iconClosed": "b.svg"` | `a.svg` | `b.svg` |
+
+  Mixed configurations are supported (some items custom, others on the defaults)
+  without any component change. A configured name with no backing file fails the
+  **build** loudly (`assertConfiguredIconAssetsExist`); the DOM never contains a
+  broken `<img>`.
+- **Labels.** In the collapsed rail labels are hidden with the `sr-only`
+  technique — absent from the visual layout yet still the item's accessible name —
+  never clipped by the rail edge and never partially visible (browser-verified:
+  zero stray labels in every aside preset).
+- **Responsive breakpoint (P6-3B).** The aside page frame is a wrapping row from
+  **`md` (768px)** upward, so a composed rail is always laid out BESIDE `<main>`
+  and never becomes a stacked vertical list at the top of the content. Verified
+  across the transition: 767 / 800 / 900 / 1000 / 1023 / 1024px.
 - **Mobile is unchanged.** The `<md` navigation architecture (bottom bar /
-  drawer / overlay, per preset) is **out of scope** for P6-3A and unchanged.
+  drawer / overlay, per preset) is **out of scope** for P6-3A/P6-3B and unchanged.
 - **`mode: closed`** (below) still removes the rail entirely — a deliberate
   config choice, distinct from *collapse* (which now never removes it).
 
@@ -1056,11 +1086,11 @@ configurable through the validated `site.assets.*` block:
 
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
-| Brand logo (structured data) — the `logo-header` role | `public/assets/logo-header.svg` | `site.assets.logo` |
-| Open Graph / social share image | `public/assets/og-image.png` (1200×630) if present, else the generated per-locale route | `site.assets.ogImage` |
-| Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (falls back to `src/app/icon.svg` when `site.assets.favicon` is absent) | `site.assets.favicon` |
-| Footer logo — the `logo-footer` role (resolved; not yet composed into the footer) | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
-| Title/page-title logo — the `logo-title` role (resolved; not yet composed into any title-area component) | `public/assets/logo-title.jpg` | `site.assets.logoTitle` |
+| Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
+| Open Graph / social share image | the generated per-locale route (no static default file) | `site.assets.ogImage` |
+| Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (the single authoritative icon route) | `site.assets.favicon` |
+| Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
+| Page banner — the `banner-*` role (P6-3B, keyed by page slug) | `public/assets/banner-home.jpg` | `site.assets.banners` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1077,8 +1107,8 @@ There are **two equally-supported ways to customize an asset**:
       "logo":       "https://cdn.example.com/my-logo-header.svg", // replaces JSON-LD logo
       "ogImage":    "https://cdn.example.com/my-share.png",       // replaces og:image / twitter:image
       "favicon":    "https://cdn.example.com/my-icon.svg",        // replaces the browser icon
-      "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // resolved; footer composition is a later task
-      "logoTitle":  "https://cdn.example.com/my-logo-title.jpg"   // resolved; title-area composition is a later task
+      "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // footer mark
+      "banners":    { "home": "https://cdn.example.com/banner-home.jpg" } // page-keyed banners (P6-3B)
     }
   }
 }
@@ -1103,35 +1133,42 @@ without changing component source code.
 
 | Generic role | Runtime file | Wired to |
 | --- | --- | --- |
-| `logo-header` | `public/assets/logo-header.svg` | `site.assets.logo` → JSON-LD `Organization.logo` (structured data only; the visible header still renders the brand as text — see below) |
+| `logo-header` | `public/assets/logo-header.svg` | `site.assets.logo` → JSON-LD `Organization.logo` **and** the rendered header brand mark (P6-3B) |
 | `logo-footer` | `public/assets/logo-footer.svg` | `site.assets.logoFooter` → `SiteFooter` (P6-2D — a restrained decorative mark beside the copyright line) |
-| `logo-title` | `public/assets/logo-title.jpg` | `site.assets.logoTitle` → `TitleBar` (P6-2D — the principal page-title brand mark, a dedicated area above the shell) |
+| `banner-*` | `public/assets/banner-home.jpg` | `site.assets.banners["home"]` → `PageBanner` (P6-3B — a per-page banner above the header) |
+| `sidebar-default-icon-open` | `public/assets/sidebar-default-icon-open.svg` | the sidebar navigation-item EXPANDED default (P6-3B — a large dot) |
+| `sidebar-default-icon-closed` | `public/assets/sidebar-default-icon-closed.svg` | the sidebar navigation-item COLLAPSED default (P6-3B — a large plus) |
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 
-Status (P6-2D — brand presentation: roles wired, **composed**, and rethemed):
+Status (P6-2D/P6-3B — brand presentation composed; header mark + page banners):
 
-- **`favicon`** — fully live: `site.assets.favicon` resolves to
-  `/assets/favicon.svg` and Next.js emits exactly one `<link rel="icon">` for
-  it (no competing/duplicate favicon tag; the file-convention `src/app/icon.svg`
-  remains the fallback used only when `site.assets.favicon` is absent). The
-  artwork is the owner-supplied graphic; P6-2D performed **no** favicon
-  redesign.
+- **`favicon`** — fully live and authoritative: `site.assets.favicon` resolves via
+  `assetPathFromUrl` to the same-origin `/assets/favicon.svg` and Next.js emits
+  exactly one `<link rel="icon">` (browser-verified `count=1`,
+  `href=/assets/favicon.svg`). The former file-convention route `src/app/icon.svg`
+  was **removed** in P6-3B, so no competing/stale icon declaration exists. The
+  artwork is the owner-supplied graphic; no favicon redesign was performed.
 - **`logo-header`** — wired through JSON-LD `Organization.logo`
-  (`site.assets.logo`, consumed by `structured-data.tsx`). The header itself
-  **intentionally** renders the brand as text (`siteConfig.name`) and stays
-  navigation-oriented; the principal *visual* brand mark is the `logo-title`
-  title area above the shell (below), not a large in-header image logo. This is
-  the deliberate P6-2D presentation decision.
-- **`logo-title`** — **composed (P6-2D)**: `site.assets.logoTitle` is rendered
-  by `TitleBar` (`src/components/site/title-bar.tsx`) in a dedicated title area
-  above the shell, on every locale/route/preset. The configured absolute URL is
-  reduced to a same-origin path via `assetPathFromUrl` (below); the image scales
-  responsively (intrinsic 240×135 ≈ 16:9, `h-auto max-w-full`, never stretched
-  or overflowing) and carries a meaningful `alt` (`siteConfig.name`) as the
-  page's visual identity. Absent config → renders nothing (never a broken
-  image).
+  (`site.assets.logo`, consumed by `structured-data.tsx`) **and**, since P6-3B,
+  rendered as the header's left brand mark (`<img class="ui-site-header-logo">`
+  inside a link to the locale root, `alt` = the site name, intrinsic aspect ratio
+  via `height: 2rem; width: auto`, `max-width: 100%`). The former text brand
+  label was replaced. Absent config → the previous text brand link (never a
+  broken image).
+- **`banner-*` (P6-3B)** — **composed**: the server resolves
+  `site.assets.banners` (page-slug → absolute URL) through `availableBannerPath`
+  to same-origin paths for entries whose file exists under `public/assets/`, and
+  `PageBanner` (`src/components/site/page-banner.tsx`) renders the banner for the
+  CURRENT page above the header. A page with **no** entry renders **nothing** —
+  no container, no reserved blank block, never another page's banner
+  (browser-verified: header top = 0 on a no-banner page). The image has **zero**
+  structural padding/margin/border/radius, occupies the full available width, and
+  its height follows the graphic's own aspect ratio (no fixed height, no crop or
+  stretch). `banner-home.jpg` is the migrated former `logo-title.jpg` (a 240×135
+  ≈ 16:9 graphic), so at full desktop width it renders ≈712px tall; supply a wide
+  banner graphic (e.g. 1920×202) to obtain the intended ~135px band.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,
@@ -1175,8 +1212,9 @@ Architecture (never a second runtime asset system):
 ```text
 branding/                          (source/reference — this repo only)
     ↓  (human or branding-agent selects + maps roles, one at a time)
-generic Foundation asset roles      (logo-header, logo-footer, logo-title,
-                                      sidebar-open, sidebar-close, favicon)
+generic Foundation asset roles      (logo-header, logo-footer, banner-*,
+                                      sidebar-open, sidebar-close, favicon,
+                                      sidebar-default-icon-open/-closed)
     ↓
 public/assets/                     (the ONLY runtime asset directory)
     ↓

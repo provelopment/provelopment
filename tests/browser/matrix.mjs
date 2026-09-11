@@ -1026,6 +1026,14 @@ async function runPreset(preset, chrome) {
     await runPagePrimitives(rows, cdp, `p14.${preset.name}`);
     // P1-7 — the shared Grid + Stack primitives render on real routes.
     await runGridStack(rows, cdp, `p17.${preset.name}`);
+    // P6-3B — favicon / header logo / page banner (every preset); sidebar rail
+    // geometry only where the resolved composition actually has an aside rail.
+    await runBrandingChecks(rows, preset.name, cdp);
+    if (preset.name === "adaptive" || preset.name === "workspace" || preset.name === "immersive") {
+      await runP6bSidebarChecks(rows, preset.name, cdp);
+      await runP6bCollapsedChecks(rows, preset.name, cdp);
+      await runP6bTabletSweep(rows, preset.name, cdp);
+    }
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {
@@ -1146,8 +1154,187 @@ async function runDuplicateNavScenario(chrome) {
   return rows;
 }
 
-/** Iterate the five presets (config swap + dev server each), restoring config at the end. */
+/** P6-3B — favicon / header logo / page banner contract (every preset). */
+async function runBrandingChecks(rows, tag, cdp) {
+  await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const s = await cdp.evaluate(`(() => {
+    const icons = [...document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"]')];
+    const logo = document.querySelector('.ui-site-header-logo');
+    const logoRect = logo ? logo.getBoundingClientRect() : null;
+    const banner = document.querySelector('.ui-page-banner');
+    const bimg = document.querySelector('.ui-page-banner-image');
+    const bcs = banner ? getComputedStyle(banner) : null;
+    const br = banner ? banner.getBoundingClientRect() : null;
+    const ir = bimg ? bimg.getBoundingClientRect() : null;
+    return {
+      iconCount: icons.length,
+      iconHref: icons.length ? icons[0].getAttribute('href') : null,
+      logoPresent: !!logo,
+      logoSrc: logo ? logo.getAttribute('src') : null,
+      logoAlt: logo ? logo.getAttribute('alt') : null,
+      logoLoaded: !!logo && logo.complete && logo.naturalWidth > 0,
+      logoBoxOk: !!(logoRect && logoRect.height > 0 && logoRect.height <= 48 && logoRect.width > logoRect.height),
+      bannerPresent: !!banner,
+      bannerImgSrc: bimg ? bimg.getAttribute('src') : null,
+      bannerImgLoaded: !!bimg && bimg.complete && bimg.naturalWidth > 0,
+      bannerPad: bcs ? [bcs.paddingTop, bcs.paddingRight, bcs.paddingBottom, bcs.paddingLeft].join("/") : null,
+      bannerMargin: bcs ? [bcs.marginTop, bcs.marginRight, bcs.marginBottom, bcs.marginLeft].join("/") : null,
+      bannerBorder: bcs ? bcs.borderTopWidth : null,
+      bannerRadius: bcs ? bcs.borderTopLeftRadius : null,
+      bannerWidth: br ? Math.round(br.width) : null,
+      imgWidth: ir ? Math.round(ir.width) : null,
+      imgHeight: ir ? Math.round(ir.height) : null,
+      imgNatW: bimg ? bimg.naturalWidth : 0,
+      imgNatH: bimg ? bimg.naturalHeight : 0,
+      viewportWidth: document.documentElement.clientWidth,
+      noBroken: [...document.images].every((i) => i.complete && i.naturalWidth > 0),
+    };
+  })()`);
+  check(rows, `${tag}.favicon.single`, s.iconCount === 1, `count=${s.iconCount}`);
+  check(rows, `${tag}.favicon.href`, typeof s.iconHref === "string" && s.iconHref.endsWith("/assets/favicon.svg"), `href=${s.iconHref}`);
+  check(rows, `${tag}.header.logo`, !!s.logoPresent && !!s.logoLoaded && typeof s.logoSrc === "string" && s.logoSrc.endsWith("/assets/logo-header.svg"), `src=${s.logoSrc}`);
+  check(rows, `${tag}.header.logo.alt`, typeof s.logoAlt === "string" && s.logoAlt.length > 0, `alt=${s.logoAlt}`);
+  check(rows, `${tag}.header.logo.aspect`, !!s.logoBoxOk);
+  check(rows, `${tag}.banner.home.present`, !!s.bannerPresent && !!s.bannerImgLoaded && typeof s.bannerImgSrc === "string" && s.bannerImgSrc.endsWith("/assets/banner-home.jpg"), `src=${s.bannerImgSrc}`);
+  check(rows, `${tag}.banner.noPadding`, s.bannerPad === "0px/0px/0px/0px", `pad=${s.bannerPad}`);
+  check(rows, `${tag}.banner.noMargin`, s.bannerMargin === "0px/0px/0px/0px", `margin=${s.bannerMargin}`);
+  check(rows, `${tag}.banner.noBorder`, s.bannerBorder === "0px" && s.bannerRadius === "0px", `border=${s.bannerBorder} radius=${s.bannerRadius}`);
+  check(rows, `${tag}.banner.fullWidth`, s.bannerWidth != null && Math.abs(s.bannerWidth - s.viewportWidth) <= 1, `w=${s.bannerWidth} vw=${s.viewportWidth}`);
+  // The banner is rendered at its graphic's OWN aspect ratio (intrinsic height —
+  // no forced fixed height and no stretch/crop).
+  check(
+    rows,
+    `${tag}.banner.intrinsicHeight`,
+    s.imgNatW > 0 && s.imgNatH > 0 && s.imgWidth > 0 && s.imgHeight > 0 &&
+      Math.abs(s.imgWidth / s.imgHeight - s.imgNatW / s.imgNatH) < 0.02,
+    `rendered=${s.imgWidth}x${s.imgHeight} natural=${s.imgNatW}x${s.imgNatH}`,
+  );
+  check(rows, `${tag}.noBrokenImages`, !!s.noBroken);
+
+  // A page with NO configured banner: no container and no reserved gap.
+  await cdp.navigate(`${BASE_URL}/en/about`);
+  await waitReady(cdp);
+  const nb = await cdp.evaluate(`(() => {
+    const banner = document.querySelector('.ui-page-banner');
+    const header = document.querySelector('.ui-site-header');
+    const hr = header ? header.getBoundingClientRect() : null;
+    return { banner: !!banner, headerTop: hr ? Math.round(hr.top) : null };
+  })()`);
+  check(rows, `${tag}.banner.absentOnNoBannerPage`, nb.banner === false);
+  check(rows, `${tag}.banner.noReservedGap`, nb.headerTop != null && nb.headerTop <= 40, `headerTop=${nb.headerTop}`);
+}
+
+
+/** P6-3B — sidebar rail geometry: toggle icon size, nav-item icons, labels, border. */
+async function runP6bSidebarChecks(rows, tag, cdp) {
+  await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+  await cdp.navigate(`${BASE_URL}/en`);
+  await waitReady(cdp);
+  const exp = await cdp.evaluate(`(() => {
+    const rail = document.querySelector('#shell-sidebar-desktop-rail');
+    const main = document.querySelector('#main');
+    if (!rail) return null;
+    const toggle = rail.querySelector('.ui-sidebar-toggle-icon');
+    const tr = toggle ? toggle.getBoundingClientRect() : null;
+    const rr = rail.getBoundingClientRect();
+    const mr = main ? main.getBoundingClientRect() : null;
+    const vis = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).display !== 'none'; };
+    const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).display !== 'none'; };
+    const items = [...rail.querySelectorAll('ul > li')];
+    const navIcon = rail.querySelector('.ui-nav-item-icon-open') || rail.querySelector('.ui-nav-item-icon');
+    const nir = navIcon ? navIcon.getBoundingClientRect() : null;
+    const ends = (li, cls, suffix) => { const el = li.querySelector(cls); return !!(el && (el.getAttribute('src') || '').endsWith(suffix)); };
+    return {
+      hasToggle: !!rail.querySelector('.ui-sidebar-toggle'),
+      navIconW: nir ? Math.round(nir.width) : null,
+      toggleW: tr ? Math.round(tr.width) : null, toggleH: tr ? Math.round(tr.height) : null,
+      railHeight: Math.round(rr.height), mainHeight: mr ? Math.round(mr.height) : null,
+      border: getComputedStyle(rail).borderRightWidth, itemCount: items.length,
+      allIcons: items.every((li) => !!li.querySelector('.ui-nav-item-icon')),
+      openVisible: items.filter((li) => shown(li.querySelector('.ui-nav-item-icon-open'))).length,
+      closedVisible: items.filter((li) => shown(li.querySelector('.ui-nav-item-icon-closed'))).length,
+      labelsVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-label'))).length,
+      defaultDots: items.filter((li) => ends(li, '.ui-nav-item-icon-open', 'sidebar-default-icon-open.svg')).length,
+    };
+  })()`);
+  check(rows, `${tag}.p6b.desktop.navIcon64`, !!exp && exp.navIconW != null && exp.navIconW >= 64, `navIconW=${exp && exp.navIconW}`);
+  if (exp && exp.hasToggle) {
+    check(rows, `${tag}.p6b.desktop.toggleIcon64`, exp.toggleW >= 64 && exp.toggleH >= 64, `w=${exp.toggleW} h=${exp.toggleH}`);
+  } else {
+    // A deliberately NON-collapsible rail (e.g. immersive `floating`) has no
+    // toggle control at all — the §3 toggle-size contract does not apply.
+    check(rows, `${tag}.p6b.desktop.staticRailNoToggle`, !!exp && !exp.hasToggle);
+  }
+  check(rows, `${tag}.p6b.desktop.navIconsAll`, !!exp && exp.itemCount > 0 && exp.allIcons, `items=${exp && exp.itemCount}`);
+  check(rows, `${tag}.p6b.desktop.openIconsVisible`, !!exp && exp.itemCount > 0 && exp.openVisible === exp.itemCount, `${exp && exp.openVisible}/${exp && exp.itemCount}`);
+  check(rows, `${tag}.p6b.desktop.closedIconsHidden`, !!exp && exp.closedVisible === 0);
+  check(rows, `${tag}.p6b.desktop.labelsVisible`, !!exp && exp.itemCount > 0 && exp.labelsVisible === exp.itemCount);
+  check(rows, `${tag}.p6b.desktop.defaultDot`, !!exp && exp.itemCount > 0 && exp.defaultDots === exp.itemCount, `${exp && exp.defaultDots}/${exp && exp.itemCount}`);
+  check(rows, `${tag}.p6b.desktop.border`, !!exp && exp.border === "1px");
+  check(rows, `${tag}.p6b.desktop.borderFullHeight`, !!exp && exp.mainHeight > 0 && Math.abs(exp.railHeight - exp.mainHeight) <= 4, `rail=${exp && exp.railHeight} main=${exp && exp.mainHeight}`);
+}
+
+
+/** P6-3B — collapsed rail: derived width, closed icons, no stray labels. */
+async function runP6bCollapsedChecks(rows, tag, cdp) {
+  const collapsible = await cdp.evalBool(`!!document.querySelector('#shell-sidebar-desktop-rail .ui-sidebar-toggle')`);
+  if (!collapsible) {
+    check(rows, `${tag}.p6b.collapsed.notApplicable`, true, "non-collapsible aside (static rail)");
+    return;
+  }
+  await cdp.clickCenter('#shell-sidebar-desktop-rail [aria-controls="shell-sidebar-desktop-panel"]');
+  await sleep(350);
+  const col = await cdp.evaluate(`(() => {
+    const rail = document.querySelector('#shell-sidebar-desktop-rail');
+    if (!rail) return null;
+    const vis = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).display !== 'none'; };
+    const items = [...rail.querySelectorAll('ul > li')];
+    const visibleIcon = rail.querySelector('.ui-nav-item-icon-closed') || rail.querySelector('.ui-nav-item-icon-open') || rail.querySelector('.ui-nav-item-icon');
+    const ir = visibleIcon && getComputedStyle(visibleIcon).display !== 'none' ? visibleIcon.getBoundingClientRect() : null;
+    return {
+      dataCollapsed: rail.getAttribute('data-collapsed'),
+      railWidth: Math.round(rail.getBoundingClientRect().width),
+      iconW: ir ? Math.round(ir.width) : null,
+      strayLabels: items.filter((li) => { const l = li.querySelector('.ui-nav-item-label'); if (!l) return false; const r = l.getBoundingClientRect(); return r.width > 2 && r.height > 2; }).length,
+      labelsVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-label'))).length,
+      closedVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-icon-closed'))).length,
+      openVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-icon-open'))).length,
+    };
+  })()`);
+  check(rows, `${tag}.p6b.collapsed.state`, !!col && col.dataCollapsed === "true");
+  check(rows, `${tag}.p6b.collapsed.widthDerived`, !!col && col.iconW != null && col.railWidth >= Math.round(col.iconW * 1.15) && col.railWidth <= Math.round(col.iconW * 1.3), `rail=${col && col.railWidth} icon=${col && col.iconW}`);
+  check(rows, `${tag}.p6b.collapsed.closedIconsVisible`, !!col && col.closedVisible > 0 && col.openVisible === 0);
+  check(rows, `${tag}.p6b.collapsed.labelsHidden`, !!col && col.labelsVisible === 0);
+  check(rows, `${tag}.p6b.collapsed.noStrayLabels`, !!col && col.strayLabels === 0, `stray=${col && col.strayLabels}`);
+}
+
+/** P6-3B — no width interval where the aside becomes a stacked top-of-content list. */
+async function runP6bTabletSweep(rows, tag, cdp) {
+  for (const width of [767, 800, 900, 1000, 1023, 1024]) {
+    await cdp.setViewport(width, 820);
+    await cdp.reload();
+    await waitReady(cdp);
+    const s = await cdp.evaluate(`(() => {
+      const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 ? { left: Math.round(b.left), right: Math.round(b.right), width: Math.round(b.width) } : null; };
+      const rail = rect(document.querySelector('#shell-sidebar-desktop-rail')) || rect(document.querySelector('#shell-sidebar-tablet-rail'));
+      const t = document.querySelector('#shell-sidebar-tablet-rail .ui-sidebar-toggle-icon');
+      const tr = t ? t.getBoundingClientRect() : null;
+      const tVisible = !!tr && tr.width > 2 && tr.height > 2;
+      return { rail, main: rect(document.querySelector('#main')), vw: document.documentElement.clientWidth, tabletToggle: tVisible ? { w: Math.round(tr.width), h: Math.round(tr.height) } : null };
+    })()`);
+    if (!s.rail) {
+      check(rows, `${tag}.p6b.sweep.${width}.noStackedRail`, true, "no aside rail visible (mobile composition)");
+    } else {
+      check(rows, `${tag}.p6b.sweep.${width}.railBesideContent`, s.main != null && s.rail.right <= s.main.left + 2 && s.rail.width < s.vw * 0.6, `railRight=${s.rail.right} mainLeft=${s.main && s.main.left} railW=${s.rail.width}`);
+    }
+    if (s.tabletToggle) check(rows, `${tag}.p6b.sweep.${width}.tabletToggleIcon32`, s.tabletToggle.w >= 32 && s.tabletToggle.h >= 32, `w=${s.tabletToggle.w} h=${s.tabletToggle.h}`);
+  }
+}
+
 async function runMatrix(chrome, onlyPreset) {
+
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
   const toRun = onlyPreset ? PRESETS.filter((p) => p.name === onlyPreset) : PRESETS;

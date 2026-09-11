@@ -196,7 +196,7 @@ describe("ShellEngine — Workspace tablet (collapsed-sidebar) + mutually exclus
     expect(html).toContain('class="hidden md:block lg:hidden"');
     // Two <nav> rail landmarks (both bands) — mutually exclusive at any width:
     expect(html.match(/aria-label="Primary"/g) ?? []).toHaveLength(2);
-    expect(html).toContain("flex flex-col flex-1 lg:flex-row lg:flex-wrap");
+    expect(html).toContain("flex flex-col flex-1 md:flex-row md:flex-wrap");
     const ids = allIds(html);
     expect(new Set(ids).size).toBe(ids.length);
   });
