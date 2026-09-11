@@ -5,16 +5,16 @@ import path from "node:path";
 import { iconAssetAvailable } from "@/config/assets";
 
 /**
- * P6-2A — generic branding asset-role placeholder architecture.
+ * P6-2A/P6-2C/P6-2D — generic branding asset-role architecture.
  *
- * This locks in the FILE/ROLE contract only (asset roles + filenames are
- * replaceable, valid, non-empty, and — for the sidebar roles — already
- * wired through the existing icon-asset resolution path). It intentionally
- * asserts NOTHING about visual content: these are placeholders the owner
- * will replace manually, one at a time (see CUSTOMIZING.md → "Generic
- * branding asset roles (P6-2A)").
+ * Locks in the FILE/ROLE contract (asset roles + filenames are replaceable,
+ * valid, non-empty, and — for the sidebar roles — already wired through the
+ * existing icon-asset resolution path) AND the config-driven composition
+ * invariant added at P6-2D: components consume the generic roles ONLY
+ * through `siteConfig.assets?.*`, never a hard-coded Provelopment-specific
+ * filename (see CUSTOMIZING.md → "Generic branding asset roles").
  */
-describe("P6-2A — generic branding asset-role placeholders", () => {
+describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
   const assetsDir = path.join(process.cwd(), "public", "assets");
 
   it("a placeholder file exists for every generic branding role and is non-empty", () => {
@@ -57,22 +57,55 @@ describe("P6-2A — generic branding asset-role placeholders", () => {
     expect(iconAssetAvailable("sidebar-close.svg")).toBe(true);
   });
 
-  it("the new logo placeholders are NOT yet wired into any component (P6-2A is placeholders-only)", () => {
+  it("P6-2D — the logo-title/logo-footer roles are wired through site.assets.*, never a hard-coded filename", () => {
+    // P6-2A shipped these as placeholders-only; P6-2D (brand presentation +
+    // title bar) composes them into TitleBar/SiteFooter. The invariant that
+    // must hold FOREVER is not "never referenced" but "never a hard-coded
+    // Provelopment-specific filename" — every consumer must read the
+    // generic role through `siteConfig.assets?.logoTitle`/`logoFooter`
+    // (config-driven), never the literal string "logo-title.jpg"/
+    // "logo-footer.svg" baked into component source.
+    const titleBar = readFileSync(
+      path.join(process.cwd(), "src", "components", "site", "title-bar.tsx"),
+      "utf8",
+    );
+    expect(titleBar).toContain("siteConfig.assets?.logoTitle");
+    // Config-driven, not hard-coded: the filename must never appear as a
+    // literal JSX/JS string value (quoted) — only in prose doc comments.
+    expect(titleBar).not.toMatch(/["'`]logo-title\.jpg["'`]/);
+
+    const siteFooter = readFileSync(
+      path.join(process.cwd(), "src", "components", "site", "site-footer.tsx"),
+      "utf8",
+    );
+    expect(siteFooter).toContain("siteConfig.assets?.logoFooter");
+    expect(siteFooter).not.toMatch(/["'`]logo-footer\.svg["'`]/);
+
+    // No OTHER component/app source may hard-code the generic role
+    // filenames as literal string values (the two sanctioned consumers
+    // above are exhaustive; doc-comment mentions elsewhere are fine).
     const componentsDir = path.join(process.cwd(), "src", "components");
     const appDir = path.join(process.cwd(), "src", "app");
+    const sanctioned = new Set([
+      path.join("components", "site", "title-bar.tsx"),
+      path.join("components", "site", "site-footer.tsx"),
+    ]);
+    const literalPattern = /["'`](logo-header\.svg|logo-footer\.svg|logo-title\.jpg)["'`]/;
     const offenders: string[] = [];
     const scan = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, entry.name);
         if (entry.isDirectory()) scan(full);
         else if (/\.(tsx?|mjs)$/.test(entry.name)) {
+          const relative = path.relative(process.cwd(), full).replace(/^src[\\/]/, "");
+          if (sanctioned.has(relative)) continue;
           const text = readFileSync(full, "utf8");
-          if (/logo-header|logo-footer|logo-title/.test(text)) offenders.push(full);
+          if (literalPattern.test(text)) offenders.push(full);
         }
       }
     };
     scan(componentsDir);
     scan(appDir);
-    expect(offenders, "no component/app source should reference the new logo placeholder roles yet").toEqual([]);
+    expect(offenders, "no OTHER component/app source may hard-code the generic logo role filenames as a literal").toEqual([]);
   });
 });

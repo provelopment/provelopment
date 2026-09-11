@@ -894,15 +894,18 @@ WCAG 2.1 AA contrast (≥ 4.5:1) for every documented pair in both schemes.
 
 ### Typography
 
-- The brand sans/monospace families are **Geist** via `next/font/google`,
-  loaded in `src/app/[locale]/layout.tsx`; `--font-sans` / `--font-mono` live
-  in the `@theme inline` block of `globals.css`.
+- The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
+  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `branding/branding-schema.md`
+  — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
+  **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
+  block of `globals.css`.
 - **To change the brand font:** swap the `next/font/*` call in `layout.tsx`
   (another `next/font/google` family, or `next/font/local` for a self-hosted
   file — nothing else changes) and keep `--font-sans` pointing at its CSS
   variable. This is the one sanctioned code-surface change for fonts.
-- **Multi-script note:** Geist is loaded `latin`-only. Japanese/Chinese/Korean
-  and Russian render through the documented system-font fallback stack in the
+- **Multi-script note:** Plus Jakarta Sans is loaded `latin`-only.
+  Japanese/Chinese/Korean and Russian render through the documented
+  system-font fallback stack in the
   `body` rule (`Noto Sans JP/KR/SC`, system CJK/Cyrillic). Do not add CJK
   webfonts — the payload cost is not justified. If a translated page's
   fallback looks wrong, adjust the fallback stack in `globals.css`.
@@ -1058,7 +1061,7 @@ and Twitter metadata (via the `resolveOgImageUrl` helper); when it is absent,
 the per-locale generated OpenGraph image route is used as the default (the
 canonical site intentionally leaves `ogImage` absent for this reason).
 
-#### Generic branding asset roles (P6-2A, wired P6-2C)
+#### Generic branding asset roles (P6-2A, wired P6-2C, composed P6-2D)
 
 Branding assets under `public/assets/` use **generic functional filenames**,
 not brand-specific ones. Components/configuration reference a role's
@@ -1071,35 +1074,51 @@ without changing component source code.
 | Generic role | Runtime file | Wired to |
 | --- | --- | --- |
 | `logo-header` | `public/assets/logo-header.svg` | `site.assets.logo` → JSON-LD `Organization.logo` (structured data only; the visible header still renders the brand as text — see below) |
-| `logo-footer` | `public/assets/logo-footer.svg` | `site.assets.logoFooter` (resolved + build-validated; not yet composed into the footer component) |
-| `logo-title` | `public/assets/logo-title.jpg` | `site.assets.logoTitle` (resolved + build-validated; not yet composed into any title-area component) |
+| `logo-footer` | `public/assets/logo-footer.svg` | `site.assets.logoFooter` → `SiteFooter` (P6-2D — a restrained decorative mark beside the copyright line) |
+| `logo-title` | `public/assets/logo-title.jpg` | `site.assets.logoTitle` → `TitleBar` (P6-2D — the principal page-title brand mark, a dedicated area above the shell) |
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 
-Status (P6-2C — asset wiring; **no visual redesign was performed**):
+Status (P6-2D — brand presentation: roles wired, **composed**, and rethemed):
 
 - **`favicon`** — fully live: `site.assets.favicon` resolves to
   `/assets/favicon.svg` and Next.js emits exactly one `<link rel="icon">` for
   it (no competing/duplicate favicon tag; the file-convention `src/app/icon.svg`
-  remains the fallback used only when `site.assets.favicon` is absent).
-- **`logo-header`** — wired through the only structural position the
-  Foundation currently exposes for a site logo: JSON-LD `Organization.logo`
+  remains the fallback used only when `site.assets.favicon` is absent). The
+  artwork is the owner-supplied graphic; P6-2D performed **no** favicon
+  redesign.
+- **`logo-header`** — wired through JSON-LD `Organization.logo`
   (`site.assets.logo`, consumed by `structured-data.tsx`). The header itself
-  still renders the brand as text (`siteConfig.name`); an in-header **image**
-  logo position is a separate, later visual-implementation task (sizing,
-  placement, and header layout are deliberately out of scope here).
-- **`sidebar-open`/`sidebar-close`** — already fully live before this task
-  (pre-existing generic filenames, already resolved through
+  **intentionally** renders the brand as text (`siteConfig.name`) and stays
+  navigation-oriented; the principal *visual* brand mark is the `logo-title`
+  title area above the shell (below), not a large in-header image logo. This is
+  the deliberate P6-2D presentation decision.
+- **`logo-title`** — **composed (P6-2D)**: `site.assets.logoTitle` is rendered
+  by `TitleBar` (`src/components/site/title-bar.tsx`) in a dedicated title area
+  above the shell, on every locale/route/preset. The configured absolute URL is
+  reduced to a same-origin path via `assetPathFromUrl` (below); the image scales
+  responsively (intrinsic 240×135 ≈ 16:9, `h-auto max-w-full`, never stretched
+  or overflowing) and carries a meaningful `alt` (`siteConfig.name`) as the
+  page's visual identity. Absent config → renders nothing (never a broken
+  image).
+- **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
+  by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
+  `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,
+  never a substitute for the accessible text. Absent config → no element.
+- **`sidebar-open`/`sidebar-close`** — already fully live (pre-existing generic
+  filenames, already resolved through
   `DEFAULT_SIDEBAR_OPEN_ICON`/`DEFAULT_SIDEBAR_CLOSE_ICON`,
   `src/core/ui/controls.ts`). The owner-supplied real graphics at these paths
-  are used exactly as supplied; sidebar geometry/behavior is unchanged.
-- **`logo-footer`/`logo-title`** — RESOLVED and build-validated
-  (`site.assets.logoFooter`/`logoTitle`, schema + loader + `fs4-assets.test.ts`
-  coverage) exactly like every other `site.assets.*` leaf, but **not yet
-  composed into any component** — there is no footer-logo or title-area
-  position in the Foundation yet. Adding those visual positions (and the
-  sidebar-redesign geometry work) are separate, later tasks.
+  are used exactly as supplied; **sidebar geometry/behavior was NOT changed by
+  P6-2D** — the persistent horizontal-width sidebar redesign is a separate,
+  later task.
+- **Asset URL handling (P6-2D)** — every composed image reads its role through
+  `siteConfig.assets?.*` (never a hard-coded filename) and passes the configured
+  absolute URL through `assetPathFromUrl` (`src/config/assets.ts`), which
+  re-derives the same-origin pathname so a rendered `<img>` always fetches from
+  the CURRENT origin regardless of `site.url` accuracy (placeholder/staging).
+  Behavioral coverage: `tests/unit/config-assets.test.ts`.
 - Replace any of the six files in place at its existing path, exactly like
   the other `public/assets/*` defaults described above — no configuration or
   component change required.
