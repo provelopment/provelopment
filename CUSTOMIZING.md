@@ -672,7 +672,11 @@ identity, so downstream CSS may key on vocabulary values if desired).
   optional hex value (`#rgb`, `#rrggbb`, or `#rrggbbaa`). When set, it flows
   through the existing design-token system (`--background` on the root
   element) and **replaces the Foundation's default background**; when absent,
-  the Foundation's default `--background` token renders unchanged.
+  the Foundation's default `--background` token renders unchanged. This is the
+  **flat colour** capability and it always remains the source of the page
+  colour. The optional **decorative background graphic** (P12-BG,
+  `site.assets.backgrounds` — see *Assets* below) is a **separate layer painted
+  over this colour**; it never replaces or overrides the colour token.
 
 ```jsonc
 // Adaptive reference, default background (nothing added).
@@ -1118,6 +1122,7 @@ configurable through the validated `site.assets.*` block:
 | Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (the single authoritative icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
+| Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1135,7 +1140,9 @@ There are **two equally-supported ways to customize an asset**:
       "ogImage":    "https://cdn.example.com/my-share.png",       // replaces og:image / twitter:image
       "favicon":    "https://cdn.example.com/my-icon.svg",        // replaces the browser icon
       "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // footer mark
-      "banners":    { "home": "https://cdn.example.com/banner-home.png" } // page-keyed banners (P6-3B)
+      "banners":    { "home": "https://cdn.example.com/banner-home.png" }, // page-keyed banners (P6-3B)
+      "backgrounds": { "all": "https://cdn.example.com/background-all.webp",   // global decorative background (P12-BG)
+                       "about": "https://cdn.example.com/background-about.webp" } // page-specific wins
     }
   }
 }
@@ -1217,6 +1224,24 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
     banner family. To obtain the intended full-width band, supply a graphic wide
     enough that 1.5 × its natural width exceeds the target viewport (the approved
     pack's 3546px does so at every supported width).
+- **`background-*` (P12-BG)** — **capability composed; no Foundation artwork yet**:
+  the server resolves `site.assets.backgrounds` (page role → absolute URL, with the
+  reserved `all` key as the **global** background) through `availableBackgroundMap`
+  to same-origin paths for entries whose file exists under `public/assets/`, and
+  `PageBackground` (`src/components/site/page-background.tsx`) renders one
+  decorative, content-independent layer for the CURRENT page. Resolution is
+  `background-<page>` → `background-all` → **none**: a page with no entry (and no
+  global) renders **nothing** — no placeholder, never another page's graphic — so
+  no graphic background is required for any page to work. The layer is
+  `position: fixed; z-index: -1; pointer-events: none` with `aria-hidden="true"`:
+  it adds no padding/margin/reserved height/horizontal overflow, cannot shift the
+  header/banner/content/footer, cannot capture a click/selection/focus, and
+  contributes no accessible name or semantics. It layers **over** the flat
+  `ui.theme.background` colour — the colour token still defines the base colour.
+  One asset `cover`s any viewport (no per-breakpoint roles, no art direction) and
+  it is static only (no animation, no parallax). As a CSS `background-image` it
+  bypasses the Next image optimizer. **No Foundation background artwork exists
+  yet** — art is produced and owner-approved *after* this capability.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,

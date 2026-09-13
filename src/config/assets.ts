@@ -88,18 +88,62 @@ export function assetPathFromUrl(absoluteUrl: string | undefined): string | unde
 }
 
 /**
- * P6-3B — resolves a configured `site.assets.banners[<page>]` value (an FS-4
- * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
- * `public/assets/`; otherwise `undefined` (the page renders NO banner — no
- * placeholder, no reserved space, never another page's banner). The URL's
- * basename is what is checked, via the same asset-availability cache the
- * plain-filename icon contract uses.
+ * The shared "configured asset is real" rule behind the page-role graphic roles
+ * (`availableBannerPath` / `availableBackgroundPath`): an FS-4 ABSOLUTE URL
+ * resolves to its same-origin pathname ONLY when the URL's basename is backed
+ * by a real file under `public/assets/`; otherwise `undefined`. The basename is
+ * checked through the same asset-availability cache the plain-filename icon
+ * contract uses, so a CONFIGURED-but-missing role is always indistinguishable
+ * from an ABSENT one — never a placeholder and never a broken image/404.
  */
-export function availableBannerPath(absoluteUrl: string | undefined): string | undefined {
+function availableRoleAssetPath(absoluteUrl: string | undefined): string | undefined {
   const pathname = assetPathFromUrl(absoluteUrl);
   if (!pathname) return undefined;
   const name = pathname.split("/").pop() ?? "";
   return iconAssetAvailable(name) ? pathname : undefined;
+}
+
+/**
+ * P6-3B — resolves a configured `site.assets.banners[<page>]` value (an FS-4
+ * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
+ * `public/assets/`; otherwise `undefined` (the page renders NO banner — no
+ * placeholder, no reserved space, never another page's banner).
+ */
+export function availableBannerPath(absoluteUrl: string | undefined): string | undefined {
+  return availableRoleAssetPath(absoluteUrl);
+}
+
+/**
+ * P12-BG — resolves a configured `site.assets.backgrounds[<role>]` value (an
+ * FS-4 ABSOLUTE URL) to a same-origin path ONLY when a matching file exists
+ * under `public/assets/`; otherwise `undefined`. Same availability rule as the
+ * banner role (above), so a CONFIGURED-but-missing background resolves to
+ * `undefined` — which is exactly what drives the documented
+ * `background-<page>` → `background-all` → none fallback in the layout
+ * (a missing page-specific asset falls through to the global one, and a missing
+ * global one renders nothing at all).
+ */
+export function availableBackgroundPath(absoluteUrl: string | undefined): string | undefined {
+  return availableRoleAssetPath(absoluteUrl);
+}
+
+/**
+ * P12-BG — builds the page-role → same-origin-path map the decorative background
+ * layer consumes from the configured `site.assets.backgrounds` record. Entries
+ * whose file is missing are DROPPED entirely, so a CONFIGURED-but-missing
+ * background is indistinguishable from an ABSENT one — which is precisely what
+ * drives the documented `background-<page>` → `background-all` → none fallback
+ * without any special-case fallback code in the runtime.
+ */
+export function availableBackgroundMap(
+  configured: Readonly<Record<string, string>> | undefined,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(configured ?? {}).flatMap(([role, url]) => {
+      const path = availableBackgroundPath(url);
+      return path ? [[role, path]] : [];
+    }),
+  );
 }
 
 /** An intrinsic pixel size read from an asset header. */

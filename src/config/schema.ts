@@ -103,6 +103,24 @@ export const siteAssetsSchema = z.object({
       z.url("must be an absolute URL including protocol, e.g. https://example.com/assets/banner-home.jpg"),
     )
     .optional(),
+  /**
+   * P12-BG — the `background-*` role (absolute URL). A DECORATIVE background
+   * record keyed by PAGE ROLE: the reserved key `"all"` is the GLOBAL
+   * background, and any other key (`"home"`, `"about"`, …) is the PAGE-SPECIFIC
+   * background for that page family. Resolution is `background-<page>` →
+   * `background-all` → none, so a page with NO entry (and no global) renders NO
+   * graphic background at all — no placeholder, never another page's graphic.
+   * The graphic layers OVER the flat `ui.theme.background` colour; it never
+   * replaces it (see globals.css — `.ui-page-background`).
+   */
+  backgrounds: z
+    .record(
+      z.string(),
+      z.url(
+        "must be an absolute URL including protocol, e.g. https://example.com/assets/background-all.jpg",
+      ),
+    )
+    .optional(),
 });
 
 export const siteSettingsSchema = z.object({
