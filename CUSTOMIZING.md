@@ -1233,6 +1233,20 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   the other `public/assets/*` defaults described above — no configuration or
   component change required.
 
+> **Shipped reference artwork (installed).** The canonical Foundation site now ships the
+> **owner-approved Provelopment Foundation brand artwork** at three of these roles:
+> `favicon` (`identity/favicon.svg`, Foundation Blue `#4F7CAC`), `logo-header` (the
+> horizontal lockup `logos/lockup-horizontal.svg`) and `logo-footer` (the restrained
+> single-tone lockup `logos/lockup-mono.svg`). Each was installed as a **byte-identical
+> copy** (SHA-256 verified) from the living brand pack
+> `deployment-info/brands-provelopment/provelopment-foundation/` in the ROOT governance
+> repository, and is recorded in that pack's
+> `provenance/identity-provenance.json` → `runtime_role_mapping`. The roles themselves
+> remain **generic and replaceable** — this is still a file swap, with no component or
+> configuration change — and no runtime code references the brand pack or the archive.
+> The expanded reverse variants (`lockup-reversed-mono.svg`, `lockup-reversed-color.svg`,
+> `lockup-reversed-knockout.svg`) are **not** consumed by any runtime role yet.
+
 #### Branding reference package — `branding/` (P6-2C)
 
 The repository root also carries a **source/reference package**, `branding/`

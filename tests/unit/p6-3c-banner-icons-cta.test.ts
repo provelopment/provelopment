@@ -80,10 +80,13 @@ describe("P6-3C/A — the intrinsic banner size is read from the asset (server-s
     expect(readImageDimensions("/assets/banner-home.jpg")).toEqual({ width: 240, height: 135 });
   });
 
-  it("reads SVG assets (explicit width/height AND the viewBox fallback)", () => {
-    expect(readImageDimensions("/assets/favicon.svg")).toEqual({ width: 64, height: 64 });
-    // `logo-header.svg` declares inch units + a viewBox → the viewBox governs.
-    expect(readImageDimensions("/assets/logo-header.svg")).toEqual({ width: 240, height: 60 });
+  it("reads the installed approved SVG assets (explicit width/height on the root element)", () => {
+    // The approved canonical assets declare explicit unitless px sizes, so the
+    // intrinsic-size contract is proven directly against the real shipped
+    // artwork (the previous expectation pinned the PLACEHOLDER's inch-unit +
+    // viewBox geometry, which the installed masters replaced).
+    expect(readImageDimensions("/assets/favicon.svg")).toEqual({ width: 24, height: 24 });
+    expect(readImageDimensions("/assets/logo-header.svg")).toEqual({ width: 647, height: 158 });
   });
 
   it("returns undefined for a missing/unreadable/absent asset (never guesses a size)", () => {
