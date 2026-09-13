@@ -9,7 +9,16 @@
       "favicon": "https://www.example.com/assets/favicon.svg",
       "logoFooter": "https://www.example.com/assets/logo-footer.svg",
       "banners": {
-        "home": "https://www.example.com/assets/banner-home.jpg"
+        "home": "https://www.example.com/assets/banner-home.png",
+        "about": "https://www.example.com/assets/banner-about.png",
+        "contact": "https://www.example.com/assets/banner-contact.png",
+        "connect": "https://www.example.com/assets/banner-connect.png",
+        "offerings": "https://www.example.com/assets/banner-offerings.png",
+        "portfolio": "https://www.example.com/assets/banner-portfolio.png",
+        "blog": "https://www.example.com/assets/banner-blog.png",
+        "resources": "https://www.example.com/assets/banner-resources.png",
+        "testimonials": "https://www.example.com/assets/banner-testimonials.png",
+        "legal": "https://www.example.com/assets/banner-legal.png"
       }
     }
   },

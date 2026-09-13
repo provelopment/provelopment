@@ -21,7 +21,7 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     const roles: Array<[string, string]> = [
       ["logo-header", "logo-header.svg"],
       ["logo-footer", "logo-footer.svg"],
-      ["banner-home", "banner-home.jpg"],
+      ["banner-home", "banner-home.png"],
       ["sidebar-open", "sidebar-open.svg"],
       ["sidebar-close", "sidebar-close.svg"],
       ["favicon", "favicon.svg"],
@@ -43,12 +43,17 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     }
   });
 
-  it("the banner-home placeholder is a REAL JPEG (magic bytes), not a renamed SVG", () => {
-    const bytes = readFileSync(path.join(assetsDir, "banner-home.jpg"));
-    // JPEG files begin with the SOI marker 0xFFD8 followed by an APP/marker 0xFF.
-    expect(bytes[0]).toBe(0xff);
-    expect(bytes[1]).toBe(0xd8);
-    expect(bytes[2]).toBe(0xff);
+  it("the banner-home role graphic is a REAL PNG (magic bytes), not a renamed SVG", () => {
+    const bytes = readFileSync(path.join(assetsDir, "banner-home.png"));
+    // PNG files begin with the 8-byte signature 89 50 4E 47 0D 0A 1A 0A.
+    expect(bytes[0]).toBe(0x89);
+    expect(bytes[1]).toBe(0x50);
+    expect(bytes[2]).toBe(0x4e);
+    expect(bytes[3]).toBe(0x47);
+    expect(bytes[4]).toBe(0x0d);
+    expect(bytes[5]).toBe(0x0a);
+    expect(bytes[6]).toBe(0x1a);
+    expect(bytes[7]).toBe(0x0a);
   });
 
   it("the sidebar roles were already generic and remain resolvable through the existing icon-asset contract", () => {
@@ -89,7 +94,7 @@ describe("P6-2A/P6-2D — generic branding asset-role architecture", () => {
     const sanctioned = new Set([
       path.join("components", "site", "site-footer.tsx"),
     ]);
-    const literalPattern = /["'`](logo-header\.svg|logo-footer\.svg|banner-home\.jpg)["'`]/;
+    const literalPattern = /["'`](logo-header\.svg|logo-footer\.svg|banner-home\.png)["'`]/;
     const offenders: string[] = [];
     const scan = (dir: string) => {
       for (const entry of readdirSync(dir, { withFileTypes: true })) {

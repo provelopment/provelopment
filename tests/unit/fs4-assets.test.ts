@@ -34,7 +34,7 @@ describe("FS-4 — canonical asset contract", () => {
     const root = process.cwd();
     const checks: Array<[string, string, () => boolean]> = [
       ["logoFooter", siteConfig.assets?.logoFooter ?? "", () => existsSync(path.join(root, "public", "assets", "logo-footer.svg"))],
-      ["banners.home", siteConfig.assets?.banners?.home ?? "", () => existsSync(path.join(root, "public", "assets", "banner-home.jpg"))],
+      ["banners.home", siteConfig.assets?.banners?.home ?? "", () => existsSync(path.join(root, "public", "assets", "banner-home.png"))],
     ];
     for (const [key, url, exists] of checks) {
       expect(url, `${key} must be configured on the canonical site`).not.toBe("");

@@ -50,15 +50,37 @@ describe("P6-3B — favicon contract", () => {
 });
 
 describe("P6-3B — banner contract", () => {
-  it("home banner resolves through site.assets.banners to a same-origin path + file exists", () => {
-    expect(assetPathFromUrl(siteConfig.assets?.banners?.home)).toBe("/assets/banner-home.jpg");
-    expect(existsSync(assetFile("banner-home.jpg"))).toBe(true);
+  it("every configured page banner resolves to a same-origin path whose file exists", () => {
+    // The approved Foundation banner family (ten canonical page roles) is wired
+    // through the ONE generic `site.assets.banners` seam. Each configured entry
+    // must survive both `assetPathFromUrl` and the existence-screening
+    // `availableBannerPath` — a typo'd or missing file would silently drop.
+    const banners = siteConfig.assets?.banners ?? {};
+    const roles = [
+      "home", "about", "contact", "connect", "offerings",
+      "portfolio", "blog", "resources", "testimonials", "legal",
+    ] as const;
+    expect(Object.keys(banners).sort()).toEqual([...roles].sort());
+    for (const role of roles) {
+      const path = assetPathFromUrl(banners[role]);
+      expect(path, `${role} must resolve to a same-origin /assets path`).toBe(`/assets/banner-${role}.png`);
+      expect(existsSync(assetFile(`banner-${role}.png`)), `${role} file must exist`).toBe(true);
+      expect(availableBannerPath(banners[role]), `${role} must survive existence screening`).toBe(
+        `/assets/banner-${role}.png`,
+      );
+    }
   });
 
   it("availableBannerPath returns the path only when the file exists (no-banner → undefined)", () => {
-    expect(availableBannerPath(siteConfig.assets?.banners?.home)).toBe("/assets/banner-home.jpg");
-    expect(availableBannerPath("https://www.example.com/assets/banner-nope.jpg")).toBeUndefined();
+    expect(availableBannerPath(siteConfig.assets?.banners?.home)).toBe("/assets/banner-home.png");
+    expect(availableBannerPath("https://www.example.com/assets/banner-nope.png")).toBeUndefined();
     expect(availableBannerPath(undefined)).toBeUndefined();
+  });
+
+  it("the superseded banner-home.jpg placeholder is fully retired (no file, no config reference)", () => {
+    expect(existsSync(assetFile("banner-home.jpg"))).toBe(false);
+    const raw = readFileSync(path.join(root, "site.config.json"), "utf8");
+    expect(raw).not.toContain("banner-home.jpg");
   });
 
   it("the old logoTitle runtime concept is fully retired (config + asset gone)", () => {
