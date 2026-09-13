@@ -10,6 +10,7 @@ import { siteConfig } from "@/config";
 import {
   assertConfiguredIconAssetsExist,
   assetPathFromUrl,
+  availableBackgroundMap,
   availableBannerPath,
   availableIconName,
   readImageDimensions,
@@ -26,6 +27,7 @@ import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
 import { PageBanner } from "@/components/site/page-banner";
+import { PageBackground } from "@/components/site/page-background";
 import { configuredRegionIds } from "@/core/regional-pages";
 import "../globals.css";
 
@@ -163,6 +165,17 @@ export default async function LocaleLayout({
     }),
   );
   const regionIds = configuredRegionIds(siteConfig.regions);
+  // P12-BG — the per-page-role background map (page role → resolved decorative
+  // graphic). Same availability rule as the banner role: only entries whose file
+  // actually exists under `public/assets/` survive, so a CONFIGURED-but-missing
+  // background is indistinguishable from an ABSENT one. That is exactly what
+  // drives the documented `background-<page>` → `background-all` → none
+  // fallback at render time (a missing page-specific graphic falls through to
+  // the global one; a missing global one renders no graphic at all). The `all`
+  // key is the reserved GLOBAL role.
+  // No intrinsic size is read here: the layer is a CSS `background-image` with
+  // `cover`, so — unlike a page banner — it needs no dimension/upscale contract.
+  const backgroundMap = availableBackgroundMap(siteConfig.assets?.backgrounds);
 
   const asideContent = usesAside ? (
     <ContextNavLinks
@@ -235,6 +248,7 @@ export default async function LocaleLayout({
         >
           {dictionary.a11y.skipToContent}
         </a>
+        <PageBackground backgrounds={backgroundMap} regionIds={regionIds} />
         <PageBanner banners={bannerMap} regionIds={regionIds} />
         <ShellEngine
           resolved={resolvedUi}

@@ -832,3 +832,39 @@ html[data-ui-hero="showcase"] .home-hero {
   width: 100%;
   max-width: var(--ui-banner-max-width, 100%);
 }
+
+/* The optional decorative page background (P12-BG). The Background / Watermark
+ * Contract layer: `background-<page>` → `background-all` → none, resolved on the
+ * server and handed to `PageBackground` as a same-origin path.
+ *
+ * NON-STRUCTURAL: the layer is `position: fixed` and completely out of flow, so
+ * it adds no padding, no margin, no reserved height and no horizontal overflow,
+ * and it can never shift the header, banner, content or footer.
+ *
+ * BEHIND CONTENT, ABOVE THE COLOUR: `z-index: -1` paints this layer above the
+ * canvas colour (the `body { background: var(--background) }` above, which the
+ * root element propagates to the canvas) and below every in-flow element. The
+ * flat `ui.theme.background` COLOUR token therefore still defines the page's
+ * base colour — the graphic is layered OVER it, never substituted for it, so
+ * presets and themes keep working with or without a configured graphic.
+ *
+ * DECORATIVE ONLY: `pointer-events: none` means the layer can never capture a
+ * click, a text selection or focus — content stays fully interactive, selectable
+ * and focusable. The element also carries `aria-hidden`, so it contributes no
+ * accessible name and no semantics.
+ *
+ * ONE ASSET, ANY VIEWPORT: `cover` + centred lets a single graphic survive normal
+ * viewport changes without per-breakpoint roles or art direction. Static only —
+ * no animation, no parallax, no motion. */
+.ui-page-background {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}

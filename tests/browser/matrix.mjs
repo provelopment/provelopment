@@ -1239,6 +1239,7 @@ async function runBrandingChecks(rows, tag, cdp) {
       bannerAboveMain: !!ir && !!main && ir.bottom <= main.getBoundingClientRect().top + 2,
       viewportWidth: document.documentElement.clientWidth,
       docScrollWidth: document.documentElement.scrollWidth,
+      backgroundLayers: document.querySelectorAll(".ui-page-background").length,
       noBroken: [...document.images].every((i) => i.complete && i.naturalWidth > 0),
     };
   })()`);
@@ -1267,6 +1268,13 @@ async function runBrandingChecks(rows, tag, cdp) {
     `left=${s.imgLeft} right=${s.imgRight} vw=${s.viewportWidth} w=${s.imgWidth}`,
   );
   check(rows, `${tag}.banner.noHorizontalOverflow`, s.imgLeft >= -1 && s.imgRight <= s.viewportWidth + 1 && s.docScrollWidth <= s.viewportWidth + 1, `left=${s.imgLeft} right=${s.imgRight} scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
+  // P12-BG — the decorative background-graphic layer is CONFIGURED-ONLY: the
+  // shipped canonical deployment configures NO `site.assets.backgrounds` entry,
+  // so no layer is emitted at all (no placeholder art, no mandatory global
+  // graphic) and the page gains no extra DOM. Content therefore stays exactly
+  // where it was, and the layer can never introduce horizontal overflow.
+  check(rows, `${tag}.background.absentWhenUnconfigured`, s.backgroundLayers === 0, `layers=${s.backgroundLayers}`);
+  check(rows, `${tag}.background.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
   check(rows, `${tag}.banner.capApplied`, s.capPx != null && Math.abs(s.capPx - cap) <= 1, `cap=${s.capPx} expected=${cap}`);
   check(rows, `${tag}.banner.aboveHeader`, !!s.bannerAboveHeader);
   check(rows, `${tag}.banner.aboveMain`, !!s.bannerAboveMain);

@@ -233,6 +233,14 @@ export interface SiteAssetsConfig {
    * no banner.
    */
   readonly banners?: Readonly<Record<string, string>>;
+  /**
+   * P12-BG — the `background-*` role (absolute URL), keyed by PAGE ROLE. The
+   * reserved key `"all"` is the GLOBAL background; any other key (`"home"`,
+   * `"about"`, …) is that page family's PAGE-SPECIFIC background. Resolution is
+   * `background-<page>` → `background-all` → none. A DECORATIVE layer only: it
+   * never replaces the flat `ui.theme.background` colour.
+   */
+  readonly backgrounds?: Readonly<Record<string, string>>;
 }
 
 export interface SiteConfig {
