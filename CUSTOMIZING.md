@@ -1117,7 +1117,7 @@ configurable through the validated `site.assets.*` block:
 | Open Graph / social share image | the generated per-locale route (no static default file) | `site.assets.ogImage` |
 | Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (the single authoritative icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
-| Page banner — the `banner-*` role (P6-3B, keyed by page slug) | `public/assets/banner-home.jpg` | `site.assets.banners` |
+| Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1135,7 +1135,7 @@ There are **two equally-supported ways to customize an asset**:
       "ogImage":    "https://cdn.example.com/my-share.png",       // replaces og:image / twitter:image
       "favicon":    "https://cdn.example.com/my-icon.svg",        // replaces the browser icon
       "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // footer mark
-      "banners":    { "home": "https://cdn.example.com/banner-home.jpg" } // page-keyed banners (P6-3B)
+      "banners":    { "home": "https://cdn.example.com/banner-home.png" } // page-keyed banners (P6-3B)
     }
   }
 }
@@ -1162,7 +1162,7 @@ without changing component source code.
 | --- | --- | --- |
 | `logo-header` | `public/assets/logo-header.svg` | `site.assets.logo` → JSON-LD `Organization.logo` **and** the rendered header brand mark (P6-3B) |
 | `logo-footer` | `public/assets/logo-footer.svg` | `site.assets.logoFooter` → `SiteFooter` (P6-2D — a restrained decorative mark beside the copyright line) |
-| `banner-*` | `public/assets/banner-home.jpg` | `site.assets.banners["home"]` → `PageBanner` (P6-3B — a per-page banner above the header) |
+| `banner-*` | `public/assets/banner-home.png` | `site.assets.banners["home"]` → `PageBanner` (P6-3B — a per-page banner above the header) |
 | `sidebar-default-icon-open` | `public/assets/sidebar-default-icon-open.svg` | the sidebar navigation-item EXPANDED default (P6-3B — a large dot) |
 | `sidebar-default-icon-closed` | `public/assets/sidebar-default-icon-closed.svg` | the sidebar navigation-item COLLAPSED default (P6-3B — a large plus) |
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
@@ -1205,13 +1205,18 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
     down as `--ui-banner-max-width` (never a hard-coded width), and if the
     intrinsic size cannot be decoded the banner is **downscale-only**
     (`width: auto; max-width: 100%`).
-  - Browser-measured cases with the shipped graphic (natural 240×135, cap 360):
-    220px viewport → **205** (downscale); 300 → **285** (fill); 390/700/800/1024/1280
-    → **360** (the 1.5× cap); no horizontal overflow at any width.
-  - `banner-home.jpg` is the migrated former `logo-title.jpg` (240×135 ≈ 16:9), so
-    with the 1.5× cap it renders a **centered 360px-wide** banner on desktop;
-    supply a wide banner graphic (e.g. 1920×202) to obtain the intended full-width
-    ~135px band (1.5 × 1920 = 2880 exceeds every viewport, so it fills).
+  - Browser-measured cases with the shipped approved graphic (natural 3546×443,
+    ≈8:1, cap 5319): the page width is always **below** the cap, so the banner
+    fills the available width at every supported viewport — 220px viewport →
+    **205** (below the mobile minimum, exercises the downscale case); 300 → **285**;
+    390/700/800/1024/1280 → the full available width. No horizontal overflow at
+    any width, and the height always follows the graphic's own ~8:1 ratio.
+  - The former `banner-home.jpg` was the migrated `logo-title.jpg` (240×135 ≈ 16:9),
+    so with the 1.5× cap it rendered only a **centered 360px-wide** banner on
+    desktop. It has been **superseded and removed** by the approved Foundation
+    banner family. To obtain the intended full-width band, supply a graphic wide
+    enough that 1.5 × its natural width exceeds the target viewport (the approved
+    pack's 3546px does so at every supported width).
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,

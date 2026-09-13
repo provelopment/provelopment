@@ -76,8 +76,11 @@ describe("P6-3C/A — banner sizing may never exceed 1.5× the graphic's natural
 });
 
 describe("P6-3C/A — the intrinsic banner size is read from the asset (server-side)", () => {
-  it("reads the shipped banner graphic (JPEG)", () => {
-    expect(readImageDimensions("/assets/banner-home.jpg")).toEqual({ width: 240, height: 135 });
+  it("reads the shipped approved banner graphic (PNG, 3546×443 ≈ 8:1)", () => {
+    // The approved Foundation banner family replaced the migrated 240×135
+    // placeholder; the intrinsic-size contract is proven against the real
+    // shipped artwork at its own delivered geometry.
+    expect(readImageDimensions("/assets/banner-home.png")).toEqual({ width: 3546, height: 443 });
   });
 
   it("reads the installed approved SVG assets (explicit width/height on the root element)", () => {
@@ -100,13 +103,13 @@ describe("P6-3C/A — PageBanner rendering", () => {
   it("renders the sized banner with intrinsic dimensions + the cap as a custom property", () => {
     const html = renderToStaticMarkup(
       PageBanner({
-        banners: { home: { src: "/assets/banner-home.jpg", width: 240, height: 135 } },
+        banners: { home: { src: "/assets/banner-home.png", width: 240, height: 135 } },
         regionIds: [],
       }),
     );
     expect(html).toContain('class="ui-page-banner"');
     expect(html).toContain('class="ui-page-banner-image"');
-    expect(html).toContain('src="/assets/banner-home.jpg"');
+    expect(html).toContain('src="/assets/banner-home.png"');
     // Intrinsic dimensions → the browser reserves the ratio (no layout shift).
     expect(html).toContain('width="240"');
     expect(html).toContain('height="135"');
