@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  TECHNICAL PLACEHOLDER — NOT BRAND AUTHORITY.
+
+  Role:            header-graphic (site.assets.headerGraphic)
+  Runtime name:    header-graphic.svg  (this file is the canonical name)
+  Contract:        see ProvelopmentFoundation/BRAND_ASSETS.md
+  Location:        tests/fixtures/placeholder-assets/  — a SOURCE placeholder.
+                   It is NEVER shipped, NEVER referenced by site.config.json and
+                   NEVER read by any runtime resolver, so it can never be mistaken
+                   for approved production artwork.
+
+  Purpose: to give the swap-contract tests CONTROLLED, neutral bytes at the exact
+  canonical runtime filename, so the seam can be validated without touching — or
+  asserting on the visual content of — any approved artwork.
+
+  Deliberately neutral: no brand artwork. Contains simple test geometry only, on a
+  transparent canvas. No script, no animation, no embedded raster, no font
+  dependency, no external resource.
+
+  Replace by installing production artwork at public/assets/header-graphic.svg
+  with this same filename and technical contract. No code change is required.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4096 512" role="presentation">
+  <title>Technical placeholder — header-graphic</title>
+  <!-- Neutral test geometry: canvas bounds, diagonals and corner ticks. -->
+  <g fill="none" stroke="#808080" stroke-width="2" stroke-dasharray="24 16" opacity="0.5">
+    <rect x="1" y="1" width="4094" height="510" />
+    <path d="M1 1 L4095 511 M4095 1 L1 511" />
+  </g>
+  <g fill="none" stroke="#808080" stroke-width="4" opacity="0.5">
+    <path d="M0 0 H96 M0 0 V96" />
+    <path d="M4096 0 H4000 M4096 0 V96" />
+    <path d="M0 512 H96 M0 512 V416" />
+    <path d="M4096 512 H4000 M4096 512 V416" />
+  </g>
+</svg>

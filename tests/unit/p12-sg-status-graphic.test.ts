@@ -363,13 +363,13 @@ describe("P12-SG — separation, reusability and parked-graphic status", () => {
 
   it("23. the sibling header/footer graphics are SHIPPED and still never touch this seam", () => {
     // APPROVED-ASSET INTEGRATION — both sibling decorative roles are shipped as
-    // distributable files. The footer role is also activated; the header role's
-    // canonical activation is deliberately BLOCKED by the readability gate (its
-    // 8:1 artwork cannot survive the 2.6:1-19.5:1 header box without cropping
-    // through its focal wordmark). Either way the status seam stays strictly
-    // independent: the status component and layout never name or read them.
+    // distributable files AND both are activated. The header role's band is
+    // `cover`-painted inside the 2.6:1-19.5:1 header box, so its 8:1 artwork is
+    // magnified and cropped; that is an artwork/owner judgement recorded in the
+    // living-pack provenance, not a coding gate. Either way the status seam stays
+    // strictly independent: the status component and layout never name or read them.
     expect(siteConfig.assets?.footerGraphic).toBeDefined();
-    expect(siteConfig.assets?.headerGraphic).toBeUndefined();
+    expect(siteConfig.assets?.headerGraphic).toBeDefined();
     const runtimeAssets = readdirSync(path.join(root, "public", "assets"));
     expect(runtimeAssets.some((name) => /^(footer|header)-graphic\./i.test(name))).toBe(true);
     // Neither sibling role is reused as a status-graphic fixture.

@@ -429,9 +429,13 @@ icon leaf serves **both** connectivity families:
 - **Asset contract.** Same as every other configurable icon: a plain
   `public/assets/` **filename** (no paths, no traversal, no query strings, no
   remote URLs) ending in `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.gif` or
-  `.ico`. The engine never recolours, filters, crops or animates the bytes, so a
-  monochrome/`currentColor` generic icon and a self-contained full-colour
-  official mark both render as produced.
+  `.ico`. The engine never recolours, filters, crops or animates the bytes, and a
+  connectivity icon is loaded through a plain `<img>`, so **the colour that
+  renders is the colour the file carries**. A self-contained full-colour official
+  mark renders as produced. A `currentColor` generic icon does **not** follow the
+  surrounding link colour through this seam — `currentColor` resolves inside the
+  image's own document, so it paints black; encode the colour you want in the
+  file. See `BRAND_ASSETS.md` §11.
 - **Generic vs third-party artwork.** Universal semantic icons
   (`icon-phone`, `icon-email`, `icon-message`, `icon-link`, `icon-external-link`
   from the universal inventory) suit **non-trademark** channels (telephone,
@@ -1193,6 +1197,14 @@ per-page SEO configuration to fill in:
 The standard site assets have **predictable default paths** and are
 configurable through the validated `site.assets.*` block:
 
+> **The complete, authoritative contract for every replaceable graphic role —
+> exact filename, required file type, engine-required vs. recommended dimensions,
+> required viewBox, transparency, runtime sizing, crop behaviour, anchor,
+> repetition, engine recolouring/opacity, optionality, missing-file behaviour, and
+> the replace/disable procedure — lives in
+> [`BRAND_ASSETS.md`](BRAND_ASSETS.md).** The table below is the summary; that
+> document is the authority and is not duplicated here.
+
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
 | Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
@@ -1202,7 +1214,7 @@ configurable through the validated `site.assets.*` block:
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
 | Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | `public/assets/background-all.svg` (approved Foundation watermark; configured on the canonical site) | `site.assets.backgrounds` |
 | Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | `public/assets/footer-graphic.svg` (approved; configured on the canonical site) | `site.assets.footerGraphic` |
-| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | `public/assets/header-graphic.svg` — **ships but is NOT configured** on the canonical site (the approved 8:1 artwork cannot survive the header's 2.6:1–19.5:1 box under `cover` without cropping through its wordmark) | `site.assets.headerGraphic` |
+| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | `public/assets/header-graphic.svg` (approved 4096 × 512; **configured and ACTIVE** on the canonical site) | `site.assets.headerGraphic` |
 | Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | `public/assets/status-graphic.svg` (approved 640 × 320; configured on the canonical site) | `site.assets.statusGraphic` |
 
 > **No installable-app / PWA icon roles exist.** The Foundation emits **no** web app
@@ -1225,16 +1237,16 @@ There are **two equally-supported ways to customize an asset**:
 {
   "site": {
     "assets": {
-      "logo":       "https://cdn.example.com/my-logo-header.svg", // replaces JSON-LD logo
-      "ogImage":    "https://cdn.example.com/my-share.png",       // replaces og:image / twitter:image
-      "favicon":    "https://cdn.example.com/my-icon.svg",        // replaces the browser icon
-      "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // footer mark
-      "banners":    { "home": "https://cdn.example.com/banner-home.png" }, // page-keyed banners (P6-3B)
-      "backgrounds": { "all": "https://cdn.example.com/background-all.webp",   // global decorative background (P12-BG)
-                       "about": "https://cdn.example.com/background-about.webp" }, // page-specific wins
-      "footerGraphic": "https://cdn.example.com/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
-      "headerGraphic": "https://cdn.example.com/header-graphic.svg", // decorative header band (P12-HG) — NOT the header logo or a banner
-      "statusGraphic": "https://cdn.example.com/status-graphic.svg"   // decorative error/404 graphic (P12-SG) — ONE shared status role, NOT an icon
+      "logo":       "https://cdn.example.com/assets/my-logo-header.svg", // replaces JSON-LD logo
+      "ogImage":    "https://cdn.example.com/assets/my-share.png",       // replaces og:image / twitter:image
+      "favicon":    "https://cdn.example.com/assets/my-icon.svg",        // replaces the browser icon
+      "logoFooter": "https://cdn.example.com/assets/my-logo-footer.svg", // footer mark
+      "banners":    { "home": "https://cdn.example.com/assets/banner-home.png" }, // page-keyed banners (P6-3B)
+      "backgrounds": { "all": "https://cdn.example.com/assets/background-all.webp",   // global decorative background (P12-BG)
+                       "about": "https://cdn.example.com/assets/background-about.webp" }, // page-specific wins
+      "footerGraphic": "https://cdn.example.com/assets/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
+      "headerGraphic": "https://cdn.example.com/assets/header-graphic.svg", // decorative header band (P12-HG) — NOT the header logo or a banner
+      "statusGraphic": "https://cdn.example.com/assets/status-graphic.svg"   // decorative error/404 graphic (P12-SG) — ONE shared status role, NOT an icon
     }
   }
 }
@@ -1389,12 +1401,14 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   blend mode — the approved artwork carries its own appearance and is never
   recoloured. One asset `cover`s the header edge-to-edge at every viewport (no
   mobile/desktop variants, no art direction) and it is static only (no animation, no
-  parallax). **The approved Foundation header graphic now ships at
-  `public/assets/header-graphic.svg`, but the canonical role is deliberately left
-  UNCONFIGURED**: the 8:1 artwork cannot survive the measured header box (19.46:1
-  desktop / 2.59:1 mobile) under `cover` without ~2.4× magnification cropping through
-  its focal wordmark and colliding with the logo and selectors. The artwork was NOT
-  altered and no CSS was added to compensate; an adopter may still activate it.
+  parallax). **The approved Foundation header graphic ships at
+  `public/assets/header-graphic.svg` and the canonical role is ACTIVE**
+  (`site.assets.headerGraphic`). The band is `cover`-painted inside the measured
+  header box (19.46:1 desktop / 2.59:1 mobile), so the 8:1 artwork is magnified and
+  cropped; that is an artwork/owner judgement recorded in the living-pack provenance,
+  not a coding gate — no artwork was altered and no CSS was added to compensate.
+  Replacing the file or removing the key needs **no code change**; the full contract
+  is in [`BRAND_ASSETS.md`](BRAND_ASSETS.md) §10.5.
 - **`status-graphic` (P12-SG)** — **capability composed; approved artwork integrated and ACTIVE**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
   shared by **both** status surfaces (`[locale]/error.tsx` and
@@ -1530,8 +1544,7 @@ activates some of those roles while deliberately leaving others merely available
 | --- | --- | --- |
 | Identity | `logo-header.svg`, `logo-footer.svg`, `favicon.svg` | yes — `logo`, `logoFooter`, `favicon` |
 | Page banners | `banner-home/about/contact/connect/offerings/portfolio/blog/resources/testimonials/legal.png` | yes — `banners` (ten page roles) |
-| Decorative graphics | `background-all.svg`, `footer-graphic.svg`, `status-graphic.svg` | yes — `backgrounds.all`, `footerGraphic`, `statusGraphic` |
-| Decorative graphics | `header-graphic.svg` | **no** — the file ships, the role is left unconfigured (see below) |
+| Decorative graphics | `background-all.svg`, `header-graphic.svg`, `footer-graphic.svg`, `status-graphic.svg` | yes — `backgrounds.all`, `headerGraphic`, `footerGraphic`, `statusGraphic` |
 | Social preview | `og-image.png` (1200 × 630) | yes — `ogImage` (the generated per-locale route remains the fallback) |
 | Generic connectivity icons | `icon-phone.svg`, `icon-email.svg`, `icon-message.svg`, `icon-link.svg`, `icon-external-link.svg`, `icon-share.svg`, `icon-globe.svg` | **no** — available for your own connectivity items |
 | Admitted platform marks | `whatsapp.svg`, `telegram.svg`, `facebook.png`, `messenger.svg`, `instagram.svg`, `linkedin.png`, `github.svg` | **no** — available only; see below |
@@ -1542,13 +1555,15 @@ URL) — no component, no config grammar and no engine change is involved. **Rem
 one by deleting its config key; a configured-but-missing role behaves exactly like an
 absent one and renders nothing (never a placeholder, never a broken image).
 
-> **`header-graphic.svg` ships but is not configured.** The approved header band is
-> an 8:1 graphic; the header box is 19.46:1 on desktop and 2.59:1 on mobile, so the
-> `cover` treatment magnifies the artwork ~2.4× and crops through its wordmark,
-> which then collides with the logo and the selectors. The role was therefore
-> deliberately left unpopulated (the artwork was not altered and no CSS was added to
-> compensate). It remains a **one-line configuration change** if your header geometry
-> suits it: set `site.assets.headerGraphic` to the shipped file's absolute URL.
+> **`header-graphic.svg` ships and is configured (ACTIVE).** The approved header band
+> is an 8:1 graphic; the header box measures 19.46:1 on desktop and 2.59:1 on mobile,
+> so the `cover` treatment magnifies the artwork and crops it. That crop outcome is a
+> **Master-Brand-Architect-owned aesthetic judgement**, recorded in the living-pack
+> provenance — it is deliberately **not** a coding criterion, and the seam is
+> technically validated: it adds no DOM, no layout height and no stacking context,
+> never overflows, and leaves the navigation, the logo and the mobile drawer working.
+> Replace the file (or remove the key) at any time — **no code change**. See
+> [`BRAND_ASSETS.md`](BRAND_ASSETS.md) §10.5.
 
 ##### Generic connectivity icons vs. platform marks
 
@@ -1564,8 +1579,11 @@ third-party platform mark (WhatsApp, Telegram, …)
 
 **Generic connectivity icons** are used exactly like any other icon leaf: set
 `connect.methods[].icon` (or `socialLinks[].icon`) to the plain filename, e.g.
-`"icon-phone.svg"` → `/assets/icon-phone.svg`. They inherit colour from context
-(`stroke="currentColor"`), so they are never recoloured in code.
+`"icon-phone.svg"` → `/assets/icon-phone.svg`. They are never recoloured in code,
+and because they render through a plain `<img>` they cannot inherit the
+surrounding text colour either: the shipped `stroke="currentColor"` masters paint
+in the image's own initial colour (**black**). Encode the colour you want in the
+file — see `BRAND_ASSETS.md` §11.
 
 **Admitted platform marks** are used the same way — ONE generic optional leaf, no
 platform vocabulary in the engine:

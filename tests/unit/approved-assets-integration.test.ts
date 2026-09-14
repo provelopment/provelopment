@@ -28,10 +28,12 @@ import { resolveOgImageUrl } from "@/core/seo-metadata";
  * without being CONFIGURED:
  *
  *  1. all five approved Foundation-owned graphics are shipped under
- *     `public/assets/`; FOUR are ACTIVE through the existing `site.assets.*`
- *     roles (background / footer / status / Open Graph) while the header band's
- *     canonical ACTIVATION is deliberately BLOCKED by the readability gate
- *     (shipped for adopters, role left unpopulated — see the dedicated case);
+ *     `public/assets/` and all FIVE are ACTIVE through the existing
+ *     `site.assets.*` roles (background / header band / footer / status /
+ *     Open Graph). The header band's activation was a one-line configuration
+ *     change; the measured `cover` crop of its 8:1 artwork inside the header box
+ *     is a Master-Brand-Architect-owned aesthetic judgement recorded in the
+ *     living-pack provenance, never a coding gate;
  *  2. the seven approved third-party platform marks ship as an ADOPTION-READY
  *     library while ZERO canonical account, handle, number or profile exists —
  *     their presence must never create a rendered link;
@@ -56,6 +58,12 @@ const INTEGRATED_GRAPHICS = [
     file: "background-all.svg",
     url: siteConfig.assets?.backgrounds?.all,
     resolved: availableBackgroundMap(siteConfig.assets?.backgrounds).all,
+  },
+  {
+    key: "headerGraphic",
+    file: "header-graphic.svg",
+    url: siteConfig.assets?.headerGraphic,
+    resolved: availableHeaderGraphicPath(siteConfig.assets?.headerGraphic),
   },
   {
     key: "footerGraphic",
@@ -145,18 +153,24 @@ describe("approved-asset integration — the five Foundation-owned graphics are 
     );
   });
 
-  it("the header graphic SHIPS but its canonical activation stays BLOCKED", () => {
+  it("the header graphic SHIPS and its canonical role is ACTIVATED", () => {
     // The approved header graphic is distributed (a fresh pull has the bytes)…
     expect(existsSync(runtimeAsset("header-graphic.svg"))).toBe(true);
-    // …while the ROLE stays unpopulated: the readability gate blocked activation
-    // because `cover` renders the 8:1 artwork inside a 19.46:1 (desktop) /
-    // 2.59:1 (mobile) header box — magnifying it ~2.4x and cropping through the
-    // focal centred wordmark so it collides with the logo and the selectors.
-    // The artwork was NOT altered and no engine CSS was added to compensate.
-    expect(siteConfig.assets?.headerGraphic).toBeUndefined();
+    // …and the ROLE is POPULATED. Activation was the documented one-line
+    // configuration change; it is a TECHNICAL validation only. The measured
+    // `cover` crop of the 8:1 artwork inside a 19.46:1 (desktop) / 2.59:1 (mobile)
+    // header box is a Master-Brand-Architect-owned aesthetic judgement recorded in
+    // the living-pack provenance — never a coding gate. No artwork was altered and
+    // no engine CSS was added to compensate.
+    expect(siteConfig.assets?.headerGraphic).toBeDefined();
+    expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBe(
+      "/assets/header-graphic.svg",
+    );
+    // The role stays OPTIONAL: absent and configured-but-missing are both valid,
+    // fully-supported states that paint no band (no code change to disable).
     expect(availableHeaderGraphicPath(undefined)).toBeUndefined();
-    expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBeUndefined();
-    // An adopter may still configure it deliberately (the seam is intact).
+    expect(availableHeaderGraphicPath("https://www.example.com/assets/header-graphic-NOT-SHIPPED.svg")).toBeUndefined();
+    // An adopter may point the role at their own absolute URL.
     expect(availableHeaderGraphicPath("https://www.example.com/assets/header-graphic.svg")).toBe(
       "/assets/header-graphic.svg",
     );
@@ -190,8 +204,11 @@ describe("approved-asset integration — the distributable asset inventory", () 
       // Screened available by the SAME engine rule every icon role uses.
       expect(availableIconName(icon), `${icon} must be available`).toBe(icon);
       const source = readFileSync(runtimeAsset(icon), "utf8");
-      // Universal-inventory geometry/attributes are untouched: the icons inherit
-      // their rendered colour from context and bake in no Foundation colour.
+      // Universal-inventory geometry/attributes are untouched: the files bake in
+      // no Foundation colour. NOTE — this asserts the FILE's own declaration, not
+      // a render result: an <img>-loaded SVG canNOT inherit the surrounding text
+      // colour (see BRAND_ASSETS.md §11), which is precisely why the contract
+      // talks about what the asset must carry.
       expect(source).toContain('stroke="currentColor"');
       expect(source).toContain('viewBox="0 0 24 24"');
       expect(source).not.toMatch(/#4F7CAC/i);

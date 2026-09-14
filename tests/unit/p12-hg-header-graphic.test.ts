@@ -25,12 +25,12 @@ import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/s
  * consuming the PAGE-SPECIFIC `banners` region above the shell.
  *
  * The approved Foundation header artwork SHIPS at
- * `public/assets/header-graphic.svg`, but its canonical ACTIVATION is blocked by
- * the readability gate, so the positive/negative availability cases continue to
- * reuse the repository's existing neutral `logo-header.svg` fixture — the
- * availability rule stays proven independently of which artwork a deployment has
- * activated. It is used ONLY as an availability fixture — it is NOT
- * header-graphic artwork.
+ * `public/assets/header-graphic.svg` and the canonical role is ACTIVATED
+ * (`site.assets.headerGraphic`). The positive/negative availability cases below
+ * deliberately reuse the repository's existing neutral `logo-header.svg` fixture
+ * — the availability rule stays proven independently of which artwork a
+ * deployment has activated. It is used ONLY as an availability fixture — it is
+ * NOT header-graphic artwork.
  */
 
 const root = process.cwd();
@@ -82,8 +82,8 @@ describe("P12-HG — schema / backward compatibility", () => {
   >;
 
   it("1. an existing adopter config WITHOUT the new role remains valid (no forced migration)", () => {
-    // The shipped canonical config knows nothing about header graphics — and
-    // adding a `logo`-only asset block (the pre-P12-HG shape) stays valid.
+    // An adopter config that predates the role stays valid — and adding a
+    // `logo`-only asset block (the pre-P12-HG shape) stays valid.
     expect(siteConfigFileSchema.safeParse(rawSiteConfig).success).toBe(true);
     const config = structuredClone(rawSiteConfig);
     (config.site as Record<string, unknown>).assets = { logo: AVAILABLE };
@@ -106,18 +106,27 @@ describe("P12-HG — schema / backward compatibility", () => {
     expect(siteAssetsSchema.safeParse({ headerGraphic: "/assets/header-graphic.svg" }).success).toBe(false);
   });
 
-  it("the shipped canonical Foundation config keeps this role UNPOPULATED (BLOCKED ACTIVATION)", () => {
+  it("the shipped canonical Foundation config POPULATES this role (ACTIVE, technically validated)", () => {
     // APPROVED-ASSET INTEGRATION — the approved header graphic is INTEGRATED into
-    // the living pack and SHIPPED at `public/assets/header-graphic.svg`, but its
-    // canonical ACTIVATION is deliberately BLOCKED by the readability gate:
-    // `cover` renders the 8:1 artwork inside a 19.46:1 (desktop) / 2.59:1 (mobile)
-    // header box, magnifying it ~2.4x and cropping straight through its focal
-    // centred wordmark, which then collides with the logo and the selectors.
-    // The file ships for adopters; the role stays unconfigured until the Master
-    // Brand Architect rules on artwork/geometry. No artwork was altered and no
-    // engine CSS was changed to compensate.
-    expect(siteConfig.assets?.headerGraphic).toBeUndefined();
+    // the living pack, SHIPPED at `public/assets/header-graphic.svg`, and the
+    // canonical role is now ACTIVATED through the one-line configuration change
+    // the contract always allowed (`site.assets.headerGraphic`).
+    //
+    // The activation is a TECHNICAL validation, not an art-direction ruling. The
+    // measured `cover` crop of the 8:1 artwork inside the 19.46:1 (desktop) /
+    // 2.59:1 (mobile) header box is a MASTER BRAND ARCHITECT-owned aesthetic
+    // decision recorded in the living-pack provenance record; it is deliberately
+    // NOT a coding gate, and no artwork was altered and no engine CSS was added
+    // to compensate. Coding acceptance is: technically conforms, renders
+    // correctly, is replaceable, is optional, does not break the UI.
+    //
+    // The band contributes ATTRIBUTES ONLY — no element, no layout height, no
+    // stacking context — so activation cannot regress the UI.
+    expect(siteConfig.assets?.headerGraphic).toBeDefined();
     expect(existsSync(path.join(root, "public", "assets", "header-graphic.svg"))).toBe(true);
+    // Configured value names the canonical runtime role file, and it resolves.
+    expect(new URL(siteConfig.assets?.headerGraphic as string).pathname).toBe("/assets/header-graphic.svg");
+    expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBe("/assets/header-graphic.svg");
   });
 });
 
@@ -297,11 +306,11 @@ describe("P12-HG — separation + reusability contract", () => {
   });
 
   it("14. the completed footer-graphic role (P12-FG) remains independent of this role", () => {
-    // The footer role is ACTIVATED while THIS role stays deliberately unpopulated
-    // (blocked activation), which is itself proof of independence: the two roles
-    // have their own keys, resolvers and renderers and never read each other.
+    // Both roles are now ACTIVATED, which is itself proof of independence: the
+    // two roles have their own keys, resolvers and renderers and never read each
+    // other (asserted immediately below).
     expect(siteConfig.assets?.footerGraphic).toBeDefined();
-    expect(siteConfig.assets?.headerGraphic).toBeUndefined();
+    expect(siteConfig.assets?.headerGraphic).toBeDefined();
     expect(siteFooter).toContain("siteConfig.assets?.footerGraphic");
     // The two roles never read each other's key or resolver.
     expect(siteHeader).not.toContain("footerGraphic");

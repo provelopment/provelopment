@@ -1195,13 +1195,13 @@ async function runDuplicateNavScenario(chrome) {
 /**
  * APPROVED-ASSET INTEGRATION — the visual/readability EVIDENCE capture.
  *
- * The approved Foundation graphics are now ACTIVE, so the readability gate is
- * evidence-based instead of inferred: REAL screenshots of the decorated pages
+ * The approved Foundation graphics are now ACTIVE (including the header band), so
+ * the readability evidence is captured as REAL screenshots of the decorated pages
  * (home desktop/mobile, the footer surface, and the error/not-found status
- * surface) are written into `tests/browser/.report/readability/` for review by a
- * human/Master Brand Architect. Nothing here asserts pass/fail — the
- * deterministic contracts are asserted above; this artefacts is what confirms
- * that the approved artwork does not impair legibility or obscure content.
+ * surface) into `tests/browser/.report/readability/` for review by a human/Master
+ * Brand Architect. Nothing here asserts pass/fail — the deterministic contracts
+ * are asserted above; this artefact is what supports the artwork/owner readability
+ * judgement, which is deliberately NOT a coding gate.
  */
 async function captureReadabilityEvidence(cdp, tag) {
   const dir = join(HERE, ".report", "readability");
@@ -1334,6 +1334,9 @@ async function runBrandingChecks(rows, tag, cdp) {
       // (No backticks in this comment: it lives inside a template literal.)
       headerBox: header ? (() => { const r = header.getBoundingClientRect(); return { top: Math.round(r.top), h: Math.round(r.height) }; })() : null,
       headerGraphicLayers: document.querySelectorAll("[data-ui-header-graphic]").length,
+      // Activation must add NO element: the ONLY node carrying the marker must be
+      // the header element itself, not a decorative child layer.
+      headerGraphicIsHeaderElement: document.querySelector("[data-ui-header-graphic]") === header,
       headerGraphicAttribute: header ? header.getAttribute("data-ui-header-graphic") : null,
       headerBackgroundImage: header ? getComputedStyle(header).backgroundImage : null,
       headerRule: (() => {
@@ -1484,18 +1487,23 @@ async function runBrandingChecks(rows, tag, cdp) {
     `footerPos=${s.footerPosition}`,
   );
   // APPROVED-ASSET INTEGRATION — the approved header graphic SHIPS in the
-  // distributable pack, but its canonical activation is deliberately BLOCKED by
-  // the readability gate: `cover` renders the 8:1 artwork inside a 19.46:1
-  // (desktop) / 2.59:1 (mobile) header box, magnifying it ~2.4x and cropping
-  // through its focal centred wordmark so it collides with the logo and the
-  // selectors. So the header deliberately paints NO band: no attribute, no inline
-  // style, no extra DOM and a computed background of `none`. No artwork was
-  // altered and no engine CSS was added to compensate.
-  check(rows, `${tag}.headerGraphic.unpopulatedWhenBlocked`, s.headerGraphicLayers === 0 && s.headerGraphicAttribute === null, `layers=${s.headerGraphicLayers} attr=${s.headerGraphicAttribute}`);
-  check(rows, `${tag}.headerGraphic.backgroundNoneWhenUnconfigured`, s.headerBackgroundImage === "none", `bg=${s.headerBackgroundImage}`);
+  // distributable pack AND its canonical role is ACTIVATED (a one-line config
+  // change to `site.assets.headerGraphic`). Activation is a TECHNICAL validation
+  // only: the band contributes ONE marker attribute + ONE inline custom property
+  // on the header, adds NO element and NO layout height, and creates NO stacking
+  // context. The measured cover crop of its 8:1 artwork inside the header box is
+  // a Master-Brand-Architect-owned aesthetic judgement recorded in the living-pack
+  // provenance, never a coding gate. No artwork was altered and no engine CSS was
+  // added to compensate.
+  check(rows, `${tag}.headerGraphic.bandActiveAndContributesNoElement`, s.headerGraphicLayers === 1 && s.headerGraphicIsHeaderElement === true && s.headerGraphicAttribute === "true", `layers=${s.headerGraphicLayers} onHeader=${s.headerGraphicIsHeaderElement} attr=${s.headerGraphicAttribute}`);
+  check(
+    rows,
+    `${tag}.headerGraphic.backgroundResolvesToRoleFile`,
+    typeof s.headerBackgroundImage === "string" && s.headerBackgroundImage.includes("/assets/header-graphic.svg"),
+    `bg=${s.headerBackgroundImage}`,
+  );
   check(rows, `${tag}.headerGraphic.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
-  // The band's CONTRACT is declared in the shipped stylesheet even though no
-  // artwork is configured: ONE asset, edge-to-edge, centred, no tiling.
+  // The band's CONTRACT: ONE asset, edge-to-edge, centred, no tiling.
   check(
     rows,
     `${tag}.headerGraphic.contractDeclared`,
@@ -2168,6 +2176,71 @@ async function runConnectivityIconScenario(chrome) {
       check(rows, `connectivity.page.${vpName}.noBrokenImages`, !!page && page.brokenImages === 0, page ? `broken=${page.brokenImages}` : "null");
       check(rows, `connectivity.page.${vpName}.noHorizontalOverflow`, !!page && page.scrollW <= page.vw + 1, page ? `scrollW=${page.scrollW} vw=${page.vw}` : "null");
     }
+
+    // ── COLOUR SEAM — MEASURED, NOT ASSUMED (BRAND_ASSETS.md §11/§13) ────────
+    // An <img>-loaded SVG cannot inherit the host document's text colour. Proven
+    // by MEASURING the painted pixels: a deliberately non-neutral colour is set
+    // on the link, the rendered icon is drawn onto a canvas and read back. This
+    // locks the documented contract for a `currentColor` master while asserting
+    // nothing about any artwork's content — the check holds for any file.
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const painted = await cdp.evaluate(`(async () => {
+      const img = [...document.querySelectorAll('footer li img')]
+        .find((el) => (el.getAttribute('src') || '').endsWith('sidebar-open.svg'));
+      if (!img) return null;
+      const link = img.closest('a');
+      link.style.color = 'rgb(255, 0, 0)';
+      await new Promise((r) => setTimeout(r, 50));
+      const svgText = await (await fetch(img.getAttribute('src'))).text();
+      const canvas = document.createElement('canvas');
+      canvas.width = 24; canvas.height = 24;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, 24, 24);
+      const tally = new Map();
+      let opaque = 0;
+      try {
+        const d = ctx.getImageData(0, 0, 24, 24).data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (d[i + 3] > 200) {
+            opaque += 1;
+            const k = d[i] + ',' + d[i + 1] + ',' + d[i + 2];
+            tally.set(k, (tally.get(k) || 0) + 1);
+          }
+        }
+      } catch (e) { return { tainted: String(e) }; }
+      const top = [...tally.entries()].sort((a, b) => b[1] - a[1])[0];
+      return {
+        declaredCurrentColor: svgText.includes('currentColor'),
+        declaredInternalColor: /<style/i.test(svgText) || /(?:fill|stroke)="#/i.test(svgText),
+        linkColor: getComputedStyle(link).color,
+        imgColor: getComputedStyle(img).color,
+        opaque,
+        painted: top ? top[0] : null,
+        share: top && opaque ? top[1] / opaque : 0,
+      };
+    })()`);
+    check(
+      rows,
+      "connectivity.colour.fixtureIsACurrentColorMaster",
+      !!painted && painted.declaredCurrentColor === true && painted.declaredInternalColor === false,
+      painted ? `currentColor=${painted.declaredCurrentColor} internalColor=${painted.declaredInternalColor}` : "missing",
+    );
+    check(
+      rows,
+      "connectivity.colour.hostColourReachesTheImgElement",
+      !!painted && painted.imgColor === "rgb(255, 0, 0)",
+      painted ? `img=${painted.imgColor} link=${painted.linkColor}` : "missing",
+    );
+    check(
+      rows,
+      "connectivity.colour.currentColorDoesNotInheritIntoTheImage",
+      !!painted && !painted.tainted && painted.painted === "0,0,0" && painted.share > 0.5,
+      painted
+        ? `painted=${painted.painted} (${Math.round((painted.share || 0) * 100)}% of ${painted.opaque} opaque px) — NOT the link colour`
+        : "missing",
+    );
   } catch (error) {
     check(rows, "connectivity.scenario.error", false, String(error));
   } finally {
