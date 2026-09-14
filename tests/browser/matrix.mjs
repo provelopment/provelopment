@@ -1240,6 +1240,22 @@ async function runBrandingChecks(rows, tag, cdp) {
       viewportWidth: document.documentElement.clientWidth,
       docScrollWidth: document.documentElement.scrollWidth,
       backgroundLayers: document.querySelectorAll(".ui-page-background").length,
+      footerGraphicLayers: document.querySelectorAll(".ui-footer-graphic").length,
+      footerBox: (() => { const f = document.querySelector("footer"); if (!f) return null; const r = f.getBoundingClientRect(); return { top: Math.round(r.top), h: Math.round(r.height) }; })(),
+      footerLinkCount: document.querySelectorAll("footer a").length,
+      footerPosition: (() => { const f = document.querySelector("footer"); return f ? getComputedStyle(f).position : null; })(),
+      footerGraphicRule: (() => {
+        for (const sheet of document.styleSheets) {
+          let rules;
+          try { rules = sheet.cssRules; } catch { continue; }
+          for (const rule of rules) {
+            if (rule.selectorText === ".ui-footer-graphic" && rule.style) {
+              return { position: rule.style.position, zIndex: rule.style.zIndex, pointerEvents: rule.style.pointerEvents };
+            }
+          }
+        }
+        return null;
+      })(),
       noBroken: [...document.images].every((i) => i.complete && i.naturalWidth > 0),
     };
   })()`);
@@ -1275,6 +1291,33 @@ async function runBrandingChecks(rows, tag, cdp) {
   // where it was, and the layer can never introduce horizontal overflow.
   check(rows, `${tag}.background.absentWhenUnconfigured`, s.backgroundLayers === 0, `layers=${s.backgroundLayers}`);
   check(rows, `${tag}.background.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
+  // P12-FG — the decorative FOOTER graphic role is CONFIGURED-ONLY too: the
+  // shipped canonical deployment configures no `site.assets.footerGraphic`, so
+  // no layer is emitted (no placeholder art, no mandatory graphic) and the
+  // footer gains no DOM. The footer's own layout, links and geometry are
+  // therefore unchanged, and no horizontal overflow can be introduced.
+  check(rows, `${tag}.footerGraphic.absentWhenUnconfigured`, s.footerGraphicLayers === 0, `layers=${s.footerGraphicLayers}`);
+  check(rows, `${tag}.footerGraphic.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
+  check(rows, `${tag}.footer.linksPresent`, s.footerLinkCount > 0, `links=${s.footerLinkCount}`);
+  check(rows, `${tag}.footer.geometryIntact`, !!s.footerBox && s.footerBox.h > 0, s.footerBox ? `h=${s.footerBox.h}` : "no footer");
+  // The layer's CONTRACT is declared in the shipped stylesheet even though no
+  // artwork is configured: absolutely positioned inside a `relative` footer,
+  // painted behind content (`z-index: -1`), and inert (`pointer-events: none`).
+  check(
+    rows,
+    `${tag}.footerGraphic.contractDeclared`,
+    !!s.footerGraphicRule &&
+      s.footerGraphicRule.position === "absolute" &&
+      s.footerGraphicRule.zIndex === "-1" &&
+      s.footerGraphicRule.pointerEvents === "none",
+    s.footerGraphicRule ? `pos=${s.footerGraphicRule.position} z=${s.footerGraphicRule.zIndex} pe=${s.footerGraphicRule.pointerEvents}` : "rule missing",
+  );
+  check(
+    rows,
+    `${tag}.footerGraphic.footerIsAnchor`,
+    s.footerPosition === "relative",
+    `footerPos=${s.footerPosition}`,
+  );
   check(rows, `${tag}.banner.capApplied`, s.capPx != null && Math.abs(s.capPx - cap) <= 1, `cap=${s.capPx} expected=${cap}`);
   check(rows, `${tag}.banner.aboveHeader`, !!s.bannerAboveHeader);
   check(rows, `${tag}.banner.aboveMain`, !!s.bannerAboveMain);

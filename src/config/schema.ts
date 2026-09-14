@@ -121,6 +121,16 @@ export const siteAssetsSchema = z.object({
       ),
     )
     .optional(),
+  /**
+   * P12-FG — the optional `footer-graphic` role (absolute URL): ONE global
+   * DECORATIVE footer graphic / watermark, layered behind the footer content.
+   * It is deliberately NOT the footer identity mark: `logoFooter` (the
+   * `logo-footer` role) stays the independent footer logo. Absent (or
+   * configured-but-missing) → no decorative layer at all.
+   */
+  footerGraphic: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/footer-graphic.png")
+    .optional(),
 });
 
 export const siteSettingsSchema = z.object({

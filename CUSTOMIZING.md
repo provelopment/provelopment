@@ -1123,6 +1123,7 @@ configurable through the validated `site.assets.*` block:
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
 | Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
+| Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | *(none — configuring nothing is a fully-supported state)* | `site.assets.footerGraphic` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1142,7 +1143,8 @@ There are **two equally-supported ways to customize an asset**:
       "logoFooter": "https://cdn.example.com/my-logo-footer.svg", // footer mark
       "banners":    { "home": "https://cdn.example.com/banner-home.png" }, // page-keyed banners (P6-3B)
       "backgrounds": { "all": "https://cdn.example.com/background-all.webp",   // global decorative background (P12-BG)
-                       "about": "https://cdn.example.com/background-about.webp" } // page-specific wins
+                       "about": "https://cdn.example.com/background-about.webp" }, // page-specific wins
+      "footerGraphic": "https://cdn.example.com/footer-graphic.png" // decorative footer watermark (P12-FG) — NOT the footer logo
     }
   }
 }
@@ -1175,6 +1177,7 @@ without changing component source code.
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
+| `footer-graphic` | `public/assets/footer-graphic.png` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE optional global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) |
 
 Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
@@ -1242,6 +1245,27 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   it is static only (no animation, no parallax). As a CSS `background-image` it
   bypasses the Next image optimizer. **No Foundation background artwork exists
   yet** — art is produced and owner-approved *after* this capability.
+- **`footer-graphic` (P12-FG)** — **capability composed; no Foundation artwork yet**:
+  `site.assets.footerGraphic` is ONE optional **global** decorative footer graphic /
+  watermark — deliberately **not** the footer identity mark, so a deployment may have
+  a footer logo, a decorative graphic, both, or neither. The server resolves it
+  through `availableFooterGraphicPath` (the **same** generic availability rule as the
+  banner/background roles) to a same-origin path only when the file exists under
+  `public/assets/`, and renders `FooterGraphic`
+  (`src/components/site/footer-graphic.tsx`) as a `.ui-footer-graphic` layer inside
+  the footer. Configured-but-missing is indistinguishable from absent → **nothing is
+  rendered at all**, so an unconfigured deployment gains no DOM and the footer layout
+  is unchanged. The layer is `position: absolute; inset: 0; z-index: -1;
+  pointer-events: none` inside the `relative` footer with `aria-hidden="true"`: it
+  adds no padding/margin/reserved height/horizontal overflow, cannot move or obscure
+  the logo, columns, links or copyright line, cannot capture a click/selection/focus
+  (footer links stay fully clickable), and contributes no accessible name or
+  semantics. The engine applies **no** colour, opacity or blend mode — the approved
+  artwork carries its own subtlety and is never recoloured. One asset `cover`s any
+  viewport (no mobile/desktop variants, no art direction) and it is static only (no
+  animation, no parallax). As a CSS `background-image` it bypasses the Next image
+  optimizer. **No Foundation footer graphic exists yet** — art is produced and
+  owner-approved *after* this capability.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,

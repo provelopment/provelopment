@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { siteConfig } from "@/config";
-import { assetPathFromUrl } from "@/config/assets";
+import { assetPathFromUrl, availableFooterGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { legalLabel, resolveLegalDocs } from "@/core/legal";
@@ -9,6 +9,7 @@ import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
 import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
+import { FooterGraphic } from "./footer-graphic";
 import { navItemKey } from "./nav-links";
 
 interface SiteFooterProps {
@@ -62,8 +63,22 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
         }),
     );
 
+    // P12-FG — the optional DECORATIVE footer graphic (`site.assets.footerGraphic`,
+    // the `footer-graphic` role). Resolved through the SAME generic availability
+    // rule as the banner/background roles, so configured-but-missing (or absent)
+    // yields `undefined` → no layer is rendered at all.
+    const footerGraphic = availableFooterGraphicPath(siteConfig.assets?.footerGraphic);
+
     return (
-        <footer className="mt-16 border-t border-border">
+        <footer className="relative isolate mt-16 border-t border-border">
+            {/* P12-FG — the optional decorative footer graphic / watermark. See
+                `footer-graphic.tsx` for the full decorative-only contract. Nothing
+                is rendered when no asset is configured (or the configured file is
+                missing), so the footer's existing layout is unchanged. It is NOT
+                the footer logo — that stays the independent `logoFooter` mark below.
+                A CSS `background-image` bypasses the Next image optimizer (as the
+                P12-BG page background does); it is a static decorative layer. */}
+            <FooterGraphic src={footerGraphic} />
             {/* D2 footer robustness (reusable): `break-words` (overflow-wrap) on
                 the grid lets any legitimate long unbreakable string — a long
                 email address, phone, nav label, or business name — wrap within

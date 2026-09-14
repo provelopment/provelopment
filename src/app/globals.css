@@ -833,6 +833,51 @@ html[data-ui-hero="showcase"] .home-hero {
   max-width: var(--ui-banner-max-width, 100%);
 }
 
+/* The optional decorative FOOTER graphic / watermark (P12-FG). ONE global role
+ * — `site.assets.footerGraphic` (`footer-graphic`) — resolved on the server
+ * through `availableFooterGraphicPath` and rendered by `SiteFooter` as a
+ * same-origin CSS background layer. It is deliberately SEPARATE from the footer
+ * identity mark (`site.assets.logoFooter` / `logo-footer`), which stays an
+ * independent element: a deployment may have either, both, or neither.
+ *
+ * NON-STRUCTURAL: the layer is `position: absolute; inset: 0` inside the
+ * `relative isolate` footer, so it adds no padding, no margin, no reserved
+ * height and no horizontal overflow, and it can never move the footer logo, the
+ * columns, the links or the copyright line. `isolation: isolate` makes the
+ * footer its own stacking context, so the layer is scoped to the footer box and
+ * can never be pushed behind an ancestor background. With no asset configured
+ * nothing is emitted at all, so the footer's existing layout is byte-for-byte
+ * unchanged.
+ *
+ * BEHIND CONTENT: `z-index: -1` paints the graphic above the page/canvas colour
+ * and below every in-flow element inside the footer, so footer content (logo,
+ * navigation, legal, copyright) always stays readable on top of it. The engine
+ * applies NO colour, NO opacity and NO blend mode of its own — the approved
+ * artwork itself carries whatever subtlety the Master Brand Architect intends,
+ * and approved artwork is never recoloured here.
+ *
+ * DECORATIVE ONLY: `pointer-events: none` means the layer can never capture a
+ * click, a text selection or focus — footer links stay fully clickable and
+ * keyboard-focusable. The element also carries `aria-hidden`, so it contributes
+ * no accessible name and no semantics.
+ *
+ * ONE ASSET, ANY VIEWPORT: `cover` + centred lets a single graphic survive the
+ * footer's normal multi-column → stacked responsive transition without
+ * breakpoint variants, `<picture>` art direction or viewport listeners.
+ * Static only — no animation, no parallax, no motion. */
+.ui-footer-graphic {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
 /* The optional decorative page background (P12-BG). The Background / Watermark
  * Contract layer: `background-<page>` → `background-all` → none, resolved on the
  * server and handed to `PageBackground` as a same-origin path.

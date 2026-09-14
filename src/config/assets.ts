@@ -146,6 +146,18 @@ export function availableBackgroundMap(
   );
 }
 
+/**
+ * P12-FG — resolves a configured `site.assets.footerGraphic` value (an FS-4
+ * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
+ * `public/assets/`; otherwise `undefined`. Same availability rule as the banner
+ * and background roles (above), so a CONFIGURED-but-missing footer graphic is
+ * indistinguishable from an ABSENT one — the footer simply renders no
+ * decorative layer (never a placeholder, never a broken image).
+ */
+export function availableFooterGraphicPath(absoluteUrl: string | undefined): string | undefined {
+  return availableRoleAssetPath(absoluteUrl);
+}
+
 /** An intrinsic pixel size read from an asset header. */
 export interface ImageDimensions {
   readonly width: number;
