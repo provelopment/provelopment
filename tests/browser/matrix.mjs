@@ -1256,6 +1256,41 @@ async function runBrandingChecks(rows, tag, cdp) {
         }
         return null;
       })(),
+      // P12-HG — the decorative header band is the header's OWN background, so
+      // it contributes NO element: presence is observed through the marker
+      // attribute + the computed background, and the band's contract through
+      // the shipped .ui-site-header[data-ui-header-graphic] rule.
+      // (No backticks in this comment: it lives inside a template literal.)
+      headerBox: header ? (() => { const r = header.getBoundingClientRect(); return { top: Math.round(r.top), h: Math.round(r.height) }; })() : null,
+      headerGraphicLayers: document.querySelectorAll("[data-ui-header-graphic]").length,
+      headerGraphicAttribute: header ? header.getAttribute("data-ui-header-graphic") : null,
+      headerBackgroundImage: header ? getComputedStyle(header).backgroundImage : null,
+      headerRule: (() => {
+        for (const sheet of document.styleSheets) {
+          let rules;
+          try { rules = sheet.cssRules; } catch { continue; }
+          for (const rule of rules) {
+            if (rule.selectorText === ".ui-site-header[data-ui-header-graphic]" && rule.style) {
+              return {
+                backgroundImage: rule.style.backgroundImage,
+                backgroundRepeat: rule.style.backgroundRepeat,
+                backgroundPosition: rule.style.backgroundPosition,
+                backgroundSize: rule.style.backgroundSize,
+              };
+            }
+          }
+        }
+        return null;
+      })(),
+      headerPosition: header ? getComputedStyle(header).position : null,
+      headerIsolation: header ? getComputedStyle(header).isolation : null,
+      headerZIndex: header ? getComputedStyle(header).zIndex : null,
+      // The header's own interactive controls stay present and visible in every
+      // composition. NOTE: the single nav landmark lives in the shell SIDEBAR
+      // for aside compositions (adaptive/workspace/immersive) and only in the
+      // header for top-bar compositions, so this must NOT assert a header nav.
+      headerControlsVisible: !!header && [...header.querySelectorAll("a, button")].some((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }),
+      headerTriggerPresent: !!document.querySelector(".ui-shell-mobile-nav-trigger"),
       noBroken: [...document.images].every((i) => i.complete && i.naturalWidth > 0),
     };
   })()`);
@@ -1318,6 +1353,41 @@ async function runBrandingChecks(rows, tag, cdp) {
     s.footerPosition === "relative",
     `footerPos=${s.footerPosition}`,
   );
+  // P12-HG — the decorative HEADER band role is CONFIGURED-ONLY too: the
+  // shipped canonical deployment configures no `site.assets.headerGraphic`, so
+  // the header paints no band and gains no attribute, no inline style and no
+  // extra DOM — its computed background stays `none`. The header's own
+  // geometry, logo, navigation and mobile trigger are therefore unchanged.
+  check(rows, `${tag}.headerGraphic.absentWhenUnconfigured`, s.headerGraphicLayers === 0 && s.headerGraphicAttribute === null, `layers=${s.headerGraphicLayers} attr=${s.headerGraphicAttribute}`);
+  check(rows, `${tag}.headerGraphic.backgroundNoneWhenUnconfigured`, s.headerBackgroundImage === "none", `bg=${s.headerBackgroundImage}`);
+  check(rows, `${tag}.headerGraphic.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
+  // The band's CONTRACT is declared in the shipped stylesheet even though no
+  // artwork is configured: ONE asset, edge-to-edge, centred, no tiling.
+  check(
+    rows,
+    `${tag}.headerGraphic.contractDeclared`,
+    !!s.headerRule &&
+      s.headerRule.backgroundImage.includes("--ui-header-graphic") &&
+      s.headerRule.backgroundRepeat === "no-repeat" &&
+      s.headerRule.backgroundPosition === "center center" &&
+      s.headerRule.backgroundSize === "cover",
+    s.headerRule ? `img=${s.headerRule.backgroundImage} rep=${s.headerRule.backgroundRepeat} pos=${s.headerRule.backgroundPosition} size=${s.headerRule.backgroundSize}` : "rule missing",
+  );
+  // The band adds NO stacking context and NO positioning to the header — which
+  // is exactly what keeps the shell's `position: fixed` drawer/overlay panels
+  // (z-index 40/50), which live inside the header, where they were.
+  check(
+    rows,
+    `${tag}.headerGraphic.headerNotStackingContext`,
+    s.headerIsolation === "auto" && s.headerZIndex === "auto" && s.headerPosition === "static",
+    `isolation=${s.headerIsolation} z=${s.headerZIndex} pos=${s.headerPosition}`,
+  );
+  // The header itself (its own base/background, geometry, identity, navigation
+  // and mobile trigger) is unchanged by the capability.
+  check(rows, `${tag}.header.geometryIntact`, !!s.headerBox && s.headerBox.h > 0, s.headerBox ? `h=${s.headerBox.h}` : "no header");
+  check(rows, `${tag}.header.logoVisible`, !!s.logoPresent && !!s.logoLoaded && !!s.logoBoxOk);
+  check(rows, `${tag}.header.controlsVisible`, !!s.headerControlsVisible);
+  check(rows, `${tag}.header.triggerPresent`, !!s.headerTriggerPresent);
   check(rows, `${tag}.banner.capApplied`, s.capPx != null && Math.abs(s.capPx - cap) <= 1, `cap=${s.capPx} expected=${cap}`);
   check(rows, `${tag}.banner.aboveHeader`, !!s.bannerAboveHeader);
   check(rows, `${tag}.banner.aboveMain`, !!s.bannerAboveMain);

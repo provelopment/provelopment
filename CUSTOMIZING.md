@@ -1124,6 +1124,7 @@ configurable through the validated `site.assets.*` block:
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
 | Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
 | Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | *(none — configuring nothing is a fully-supported state)* | `site.assets.footerGraphic` |
+| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | *(none — configuring nothing is a fully-supported state)* | `site.assets.headerGraphic` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1144,7 +1145,8 @@ There are **two equally-supported ways to customize an asset**:
       "banners":    { "home": "https://cdn.example.com/banner-home.png" }, // page-keyed banners (P6-3B)
       "backgrounds": { "all": "https://cdn.example.com/background-all.webp",   // global decorative background (P12-BG)
                        "about": "https://cdn.example.com/background-about.webp" }, // page-specific wins
-      "footerGraphic": "https://cdn.example.com/footer-graphic.png" // decorative footer watermark (P12-FG) — NOT the footer logo
+      "footerGraphic": "https://cdn.example.com/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
+      "headerGraphic": "https://cdn.example.com/header-graphic.svg"  // decorative header band (P12-HG) — NOT the header logo or a banner
     }
   }
 }
@@ -1178,6 +1180,7 @@ without changing component source code.
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 | `footer-graphic` | `public/assets/footer-graphic.png` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE optional global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) |
+| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE optional global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) |
 
 Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
@@ -1265,6 +1268,35 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   viewport (no mobile/desktop variants, no art direction) and it is static only (no
   animation, no parallax). As a CSS `background-image` it bypasses the Next image
   optimizer. **No Foundation footer graphic exists yet** — art is produced and
+  owner-approved *after* this capability.
+- **`header-graphic` (P12-HG)** — **capability composed; no Foundation artwork yet**:
+  `site.assets.headerGraphic` is ONE optional **global** decorative header band /
+  structural graphic layer — deliberately **not** the header identity mark (that stays
+  the independent `logo-header` role) and **not** a page banner (that stays the
+  page-specific `banner-*` region *above* the shell). The server resolves it through
+  `availableHeaderGraphicPath` (the **same** generic availability rule as the
+  banner/background/footer-graphic roles) to a same-origin path only when the file
+  exists under `public/assets/`, then `headerGraphicBandProps`
+  (`src/components/site/header-graphic.ts`) emits the marker attribute plus the
+  `--ui-header-graphic` custom property. Configured-but-missing is indistinguishable
+  from absent → **no attribute, no style and no CSS at all**, so an unconfigured
+  deployment's header is byte-identical to before. The band is painted as the
+  header's **own background** (globals.css —
+  `.ui-site-header[data-ui-header-graphic]`), which is the only representation whose
+  paint order is guaranteed for every `data-ui-header` treatment: the header's own
+  `background-color`, then the band, then **all** of its in-flow content (logo,
+  navigation, switchers, mobile trigger). It therefore adds **no DOM node**, **no
+  layout height**, no reserved space, no overflow, and **no stacking context or
+  `position`** — which is what keeps the shell's `position: fixed` drawer/overlay
+  panels (`z-index: 40/50`), which live inside the header, exactly where they were.
+  As a CSS `background-image` it carries no semantics (no accessible name, no `alt`,
+  no reading-order entry, never focusable) and cannot receive pointer events — no
+  `pointer-events` override is applied, because on the header it would disable the
+  logo link and the navigation. The engine applies **no** colour, opacity, filter or
+  blend mode — the approved artwork carries its own appearance and is never
+  recoloured. One asset `cover`s the header edge-to-edge at every viewport (no
+  mobile/desktop variants, no art direction) and it is static only (no animation, no
+  parallax). **No Foundation header graphic exists yet** — art is produced and
   owner-approved *after* this capability.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,

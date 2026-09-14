@@ -131,6 +131,22 @@ export const siteAssetsSchema = z.object({
   footerGraphic: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/footer-graphic.png")
     .optional(),
+  /**
+   * P12-HG — the optional `header-graphic` role (absolute URL): ONE global
+   * DECORATIVE header band / structural graphic layer, painted as the header's
+   * OWN background so it always sits behind the header's logo, navigation,
+   * switchers and mobile trigger (`globals.css` —
+   * `.ui-site-header[data-ui-header-graphic]`).
+   *
+   * It is deliberately NOT the header identity mark: `logo` (the `logo-header`
+   * role) stays the independent header brand link. It is also NOT the page
+   * banner: `banners` is a PAGE-SPECIFIC region rendered ABOVE the whole shell,
+   * while this role is GLOBAL and belongs TO the header. Absent (or
+   * configured-but-missing) → no decorative band at all.
+   */
+  headerGraphic: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/header-graphic.svg")
+    .optional(),
 });
 
 export const siteSettingsSchema = z.object({

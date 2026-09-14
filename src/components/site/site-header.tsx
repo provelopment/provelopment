@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { siteConfig } from "@/config";
-import { assetPathFromUrl, availableIconName } from "@/config/assets";
+import { assetPathFromUrl, availableHeaderGraphicPath, availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
@@ -13,6 +13,7 @@ import { LanguageSwitcher } from "./language-switcher";
 import { LocationSwitcher } from "./location-switcher";
 import { PresetSwitcher } from "./preset-switcher";
 import { getSiteNavLinks } from "./nav-links";
+import { headerGraphicBandProps } from "./header-graphic";
 
 interface SiteHeaderProps {
     readonly locale: string;
@@ -60,6 +61,14 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     // preserved (`h-8 w-auto`, responsive); accessible name = the site name.
     // Absent config → the previous text brand link (graceful, never broken).
     const headerLogoSrc = assetPathFromUrl(siteConfig.assets?.logo);
+    // P12-HG — the optional decorative header band (`site.assets.headerGraphic`,
+    // the `header-graphic` role). Resolved on the SERVER through the shared
+    // availability rule, so a configured-but-missing file resolves to
+    // `undefined` → no band at all (and `node:fs` never reaches the browser).
+    // It is painted as the header's OWN background (`headerGraphicBandProps`),
+    // so it needs no extra DOM and cannot disturb the header's layout, the
+    // page banner, the identity logo or the navigation.
+    const headerGraphic = availableHeaderGraphicPath(siteConfig.assets?.headerGraphic);
 
     const navListElement = (
         <ContextNavLinks
@@ -96,8 +105,14 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     // the disclosure carries navigation only: opening the drawer can never
     // expose a second Book Now alongside the always-visible top one.
     
+    // P12-HG — the optional decorative header band is the header's OWN
+    // background layer, so it needs no extra DOM, no stacking context and no
+    // `z-index`: a background always paints behind the header's in-flow content
+    // (logo, navigation, switchers, mobile trigger) and above the header's own
+    // background colour. Unconfigured → no attribute and no inline style, so
+    // the header renders exactly as it did before P12-HG.
     return (
-        <header className="ui-site-header border-b border-border">
+        <header className="ui-site-header border-b border-border" {...headerGraphicBandProps(headerGraphic)}>
             <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
                 {headerLogoSrc ? (
                     <Link
