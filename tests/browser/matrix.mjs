@@ -1420,10 +1420,98 @@ async function runBrandingChecks(rows, tag, cdp) {
     const banner = document.querySelector('.ui-page-banner');
     const header = document.querySelector('.ui-site-header');
     const hr = header ? header.getBoundingClientRect() : null;
-    return { banner: !!banner, headerTop: hr ? Math.round(hr.top) : null };
+    // P12-SG — the decorative STATUS graphic role is CONFIGURED-ONLY, and the
+    // canonical deployment configures no site.assets.statusGraphic, so this
+    // not-found surface must render NO decorative box while its status copy and
+    // return-home control stay complete and operable.
+    // (No backticks in this comment: it lives inside a template literal.)
+    const section = document.querySelector('#main section') || document.querySelector('#main article');
+    const heading = document.querySelector('#main h1');
+    const graphic = document.querySelector('.ui-status-graphic');
+    const graphicImg = document.querySelector('.ui-status-graphic-image');
+    const homeLink = section
+      ? [...section.querySelectorAll('a')].find((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+      : undefined;
+    const graphicRule = (() => {
+      for (const sheet of document.styleSheets) {
+        let rules;
+        try { rules = sheet.cssRules; } catch { continue; }
+        for (const rule of rules) {
+          if (rule.selectorText === '.ui-status-graphic' && rule.style) {
+            return {
+              display: rule.style.display,
+              justifyContent: rule.style.justifyContent,
+              pointerEvents: rule.style.pointerEvents,
+              position: rule.style.position,
+            };
+          }
+        }
+      }
+      return null;
+    })();
+    const sr = section ? section.getBoundingClientRect() : null;
+    return {
+      banner: !!banner,
+      headerTop: hr ? Math.round(hr.top) : null,
+      statusGraphicLayers: document.querySelectorAll('.ui-status-graphic').length,
+      statusGraphicImages: document.querySelectorAll('.ui-status-graphic-image').length,
+      statusGraphicRule: graphicRule,
+      statusGraphicAboveHeading: graphic && heading
+        ? graphic.getBoundingClientRect().bottom <= heading.getBoundingClientRect().top + 1
+        : null,
+      statusGraphicImgComplete: graphicImg ? !!graphicImg.complete : null,
+      statusSectionPresent: !!section,
+      statusSectionHeight: sr ? Math.round(sr.height) : null,
+      statusHeadingText: heading ? heading.textContent.trim() : null,
+      statusHomeLinkText: homeLink ? homeLink.textContent.trim() : null,
+      statusHomeLinkHref: homeLink ? homeLink.getAttribute('href') : null,
+      docScrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: document.documentElement.clientWidth,
+    };
   })()`);
   check(rows, `${tag}.banner.absentOnNoBannerPage`, nb.banner === false);
   check(rows, `${tag}.banner.noReservedGap`, nb.headerTop != null && nb.headerTop <= 40, `headerTop=${nb.headerTop}`);
+  // P12-SG — the shared decorative STATUS graphic on the canonical UNCONFIGURED
+  // not-found surface: no layer, no image, no reserved box, and the status copy
+  // plus its return-home control stay complete and operable. (The `[locale]`
+  // error boundary cannot be reached in a canonical static browser run without
+  // deliberately fabricating a render failure, which this matrix must never do;
+  // the error surface's identical frame, semantics and controls are asserted by
+  // `tests/unit/p12-sg-status-graphic.test.ts`, and both surfaces share the ONE
+  // provider resolved in the `[locale]` layout that this route exercises.)
+  check(rows, `${tag}.statusGraphic.absentWhenUnconfigured`, nb.statusGraphicLayers === 0 && nb.statusGraphicImages === 0, `layers=${nb.statusGraphicLayers} imgs=${nb.statusGraphicImages}`);
+  check(
+    rows,
+    `${tag}.statusGraphic.contractDeclared`,
+    !!nb.statusGraphicRule &&
+      nb.statusGraphicRule.display === "flex" &&
+      nb.statusGraphicRule.justifyContent === "center" &&
+      nb.statusGraphicRule.pointerEvents === "none" &&
+      nb.statusGraphicRule.position === "",
+    nb.statusGraphicRule
+      ? `display=${nb.statusGraphicRule.display} justify=${nb.statusGraphicRule.justifyContent} pe=${nb.statusGraphicRule.pointerEvents} pos=${nb.statusGraphicRule.position || "(none)"}`
+      : "rule missing",
+  );
+  check(rows, `${tag}.statusGraphic.noHorizontalOverflow`, nb.docScrollWidth <= nb.viewportWidth + 1, `scrollW=${nb.docScrollWidth} vw=${nb.viewportWidth}`);
+  // The status meaning stays entirely in HTML/text: the section renders, the
+  // heading is present, and the return-home control is visible and linked.
+  check(
+    rows,
+    `${tag}.statusGraphic.statusSemanticsIntact`,
+    nb.statusSectionPresent &&
+      nb.statusSectionHeight > 0 &&
+      typeof nb.statusHeadingText === "string" &&
+      nb.statusHeadingText.length > 0 &&
+      typeof nb.statusHomeLinkText === "string" &&
+      nb.statusHomeLinkText.length > 0 &&
+      typeof nb.statusHomeLinkHref === "string" &&
+      nb.statusHomeLinkHref.startsWith("/"),
+    `h=${nb.statusSectionHeight} heading=${nb.statusHeadingText} link=${nb.statusHomeLinkHref}`,
+  );
+  // No decorative box exists at all when unconfigured — so nothing can sit above
+  // the status heading and the frame's geometry is exactly the pre-P12-SG one.
+  check(rows, `${tag}.statusGraphic.noGraphicAboveHeading`, nb.statusGraphicAboveHeading === null, `above=${nb.statusGraphicAboveHeading}`);
+  check(rows, `${tag}.statusGraphic.noBrokenStatusImage`, nb.statusGraphicImgComplete === null, `complete=${nb.statusGraphicImgComplete}`);
 }
 
 

@@ -170,6 +170,19 @@ export function availableHeaderGraphicPath(absoluteUrl: string | undefined): str
   return availableRoleAssetPath(absoluteUrl);
 }
 
+/**
+ * P12-SG — resolves a configured `site.assets.statusGraphic` value (an FS-4
+ * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
+ * `public/assets/`; otherwise `undefined`. Same availability rule as the banner,
+ * background, footer-graphic and header-graphic roles (above), so a
+ * CONFIGURED-but-missing status graphic is indistinguishable from an ABSENT one
+ * — the status surfaces simply render no decorative graphic (never a
+ * placeholder, never a broken image).
+ */
+export function availableStatusGraphicPath(absoluteUrl: string | undefined): string | undefined {
+  return availableRoleAssetPath(absoluteUrl);
+}
+
 /** An intrinsic pixel size read from an asset header. */
 export interface ImageDimensions {
   readonly width: number;

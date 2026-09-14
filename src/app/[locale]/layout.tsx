@@ -1,6 +1,7 @@
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createAnalyticsProvider } from "@/adapters/analytics";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
+import { StatusGraphicProvider } from "@/components/site/status-graphic-context";
 import { StructuredData } from "@/components/site/structured-data";
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
@@ -13,6 +14,7 @@ import {
   availableBackgroundMap,
   availableBannerPath,
   availableIconName,
+  availableStatusGraphicPath,
   readImageDimensions,
 } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
@@ -177,6 +179,35 @@ export default async function LocaleLayout({
   // `cover`, so — unlike a page banner — it needs no dimension/upscale contract.
   const backgroundMap = availableBackgroundMap(siteConfig.assets?.backgrounds);
 
+  // P12-SG — the optional decorative STATUS graphic (`site.assets.statusGraphic`,
+  // the `status-graphic` role): ONE global role shared by BOTH status surfaces
+  // (`[locale]/error.tsx` and `[locale]/not-found.tsx`). The audit proved those
+  // two files render the SAME status frame, so ONE replaceable graphic serves
+  // both truthfully — there is deliberately no per-surface variant.
+  //
+  // Resolved here (server-only) for the same reason the banner map is: the
+  // availability read touches `node:fs`, and `[locale]/error.tsx` is a CLIENT
+  // component that can never import the resolver. The value is handed to both
+  // surfaces through `StatusGraphicProvider`, the same transport the error copy
+  // uses. Same availability rule as every other graphic role, so a
+  // CONFIGURED-but-missing status graphic is indistinguishable from an ABSENT
+  // one → both status pages render no graphic at all.
+  //
+  // The INTRINSIC size is read here (server-only, cached) so the renderer can
+  // emit real `width`/`height` attributes: the browser then reserves the correct
+  // aspect-ratio box before the file loads, so the decoration can never cause a
+  // layout shift. Undecodable → no attributes; the CSS still never upscales or
+  // overflows.
+  const statusGraphicPath = availableStatusGraphicPath(siteConfig.assets?.statusGraphic);
+  const statusGraphicDimensions = readImageDimensions(statusGraphicPath);
+  const statusGraphic = statusGraphicPath
+    ? {
+        src: statusGraphicPath,
+        width: statusGraphicDimensions?.width,
+        height: statusGraphicDimensions?.height,
+      }
+    : undefined;
+
   const asideContent = usesAside ? (
     <ContextNavLinks
       locale={locale}
@@ -255,7 +286,7 @@ export default async function LocaleLayout({
           header={<SiteHeader locale={locale} resolved={resolvedUi} />}
           main={
             <ErrorMessagesProvider messages={dictionary.error}>
-              {children}
+              <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>
             </ErrorMessagesProvider>
           }
           footer={<SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />}

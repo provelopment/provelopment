@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { locale } from "next/root-params";
 import { getDictionary } from "@/config/i18n";
+import { StatusGraphic } from "@/components/site/status-graphic";
 import { Section } from "@/components/ui/section";
 
 export default async function NotFound() {
@@ -9,6 +10,11 @@ export default async function NotFound() {
 
   return (
     <Section className="py-24 text-center">
+      {/* P12-SG — optional decorative status graphic (ONE role shared with
+          `error.tsx`, which renders this identical status frame). Renders
+          NOTHING when unconfigured, so the heading/message/link below remain the
+          complete expression of the state. */}
+      <StatusGraphic />
       <h1 className="text-4xl font-bold tracking-tight">
         {dictionary.notFound.title}
       </h1>

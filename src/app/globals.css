@@ -950,3 +950,57 @@ html[data-ui-hero="showcase"] .home-hero {
   background-position: center center;
   background-size: cover;
 }
+
+/* ── P12-SG optional decorative STATUS graphic (error / not-found) ───────────
+ *
+ * The Status Decorative Graphic Contract layer (deployment-info/brand-system/
+ * visual/README.md): ONE optional global `status-graphic` role shared by BOTH
+ * status surfaces, because they render the SAME status frame. `StatusGraphic`
+ * (`src/components/site/status-graphic.tsx`) renders this box as the FIRST child
+ * of that frame — immediately above the status heading, in flow, so the existing
+ * `h1` / `p` / action order, spacing and hierarchy are untouched.
+ *
+ * IN FLOW, NOT POSITIONED: a status page has no reserved surface to layer onto
+ * (unlike the footer, which the footer-graphic layer sits behind). The box
+ * is therefore a plain centred block: `display: flex` + `justify-content:
+ * center` centres a graphic narrower than the content column, using the same
+ * centring model the page-banner box already established. The `margin-bottom` is
+ * the same 2rem gap the frame's
+ * own action row already uses (`mt-8`), so the rhythm is the existing one — no
+ * new spacing scale is introduced. With no asset configured nothing is rendered
+ * at all, so both status pages are byte-identical to pre-P12-SG.
+ *
+ * DECORATIVE ONLY: `pointer-events: none` means the box can never capture a
+ * click, a text selection or focus — the error boundary's retry button and both
+ * pages' links stay fully usable. (It disables nothing else: the box contains no
+ * interactive element.) The element also carries `aria-hidden`, and its image
+ * uses `alt=""`, so it contributes no accessible name and no semantics.
+ *
+ * STABLE GEOMETRY, ONE ASSET, ANY VIEWPORT: the image is shown at its NATURAL
+ * size and only ever scales DOWN (`max-width: 100%`) — it is never enlarged to
+ * fill the page, never cropped and never distorted, so no arbitrary artwork
+ * dimension can reshape the page and horizontal overflow is impossible. The
+ * intrinsic `width`/`height` attributes rendered by `StatusGraphic` let the
+ * browser reserve the correct aspect-ratio box BEFORE the file loads, so the
+ * graphic cannot cause a layout shift. The engine applies NO colour, opacity,
+ * filter or blend mode — the approved artwork carries its own appearance and is
+ * never recoloured. Static only — no animation, no parallax, no motion. */
+.ui-status-graphic {
+  display: flex;
+  justify-content: center;
+  margin: 0 0 2rem;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+  pointer-events: none;
+}
+
+.ui-status-graphic-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}

@@ -1125,6 +1125,7 @@ configurable through the validated `site.assets.*` block:
 | Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
 | Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | *(none — configuring nothing is a fully-supported state)* | `site.assets.footerGraphic` |
 | Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | *(none — configuring nothing is a fully-supported state)* | `site.assets.headerGraphic` |
+| Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | *(none — configuring nothing is a fully-supported state)* | `site.assets.statusGraphic` |
 
 There are **two equally-supported ways to customize an asset**:
 
@@ -1146,7 +1147,8 @@ There are **two equally-supported ways to customize an asset**:
       "backgrounds": { "all": "https://cdn.example.com/background-all.webp",   // global decorative background (P12-BG)
                        "about": "https://cdn.example.com/background-about.webp" }, // page-specific wins
       "footerGraphic": "https://cdn.example.com/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
-      "headerGraphic": "https://cdn.example.com/header-graphic.svg"  // decorative header band (P12-HG) — NOT the header logo or a banner
+      "headerGraphic": "https://cdn.example.com/header-graphic.svg", // decorative header band (P12-HG) — NOT the header logo or a banner
+      "statusGraphic": "https://cdn.example.com/status-graphic.svg"   // decorative error/404 graphic (P12-SG) — ONE shared status role, NOT an icon
     }
   }
 }
@@ -1298,6 +1300,42 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   mobile/desktop variants, no art direction) and it is static only (no animation, no
   parallax). **No Foundation header graphic exists yet** — art is produced and
   owner-approved *after* this capability.
+- **`status-graphic` (P12-SG)** — **capability composed; no Foundation artwork yet**:
+  `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
+  shared by **both** status surfaces (`[locale]/error.tsx` and
+  `[locale]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
+  render the *same* status frame (`<Section className="py-24 text-center">` with an
+  `h1` / `p` / action rhythm), so one replaceable graphic serves both truthfully and
+  no per-route artwork or per-route config exists. It is **not** an error icon, **not**
+  semantic status communication and **not** a replacement for the status heading — the
+  heading, the message and the retry/navigation controls remain the complete
+  expression of the state, and **the page must be fully understandable and operable
+  with no graphic at all**. The `[locale]` layout (server-side) resolves the role
+  through `availableStatusGraphicPath` (the **same** generic availability rule as the
+  banner/background/footer-graphic/header-graphic roles) to a same-origin path only
+  when the file exists under `public/assets/`, reads its intrinsic size, and hands
+  `{ src, width, height }` to `StatusGraphicProvider`
+  (`src/components/site/status-graphic-context.tsx`) — the same transport
+  `ErrorMessagesProvider` already uses, because `error.tsx` is a **Client Component**
+  while `not-found.tsx` is a Server Component and the resolver reads `node:fs`.
+  `StatusGraphic` (`src/components/site/status-graphic.tsx`) renders one in-flow,
+  centred box as the **first child of the status frame — above the heading**
+  (`globals.css` — `.ui-status-graphic`). Configured-but-missing is indistinguishable
+  from absent → **nothing is rendered at all**, so an unconfigured deployment gains no
+  DOM and both status pages are byte-identical to pre-P12-SG. Decorative only:
+  `aria-hidden="true"` + `alt=""` (no accessible name, no `role`, no reading order),
+  non-focusable, and `pointer-events: none` so the retry button and links stay fully
+  clickable. The image renders at its **natural size**, only ever scaling **down**
+  (`max-width: 100%`) — never enlarged to fill the page, never cropped, never
+  distorted, so no artwork dimension can reshape the page and horizontal overflow is
+  impossible; the intrinsic `width`/`height` attributes reserve the box before load
+  (no layout shift). The engine applies **no** colour, opacity, filter or blend mode —
+  the approved artwork carries its own appearance and is never recoloured. ONE asset
+  serves desktop and mobile (no breakpoint variants, no art direction, no `<picture>`,
+  no viewport listeners) and it is static only (no animation, no parallax). As a plain
+  `<img>` it bypasses the Next image optimizer, exactly like the page banner.
+  **No Foundation status graphic exists yet** — art is produced and owner-approved
+  *after* this capability.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,

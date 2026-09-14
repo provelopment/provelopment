@@ -147,6 +147,28 @@ export const siteAssetsSchema = z.object({
   headerGraphic: z
     .url("must be an absolute URL including protocol, e.g. https://example.com/assets/header-graphic.svg")
     .optional(),
+  /**
+   * P12-SG — the optional `status-graphic` role (absolute URL): ONE optional
+   * global DECORATIVE status graphic, rendered by BOTH status surfaces
+   * (`src/app/[locale]/error.tsx` and `src/app/[locale]/not-found.tsx`) in one
+   * deterministic in-flow box above the status heading
+   * (`src/components/site/status-graphic.tsx` → `.ui-status-graphic`).
+   *
+   * It is ONE role, not two: the audit proved the two surfaces render the SAME
+   * status frame (`<Section className="py-24 text-center">` with an
+   * `h1`/`p`/action rhythm), so one replaceable graphic serves both truthfully —
+   * independent artwork per route would duplicate config and code with no
+   * adopter-facing benefit.
+   *
+   * It is deliberately NOT an error icon, NOT semantic status communication and
+   * NOT a replacement for the status heading: the status pages stay completely
+   * understandable and operable without it. It is also independent of the page
+   * background, the `banners` region, and the header/footer graphic roles.
+   * Absent (or configured-but-missing) → no graphic at all.
+   */
+  statusGraphic: z
+    .url("must be an absolute URL including protocol, e.g. https://example.com/assets/status-graphic.svg")
+    .optional(),
 });
 
 export const siteSettingsSchema = z.object({
