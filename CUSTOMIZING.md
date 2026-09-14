@@ -107,7 +107,7 @@ fail the build with actionable error messages.
 | `site` | Production URL, site name, tagline, meta description, logo, `assets` (`logo`/`ogImage`/`favicon` URLs) |
 | `i18n` | Locales and the default locale |
 | `contact` | Public contact email |
-| `socialLinks` | Footer/header social links |
+| `socialLinks` | Outbound profile links (`platform`, `label`, `href`) rendered as **text links** in the footer Connect column — there is no platform-mark/glyph role |
 | `navigation` | Header navigation entries (label + href) |
 | `features` | Feature flags, e.g. `analytics.provider` |
 | `ui` | Intent-level UI namespace — presets, navigation patterns, density, CTA, theme; see below |
