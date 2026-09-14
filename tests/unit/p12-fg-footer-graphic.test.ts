@@ -17,10 +17,11 @@ import { FooterGraphic } from "@/components/site/footer-graphic";
  * decorative layer INSIDE the footer — never replacing the independent
  * `logoFooter` identity role.
  *
- * No artwork ships with this capability: the positive/negative availability
- * cases reuse the repository's existing neutral `logo-footer.svg` fixture
- * (already present under `public/assets/`), exactly as the P12-BG suite reuses
- * the existing logo fixtures.
+ * The approved Foundation footer artwork is now INTEGRATED at
+ * `public/assets/footer-graphic.svg`; the positive/negative availability cases
+ * still reuse the repository's existing neutral `logo-footer.svg` fixture, so the
+ * availability rule stays proven independently of which artwork a deployment has
+ * activated.
  */
 
 const root = process.cwd();
@@ -75,8 +76,16 @@ describe("P12-FG — schema / backward compatibility", () => {
     );
   });
 
-  it("the shipped canonical Foundation config configures NO footer graphic", () => {
-    expect(siteConfig.assets?.footerGraphic).toBeUndefined();
+  it("the shipped canonical Foundation config ACTIVATES the integrated footer graphic", () => {
+    // APPROVED-ASSET INTEGRATION — the approved Foundation footer graphic is
+    // integrated, so the canonical role is POPULATED and points at the shipped
+    // `public/assets/footer-graphic.svg` (PROVELOPMENT_FOUNDATION_INTEGRATION).
+    // The role stays OPTIONAL and replaceable: `availableFooterGraphicPath`
+    // (proven below) still renders NOTHING for an absent/missing value, so an
+    // adopter may remove the role with no code change.
+    const configured = siteConfig.assets?.footerGraphic ?? "";
+    expect(configured).not.toBe("");
+    expect(new URL(configured).pathname).toBe("/assets/footer-graphic.svg");
   });
 });
 

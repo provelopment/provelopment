@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -24,11 +24,13 @@ import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/s
  * trigger — never replacing the independent `logo` identity role and never
  * consuming the PAGE-SPECIFIC `banners` region above the shell.
  *
- * No artwork ships with this capability: the positive/negative availability
- * cases reuse the repository's existing neutral `logo-header.svg` fixture
- * (already present under `public/assets/`), exactly as the P12-BG/P12-FG suites
- * reuse the existing logo fixtures. It is used ONLY as an availability fixture
- * — it is NOT header-graphic artwork.
+ * The approved Foundation header artwork SHIPS at
+ * `public/assets/header-graphic.svg`, but its canonical ACTIVATION is blocked by
+ * the readability gate, so the positive/negative availability cases continue to
+ * reuse the repository's existing neutral `logo-header.svg` fixture — the
+ * availability rule stays proven independently of which artwork a deployment has
+ * activated. It is used ONLY as an availability fixture — it is NOT
+ * header-graphic artwork.
  */
 
 const root = process.cwd();
@@ -104,9 +106,18 @@ describe("P12-HG — schema / backward compatibility", () => {
     expect(siteAssetsSchema.safeParse({ headerGraphic: "/assets/header-graphic.svg" }).success).toBe(false);
   });
 
-  it("the shipped canonical Foundation config configures NO header graphic", () => {
-    // Production config stays UNPOPULATED for this role (capability only).
+  it("the shipped canonical Foundation config keeps this role UNPOPULATED (BLOCKED ACTIVATION)", () => {
+    // APPROVED-ASSET INTEGRATION — the approved header graphic is INTEGRATED into
+    // the living pack and SHIPPED at `public/assets/header-graphic.svg`, but its
+    // canonical ACTIVATION is deliberately BLOCKED by the readability gate:
+    // `cover` renders the 8:1 artwork inside a 19.46:1 (desktop) / 2.59:1 (mobile)
+    // header box, magnifying it ~2.4x and cropping straight through its focal
+    // centred wordmark, which then collides with the logo and the selectors.
+    // The file ships for adopters; the role stays unconfigured until the Master
+    // Brand Architect rules on artwork/geometry. No artwork was altered and no
+    // engine CSS was changed to compensate.
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
+    expect(existsSync(path.join(root, "public", "assets", "header-graphic.svg"))).toBe(true);
   });
 });
 
@@ -285,8 +296,12 @@ describe("P12-HG — separation + reusability contract", () => {
     expect(componentCode).not.toMatch(/ContextNavLinks|nav-links|navigation/);
   });
 
-  it("14. the completed footer-graphic role (P12-FG) remains independent and UNPOPULATED", () => {
-    expect(siteConfig.assets?.footerGraphic).toBeUndefined();
+  it("14. the completed footer-graphic role (P12-FG) remains independent of this role", () => {
+    // The footer role is ACTIVATED while THIS role stays deliberately unpopulated
+    // (blocked activation), which is itself proof of independence: the two roles
+    // have their own keys, resolvers and renderers and never read each other.
+    expect(siteConfig.assets?.footerGraphic).toBeDefined();
+    expect(siteConfig.assets?.headerGraphic).toBeUndefined();
     expect(siteFooter).toContain("siteConfig.assets?.footerGraphic");
     // The two roles never read each other's key or resolver.
     expect(siteHeader).not.toContain("footerGraphic");

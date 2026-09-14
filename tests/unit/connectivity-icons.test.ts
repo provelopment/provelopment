@@ -402,11 +402,29 @@ describe("connectivity icon seam — data-driven, no platform logic", () => {
 describe("connectivity icon seam — scope protection", () => {
   const root = process.cwd();
 
-  it("installs NO platform mark artwork in the runtime asset inventory", () => {
+  it("installs EXACTLY the seven admitted platform marks in the runtime asset inventory", () => {
     const assets = readdirSync(path.join(root, "public", "assets"));
     const platformMark =
-      /whatsapp|telegram|messenger|facebook|linkedin|instagram|youtube|mastodon|slack|viber|twitter|signal|discord|threads|bluesky|wechat|platform-/i;
-    expect(assets.filter((name) => platformMark.test(name))).toEqual([]);
+      /whatsapp|telegram|messenger|facebook|linkedin|instagram|github|youtube|mastodon|slack|viber|twitter|signal|discord|threads|bluesky|wechat|platform-/i;
+    // APPROVED-ASSET INTEGRATION — the owner-approved ADMITTED marks are now part
+    // of the distributable runtime asset pack. This is AVAILABILITY only: no
+    // canonical account is configured, so nothing renders merely because a file
+    // exists (asserted by the "no invented accounts or icons" case below).
+    const installed = assets.filter((name) => platformMark.test(name)).sort();
+    expect(installed).toEqual([
+      "facebook.png",
+      "github.svg",
+      "instagram.svg",
+      "linkedin.png",
+      "messenger.svg",
+      "telegram.svg",
+      "whatsapp.svg",
+    ]);
+    // The WITHHELD platforms remain unavailable: no substitute, no lookalike and
+    // no library icon was installed for any of them.
+    for (const withheld of ["youtube", "mastodon", "slack", "viber", "twitter", "x"]) {
+      expect(assets.some((name) => name.toLowerCase().startsWith(withheld)), withheld).toBe(false);
+    }
   });
 
   it("leaves the canonical configuration free of invented accounts or icons", () => {

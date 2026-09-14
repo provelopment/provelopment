@@ -6,6 +6,7 @@
     "description": "Provelopment Foundation is an open website foundation for small businesses — a multilingual, configuration-first template that turns JSON, Markdown, and assets into a complete, accessible site. Reuse the proven base instead of starting from scratch.",
     "assets": {
       "logo": "https://www.example.com/assets/logo-header.svg",
+      "ogImage": "https://www.example.com/assets/og-image.png",
       "favicon": "https://www.example.com/assets/favicon.svg",
       "logoFooter": "https://www.example.com/assets/logo-footer.svg",
       "banners": {
@@ -19,7 +20,12 @@
         "resources": "https://www.example.com/assets/banner-resources.png",
         "testimonials": "https://www.example.com/assets/banner-testimonials.png",
         "legal": "https://www.example.com/assets/banner-legal.png"
-      }
+      },
+      "backgrounds": {
+        "all": "https://www.example.com/assets/background-all.svg"
+      },
+      "footerGraphic": "https://www.example.com/assets/footer-graphic.svg",
+      "statusGraphic": "https://www.example.com/assets/status-graphic.svg"
     }
   },
   "i18n": {

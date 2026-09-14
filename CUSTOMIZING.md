@@ -1196,14 +1196,14 @@ configurable through the validated `site.assets.*` block:
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
 | Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
-| Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | the generated per-locale route (no static default file) | `site.assets.ogImage` |
+| Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | `public/assets/og-image.png` (approved 1200 × 630; configured on the canonical site) | `site.assets.ogImage` |
 | Browser favicon — the `favicon` role (the **browser tab / bookmark icon** only; it is **not** an installable-app icon) | `public/assets/favicon.svg` (the single authoritative browser-icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
-| Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
-| Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | *(none — configuring nothing is a fully-supported state)* | `site.assets.footerGraphic` |
-| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | *(none — configuring nothing is a fully-supported state)* | `site.assets.headerGraphic` |
-| Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | *(none — configuring nothing is a fully-supported state)* | `site.assets.statusGraphic` |
+| Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | `public/assets/background-all.svg` (approved Foundation watermark; configured on the canonical site) | `site.assets.backgrounds` |
+| Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | `public/assets/footer-graphic.svg` (approved; configured on the canonical site) | `site.assets.footerGraphic` |
+| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | `public/assets/header-graphic.svg` — **ships but is NOT configured** on the canonical site (the approved 8:1 artwork cannot survive the header's 2.6:1–19.5:1 box under `cover` without cropping through its wordmark) | `site.assets.headerGraphic` |
+| Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | `public/assets/status-graphic.svg` (approved 640 × 320; configured on the canonical site) | `site.assets.statusGraphic` |
 
 > **No installable-app / PWA icon roles exist.** The Foundation emits **no** web app
 > manifest, **no** service worker and **no** `apple-touch-icon` / installable-app icon
@@ -1243,9 +1243,11 @@ There are **two equally-supported ways to customize an asset**:
 `site.assets.*` values are **absolute URLs** (validated at build time). Absent
 keys fall back to the shipped Foundation default asset, so a fresh clone needs
 no asset configuration. The `ogImage` value is used by every page's Open Graph
-and Twitter metadata (via the `resolveOgImageUrl` helper); when it is absent,
-the per-locale generated OpenGraph image route is used as the default (the
-canonical site intentionally leaves `ogImage` absent for this reason).
+and Twitter metadata (via the `resolveOgImageUrl` helper); the canonical site now
+**configures** it against the shipped approved `og-image.png`, and when the key is
+absent — as it is for any deployment that removes it — the per-locale generated
+OpenGraph image route is used as the fallback (that route deliberately stays in the
+engine).
 
 #### Generic branding asset roles (P6-2A, wired P6-2C, composed P6-2D)
 
@@ -1267,8 +1269,10 @@ without changing component source code.
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show Sidebar control graphic |
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
-| `footer-graphic` | `public/assets/footer-graphic.png` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE optional global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) |
-| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE optional global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) |
+| `footer-graphic` | `public/assets/footer-graphic.svg` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) — **approved artwork integrated and ACTIVE** |
+| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) — **approved artwork SHIPS but the role is NOT configured** (readability-gate block; see [`header/README.md`](header/README.md)) |
+| `background-all` | `public/assets/background-all.svg` | `site.assets.backgrounds.all` → `PageBackground` (P12-BG — the reserved `all` key: ONE global decorative watermark layered **over** the flat `ui.theme.background` colour) — **approved artwork integrated and ACTIVE** |
+| `status-graphic` | `public/assets/status-graphic.svg` | `site.assets.statusGraphic` → `StatusGraphic` (P12-SG — ONE shared decorative graphic above the heading on **both** status surfaces; **not** an error icon) — **approved artwork integrated and ACTIVE** |
 
 Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
@@ -1334,9 +1338,10 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   `ui.theme.background` colour — the colour token still defines the base colour.
   One asset `cover`s any viewport (no per-breakpoint roles, no art direction) and
   it is static only (no animation, no parallax). As a CSS `background-image` it
-  bypasses the Next image optimizer. **No Foundation background artwork exists
-  yet** — art is produced and owner-approved *after* this capability.
-- **`footer-graphic` (P12-FG)** — **capability composed; no Foundation artwork yet**:
+  bypasses the Next image optimizer. **The approved Foundation background artwork
+  now ships at `public/assets/background-all.svg` and is ACTIVE** through the
+  reserved global `all` role.
+- **`footer-graphic` (P12-FG)** — **capability composed; approved artwork integrated and ACTIVE**:
   `site.assets.footerGraphic` is ONE optional **global** decorative footer graphic /
   watermark — deliberately **not** the footer identity mark, so a deployment may have
   a footer logo, a decorative graphic, both, or neither. The server resolves it
@@ -1355,9 +1360,9 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   artwork carries its own subtlety and is never recoloured. One asset `cover`s any
   viewport (no mobile/desktop variants, no art direction) and it is static only (no
   animation, no parallax). As a CSS `background-image` it bypasses the Next image
-  optimizer. **No Foundation footer graphic exists yet** — art is produced and
-  owner-approved *after* this capability.
-- **`header-graphic` (P12-HG)** — **capability composed; no Foundation artwork yet**:
+  optimizer. **The approved Foundation footer graphic now ships at
+  `public/assets/footer-graphic.svg` and is ACTIVE** through `site.assets.footerGraphic`.
+- **`header-graphic` (P12-HG)** — **capability composed; approved artwork SHIPS but the role is NOT configured**:
   `site.assets.headerGraphic` is ONE optional **global** decorative header band /
   structural graphic layer — deliberately **not** the header identity mark (that stays
   the independent `logo-header` role) and **not** a page banner (that stays the
@@ -1384,9 +1389,13 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   blend mode — the approved artwork carries its own appearance and is never
   recoloured. One asset `cover`s the header edge-to-edge at every viewport (no
   mobile/desktop variants, no art direction) and it is static only (no animation, no
-  parallax). **No Foundation header graphic exists yet** — art is produced and
-  owner-approved *after* this capability.
-- **`status-graphic` (P12-SG)** — **capability composed; no Foundation artwork yet**:
+  parallax). **The approved Foundation header graphic now ships at
+  `public/assets/header-graphic.svg`, but the canonical role is deliberately left
+  UNCONFIGURED**: the 8:1 artwork cannot survive the measured header box (19.46:1
+  desktop / 2.59:1 mobile) under `cover` without ~2.4× magnification cropping through
+  its focal wordmark and colliding with the logo and selectors. The artwork was NOT
+  altered and no CSS was added to compensate; an adopter may still activate it.
+- **`status-graphic` (P12-SG)** — **capability composed; approved artwork integrated and ACTIVE**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
   shared by **both** status surfaces (`[locale]/error.tsx` and
   `[locale]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
@@ -1420,8 +1429,9 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   serves desktop and mobile (no breakpoint variants, no art direction, no `<picture>`,
   no viewport listeners) and it is static only (no animation, no parallax). As a plain
   `<img>` it bypasses the Next image optimizer, exactly like the page banner.
-  **No Foundation status graphic exists yet** — art is produced and owner-approved
-  *after* this capability.
+  **The approved Foundation status graphic now ships at
+  `public/assets/status-graphic.svg` (640 × 320) and is ACTIVE** through
+  `site.assets.statusGraphic`, on both status surfaces.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,
@@ -1509,6 +1519,88 @@ task):
 A future customer/branding implementation should never require a Foundation
 component-source change merely to replace branding — only a `public/assets/`
 file swap and/or a `site.assets.*` URL change.
+
+#### Shipped brand assets — what a fresh clone already contains
+
+A fresh clone needs **no brand artwork of its own**: the Foundation ships its
+approved asset set under `public/assets/`, and the canonical `site.config.json`
+activates some of those roles while deliberately leaving others merely available.
+
+| Group | Files shipped in `public/assets/` | Canonical role configured? |
+| --- | --- | --- |
+| Identity | `logo-header.svg`, `logo-footer.svg`, `favicon.svg` | yes — `logo`, `logoFooter`, `favicon` |
+| Page banners | `banner-home/about/contact/connect/offerings/portfolio/blog/resources/testimonials/legal.png` | yes — `banners` (ten page roles) |
+| Decorative graphics | `background-all.svg`, `footer-graphic.svg`, `status-graphic.svg` | yes — `backgrounds.all`, `footerGraphic`, `statusGraphic` |
+| Decorative graphics | `header-graphic.svg` | **no** — the file ships, the role is left unconfigured (see below) |
+| Social preview | `og-image.png` (1200 × 630) | yes — `ogImage` (the generated per-locale route remains the fallback) |
+| Generic connectivity icons | `icon-phone.svg`, `icon-email.svg`, `icon-message.svg`, `icon-link.svg`, `icon-external-link.svg`, `icon-share.svg`, `icon-globe.svg` | **no** — available for your own connectivity items |
+| Admitted platform marks | `whatsapp.svg`, `telegram.svg`, `facebook.png`, `messenger.svg`, `instagram.svg`, `linkedin.png`, `github.svg` | **no** — available only; see below |
+
+**Replace** any Foundation-owned graphic by overwriting the file in place at its
+`public/assets/` path (or by pointing the `site.assets.*` key at your own absolute
+URL) — no component, no config grammar and no engine change is involved. **Remove**
+one by deleting its config key; a configured-but-missing role behaves exactly like an
+absent one and renders nothing (never a placeholder, never a broken image).
+
+> **`header-graphic.svg` ships but is not configured.** The approved header band is
+> an 8:1 graphic; the header box is 19.46:1 on desktop and 2.59:1 on mobile, so the
+> `cover` treatment magnifies the artwork ~2.4× and crops through its wordmark,
+> which then collides with the logo and the selectors. The role was therefore
+> deliberately left unpopulated (the artwork was not altered and no CSS was added to
+> compensate). It remains a **one-line configuration change** if your header geometry
+> suits it: set `site.assets.headerGraphic` to the shipped file's absolute URL.
+
+##### Generic connectivity icons vs. platform marks
+
+These are two different things, and only one of them is trademark-gated:
+
+```text
+generic functional icon (phone, email, message, link, external-link, share, globe)
+  → non-trademark universal inventory → free to use on any connectivity item
+
+third-party platform mark (WhatsApp, Telegram, …)
+  → the platform owner's official mark, subject to that owner's brand rules
+```
+
+**Generic connectivity icons** are used exactly like any other icon leaf: set
+`connect.methods[].icon` (or `socialLinks[].icon`) to the plain filename, e.g.
+`"icon-phone.svg"` → `/assets/icon-phone.svg`. They inherit colour from context
+(`stroke="currentColor"`), so they are never recoloured in code.
+
+**Admitted platform marks** are used the same way — ONE generic optional leaf, no
+platform vocabulary in the engine:
+
+```jsonc
+{
+  "connect": {
+    "methods": [
+      { "id": "whatsapp", "label": "WhatsApp", "href": "https://wa.me/1234567890",
+        "icon": "whatsapp.svg" }
+    ]
+  }
+}
+```
+
+Two honest caveats:
+
+1. **A mark file may legitimately be present without any account.** The canonical
+   Foundation ships all seven admitted marks so they are available after a fresh
+   pull, but it configures **no** social profile, handle, phone number or page — so
+   the site renders **zero** platform artwork today. Do not attach a mark to an
+   invented destination: availability is not activation.
+2. **A missing or unapproved mark falls back to text, by design.** Connectivity
+   artwork is strictly supplementary: if the configured `icon` has no backing file
+   (or the platform has no approved mark — e.g. one of the five withheld platforms),
+   the item simply renders as its complete, working **text link**. No build failure,
+   no broken image, no lost contact method. The visible label is always the
+   accessible name.
+
+Admitted-mark provenance and the withheld register —
+`deployment-info/brands-provelopment/provelopment-foundation/social/platform-marks/`
+(official source owner, published use basis, colour variant, modifications and
+preconditions P-1…P-4). Note that platform brand rules sometimes require a
+particular colour variant for a particular surface, and the engine applies **no**
+recolouring or filter — see *Precondition P-1* for the two black variants.
 
 **Content-level images are separate:** images referenced inside Markdown
 content (offerings, portfolio, posts — e.g. an `image:` frontmatter value)

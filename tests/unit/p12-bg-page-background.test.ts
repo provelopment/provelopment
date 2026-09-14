@@ -29,9 +29,11 @@ const bodyBlock = /\nbody\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
 /**
  * Already-shipped real files under `public/assets/`, reused by the positive
- * cases. No background artwork exists yet (the Master Brand Architect produces
- * it later), so these tests never add placeholder brand graphics — they exercise
- * the capability against assets the repository already ships.
+ * cases. These are deliberately NEUTRAL non-artwork fixtures (logo files) rather
+ * than the approved Foundation background artwork, so the capability is proven
+ * independently of which artwork is currently integrated — and the canonical
+ * artwork swap (an adopter replacing `background-all.svg`) cannot make these
+ * assertions vacuous.
  */
 const REAL_PAGE = "logo-header.svg";
 const REAL_GLOBAL = "logo-footer.svg";
@@ -56,17 +58,24 @@ const mapOf = (configured: Record<string, string>) => availableBackgroundMap(con
  *     background-<page>  →  background-all  →  none
  *
  * These tests prove the CONFIGURATION, AVAILABILITY, RESOLUTION, RENDERING,
- * COEXISTENCE and DECORATIVE-ONLY contracts. No background artwork exists yet,
- * so positive cases reuse an ALREADY-SHIPPED `public/assets/` file rather than
- * adding placeholder brand graphics.
+ * COEXISTENCE and DECORATIVE-ONLY contracts. The approved Foundation background
+ * artwork now ships at `public/assets/background-all.svg` (integrated, owner-
+ * approved); the positive cases here still use ALREADY-SHIPPED neutral fixtures
+ * rather than the artwork, so the capability stays proven independently of which
+ * graphic a deployment has activated.
  */
 describe("P12-BG — configuration contract", () => {
   it("11. an existing adopter config WITHOUT the new keys remains valid (no forced migration)", () => {
-    // A config that knows nothing about background graphics must still parse,
-    // and the shipped canonical config must remain background-free.
+    // A config that knows nothing about background graphics must still parse.
     expect(siteAssetsSchema.safeParse({ logo: realUrl("logo-header.svg") }).success).toBe(true);
     expect(siteAssetsSchema.safeParse({}).success).toBe(true);
-    expect(siteConfig.assets?.backgrounds).toBeUndefined();
+    // APPROVED-ASSET INTEGRATION — the canonical Foundation now ACTIVATES the
+    // ONE reserved global role (`all`) against the shipped approved graphic…
+    expect(siteConfig.assets?.backgrounds?.all).toBe(realUrl("background-all.svg"));
+    // …while "no background configured" stays a fully-supported adopter state:
+    // an absent record resolves to an EMPTY map (no graphic anywhere), so an
+    // adopter may remove the role without any code or capability change.
+    expect(availableBackgroundMap(undefined)).toEqual({});
   });
 
   it("accepts a background-role record of absolute URLs (`all` = global, page keys = page-specific)", () => {
