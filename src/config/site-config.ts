@@ -241,6 +241,13 @@ export interface SiteAssetsConfig {
    * never replaces the flat `ui.theme.background` colour.
    */
   readonly backgrounds?: Readonly<Record<string, string>>;
+  /**
+   * P12-FG — the `footer-graphic` role (absolute URL): ONE optional global
+   * DECORATIVE footer graphic / watermark, layered behind the footer content.
+   * Separate from `logoFooter` (the footer identity mark). Absent → no
+   * decorative layer.
+   */
+  readonly footerGraphic?: string;
 }
 
 export interface SiteConfig {
