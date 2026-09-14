@@ -58,7 +58,7 @@ The boundary between "Foundation-owned" and "downstream/user-owned" is:
 | `src/**` — application code, components, framework wiring | `site.config.json` — site identity, navigation, features, UI preset, theme, assets |
 | configuration **schema + loaders** (`src/config/`) | `content/**` — Markdown pages, offerings, portfolio, posts, testimonials, legal |
 | UI/preset engine (`src/core/ui/`, `src/components/ui/`) | `config/i18n/<locale>.json` — localized interface strings |
-| design-system implementation (`src/app/globals.css` tokens, `src/app/icon.svg` default) | `public/assets/*` — the shipped default asset files you replace |
+| design-system implementation (`src/app/globals.css` tokens) | `public/assets/*` — the shipped default asset files you replace |
 | localization infrastructure + dictionary schema | asset URL values you supply through `site.assets.*` |
 | build/deploy machinery, tests, proofs-of-consistency | feature/provider switches (`features.*`, `provider: "none"`) you choose |
 | Foundation **defaults** (what the layers above fall back to) | presentation values you expose through the configuration contract (preset, `ui.theme.background`, …) |
@@ -1118,7 +1118,7 @@ per-page SEO configuration to fill in:
 - **When you change `site.url`** (before go-live), every canonical, hreflang,
   sitemap, and robots reference updates automatically.
 
-### Assets — `public/assets/`, `src/app/icon.svg`, and `site.assets.*`
+### Assets — `public/assets/` and `site.assets.*`
 
 The standard site assets have **predictable default paths** and are
 configurable through the validated `site.assets.*` block:
@@ -1127,7 +1127,7 @@ configurable through the validated `site.assets.*` block:
 | --- | --- | --- |
 | Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
 | Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | the generated per-locale route (no static default file) | `site.assets.ogImage` |
-| Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (the single authoritative icon route) | `site.assets.favicon` |
+| Browser favicon — the `favicon` role (the **browser tab / bookmark icon** only; it is **not** an installable-app icon) | `public/assets/favicon.svg` (the single authoritative browser-icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
 | Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | *(none — configuring nothing is a fully-supported state)* | `site.assets.backgrounds` |
@@ -1135,11 +1135,19 @@ configurable through the validated `site.assets.*` block:
 | Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | *(none — configuring nothing is a fully-supported state)* | `site.assets.headerGraphic` |
 | Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | *(none — configuring nothing is a fully-supported state)* | `site.assets.statusGraphic` |
 
+> **No installable-app / PWA icon roles exist.** The Foundation emits **no** web app
+> manifest, **no** service worker and **no** `apple-touch-icon` / installable-app icon
+> metadata — the `favicon` role above is the **browser** tab/bookmark icon only (the
+> `viewport` `theme-color` declaration is mobile-browser chrome, not a manifest
+> `theme_color`). **PWA / installable-app branding capability is not part of the
+> current Foundation contract**, so there is nothing to replace or configure here and
+> no app-icon or splash artwork is required.
+
 There are **two equally-supported ways to customize an asset**:
 
 1. **Replace in place** — overwrite the default file at its existing path
-   under `public/assets/` (or `src/app/icon.svg` for the unconfigured favicon
-   fallback). No configuration change, no code change.
+   under `public/assets/` (for example `public/assets/favicon.svg` for the icon
+   role). No configuration change, no code change.
 2. **Point configuration at your own URL** — keep the Foundation default file
    untouched and set the absolute URL:
 
