@@ -1192,6 +1192,43 @@ async function runDuplicateNavScenario(chrome) {
   return rows;
 }
 
+/**
+ * APPROVED-ASSET INTEGRATION — the visual/readability EVIDENCE capture.
+ *
+ * The approved Foundation graphics are now ACTIVE, so the readability gate is
+ * evidence-based instead of inferred: REAL screenshots of the decorated pages
+ * (home desktop/mobile, the footer surface, and the error/not-found status
+ * surface) are written into `tests/browser/.report/readability/` for review by a
+ * human/Master Brand Architect. Nothing here asserts pass/fail — the
+ * deterministic contracts are asserted above; this artefacts is what confirms
+ * that the approved artwork does not impair legibility or obscure content.
+ */
+async function captureReadabilityEvidence(cdp, tag) {
+  const dir = join(HERE, ".report", "readability");
+  await mkdir(dir, { recursive: true });
+  const shots = [
+    { name: `${tag}-home-desktop`, url: `${BASE_URL}/en`, width: 1280, height: 900 },
+    { name: `${tag}-home-mobile`, url: `${BASE_URL}/en`, width: 390, height: 844 },
+    { name: `${tag}-footer-desktop`, url: `${BASE_URL}/en`, width: 1280, height: 900, toBottom: true },
+    { name: `${tag}-status-desktop`, url: `${BASE_URL}/en/zzz-deep`, width: 1280, height: 900 },
+    { name: `${tag}-status-mobile`, url: `${BASE_URL}/en/zzz-deep`, width: 390, height: 844 },
+  ];
+  for (const shot of shots) {
+    await cdp.setViewport(shot.width, shot.height);
+    await cdp.navigate(shot.url);
+    await waitReady(cdp);
+    if (shot.toBottom) {
+      await cdp.evaluate(
+        "(() => { window.scrollTo(0, document.documentElement.scrollHeight); return true; })()",
+      );
+      await sleep(250);
+    }
+    const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
+    await writeFile(join(dir, `${shot.name}.png`), Buffer.from(data, "base64"));
+  }
+  return dir;
+}
+
 /** P6-3B — favicon / header logo / page banner contract (every preset). */
 async function runBrandingChecks(rows, tag, cdp) {
   await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
@@ -1240,6 +1277,40 @@ async function runBrandingChecks(rows, tag, cdp) {
       viewportWidth: document.documentElement.clientWidth,
       docScrollWidth: document.documentElement.scrollWidth,
       backgroundLayers: document.querySelectorAll(".ui-page-background").length,
+      // ── APPROVED-ASSET INTEGRATION — the decorative roles are now ACTIVE ────
+      // The canonical deployment activates its approved Foundation graphics, so
+      // these observe the REAL rendered layers: the resolved image, the declared
+      // inertness/behind-content contract, and the metadata the head emits.
+      // (No backticks in this comment: it lives inside a template literal.)
+      backgroundElement: (() => {
+        const el = document.querySelector(".ui-page-background");
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        const r = el.getBoundingClientRect();
+        return {
+          image: cs.backgroundImage,
+          size: cs.backgroundSize,
+          repeat: cs.backgroundRepeat,
+          position: cs.position,
+          zIndex: cs.zIndex,
+          pointerEvents: cs.pointerEvents,
+          ariaHidden: el.getAttribute("aria-hidden"),
+          w: Math.round(r.width),
+          h: Math.round(r.height),
+        };
+      })(),
+      footerGraphicElement: (() => {
+        const el = document.querySelector(".ui-footer-graphic");
+        if (!el) return null;
+        const cs = getComputedStyle(el);
+        return {
+          image: cs.backgroundImage,
+          pointerEvents: cs.pointerEvents,
+          ariaHidden: el.getAttribute("aria-hidden"),
+        };
+      })(),
+      ogImageMeta: (() => { const m = document.querySelector('meta[property="og:image"]'); return m ? m.getAttribute("content") : null; })(),
+      twitterImageMeta: (() => { const m = document.querySelector('meta[name="twitter:image"]'); return m ? m.getAttribute("content") : null; })(),
       footerGraphicLayers: document.querySelectorAll(".ui-footer-graphic").length,
       footerBox: (() => { const f = document.querySelector("footer"); if (!f) return null; const r = f.getBoundingClientRect(); return { top: Math.round(r.top), h: Math.round(r.height) }; })(),
       footerLinkCount: document.querySelectorAll("footer a").length,
@@ -1296,6 +1367,22 @@ async function runBrandingChecks(rows, tag, cdp) {
   })()`);
   check(rows, `${tag}.favicon.single`, s.iconCount === 1, `count=${s.iconCount}`);
   check(rows, `${tag}.favicon.href`, typeof s.iconHref === "string" && s.iconHref.endsWith("/assets/favicon.svg"), `href=${s.iconHref}`);
+  // APPROVED-ASSET INTEGRATION — the approved social-preview image is now
+  // EMITTED for the whole deployment (og:image AND twitter:image), while the
+  // generated per-locale route stays in the engine as the fallback for adopters
+  // who remove the static role.
+  check(
+    rows,
+    `${tag}.ogImage.approved`,
+    typeof s.ogImageMeta === "string" && s.ogImageMeta.endsWith("/assets/og-image.png"),
+    `og=${s.ogImageMeta}`,
+  );
+  check(
+    rows,
+    `${tag}.twitterImage.approved`,
+    typeof s.twitterImageMeta === "string" && s.twitterImageMeta.endsWith("/assets/og-image.png"),
+    `twitter=${s.twitterImageMeta}`,
+  );
   check(rows, `${tag}.header.logo`, !!s.logoPresent && !!s.logoLoaded && typeof s.logoSrc === "string" && s.logoSrc.endsWith("/assets/logo-header.svg"), `src=${s.logoSrc}`);
   check(rows, `${tag}.header.logo.alt`, typeof s.logoAlt === "string" && s.logoAlt.length > 0, `alt=${s.logoAlt}`);
   check(rows, `${tag}.header.logo.aspect`, !!s.logoBoxOk);
@@ -1319,19 +1406,62 @@ async function runBrandingChecks(rows, tag, cdp) {
     `left=${s.imgLeft} right=${s.imgRight} vw=${s.viewportWidth} w=${s.imgWidth}`,
   );
   check(rows, `${tag}.banner.noHorizontalOverflow`, s.imgLeft >= -1 && s.imgRight <= s.viewportWidth + 1 && s.docScrollWidth <= s.viewportWidth + 1, `left=${s.imgLeft} right=${s.imgRight} scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
-  // P12-BG — the decorative background-graphic layer is CONFIGURED-ONLY: the
-  // shipped canonical deployment configures NO `site.assets.backgrounds` entry,
-  // so no layer is emitted at all (no placeholder art, no mandatory global
-  // graphic) and the page gains no extra DOM. Content therefore stays exactly
-  // where it was, and the layer can never introduce horizontal overflow.
-  check(rows, `${tag}.background.absentWhenUnconfigured`, s.backgroundLayers === 0, `layers=${s.backgroundLayers}`);
-  check(rows, `${tag}.background.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
-  // P12-FG — the decorative FOOTER graphic role is CONFIGURED-ONLY too: the
-  // shipped canonical deployment configures no `site.assets.footerGraphic`, so
-  // no layer is emitted (no placeholder art, no mandatory graphic) and the
-  // footer gains no DOM. The footer's own layout, links and geometry are
-  // therefore unchanged, and no horizontal overflow can be introduced.
-  check(rows, `${tag}.footerGraphic.absentWhenUnconfigured`, s.footerGraphicLayers === 0, `layers=${s.footerGraphicLayers}`);
+  // APPROVED-ASSET INTEGRATION — the canonical deployment now ACTIVATES the
+  // approved global background (`site.assets.backgrounds.all`, the reserved
+  // `all` role), so exactly ONE decorative layer renders with the shipped
+  // same-origin image and it stays inert, behind the content and non-structural.
+  check(rows, `${tag}.background.active`, s.backgroundLayers === 1, `layers=${s.backgroundLayers}`);
+  check(
+    rows,
+    `${tag}.background.resolvesApprovedAsset`,
+    !!s.backgroundElement && s.backgroundElement.image.includes("/assets/background-all.svg"),
+    s.backgroundElement ? `img=${s.backgroundElement.image}` : "no layer",
+  );
+  check(
+    rows,
+    `${tag}.background.inertAndBehindContent`,
+    !!s.backgroundElement &&
+      s.backgroundElement.position === "fixed" &&
+      s.backgroundElement.zIndex === "-1" &&
+      s.backgroundElement.pointerEvents === "none" &&
+      s.backgroundElement.ariaHidden === "true",
+    s.backgroundElement
+      ? `pos=${s.backgroundElement.position} z=${s.backgroundElement.zIndex} pe=${s.backgroundElement.pointerEvents} aria=${s.backgroundElement.ariaHidden}`
+      : "no layer",
+  );
+  check(
+    rows,
+    `${tag}.background.coversViewportWithoutOverflow`,
+    !!s.backgroundElement &&
+      s.backgroundElement.size === "cover" &&
+      s.backgroundElement.w <= s.viewportWidth + 1 &&
+      s.docScrollWidth <= s.viewportWidth + 1,
+    s.backgroundElement
+      ? `size=${s.backgroundElement.size} w=${s.backgroundElement.w} scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`
+      : "no layer",
+  );
+  // APPROVED-ASSET INTEGRATION — the canonical deployment now ACTIVATES the
+  // approved footer graphic, so exactly ONE decorative layer renders behind the
+  // footer content with the shipped same-origin image, stays inert, and adds no
+  // DOM beyond that decorative div — the footer's own layout, links and geometry
+  // are unchanged and no horizontal overflow can be introduced.
+  check(rows, `${tag}.footerGraphic.active`, s.footerGraphicLayers === 1, `layers=${s.footerGraphicLayers}`);
+  check(
+    rows,
+    `${tag}.footerGraphic.resolvesApprovedAsset`,
+    !!s.footerGraphicElement && s.footerGraphicElement.image.includes("/assets/footer-graphic.svg"),
+    s.footerGraphicElement ? `img=${s.footerGraphicElement.image}` : "no layer",
+  );
+  check(
+    rows,
+    `${tag}.footerGraphic.inertDecorativeLayer`,
+    !!s.footerGraphicElement &&
+      s.footerGraphicElement.pointerEvents === "none" &&
+      s.footerGraphicElement.ariaHidden === "true",
+    s.footerGraphicElement
+      ? `pe=${s.footerGraphicElement.pointerEvents} aria=${s.footerGraphicElement.ariaHidden}`
+      : "no layer",
+  );
   check(rows, `${tag}.footerGraphic.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
   check(rows, `${tag}.footer.linksPresent`, s.footerLinkCount > 0, `links=${s.footerLinkCount}`);
   check(rows, `${tag}.footer.geometryIntact`, !!s.footerBox && s.footerBox.h > 0, s.footerBox ? `h=${s.footerBox.h}` : "no footer");
@@ -1353,12 +1483,15 @@ async function runBrandingChecks(rows, tag, cdp) {
     s.footerPosition === "relative",
     `footerPos=${s.footerPosition}`,
   );
-  // P12-HG — the decorative HEADER band role is CONFIGURED-ONLY too: the
-  // shipped canonical deployment configures no `site.assets.headerGraphic`, so
-  // the header paints no band and gains no attribute, no inline style and no
-  // extra DOM — its computed background stays `none`. The header's own
-  // geometry, logo, navigation and mobile trigger are therefore unchanged.
-  check(rows, `${tag}.headerGraphic.absentWhenUnconfigured`, s.headerGraphicLayers === 0 && s.headerGraphicAttribute === null, `layers=${s.headerGraphicLayers} attr=${s.headerGraphicAttribute}`);
+  // APPROVED-ASSET INTEGRATION — the approved header graphic SHIPS in the
+  // distributable pack, but its canonical activation is deliberately BLOCKED by
+  // the readability gate: `cover` renders the 8:1 artwork inside a 19.46:1
+  // (desktop) / 2.59:1 (mobile) header box, magnifying it ~2.4x and cropping
+  // through its focal centred wordmark so it collides with the logo and the
+  // selectors. So the header deliberately paints NO band: no attribute, no inline
+  // style, no extra DOM and a computed background of `none`. No artwork was
+  // altered and no engine CSS was added to compensate.
+  check(rows, `${tag}.headerGraphic.unpopulatedWhenBlocked`, s.headerGraphicLayers === 0 && s.headerGraphicAttribute === null, `layers=${s.headerGraphicLayers} attr=${s.headerGraphicAttribute}`);
   check(rows, `${tag}.headerGraphic.backgroundNoneWhenUnconfigured`, s.headerBackgroundImage === "none", `bg=${s.headerBackgroundImage}`);
   check(rows, `${tag}.headerGraphic.noHorizontalOverflow`, s.docScrollWidth <= s.viewportWidth + 1, `scrollW=${s.docScrollWidth} vw=${s.viewportWidth}`);
   // The band's CONTRACT is declared in the shipped stylesheet even though no
@@ -1460,6 +1593,22 @@ async function runBrandingChecks(rows, tag, cdp) {
         ? graphic.getBoundingClientRect().bottom <= heading.getBoundingClientRect().top + 1
         : null,
       statusGraphicImgComplete: graphicImg ? !!graphicImg.complete : null,
+      // APPROVED-ASSET INTEGRATION — the approved status artwork is now active,
+      // so the resolved source, the reserved intrinsic box and the rendered
+      // geometry (never upscaled, never cropped) are observed too.
+      statusGraphicSrc: graphicImg ? graphicImg.getAttribute('src') : null,
+      statusGraphicNatural: graphicImg
+        ? { w: graphicImg.naturalWidth, h: graphicImg.naturalHeight }
+        : null,
+      statusGraphicAttr: graphicImg
+        ? { w: graphicImg.getAttribute('width'), h: graphicImg.getAttribute('height') }
+        : null,
+      statusGraphicRect: graphicImg
+        ? (() => { const r = graphicImg.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) }; })()
+        : null,
+      headingRect: heading
+        ? (() => { const r = heading.getBoundingClientRect(); return { top: Math.round(r.top) }; })()
+        : null,
       statusSectionPresent: !!section,
       statusSectionHeight: sr ? Math.round(sr.height) : null,
       statusHeadingText: heading ? heading.textContent.trim() : null,
@@ -1471,15 +1620,38 @@ async function runBrandingChecks(rows, tag, cdp) {
   })()`);
   check(rows, `${tag}.banner.absentOnNoBannerPage`, nb.banner === false);
   check(rows, `${tag}.banner.noReservedGap`, nb.headerTop != null && nb.headerTop <= 40, `headerTop=${nb.headerTop}`);
-  // P12-SG — the shared decorative STATUS graphic on the canonical UNCONFIGURED
-  // not-found surface: no layer, no image, no reserved box, and the status copy
-  // plus its return-home control stay complete and operable. (The `[locale]`
+  // APPROVED-ASSET INTEGRATION — the approved status artwork is now ACTIVE on
+  // the canonical status surface: exactly ONE decorative box + image resolving
+  // the shipped same-origin graphic, ABOVE the status heading, while the status
+  // copy and its return-home control stay complete and operable. (The `[locale]`
   // error boundary cannot be reached in a canonical static browser run without
   // deliberately fabricating a render failure, which this matrix must never do;
   // the error surface's identical frame, semantics and controls are asserted by
   // `tests/unit/p12-sg-status-graphic.test.ts`, and both surfaces share the ONE
   // provider resolved in the `[locale]` layout that this route exercises.)
-  check(rows, `${tag}.statusGraphic.absentWhenUnconfigured`, nb.statusGraphicLayers === 0 && nb.statusGraphicImages === 0, `layers=${nb.statusGraphicLayers} imgs=${nb.statusGraphicImages}`);
+  check(rows, `${tag}.statusGraphic.active`, nb.statusGraphicLayers === 1 && nb.statusGraphicImages === 1, `layers=${nb.statusGraphicLayers} imgs=${nb.statusGraphicImages}`);
+  check(
+    rows,
+    `${tag}.statusGraphic.resolvesApprovedAsset`,
+    nb.statusGraphicSrc === "/assets/status-graphic.svg" && nb.statusGraphicImgComplete === true,
+    `src=${nb.statusGraphicSrc} complete=${nb.statusGraphicImgComplete}`,
+  );
+  check(
+    rows,
+    `${tag}.statusGraphic.naturalSizeReservedAndNeverUpscaled`,
+    !!nb.statusGraphicNatural &&
+      !!nb.statusGraphicAttr &&
+      !!nb.statusGraphicRect &&
+      nb.statusGraphicNatural.w === 640 &&
+      nb.statusGraphicNatural.h === 320 &&
+      nb.statusGraphicAttr.w === "640" &&
+      nb.statusGraphicAttr.h === "320" &&
+      nb.statusGraphicRect.w <= 640 &&
+      Math.abs(nb.statusGraphicRect.w / nb.statusGraphicRect.h - 2) < 0.05,
+    nb.statusGraphicRect && nb.statusGraphicNatural && nb.statusGraphicAttr
+      ? `rect=${nb.statusGraphicRect.w}x${nb.statusGraphicRect.h} natural=${nb.statusGraphicNatural.w}x${nb.statusGraphicNatural.h} attr=${nb.statusGraphicAttr.w}x${nb.statusGraphicAttr.h}`
+      : "no image",
+  );
   check(
     rows,
     `${tag}.statusGraphic.contractDeclared`,
@@ -1510,8 +1682,24 @@ async function runBrandingChecks(rows, tag, cdp) {
   );
   // No decorative box exists at all when unconfigured — so nothing can sit above
   // the status heading and the frame's geometry is exactly the pre-P12-SG one.
-  check(rows, `${tag}.statusGraphic.noGraphicAboveHeading`, nb.statusGraphicAboveHeading === null, `above=${nb.statusGraphicAboveHeading}`);
-  check(rows, `${tag}.statusGraphic.noBrokenStatusImage`, nb.statusGraphicImgComplete === null, `complete=${nb.statusGraphicImgComplete}`);
+  // The decorative box sits ABOVE the status heading, so the frame's reading
+  // order and its heading-first hierarchy are preserved…
+  check(rows, `${tag}.statusGraphic.aboveHeading`, nb.statusGraphicAboveHeading === true, `above=${nb.statusGraphicAboveHeading}`);
+  // …the image is fully loaded (never a broken status artwork)…
+  check(rows, `${tag}.statusGraphic.imageLoaded`, nb.statusGraphicImgComplete === true, `complete=${nb.statusGraphicImgComplete}`);
+  // …and the heading remains present below the decoration.
+  check(
+    rows,
+    `${tag}.statusGraphic.headingBelowGraphic`,
+    !!nb.headingRect && !!nb.statusGraphicRect,
+    `headingTop=${nb.headingRect ? nb.headingRect.top : "n/a"}`,
+  );
+  // APPROVED-ASSET INTEGRATION — capture the readability EVIDENCE once, for the
+  // canonical (default) preset, so the visual gate is backed by real artefacts.
+  if (tag === "adaptive") {
+    const dir = await captureReadabilityEvidence(cdp, "canonical");
+    check(rows, `${tag}.readability.evidenceCaptured`, true, `screenshots -> ${dir}`);
+  }
 }
 
 

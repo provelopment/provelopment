@@ -24,11 +24,12 @@ import {
  * box ABOVE the status heading, is purely decorative, and never replaces the
  * heading, the message or the controls.
  *
- * No artwork ships with this capability: the positive/negative availability
- * cases reuse the repository's existing neutral `logo-header.svg` fixture
- * (already present under `public/assets/`), exactly as the P12-BG/P12-FG/P12-HG
- * suites reuse the existing logo fixtures. It is used ONLY as an availability
- * fixture — it is NOT status-graphic artwork.
+ * The approved Foundation status artwork is now INTEGRATED at
+ * `public/assets/status-graphic.svg`; the positive/negative availability cases
+ * still reuse the repository's existing neutral `logo-header.svg` fixture, so the
+ * availability rule stays proven independently of which artwork a deployment has
+ * activated. It is used ONLY as an availability fixture — it is NOT
+ * status-graphic artwork.
  */
 
 const root = process.cwd();
@@ -124,11 +125,15 @@ describe("P12-SG — schema / configuration contract", () => {
     );
   });
 
-  it("2. the canonical config remains UNPOPULATED — no Foundation status graphic is configured", () => {
-    expect(siteConfig.assets?.statusGraphic).toBeUndefined();
-    // …and no status-graphic ARTWORK exists in the runtime role directory.
+  it("2. the canonical config ACTIVATES the integrated status graphic (role declared, artwork shipped)", () => {
+    // APPROVED-ASSET INTEGRATION — the approved Foundation status graphic exists
+    // in the canonical archive, so the role is POPULATED and the artwork is
+    // shipped in the runtime role directory under the role's own filename.
+    const configured = siteConfig.assets?.statusGraphic ?? "";
+    expect(configured).not.toBe("");
+    expect(new URL(configured).pathname).toBe("/assets/status-graphic.svg");
     const runtimeAssets = readdirSync(path.join(root, "public", "assets"));
-    expect(runtimeAssets.some((name) => /^status-graphic\./i.test(name))).toBe(false);
+    expect(runtimeAssets.some((name) => /^status-graphic\./i.test(name))).toBe(true);
     // The role is declared in the schema + the config interface (additive only).
     expect(schema).toContain("statusGraphic: z");
     expect(siteConfigSource).toContain("readonly statusGraphic?: string;");
@@ -356,12 +361,18 @@ describe("P12-SG — separation, reusability and parked-graphic status", () => {
     expect(layout).toContain("getSiteNavLinks(locale)");
   });
 
-  it("23. the parked header/footer graphics remain parked and UNCONFIGURED", () => {
-    expect(siteConfig.assets?.footerGraphic).toBeUndefined();
+  it("23. the sibling header/footer graphics are SHIPPED and still never touch this seam", () => {
+    // APPROVED-ASSET INTEGRATION — both sibling decorative roles are shipped as
+    // distributable files. The footer role is also activated; the header role's
+    // canonical activation is deliberately BLOCKED by the readability gate (its
+    // 8:1 artwork cannot survive the 2.6:1-19.5:1 header box without cropping
+    // through its focal wordmark). Either way the status seam stays strictly
+    // independent: the status component and layout never name or read them.
+    expect(siteConfig.assets?.footerGraphic).toBeDefined();
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
     const runtimeAssets = readdirSync(path.join(root, "public", "assets"));
-    expect(runtimeAssets.some((name) => /^(footer|header)-graphic\./i.test(name))).toBe(false);
-    // Neither parked role is reused as a status-graphic fixture.
+    expect(runtimeAssets.some((name) => /^(footer|header)-graphic\./i.test(name))).toBe(true);
+    // Neither sibling role is reused as a status-graphic fixture.
     expect(componentCode).not.toMatch(/footer-graphic|header-graphic/);
     expect(layout).not.toMatch(/footerGraphic|headerGraphic/);
   });
