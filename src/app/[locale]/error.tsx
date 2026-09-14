@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { useErrorMessages } from "@/components/site/error-messages-context";
+import { StatusGraphic } from "@/components/site/status-graphic";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 
@@ -33,6 +34,11 @@ export default function Error({
 
   return (
     <Section className="py-24 text-center">
+      {/* P12-SG — optional decorative status graphic (ONE role shared with
+          `not-found.tsx`, which renders this identical status frame). Renders
+          NOTHING when unconfigured, so the heading/message/controls below remain
+          the complete expression of the state. */}
+      <StatusGraphic />
       <h1 className="text-4xl font-bold tracking-tight">{messages.title}</h1>
       <p className="mt-4 text-muted-foreground">{messages.message}</p>
       <div className="mt-8 flex items-center justify-center gap-4">

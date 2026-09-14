@@ -257,6 +257,14 @@ export interface SiteAssetsConfig {
    * decorative band.
    */
   readonly headerGraphic?: string;
+  /**
+   * P12-SG — the `status-graphic` role (absolute URL): ONE optional global
+   * DECORATIVE graphic for the status surfaces (`error` and `not-found`), which
+   * share one status frame and therefore one role. Rendered above the status
+   * heading; never semantic and never a replacement for the heading.
+   * Absent → no graphic.
+   */
+  readonly statusGraphic?: string;
 }
 
 export interface SiteConfig {
