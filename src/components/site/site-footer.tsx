@@ -7,6 +7,7 @@ import type { DirectionLinkResolver } from "@/application/direction-link";
 import { legalLabel, resolveLegalDocs } from "@/core/legal";
 import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
+import { connectivityIcon, socialConnectivityLinks } from "./connectivity-links";
 import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { FooterGraphic } from "./footer-graphic";
@@ -60,7 +61,24 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
             label: connectMethodLabel(dictionary, method),
             key: method.id,
             demoOnly: method.demoOnly,
+            // CONNECTIVITY ICON SEAM — the optional supplementary icon goes
+            // through the ONE connectivity screening point (`connectivityIcon`,
+            // the same P6-1 boundary rule every configured icon leaf obeys):
+            // absent → undefined (no icon), configured-but-unavailable → ""
+            // (no icon, never a broken <img>). The method renders as an
+            // authoritative text link either way.
+            icon: connectivityIcon(method.icon),
         }),
+    );
+
+    // CONNECTIVITY ICON SEAM — social/profile destinations. These are
+    // connectivity items like any other, so they render through the SAME shared
+    // link path (`ContextNavLinks` → `NavItem`) as the connection methods: one
+    // link semantic (external → new tab + `rel="noreferrer"`), one React
+    // identity rule (the configured `platform`) and one decorative icon node —
+    // no second renderer and no platform-specific branch.
+    const socialLinks: readonly ContextNavLink[] = socialConnectivityLinks(
+        siteConfig.socialLinks,
     );
 
     // P12-FG — the optional DECORATIVE footer graphic (`site.assets.footerGraphic`,
@@ -106,20 +124,21 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                         demoBadgeLabel={dictionary.connect.demoBadge}
                     />
 
-                    <ul className="mt-3 space-y-2">
-                        {siteConfig.socialLinks.map((socialLink) => (
-                            <li key={socialLink.platform}>
-                                <a
-                                    href={socialLink.href}
-                                    rel="noreferrer"
-                                    target="_blank"
-                                    className="hover:text-primary"
-                                >
-                                    {socialLink.label}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
+                    {/* CONNECTIVITY ICON SEAM — social/profile destinations, in the
+                        SAME Connect column, rendered through the shared link +
+                        decorative-icon path. Text-only canonical behavior is
+                        unchanged (an icon-less item renders exactly the label); a
+                        configured icon adds supplementary artwork (`[icon] Label`,
+                        1em, `aria-hidden`). An empty `socialLinks` list renders
+                        nothing at all — the canonical Foundation's state. */}
+                    {socialLinks.length > 0 ? (
+                        <ContextNavLinks
+                            locale={locale}
+                            links={socialLinks}
+                            className="mt-3 space-y-2"
+                            linkClassName="hover:text-primary"
+                        />
+                    ) : null}
                 </div>
 
                 <nav aria-label={dictionary.navigation.footerLabel}>

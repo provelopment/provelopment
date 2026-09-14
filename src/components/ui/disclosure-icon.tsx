@@ -12,7 +12,13 @@
  * filename already screened by the framework layer (`availableIconName`), so a
  * name present here is either a real file or a deliberate `""`/omission — the
  * DOM NEVER receives an unresolvable `<img>`.
+ *
+ * Implementation: the shared decorative asset-icon node (`AssetIcon`,
+ * `./asset-icon`) — one rendering path for configurable supplementary artwork,
+ * so this control and any other decorative asset node can never drift.
  */
+import { AssetIcon } from "./asset-icon";
+
 export interface DisclosureIconProps {
   /** Plain asset filename ("" / omitted → no icon element). */
   readonly asset?: string;
@@ -21,10 +27,5 @@ export interface DisclosureIconProps {
 }
 
 export function DisclosureIcon({ asset, className }: DisclosureIconProps) {
-  if (!asset || asset === "") return null;
-  // User-replaceable icon asset rendered at a fixed control size so intrinsic
-  // dimensions can never overflow layout. Deliberate plain <img>: adopters can
-  // drop in any asset format without Next Image optimizer/SVG restrictions.
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/assets/${asset}`} alt="" aria-hidden="true" className={className} />;
+  return <AssetIcon asset={asset} className={className} />;
 }

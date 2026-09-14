@@ -107,7 +107,7 @@ fail the build with actionable error messages.
 | `site` | Production URL, site name, tagline, meta description, logo, `assets` (`logo`/`ogImage`/`favicon` URLs) |
 | `i18n` | Locales and the default locale |
 | `contact` | Public contact email |
-| `socialLinks` | Outbound profile links (`platform`, `label`, `href`) rendered as **text links** in the footer Connect column — there is no platform-mark/glyph role |
+| `socialLinks` | Outbound profile links (`platform`, `label`, `href`, optional `icon`) rendered as **text links** in the footer Connect column; `icon` is the **generic optional connectivity icon/mark seam** — one leaf for every platform, supplementary and decorative; see *Connectivity icons* below |
 | `navigation` | Header navigation entries (label + href) |
 | `features` | Feature flags, e.g. `analytics.provider` |
 | `ui` | Intent-level UI namespace — presets, navigation patterns, density, CTA, theme; see below |
@@ -374,6 +374,76 @@ the exact leaf (`ui.navigation.sidebar.open.icon`, `ui.navigation.sidebar.close.
 asset can never ship. At render time the same guard is applied again, so an
 icon that ever becomes unavailable resolves to **no icon** (never a broken
 browser image): the DOM contains no `broken-image` placeholder in any state.
+
+**Connectivity icons are the deliberate exception (owner product decision).**
+`socialLinks[i].icon` and `connect.methods[i].icon` are **screened at render
+time only**: a name with no backing file degrades the item to its authoritative
+**text link** instead of failing the build. Connectivity artwork is strictly
+supplementary (see *Connectivity icons*), so it must never fail a deployment,
+error a page, or hide a communication method — artwork may legitimately be
+missing, unproduced or not yet trademark-approved. The icon **value shape** is
+still validated loudly (a path, URL or query string is rejected by the schema),
+so a malformed leaf remains a build error; only "no file yet" is tolerated.
+
+#### Connectivity icons (social/profile links + connection methods)
+
+**Connectivity is a CORE Foundation capability** (owner product decision): the
+engine is architecturally prepared for social and communication destinations
+across every platform, without hard-coding any of them. One generic optional
+icon leaf serves **both** connectivity families:
+
+```jsonc
+"socialLinks": [
+  {
+    "platform": "github",                        // free-form: any platform, now or later
+    "label": "GitHub",                           // authoritative visible text
+    "href": "https://github.com/example",
+    "icon": "icon-platform-example.svg"          // OPTIONAL supplementary artwork
+  }
+],
+"connect": {
+  "methods": [
+    { "id": "telegram", "label": "Telegram", "href": "https://t.me/example",
+      "icon": "icon-platform-example.svg" }      // the SAME generic leaf
+  ]
+}
+```
+
+- **One generic leaf.** There is no `whatsappIcon` / `telegramIcon` /
+  `linkedinIcon` and no closed platform enum: `platform`/`id`/`label` stay
+  free-form deployment data, so any future platform (Signal, Discord, LINE,
+  WeChat, Teams, Matrix, Bluesky, Threads, …) needs **no schema or engine
+  change**. The engine only understands "an optional asset belongs to this
+  connectivity item".
+- **Text stays authoritative.** The icon is supplementary and **decorative**
+  (`alt=""` + `aria-hidden`, never focusable, no accessible name of its own), so
+  the visible label remains the accessible name — never a redundant
+  "GitHub GitHub". The link/method renders correctly with no icon configured, a
+  **path/URL value** (schema error), a **missing file** (degrades to text; see
+  *Missing vs unavailable* above), or artwork that is not yet approved.
+- **Layout/size.** `[icon] Label`, `inline-flex` + `gap`, at the shared
+  UI-icon size (`1em` → **16 × 16 CSS px** at the default 16px root font size,
+  `object-fit: contain`, `flex-shrink: 0`): the same node, size and alignment in
+  the footer Connect column and on the `/connect` page, at desktop and mobile.
+  No per-platform CSS and no platform-specific width.
+- **Asset contract.** Same as every other configurable icon: a plain
+  `public/assets/` **filename** (no paths, no traversal, no query strings, no
+  remote URLs) ending in `.svg`, `.png`, `.webp`, `.jpg`, `.jpeg`, `.gif` or
+  `.ico`. The engine never recolours, filters, crops or animates the bytes, so a
+  monochrome/`currentColor` generic icon and a self-contained full-colour
+  official mark both render as produced.
+- **Generic vs third-party artwork.** Universal semantic icons
+  (`icon-phone`, `icon-email`, `icon-message`, `icon-link`, `icon-external-link`
+  from the universal inventory) suit **non-trademark** channels (telephone,
+  email, message form). A **third-party platform mark** is trademark-sensitive
+  and may be added only after its official source / licence / trademark-use
+  conditions have been reviewed for the intended Foundation use — a file
+  licence (even MIT) does **not** grant trademark rights. Marks are produced,
+  approved and parked separately; this seam creates and installs **no** platform
+  artwork.
+- **No integrations.** No WhatsApp API, Telegram Bot API, Slack API, Messenger
+  SDK, OAuth or calling JavaScript exists anywhere in this contract — it is a
+  presentation/config seam only.
 
 #### Empty-string semantics (explicit, tested)
 
@@ -1697,7 +1767,9 @@ Key behavior:
   visible "not connected to a real backend" notice. Footer: **Contact** lives
   under a dedicated **Connect** column (never under Navigate).
 - **`connect.methods`** are the adopter's configurable connection inventory —
-  no provider integrations; `demoOnly` = template demonstration.
+  no provider integrations; `demoOnly` = template demonstration. Each method may
+  also carry the optional generic `icon` (**Connectivity icons** section above)
+  — supplementary artwork only: the method always renders as a text action.
 - **Template identity.** The Foundation demo names itself **Your Business
   Site**; keep or replace it. The old "My Site" placeholder is gone from
   visitor-facing copy.
