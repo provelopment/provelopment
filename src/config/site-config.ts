@@ -248,6 +248,15 @@ export interface SiteAssetsConfig {
    * decorative layer.
    */
   readonly footerGraphic?: string;
+  /**
+   * P12-HG — the `header-graphic` role (absolute URL): ONE optional global
+   * DECORATIVE header band / structural graphic layer, painted as the header's
+   * OWN background so it stays behind the header's logo, navigation, switchers
+   * and mobile trigger. Separate from `logo` (the header identity mark) and
+   * from `banners` (the PAGE-SPECIFIC region above the shell). Absent → no
+   * decorative band.
+   */
+  readonly headerGraphic?: string;
 }
 
 export interface SiteConfig {

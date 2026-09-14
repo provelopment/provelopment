@@ -492,6 +492,43 @@ html[data-ui-header="elevated"] .ui-site-header {
   background-color: var(--background);
 }
 
+/* ── P12-HG optional decorative header band / graphic ─────────────────────
+ *
+ * The Header Decorative Graphic Contract layer (deployment-info/brand-system/
+ * visual/README.md): ONE optional global `header-graphic` role. It is painted
+ * as the HEADER'S OWN BACKGROUND by `headerGraphicBandProps`
+ * (`src/components/site/header-graphic.ts`), which emits the marker attribute
+ * and the `--ui-header-graphic` custom property only when a configured asset
+ * actually exists under `public/assets/`. Unconfigured (or configured-but-
+ * missing) emits neither, so the header renders byte-identically to pre-P12-HG.
+ *
+ * ORDER IS STRUCTURAL, NOT `z-index`: a background paints after the element's
+ * own `background-color` and BEFORE every in-flow descendant. The header's
+ * background is therefore above its own `data-ui-header="elevated"` surface and
+ * below the logo, navigation, switchers and mobile trigger — with NO stacking
+ * context, NO `position` and NO extra DOM. That is what keeps the shell's
+ * `position: fixed` drawer/overlay panels (`z-index: 40/50`), which live inside
+ * the header, exactly where they were.
+ *
+ * NON-STRUCTURAL: `background-size`/`background-position`/`background-repeat`
+ * never affect layout, so the band adds no height, reserves no space, shifts
+ * nothing and can never introduce horizontal overflow. The header's geometry is
+ * identical whether a band is configured or not.
+ *
+ * ONE ASSET, ANY VIEWPORT: `cover` + centred fills the header edge-to-edge with
+ * no gaps at every viewport, without per-breakpoint roles or art direction
+ * (`<picture>`); the crop is the artwork's design responsibility (see the
+ * contract README). Static only — no animation, no parallax, no motion — and
+ * the engine applies NO colour, opacity, filter or blend mode: the approved
+ * artwork is displayed faithfully and is never recoloured.
+ */
+.ui-site-header[data-ui-header-graphic] {
+  background-image: var(--ui-header-graphic);
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
 /* Rhythm → section pacing + prose breathing room (the home hero + page
  * sections use the shared classes below). */
 html[data-ui-rhythm="airy"] .home-hero {

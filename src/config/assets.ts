@@ -158,6 +158,18 @@ export function availableFooterGraphicPath(absoluteUrl: string | undefined): str
   return availableRoleAssetPath(absoluteUrl);
 }
 
+/**
+ * P12-HG — resolves a configured `site.assets.headerGraphic` value (an FS-4
+ * ABSOLUTE URL) to a same-origin path ONLY when a matching file exists under
+ * `public/assets/`; otherwise `undefined`. Same availability rule as the banner,
+ * background and footer-graphic roles (above), so a CONFIGURED-but-missing
+ * header graphic is indistinguishable from an ABSENT one — the header simply
+ * paints no decorative band (never a placeholder, never a broken image).
+ */
+export function availableHeaderGraphicPath(absoluteUrl: string | undefined): string | undefined {
+  return availableRoleAssetPath(absoluteUrl);
+}
+
 /** An intrinsic pixel size read from an asset header. */
 export interface ImageDimensions {
   readonly width: number;
