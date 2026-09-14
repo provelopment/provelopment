@@ -1087,11 +1087,19 @@ per-page SEO configuration to fill in:
   `og:image`) and Twitter card metadata. All of it is derived deterministically
   from `site.config.json`, the localized content, and the regional page
   bindings — never hardcoded.
-- **Social preview image** — the generated `/{locale}/opengraph-image` route is
-  referenced automatically by every page's `og:image`/`twitter:image`. It is
-  generated from your config values (site name, localized tagline) by
-  `src/app/[locale]/opengraph-image.tsx`; edit that file's fixed brand colors
-  only if you want the preview to match your palette.
+- **Social preview image** — the generated `/{locale}/opengraph-image` route (a
+  **1200 × 630 PNG** built from your config values — site name, localized tagline) is
+  referenced automatically by every page's `og:image`/`twitter:image`. Setting
+  `site.assets.ogImage` **replaces** it for the whole deployment: ONE image for every
+  locale and every page, serving Open Graph **and** Twitter, while an absent key keeps
+  the generated route as the fallback (the canonical site deliberately leaves it
+  absent). Produce a replacement at **1200 × 630** — **PNG** or **JPEG**; **SVG** is
+  not suitable for social previews. This is the one branding role that is **not**
+  screened for local file existence: `site.assets.ogImage` is an absolute URL that may
+  legitimately point at a CDN, so it is emitted verbatim and no build failure or
+  fallback guards a typo — keep the URL reachable on the live origin. The generated
+  route's palette lives in `src/app/[locale]/opengraph-image.tsx`; edit that file only
+  if you want the *fallback* preview to match your palette.
 - **Sitemap & robots** — `sitemap.xml` covers every configured locale, content
   page, offering, legal document, and regional page (only genuinely configured
   combinations — never a 404); `robots.txt` references your absolute sitemap
@@ -1118,7 +1126,7 @@ configurable through the validated `site.assets.*` block:
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
 | Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
-| Open Graph / social share image | the generated per-locale route (no static default file) | `site.assets.ogImage` |
+| Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | the generated per-locale route (no static default file) | `site.assets.ogImage` |
 | Browser favicon / app icon — the `favicon` role | `public/assets/favicon.svg` (the single authoritative icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
