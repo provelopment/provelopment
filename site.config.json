@@ -25,6 +25,7 @@
         "all": "https://www.example.com/assets/background-all.svg"
       },
       "footerGraphic": "https://www.example.com/assets/footer-graphic.svg",
+      "headerGraphic": "https://www.example.com/assets/header-graphic.svg",
       "statusGraphic": "https://www.example.com/assets/status-graphic.svg"
     }
   },

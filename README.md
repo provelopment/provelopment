@@ -45,10 +45,13 @@ to the default locale.
    navigation, enabled features. Every field is validated at build time.
 2. Replace the Markdown pages in `content/pages/<locale>/` with your own.
 3. Swap the assets (`public/assets/logo-header.svg`, `logo-footer.svg`,
-   `favicon.svg`, and the ten `banner-*.png` page banners) for your own graphics — see
-   `CUSTOMIZING.md` → *Generic branding asset roles*. The social-preview image needs
-   no file: it is generated per locale by default, and `site.assets.ogImage` points it
-   at your own 1200 × 630 PNG/JPEG when you have one.
+   `favicon.svg`, and the ten `banner-*.png` page banners) for your own graphics —
+   [`BRAND_ASSETS.md`](BRAND_ASSETS.md) is the authoritative, complete
+   **brand-asset swap contract** for every replaceable graphic role (filename,
+   format, dimensions, transparency, crop behaviour, config key, disable
+   procedure). The social-preview image needs no file: it is generated per locale
+   by default, and `site.assets.ogImage` points it at your own 1200 × 630
+   PNG/JPEG when you have one.
 4. **Change the appearance without touching source:** side-bar/top/bottom menu
    presentation modes, sidebar disclosure icons/text (`ui.navigation.sidebar`),
    navigation icons/regions, and the primary CTA's icon/state
@@ -105,6 +108,10 @@ tests           # Architecture boundary, unit, and CDP browser matrix tests
 
 ## Documentation
 
+- [`BRAND_ASSETS.md`](BRAND_ASSETS.md) — **the authoritative brand-asset swap
+  contract**: every replaceable graphic role, its exact filename/type/dimension
+  contract, its config key, its fallback, and how to replace, swap or disable it
+  without touching code
 - [`instruction-manuals/README.md`](instruction-manuals/README.md) — **operating
   manuals**: adoption, upgrade, customization, branding/assets, content,
   validation, deployment, agent rules, troubleshooting
