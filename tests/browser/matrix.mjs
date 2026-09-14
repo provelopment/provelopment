@@ -1751,6 +1751,245 @@ async function runP6cChecks(rows, tag, cdp) {
 
 
 
+/**
+ * CONNECTIVITY ICON SEAM — browser-real acceptance (footer Connect column +
+ * Connect page) on ONE dedicated dev server with a fixture config.
+ *
+ * The canonical deployment configures NO social accounts and NO connectivity
+ * icons, so canonical text-only behavior is asserted by the five preset passes
+ * (footer links/geometry/`noBrokenImages`); THIS pass proves the OPTIONAL icon
+ * contract itself, using an EXISTING generic shipped asset (`sidebar-open.svg`).
+ * No platform mark artwork is created, downloaded or installed anywhere here.
+ *
+ * Proven: a configured + AVAILABLE icon renders as supplementary artwork
+ * (1em/16px, `object-fit: contain`, decorative, not focusable, before the label);
+ * an item with NO icon AND an item whose configured icon FILE IS MISSING both
+ * render as complete text links — no `<img>`, no broken image, no lost method,
+ * no build/error (a missing connectivity asset is deliberately tolerated, unlike
+ * the loud control/nav icon leaves); the visible label stays the accessible name;
+ * no horizontal overflow at desktop or mobile; every configured method survives.
+ */
+async function runConnectivityIconScenario(chrome) {
+  const ICON = "sidebar-open.svg"; // an existing generic asset — never platform artwork
+  const MISSING = "missing-connectivity-icon-fixture.svg"; // deliberately absent
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  const port = BASE_PORT + 150;
+  const url = `http://localhost:${port}/en`;
+  BASE_URL = `http://localhost:${port}`;
+  const config = JSON.parse(original);
+  config.ui = { preset: "classic" };
+  config.socialLinks = [
+    { platform: "fixture-with-icon", label: "Icon Platform", href: "https://example.com/icon", icon: ICON },
+    { platform: "fixture-missing-icon", label: "Missing Artwork Platform", href: "https://example.com/missing", icon: MISSING },
+    { platform: "fixture-text-only", label: "Text Only Platform", href: "https://example.com/text" },
+  ];
+  // Method [0] gets a real asset, [1] a configured-but-missing one; the rest stay
+  // exactly as configured (text-only) — every method must keep working.
+  config.connect.methods = config.connect.methods.map((method, index) =>
+    index === 0 ? { ...method, icon: ICON } : index === 1 ? { ...method, icon: MISSING } : method,
+  );
+  const expectedMethods = config.connect.methods.length;
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    // A configured-but-missing connectivity icon must NOT stop the server: the
+    // dev server becoming ready at all is part of the assertion below.
+    await waitForServer(url);
+    cdp = await Cdp.connect(chrome);
+    check(rows, "fixture.missingIcon.doesNotBreakDeployment", true, "dev server ready with a configured-but-absent connectivity icon");
+
+
+    for (const [vpName, vp] of [["desktop", VIEWPORTS.desktop], ["mobile", VIEWPORTS.mobile]]) {
+      await cdp.setViewport(vp.width, vp.height);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      const f = await cdp.evaluate(`(() => {
+        const footer = document.querySelector('footer');
+        if (!footer) return null;
+        const items = [...footer.querySelectorAll('li')].map((li) => {
+          const a = li.querySelector('a');
+          const img = li.querySelector('img');
+          const r = img ? img.getBoundingClientRect() : null;
+          const cs = img ? getComputedStyle(img) : null;
+          const label = li.querySelector('.ui-nav-item-label');
+          const lr = label ? label.getBoundingClientRect() : null;
+          return {
+            text: a ? a.textContent.trim() : '',
+            href: a ? a.getAttribute('href') : null,
+            ariaLabel: a ? a.getAttribute('aria-label') : null,
+            hasImg: !!img,
+            imgSrc: img ? img.getAttribute('src') : null,
+            loaded: img ? (img.complete && img.naturalWidth > 0) : null,
+            alt: img ? img.getAttribute('alt') : null,
+            hidden: img ? img.getAttribute('aria-hidden') : null,
+            tabindex: img ? img.getAttribute('tabindex') : null,
+            iconW: r ? Math.round(r.width) : null,
+            iconH: r ? Math.round(r.height) : null,
+            objectFit: cs ? cs.objectFit : null,
+            iconBeforeLabel: !!(r && lr) && r.left <= lr.left + 1,
+          };
+        });
+        return {
+          items,
+          vw: document.documentElement.clientWidth,
+          scrollW: document.documentElement.scrollWidth,
+          footerHeight: Math.round(footer.getBoundingClientRect().height),
+          brokenImages: [...document.images].filter((i) => !i.complete || i.naturalWidth === 0).length,
+        };
+      })()`);
+      if (!f) {
+        check(rows, `connectivity.footer.${vpName}.renders`, false, "no footer");
+        continue;
+      }
+      const pick = (text) => f.items.find((item) => item.text === text);
+      const iconItem = pick("Icon Platform");
+      const missingItem = pick("Missing Artwork Platform");
+      const textOnlyItem = pick("Text Only Platform");
+      const methodIcon = pick("Message Us");
+      // The `email` method is a `demoOnly` entry, so its link text carries the
+      // demo badge ("Email" + "Demo") — match it by its authoritative href.
+      const methodMissing = f.items.find((item) => item.href === "mailto:hello@example.com");
+
+      check(rows, `connectivity.footer.${vpName}.social.allPresent`, !!iconItem && !!missingItem && !!textOnlyItem, `items=${f.items.length}`);
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.iconRendered`,
+        !!iconItem && iconItem.hasImg && iconItem.imgSrc === "/assets/sidebar-open.svg" && iconItem.loaded === true,
+        iconItem ? `src=${iconItem.imgSrc} loaded=${iconItem.loaded}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.iconSize16`,
+        !!iconItem && iconItem.iconW === 16 && iconItem.iconH === 16 && iconItem.objectFit === "contain",
+        iconItem ? `w=${iconItem.iconW} h=${iconItem.iconH} fit=${iconItem.objectFit}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.iconDecorative`,
+        !!iconItem && iconItem.alt === "" && iconItem.hidden === "true" && iconItem.tabindex === null,
+        iconItem ? `alt=${iconItem.alt} aria-hidden=${iconItem.hidden} tabindex=${iconItem.tabindex}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.iconPrecedesLabel`,
+        !!iconItem && iconItem.iconBeforeLabel === true,
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.labelIsAccessibleName`,
+        !!iconItem && iconItem.text === "Icon Platform" && iconItem.ariaLabel === null,
+        iconItem ? `text=${iconItem.text} aria-label=${iconItem.ariaLabel}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.missingIconFallsBackToText`,
+        !!missingItem &&
+          missingItem.hasImg === false &&
+          missingItem.text === "Missing Artwork Platform" &&
+          missingItem.href === "https://example.com/missing",
+        missingItem ? `img=${missingItem.hasImg} href=${missingItem.href}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.social.textOnlyStaysTextOnly`,
+        !!textOnlyItem && textOnlyItem.hasImg === false && textOnlyItem.href === "https://example.com/text",
+        textOnlyItem ? `img=${textOnlyItem.hasImg} href=${textOnlyItem.href}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.method.iconRendered`,
+        !!methodIcon && methodIcon.hasImg && methodIcon.imgSrc === "/assets/sidebar-open.svg",
+        methodIcon ? `img=${methodIcon.hasImg} src=${methodIcon.imgSrc}` : "missing",
+      );
+      check(
+        rows,
+        `connectivity.footer.${vpName}.method.missingIconFallsBackToText`,
+        !!methodMissing &&
+          methodMissing.hasImg === false &&
+          methodMissing.text.startsWith("Email") &&
+          methodMissing.href === "mailto:hello@example.com",
+        methodMissing ? `img=${methodMissing.hasImg} text=${methodMissing.text} href=${methodMissing.href}` : "missing",
+      );
+      check(rows, `connectivity.footer.${vpName}.noBrokenImages`, f.brokenImages === 0, `broken=${f.brokenImages}`);
+      check(rows, `connectivity.footer.${vpName}.noHorizontalOverflow`, f.scrollW <= f.vw + 1, `scrollW=${f.scrollW} vw=${f.vw}`);
+      check(rows, `connectivity.footer.${vpName}.geometryIntact`, f.footerHeight > 0, `h=${f.footerHeight}`);
+
+      // Connect page — the same seam on the communication hub itself.
+      await cdp.navigate(`${BASE_URL}/en/connect`);
+      await waitReady(cdp);
+      const page = await cdp.evaluate(`(() => {
+        const cards = [...document.querySelectorAll('.grid > li')];
+        return {
+          cards: cards.map((li) => {
+            const a = li.querySelector('a');
+            const img = li.querySelector('img');
+            const r = img ? img.getBoundingClientRect() : null;
+            const cs = img ? getComputedStyle(img) : null;
+            const label = [...li.querySelectorAll('span')].find((s) => s.textContent.trim().length > 0 && !s.querySelector('span'));
+            const lr = label ? label.getBoundingClientRect() : null;
+            return {
+              text: (label ? label.textContent : li.textContent).trim(),
+              hasLink: !!a,
+              href: a ? a.getAttribute('href') : null,
+              hasImg: !!img,
+              imgSrc: img ? img.getAttribute('src') : null,
+              loaded: img ? (img.complete && img.naturalWidth > 0) : null,
+              alt: img ? img.getAttribute('alt') : null,
+              hidden: img ? img.getAttribute('aria-hidden') : null,
+              iconW: r ? Math.round(r.width) : null,
+              iconH: r ? Math.round(r.height) : null,
+              objectFit: cs ? cs.objectFit : null,
+              iconBeforeLabel: !!(r && lr) && r.left <= lr.left + 1,
+            };
+          }),
+          vw: document.documentElement.clientWidth,
+          scrollW: document.documentElement.scrollWidth,
+          brokenImages: [...document.images].filter((i) => !i.complete || i.naturalWidth === 0).length,
+        };
+      })()`);
+      const cards = page ? page.cards : [];
+      const iconCard = cards.find((card) => card.hasImg);
+      check(rows, `connectivity.page.${vpName}.allMethodsPresent`, cards.length === expectedMethods, `cards=${cards.length} expected=${expectedMethods}`);
+      check(rows, `connectivity.page.${vpName}.everyMethodActionable`, cards.length > 0 && cards.every((card) => card.hasLink && !!card.href), cards.map((c) => c.href).join(","));
+      check(
+        rows,
+        `connectivity.page.${vpName}.onlyConfiguredAvailableIconRendered`,
+        cards.filter((card) => card.hasImg).length === 1,
+        `icons=${cards.filter((card) => card.hasImg).length}`,
+      );
+      check(
+        rows,
+        `connectivity.page.${vpName}.iconSupplementary16`,
+        !!iconCard &&
+          iconCard.imgSrc === "/assets/sidebar-open.svg" &&
+          iconCard.loaded === true &&
+          iconCard.iconW === 16 &&
+          iconCard.iconH === 16 &&
+          iconCard.objectFit === "contain" &&
+          iconCard.iconBeforeLabel === true,
+        iconCard ? `src=${iconCard.imgSrc} w=${iconCard.iconW} h=${iconCard.iconH} fit=${iconCard.objectFit} before=${iconCard.iconBeforeLabel}` : "no icon card",
+      );
+      check(
+        rows,
+        `connectivity.page.${vpName}.iconDecorative`,
+        !!iconCard && iconCard.alt === "" && iconCard.hidden === "true",
+        iconCard ? `alt=${iconCard.alt} aria-hidden=${iconCard.hidden}` : "no icon card",
+      );
+      check(rows, `connectivity.page.${vpName}.noBrokenImages`, !!page && page.brokenImages === 0, page ? `broken=${page.brokenImages}` : "null");
+      check(rows, `connectivity.page.${vpName}.noHorizontalOverflow`, !!page && page.scrollW <= page.vw + 1, page ? `scrollW=${page.scrollW} vw=${page.vw}` : "null");
+    }
+  } catch (error) {
+    check(rows, "connectivity.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
+    await writeFile(CONFIG_PATH, original, "utf8");
+  }
+  return rows;
+}
+
 async function runMatrix(chrome, onlyPreset) {
 
   let allRows = [];
@@ -1773,6 +2012,14 @@ async function runMatrix(chrome, onlyPreset) {
       allRows = allRows.concat(dupRows.map((r) => ({ preset: "dup-nav", ...r })));
       const dupFails = dupRows.filter((r) => !r.ok).length;
       console.log(`[matrix] dup-nav: ${dupRows.length - dupFails}/${dupRows.length} checks passed${dupFails ? ` FAIL=${dupFails}` : ""}`);
+    }
+    // CONNECTIVITY ICON SEAM — browser-real acceptance of the optional
+    // connectivity icon contract (own server, config restored by the scenario).
+    if (!onlyPreset) {
+      const connectivityRows = await runConnectivityIconScenario(chrome);
+      allRows = allRows.concat(connectivityRows.map((r) => ({ preset: "connectivity-icons", ...r })));
+      const connectivityFails = connectivityRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] connectivity-icons: ${connectivityRows.length - connectivityFails}/${connectivityRows.length} checks passed${connectivityFails ? ` FAIL=${connectivityFails}` : ""}`);
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");

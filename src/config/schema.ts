@@ -482,12 +482,6 @@ const businessSchema = z
     }
   });
 
-export const socialLinkSchema = z.object({
-  platform: z.string().min(1, "must not be empty"),
-  label: z.string().min(1, "must not be empty"),
-  href: z.url("must be an absolute URL including protocol"),
-});
-
 /**
  * P5-5 — plain configurable asset filename under `public/assets/` (icon/
  * image). Paths, traversal, query strings, and URLs are rejected; the adopter
@@ -510,6 +504,48 @@ export const uiIconAssetSchema = z
  * invented boolean.
  */
 export const uiControlIconSchema = z.union([z.literal(""), uiIconAssetSchema]);
+
+/**
+ * CONNECTIVITY ICON SEAM — social/profile destination (`socialLinks[]`).
+ *
+ * Connectivity is a CORE Provelopment Foundation capability (owner product
+ * decision): the engine supports an OPTIONAL, generic icon/mark reference on
+ * every connectivity item, expressed as a plain `public/assets/` filename that
+ * is screened at RENDER time by the established availability rule
+ * (`availableIconName` → `src/components/site/connectivity-links.ts`).
+ *
+ * Deliberately NOT part of the loud build-failure set: connectivity artwork is
+ * SUPPLEMENTARY by contract (owner requirement — text remains authoritative), so
+ * a name with no backing file must degrade to a text-only link. It must never
+ * fail a build, error a page or drop a communication method; artwork may simply
+ * be pending approval. The VALUE SHAPE is still validated loudly (paths, URLs,
+ * traversal and query strings are rejected by `uiIconAssetSchema`), so the
+ * adopter is never silently misconfigured — only "no file yet" is tolerated.
+ *
+ * Deliberately generic — there is NO platform-specific leaf (`whatsappIcon`,
+ * `telegramIcon`, `linkedinIcon`, …) and NO closed platform vocabulary:
+ * `platform` stays free-form deployment data and the engine never learns what
+ * any platform means. It only understands "an optional asset belongs to this
+ * connectivity item", so future platforms need no schema/engine change.
+ *
+ * The icon is SUPPLEMENTARY and DECORATIVE: `platform`/`label`/`href` remain
+ * authoritative, and the item renders as a usable text link whether or not
+ * artwork exists. Third-party platform marks stay a separate, trademark-gated
+ * production question — this contract does not create, download or authorize any
+ * mark.
+ *
+ * (Declared here, after the P5-5 icon-asset contract it reuses. `uiIconAssetSchema`
+ * rejects URLs/paths — an absolute third-party/CDN mark URL is deliberately NOT
+ * expressible through this seam.)
+ */
+export const socialLinkSchema = z.object({
+  /** Free-form platform identity (deployment data; never an engine concept). */
+  platform: z.string().min(1, "must not be empty"),
+  label: z.string().min(1, "must not be empty"),
+  href: z.url("must be an absolute URL including protocol"),
+  /** Optional supplementary icon/mark asset (plain `public/assets/` filename). */
+  icon: uiIconAssetSchema.optional(),
+});
 
 export const navigationItemSchema = z
   .object({
@@ -563,6 +599,16 @@ const connectMethodSchema = z
       .regex(connectMethodIdPattern, "must be a lowercase slug, e.g. 'whatsapp'"),
     label: z.string().min(1, "must not be empty"),
     href: z.string().min(1, "must not be empty"),
+    /**
+     * CONNECTIVITY ICON SEAM — the SAME generic optional icon contract as
+     * `socialLinkSchema.icon` (one seam serving both connectivity families,
+     * never two icon systems): a plain `public/assets/` filename that is
+     * purely supplementary/decorative and screened at RENDER time, so a missing
+     * file degrades to the method's authoritative text link — it never fails a
+     * build, never errors and never hides a method. No platform is named here;
+     * `id` and `label` remain free-form deployment data.
+     */
+    icon: uiIconAssetSchema.optional(),
     demoOnly: z.boolean().optional(),
   })
   .refine(

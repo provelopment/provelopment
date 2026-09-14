@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { MarkdownContent } from "@/components/site/markdown-content";
+import { AssetIcon } from "@/components/ui/asset-icon";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { Grid } from "@/components/ui/grid";
 import { connectMethodLabel } from "@/components/site/connect-method-label";
+import { connectivityIcon } from "@/components/site/connectivity-links";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
@@ -72,6 +74,13 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
  * target. Methods marked `demoOnly` carry a visible demo badge, and the page
  * always displays the demo notice: a visitor can never mistake the template's
  * demonstration options for a real integration.
+ *
+ * CONNECTIVITY ICON SEAM — a method may also carry the optional generic `icon`
+ * asset (`connect.methods[i].icon`). It renders as supplementary, decorative
+ * artwork in the `[icon] Label` arrangement and is screened by
+ * `availableIconName`, so a method with no icon (or an unavailable one) is still
+ * a complete, authoritative text action. The page never names a platform: the
+ * runtime learns only "an optional asset belongs to this connectivity item".
  */
 export default async function ConnectPage({ params }: ConnectPageProps) {
   const { locale } = await params;
@@ -95,8 +104,18 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
               key={method.id}
               className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
             >
-              <span className="font-medium">
-                {label}
+              <span className="flex min-w-0 items-center gap-2 font-medium">
+                {/* CONNECTIVITY ICON SEAM — optional supplementary artwork in the
+                    SAME `[icon] Label` arrangement as the footer. Reserved with
+                    the shared size convention (`.ui-nav-item-icon` = 1em, never
+                    oversized); decorative only, so the label below stays the
+                    authoritative name and the method renders identically when no
+                    icon is configured or the configured file is unavailable. */}
+                <AssetIcon
+                  asset={connectivityIcon(method.icon)}
+                  className="ui-nav-item-icon"
+                />
+                <span className="min-w-0 break-words">{label}</span>
                 {method.demoOnly ? (
                   <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
                     {dictionary.connect.demoBadge}

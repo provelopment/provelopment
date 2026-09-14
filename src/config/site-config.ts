@@ -34,9 +34,18 @@ export interface LocaleConfig {
 }
 
 export interface SocialLink {
+  /** Free-form platform identity (deployment data; never an engine concept). */
   readonly platform: string;
   readonly label: string;
   readonly href: string;
+  /**
+   * CONNECTIVITY ICON SEAM — optional supplementary icon/mark asset (plain
+   * `public/assets/` filename). One generic leaf for every platform: the engine
+   * never names WhatsApp/Telegram/LinkedIn/etc., it only resolves "an optional
+   * asset belongs to this connectivity item". Decorative only — `label`/`href`
+   * stay authoritative and the link renders as text with or without artwork.
+   */
+  readonly icon?: string;
 }
 
 export interface NavigationItem {
@@ -68,6 +77,13 @@ export interface ConnectMethod {
   readonly label: string;
   /** Internal route (`/contact`) or absolute deep link (`mailto:`, `tel:`, `https:`…). */
   readonly href: string;
+  /**
+   * CONNECTIVITY ICON SEAM — the SAME generic optional icon leaf as
+   * `SocialLink.icon` (one seam serving both connectivity families). Plain
+   * `public/assets/` filename; supplementary and decorative only, so the method
+   * stays a complete text link when no artwork is configured.
+   */
+  readonly icon?: string;
   /** Marks template demonstration entries with a visible badge. */
   readonly demoOnly?: boolean;
 }
