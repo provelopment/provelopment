@@ -127,7 +127,7 @@ describe("P12-SG — schema / configuration contract", () => {
 
   it("2. the canonical config ACTIVATES the integrated status graphic (role declared, artwork shipped)", () => {
     // APPROVED-ASSET INTEGRATION — the approved Foundation status graphic exists
-    // in the canonical archive, so the role is POPULATED and the artwork is
+    // in the living brand pack, so the role is POPULATED and the artwork is
     // shipped in the runtime role directory under the role's own filename.
     const configured = siteConfig.assets?.statusGraphic ?? "";
     expect(configured).not.toBe("");

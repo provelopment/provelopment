@@ -1477,7 +1477,8 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 > repository, and is recorded in that pack's
 > `provenance/identity-provenance.json` → `runtime_role_mapping`. The roles themselves
 > remain **generic and replaceable** — this is still a file swap, with no component or
-> configuration change — and no runtime code references the brand pack or the archive.
+> configuration change — and no runtime code references the brand pack or the retired
+> archive (`deployment-info/archive/`, removed from the root repository on 14 Sep 2026).
 > The expanded reverse variants (`lockup-reversed-mono.svg`, `lockup-reversed-color.svg`,
 > `lockup-reversed-knockout.svg`) are **not** consumed by any runtime role yet.
 
