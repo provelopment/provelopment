@@ -129,6 +129,19 @@ export function NavItem({ item, className }: NavItemProps) {
       </>
     ) : null;
   const iconNode = singleIconNode ?? pairedIconNode;
+  /**
+   * Owner ruling (2026-09) — collapsed-sidebar discoverability. A state-paired
+   * SIDEBAR item (`openIcon`/`closedIcon`, the P6-3B contract) collapses to its
+   * 16x16 page icon with the label sr-only. It therefore also carries the page
+   * name as a native `title` tooltip, so a pointer user can still discover the
+   * destination (and the name survives as an accessible-name fallback) without
+   * introducing a SECOND visible text label beside the icon.
+   *
+   * The single-`icon` path (header top-nav / bottom bar / icon-only CTA) is
+   * deliberately NOT given a title: those surfaces always show their label, and
+   * the platform never adds chrome an adopter did not ask for.
+   */
+  const tooltip = pairedIconNode ? label : undefined;
   const labelNode = <span className="ui-nav-item-label">{label}</span>;
   const content = (
     <>
@@ -142,7 +155,7 @@ export function NavItem({ item, className }: NavItemProps) {
   if (disabled === true) {
     return (
       <li className={liClass || undefined}>
-        <span aria-disabled="true" className={baseClass?.trim()}>
+        <span aria-disabled="true" className={baseClass?.trim()} title={tooltip}>
           {content}
         </span>
       </li>
@@ -155,6 +168,7 @@ export function NavItem({ item, className }: NavItemProps) {
         href={href}
         aria-current={active === true ? "page" : undefined}
         aria-label={ariaLabel}
+        title={tooltip}
         className={baseClass?.trim()}
         rel={external ? "noreferrer" : undefined}
         target={external ? "_blank" : undefined}

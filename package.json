@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/sync-runtime-assets.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:browser": "node tests/browser/matrix.mjs"
+    "test:browser": "node tests/browser/matrix.mjs",
+    "assets:sync": "node scripts/sync-runtime-assets.mjs",
+    "assets:check": "node scripts/sync-runtime-assets.mjs --check"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

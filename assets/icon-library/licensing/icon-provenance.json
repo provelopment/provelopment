@@ -1,0 +1,892 @@
+{
+  "inventory": ".project-instructions/deployment-info/universal-assets/icons/",
+  "produced_by": "Phase 9F",
+  "source": {
+    "library": "Tabler Icons",
+    "version": "3.46.0",
+    "set": "icons/outline",
+    "license": "MIT",
+    "license_file": ".project-instructions/deployment-info/universal-assets/licensing/TABLER-ICONS-MIT.txt"
+  },
+  "canonical_geometry": {
+    "width": 24,
+    "height": 24,
+    "viewBox": "0 0 24 24",
+    "fill": "none",
+    "stroke": "currentColor",
+    "stroke-width": 2,
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  },
+  "counts": {
+    "common_business_total": 78,
+    "common_business_tabler_derived": 77,
+    "common_business_original": 1,
+    "sidebar_controls": 2,
+    "semantic_status": 4,
+    "svg_files_total": 84,
+    "tabler_derived_total": 83
+  },
+  "intentional_source_reuse": [
+    {
+      "source_icon_name": "heart-handshake",
+      "canonical_filenames": [
+        "icon-clients.svg",
+        "icon-volunteer.svg"
+      ]
+    }
+  ],
+  "removed_aliases_absent": [
+    "icon-call.svg",
+    "icon-locations.svg",
+    "icon-reserve.svg",
+    "icon-price.svg",
+    "icon-accommodation.svg"
+  ],
+  "excluded_from_canonical_set": [
+    "icon-navigation-default.svg",
+    "icon-navigation-default-collapsed.svg"
+  ],
+  "icons": [
+    {
+      "canonical_filename": "icon-about.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "info-circle",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-account.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "user-circle",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-appointment.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "calendar-time",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-bag.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "basket",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-beauty.svg",
+      "category": "Health / personal services",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "sparkles",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-benefits.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "checklist",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-blog.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "writing",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-book.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "calendar-plus",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-calendar.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "calendar",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-careers.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "user-search",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-cart.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "shopping-cart",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-case-studies.svg",
+      "category": "Professional / service",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "file-search",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-checkout.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "shopping-cart-check",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-clients.svg",
+      "category": "Professional / service",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "heart-handshake",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-community.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "building-community",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-consultation.svg",
+      "category": "Professional / service",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "messages",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-contact.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "address-book",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-courses.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "certificate",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-delivery.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "truck-delivery",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-directions.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "direction-sign",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-document.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "file-description",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-donate.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "coin",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-download.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "download",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-drink.svg",
+      "category": "Hospitality / food",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "cup",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-email.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "mail-opened",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-emergency.svg",
+      "category": "Professional / service",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "urgent",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-enquire.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "message-question",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-enrol.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "clipboard-plus",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-events.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "ticket",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-external-link.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "external-link",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-faq.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "question-mark",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-feature.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "diamond",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-filter.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "filter",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-food.svg",
+      "category": "Hospitality / food",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "chef-hat",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-gallery.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "photo",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-gift.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "gift",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-globe.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "globe",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-health.svg",
+      "category": "Health / personal services",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "heart",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-home.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "home",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-hours.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "clock-hour-4",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-information.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "info-square",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-link.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "link",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-location.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "map-pin",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-login.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "login",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-map.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "map",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-membership.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "user-check",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-menu.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "list-details",
+      "license": "MIT",
+      "modified": false,
+      "notes": "Semantic role = business/content menu (including restaurant menu content). NOT a hamburger/navigation-menu control."
+    },
+    {
+      "canonical_filename": "icon-message.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "message",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-news.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "news",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-order.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "receipt-2",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-payment.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "credit-card",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-phone.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "phone",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-pickup.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "package-import",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-portfolio.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "briefcase-2",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-pricing.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "tag",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-process.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "timeline",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-products.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "package",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-projects.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "folder",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-quote.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "file-invoice",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-register.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "user-plus",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-reservation.svg",
+      "category": "Hospitality / food",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "calendar-check",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-resources.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "books",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-reviews.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "star",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-rooms.svg",
+      "category": "Hospitality / food",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "bed",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-sale.svg",
+      "category": "Commerce",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "discount",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-search.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "search",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-service-area.svg",
+      "category": "Location / operating",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "route",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-services.svg",
+      "category": "Core navigation",
+      "source_library": "original",
+      "source_version": null,
+      "source_icon_name": "Provelopment services pictogram",
+      "license": "Provelopment original artwork",
+      "modified": false,
+      "notes": "Original Provelopment pictogram (multiple offerings under one organised service system). Not Tabler-derived. Renaming a file is not source-geometry modification."
+    },
+    {
+      "canonical_filename": "icon-share.svg",
+      "category": "Content / information",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "share",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-shop.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "building-store",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-sidebar-close.svg",
+      "category": "Functional sidebar controls",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "layout-sidebar-left-collapse",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-sidebar-open.svg",
+      "category": "Functional sidebar controls",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "layout-sidebar-left-expand",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-status-error.svg",
+      "category": "Semantic status set",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "circle-x",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-status-info.svg",
+      "category": "Semantic status set",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "info-circle",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-status-success.svg",
+      "category": "Semantic status set",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "circle-check",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-status-warning.svg",
+      "category": "Semantic status set",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "alert-triangle",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-support.svg",
+      "category": "Professional / service",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "headset",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-table.svg",
+      "category": "Hospitality / food",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "table",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-team.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "users",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-testimonials.svg",
+      "category": "Core navigation",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "quote",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-treatment.svg",
+      "category": "Health / personal services",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "stethoscope",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-upload.svg",
+      "category": "Business actions",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "upload",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-volunteer.svg",
+      "category": "Education / organization",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "heart-handshake",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    },
+    {
+      "canonical_filename": "icon-wellness.svg",
+      "category": "Health / personal services",
+      "source_library": "Tabler Icons",
+      "source_version": "3.46.0",
+      "source_icon_name": "yoga",
+      "license": "MIT",
+      "modified": false,
+      "notes": ""
+    }
+  ]
+}

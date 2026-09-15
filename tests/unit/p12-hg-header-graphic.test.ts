@@ -24,13 +24,16 @@ import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/s
  * trigger — never replacing the independent `logo` identity role and never
  * consuming the PAGE-SPECIFIC `banners` region above the shell.
  *
- * The approved Foundation header artwork SHIPS at
- * `public/assets/header-graphic.svg` and the canonical role is ACTIVATED
- * (`site.assets.headerGraphic`). The positive/negative availability cases below
- * deliberately reuse the repository's existing neutral `logo-header.svg` fixture
- * — the availability rule stays proven independently of which artwork a
- * deployment has activated. It is used ONLY as an availability fixture — it is
- * NOT header-graphic artwork.
+ * The header band's DEFAULT artwork is now the BLANK TRANSPARENT placeholder
+ * (`assets/placeholders/header-graphic.svg` → `public/assets/header-graphic.svg`,
+ * owner ruling 2026-09): the role is present, valid and ACTIVATED, and it paints
+ * nothing. The branded Foundation artwork for the role remains available in the
+ * source package (`assets/branding/page-graphics/header-graphic.svg`) and is
+ * activated by replacing the runtime file — a pure artwork swap. The
+ * positive/negative availability cases below deliberately reuse the repository's
+ * existing neutral `logo-header.svg` fixture: the availability rule stays proven
+ * independently of which artwork a deployment has activated. It is used ONLY as
+ * an availability fixture — it is NOT header-graphic artwork.
  */
 
 const root = process.cwd();
@@ -106,27 +109,34 @@ describe("P12-HG — schema / backward compatibility", () => {
     expect(siteAssetsSchema.safeParse({ headerGraphic: "/assets/header-graphic.svg" }).success).toBe(false);
   });
 
-  it("the shipped canonical Foundation config POPULATES this role (ACTIVE, technically validated)", () => {
-    // APPROVED-ASSET INTEGRATION — the approved header graphic is INTEGRATED into
-    // the living pack, SHIPPED at `public/assets/header-graphic.svg`, and the
-    // canonical role is now ACTIVATED through the one-line configuration change
-    // the contract always allowed (`site.assets.headerGraphic`).
-    //
-    // The activation is a TECHNICAL validation, not an art-direction ruling. The
-    // measured `cover` crop of the 8:1 artwork inside the 19.46:1 (desktop) /
-    // 2.59:1 (mobile) header box is a MASTER BRAND ARCHITECT-owned aesthetic
-    // decision recorded in the living-pack provenance record; it is deliberately
-    // NOT a coding gate, and no artwork was altered and no engine CSS was added
-    // to compensate. Coding acceptance is: technically conforms, renders
-    // correctly, is replaceable, is optional, does not break the UI.
+  it("the shipped canonical Foundation config POPULATES this role with a BLANK default (ACTIVE, technically validated)", () => {
+    // OWNER RULING (2026-09) — the default Foundation configuration does NOT
+    // require a branded decorative header graphic: the role stays ACTIVATED and
+    // technically validated, and the artwork it points at is the BLANK
+    // TRANSPARENT placeholder. A deployment activates its own artwork by
+    // replacing the runtime file (the branded Foundation artwork is retained at
+    // `assets/branding/page-graphics/header-graphic.svg`).
     //
     // The band contributes ATTRIBUTES ONLY — no element, no layout height, no
-    // stacking context — so activation cannot regress the UI.
+    // stacking context — so a blank default cannot regress the UI either.
     expect(siteConfig.assets?.headerGraphic).toBeDefined();
     expect(existsSync(path.join(root, "public", "assets", "header-graphic.svg"))).toBe(true);
     // Configured value names the canonical runtime role file, and it resolves.
     expect(new URL(siteConfig.assets?.headerGraphic as string).pathname).toBe("/assets/header-graphic.svg");
     expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBe("/assets/header-graphic.svg");
+    // The shipped default draws NOTHING (no paths, no shapes, no raster) and is
+    // byte-identical to its declared placeholder source.
+    const shipped = readFileSync(path.join(root, "public", "assets", "header-graphic.svg"), "utf8");
+    const source = readFileSync(
+      path.join(root, "assets", "placeholders", "header-graphic.svg"),
+      "utf8",
+    );
+    expect(shipped).toBe(source);
+    expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|image|text)\b/i);
+    expect(shipped).toMatch(/viewBox="0 0 4096 512"/);
+    expect(shipped).not.toMatch(/#4F7CAC/i);
+    // …while the branded artwork for this role is preserved in the source package.
+    expect(existsSync(path.join(root, "assets", "branding", "page-graphics", "header-graphic.svg"))).toBe(true);
   });
 });
 
