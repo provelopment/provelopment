@@ -778,7 +778,7 @@ subsystem. Findings:
   gate** — no banner, no consent cookie, no analytics-gating capability. A future
   consent capability would require a concrete requirement that cannot be satisfied
   through configuration/documentation alone;revisit conditions are recorded in
-  `plan/todo-milestone-u.md` (which now records the full audit.
+  `.project-instructions/plan/archive/todo-milestone-u.md` (which now records the full audit.
 ### Locale integration (Phase G composing)
 
 Maps composes with the Phase G locale resolution — there is no second

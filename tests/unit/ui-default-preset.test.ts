@@ -7,7 +7,7 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-05 — the resolved default personality decision (Part B).
  *
- * Founder-approved contract (plan/todo-milestone-ui-05.md §2, UI-06 §2):
+ * Founder-approved contract (.project-instructions/plan/archive/todo-milestone-ui-05.md §2, UI-06 §2):
  *  - when no preset is supplied, the resolver selects Adaptive as the
  *    Foundation's default personality;
  *  - this NEVER changes the effective composition of a config whose explicit

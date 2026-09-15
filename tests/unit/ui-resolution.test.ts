@@ -27,7 +27,7 @@ import type { ResolvedUiConfig } from "@/core/ui";
  * (amended at UI-05 — default preset decision).
  *
  * These tests encode the DOCUMENTED RESOLUTION CONTRACT
- * (plan/todo-milestone-ui-02.md, amended at plan/todo-milestone-ui-05.md):
+ * (.project-instructions/plan/archive/todo-milestone-ui-02.md, amended at .project-instructions/plan/archive/todo-milestone-ui-05.md):
  *   1. no explicit preset -> the FOUNDATION DEFAULT PERSONALITY (Adaptive,
  *      fixed at UI-05) fills the leaves; `resolveUiConfig({}).preset` is the
  *      default personality (NOT undefined — amended at UI-05);

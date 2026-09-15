@@ -7,7 +7,7 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-08 — Workspace preset (information-rich personality) — RESOLUTION proof.
  *
- * Owner-approved contract (plan/todo-milestone-ui-08.md §2, §4):
+ * Owner-approved contract (.project-instructions/plan/archive/todo-milestone-ui-08.md §2, §4):
  *  - `{"ui":{"preset":"workspace"}}` resolves the full Workspace profile
  *    (`sidebar / collapsed-sidebar / drawer`, `standard / standard` shell,
  *    standard CTA) through the existing pipeline;

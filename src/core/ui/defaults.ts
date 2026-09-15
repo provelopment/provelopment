@@ -98,7 +98,7 @@ export interface UiFoundationDefaults {
 }
 
 /**
- * The Foundation defaults table (approved;see plan/todo-milestone-ui-02.md §2.4).
+ * The Foundation defaults table (approved;see .project-instructions/plan/archive/todo-milestone-ui-02.md §2.4).
  *
  * Do NOT add entries here without a documented architectural reason —— every
  * addition silently changes the resolved config for every adopter。

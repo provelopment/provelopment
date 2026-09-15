@@ -7,7 +7,7 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-06 — Classic preset (the first non-default preset, purely declarative).
  *
- * Founder-approved contract (plan/todo-milestone-ui-06.md §1–§5):
+ * Founder-approved contract (.project-instructions/plan/archive/todo-milestone-ui-06.md §1–§5):
  *  - `{"ui":{"preset":"classic"}}` flows through the existing resolution
  *    pipeline with NO production-code change (no capability gap);
  *  - the Classic profile (`top/top-compact/drawer`, standard shell/CTA) fills
