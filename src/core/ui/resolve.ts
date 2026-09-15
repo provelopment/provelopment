@@ -117,8 +117,8 @@ export interface UiConfigInput {
  * completeness invariant (assertResolvedUiConfigComplete)
  * ```
  *
- * CONTRACT DECISIONS (locked, owner-approved; see plan/todo-milestone-ui-02.md,
- * amended at UI-05 — plan/todo-milestone-ui-05.md):
+ * CONTRACT DECISIONS (locked, owner-approved; see .project-instructions/plan/archive/todo-milestone-ui-02.md,
+ * amended at UI-05 — .project-instructions/plan/archive/todo-milestone-ui-05.md):
  *
  * 1. ONE default preset. UI-05 fixes `FOUNDATION_UI_DEFAULTS.defaultPreset =
  *    "adaptive"` as the resolved default PERSONALITY. Selection happens at

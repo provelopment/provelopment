@@ -7,7 +7,7 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-09 — Immersive preset (premium visual-first personality) — RESOLUTION proof.
  *
- * Owner-approved contract (plan/todo-milestone-ui-09.md §2, §4):
+ * Owner-approved contract (.project-instructions/plan/archive/todo-milestone-ui-09.md §2, §4):
  *  - `{"ui":{"preset":"immersive"}}` resolves the full Immersive profile
  *    (`floating / floating / overlay`, `minimal / standard` shell, standard CTA)
  *    through the existing pipeline;

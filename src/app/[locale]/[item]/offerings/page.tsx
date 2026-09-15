@@ -52,7 +52,7 @@ export async function generateMetadata({
 
   const dictionary = getDictionary(locale);
   const regionLabel = regionDisplayName(locale, region);
-  const title = `${dictionary.offerings.heading} â€” ${regionLabel}`;
+  const title = `${dictionary.offerings.heading} — ${regionLabel}`;
   const canonical = `${siteConfig.url}/${locale}/${item}/offerings`;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 

@@ -20,7 +20,7 @@ Every role has an explicit answer below.
 
 > Other documents **point here** and do not restate the contract:
 > [`README.md`](README.md) · [`CUSTOMIZING.md`](CUSTOMIZING.md) · the living brand
-> packs under `deployment-info/brands-provelopment/`.
+> packs under `.project-instructions/deployment-info/brands-provelopment/`.
 >
 > [`instruction-manuals/branding-and-assets.md`](instruction-manuals/branding-and-assets.md)
 > describes the role/asset *concept* and the banner + navigation-icon behaviours.
@@ -139,7 +139,7 @@ Both are fully supported and neither requires a code change:
 
 5.  Preserve or update the provenance record for that role — owner, source,
     SHA-256, byte count, geometry. (Provelopment keeps its record in
-    deployment-info/brands-provelopment/provenance/.)
+    .project-instructions/deployment-info/brands-provelopment/provenance/.)
 
 6.  DO NOT change code when the filename and role are unchanged. There is no
     component, schema, resolver, CSS or routing edit in this workflow.
@@ -607,7 +607,7 @@ navigation.
 The approved master **ships** and the canonical role is **ACTIVE**. The measured
 `cover` crop above is a **Master-Brand-Architect-owned aesthetic judgement**
 recorded in the living-pack provenance
-(`deployment-info/brands-provelopment/provenance/display-graphics-provenance.json`).
+(`.project-instructions/deployment-info/brands-provelopment/provenance/display-graphics-provenance.json`).
 It is deliberately **not** a coding acceptance criterion: the seam is technically
 validated (resolves, paints, adds no DOM/height/stacking context, no overflow,
 navigation and the mobile drawer unaffected) and disabling it is a one-line
@@ -816,7 +816,7 @@ instagram.svg  linkedin.png   github.svg
 | Missing / unapproved mark | **remains text-only** — no build failure, no broken image, no lost contact method |
 | Removal / disable | clear or delete the item's `icon` leaf; or remove the connectivity item entirely |
 | Requires code change to swap? | **no** |
-| Third-party provenance / trademark review | **mandatory and NOT performed by this document.** The admitted/withheld register and each mark's source owner, published use basis, colour variant and modifications live in the living brand pack: `deployment-info/brands-provelopment/provelopment-foundation/social/platform-marks/` |
+| Third-party provenance / trademark review | **mandatory and NOT performed by this document.** The admitted/withheld register and each mark's source owner, published use basis, colour variant and modifications live in the living brand pack: `.project-instructions/deployment-info/brands-provelopment/provelopment-foundation/social/platform-marks/` |
 
 > **Do not attach a mark to an invented destination.** Availability is not
 > activation. Do not add a mark for a platform that has not been admitted.
@@ -1003,8 +1003,8 @@ records** that tie source ↔ living ↔ runtime byte-for-byte, live outside the
 runtime tree:
 
 ```text
-deployment-info/brands-provelopment/provelopment-foundation/   # living masters
-deployment-info/brands-provelopment/provenance/                # provenance records
+.project-instructions/deployment-info/brands-provelopment/provelopment-foundation/   # living masters
+.project-instructions/deployment-info/brands-provelopment/provenance/                # provenance records
 ```
 
 The runtime never reads those paths. It reads `public/assets/<basename>` only —

@@ -7,7 +7,7 @@ import { resolveUiConfig, uiPresetProfiles, UI_PRESETS } from "@/core/ui";
 /**
  * UI-07 — Focus preset (conversion-first personality).
  *
- * Founder-approved contract (plan/todo-milestone-ui-07.md §2, §4, §5):
+ * Founder-approved contract (.project-instructions/plan/archive/todo-milestone-ui-07.md §2, §4, §5):
  *  - `{"ui":{"preset":"focus"}}` resolves the full Focus profile
  *    (`minimal / top-compact / drawer`, `minimal / standard` shell, prominent
  *    CTA) through the existing pipeline;

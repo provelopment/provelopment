@@ -1,10 +1,10 @@
 # Provelopment Foundation Instruction Manuals
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-11.1`
+> **Manual revision:** `2026-09-15.1`
 > **Applicable Foundation baseline:** `v2026.09.11-foundation-p6-3c-banner-sidebar-cta`
 > **Foundation commit:** `f5c94da`
-> **Master authority:** Provelopment root project — `instruction-manuals/`
+> **Master authority:** Provelopment root project — `.project-instructions/deployment-info/instruction-manuals/`
 >
 > This copy is **distributed**. It is byte-identical to the master. Edit the master
 > upstream and propagate; never edit a distributed copy in place.
@@ -29,7 +29,7 @@ are operational procedure, not marketing.
 
 | | Location | Role |
 | --- | --- | --- |
-| **Master** | Provelopment root project / `instruction-manuals/` | Authoritative. All edits happen here. |
+| **Master** | Provelopment root project / `.project-instructions/deployment-info/instruction-manuals/` | Authoritative. All edits happen here. |
 | **Distributed** | `ProvelopmentFoundation/instruction-manuals/`, `FoundationDemos/instruction-manuals/`, and every Foundation-derived adopter project | Byte-identical copies of the master. |
 
 **Edit rule:** a distributed copy is never edited independently. If a manual is
@@ -45,18 +45,23 @@ copy is distributed.
 
 Run this when the master changes, and once per accepted Foundation release.
 
-1. **Update the master** — edit `Provelopment/instruction-manuals/` (and only there).
+1. **Update the master** — edit `Provelopment/.project-instructions/deployment-info/instruction-manuals/` (and only there).
 2. **Review** — read the changed manual end to end; confirm it is actionable and
    consistent with the manuals it cross-references. Bump the header revision if warranted.
-3. **Copy the complete directory** — replace the whole directory, not individual
-   files, so deletions propagate too:
+3. **Copy the complete file set** — propagate every master file, so additions and
+   edits always travel. Copy **explicitly**; do **not** mirror destructively
+   (`robocopy /MIR`, `rsync --delete`). A copy is reviewable, and a file that has
+   genuinely disappeared from the master is removed from the receivers as its own
+   deliberate, visible step:
    ```powershell
-   robocopy Provelopment\instruction-manuals ProvelopmentFoundation\instruction-manuals /MIR /NFL /NDL /NJH /NJS /NP
-   robocopy Provelopment\instruction-manuals FoundationDemos\instruction-manuals      /MIR /NFL /NDL /NJH /NJS /NP
+   # run from the root repository (the one that contains .project-instructions/)
+   Copy-Item '.project-instructions\deployment-info\instruction-manuals\*.md'  'ProvelopmentFoundation\instruction-manuals\' -Force
+   Copy-Item '.project-instructions\deployment-info\instruction-manuals\*.md'  'FoundationDemos\instruction-manuals\'      -Force
    ```
    ```bash
-   rsync -a --delete instruction-manuals/ ../ProvelopmentFoundation/instruction-manuals/
-   rsync -a --delete instruction-manuals/ ../FoundationDemos/instruction-manuals/
+   # run from the root repository
+   cp .project-instructions/deployment-info/instruction-manuals/*.md ProvelopmentFoundation/instruction-manuals/
+   cp .project-instructions/deployment-info/instruction-manuals/*.md FoundationDemos/instruction-manuals/
    ```
 4. **Verify the exact file list** — the copies must contain exactly the master's
    files: no extras, no omissions.
@@ -72,10 +77,11 @@ Run this when the master changes, and once per accepted Foundation release.
 **PowerShell (Windows workspace):**
 
 ```powershell
-$master = 'C:\path\to\Provelopment\instruction-manuals'
+# run from the root repository
+$master = '.project-instructions\deployment-info\instruction-manuals'
 foreach ($copy in @(
-  'C:\path\to\ProvelopmentFoundation\instruction-manuals',
-  'C:\path\to\FoundationDemos\instruction-manuals')) {
+  'ProvelopmentFoundation\instruction-manuals',
+  'FoundationDemos\instruction-manuals')) {
   Write-Host "== $copy"
   $a = Get-ChildItem $master -File | Sort-Object Name
   $b = Get-ChildItem $copy   -File | Sort-Object Name
@@ -91,8 +97,9 @@ foreach ($copy in @(
 **bash / macOS / Linux:**
 
 ```bash
-diff -r instruction-manuals ../ProvelopmentFoundation/instruction-manuals && echo "FOUNDATION PARITY OK"
-diff -r instruction-manuals ../FoundationDemos/instruction-manuals      && echo "DEMOS PARITY OK"
+# run from the root repository
+diff -r .project-instructions/deployment-info/instruction-manuals ProvelopmentFoundation/instruction-manuals && echo "FOUNDATION PARITY OK"
+diff -r .project-instructions/deployment-info/instruction-manuals FoundationDemos/instruction-manuals      && echo "DEMOS PARITY OK"
 ```
 
 `diff -r` is silent and exits 0 only when every file is byte-identical — that is
@@ -103,7 +110,12 @@ copy is explicit and the check is explicit.
 
 | Manual revision | Foundation baseline | Commit | Date |
 | --- | --- | --- | --- |
+| `2026-09-15.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-15 |
 | `2026-09-11.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-11 |
+
+> `2026-09-15.1` re-issues the same procedures with the master authority path moved to
+> `.project-instructions/deployment-info/instruction-manuals/` (governance consolidation).
+> No procedure changed; the propagation and parity checks above are unchanged.
 
 Add a row whenever the manuals are propagated against a new Foundation baseline.
 
