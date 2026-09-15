@@ -6,8 +6,10 @@ const globalsPath = path.join(process.cwd(), "src", "app", "globals.css");
 const globals = readFileSync(globalsPath, "utf8");
 
 /**
- * Extracts the `--token: #hex;` declarations from one scheme block of
- * globals.css. Tests the ACTUAL emitted values, not mere variable presence.
+ * Extracts the `--token: <color>;` declarations from one scheme block of
+ * globals.css, resolving ONE level of `var(--other)` indirection so a DERIVED
+ * token (e.g. `--primary: var(--ui-brand-accent)`) is audited by its ACTUAL
+ * emitted value. Tests the real values, not mere variable presence.
  */
 function tokenBlock(scheme: "light" | "dark"): Readonly<Record<string, string>> {
   const from =
@@ -19,9 +21,16 @@ function tokenBlock(scheme: "light" | "dark"): Readonly<Record<string, string>> 
   const blockEnd = globals.indexOf("}", blockStart);
   const block = globals.slice(blockStart + 1, blockEnd);
 
+  const raw: Record<string, string> = {};
+  for (const entry of block.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)) {
+    raw[entry[1]] = entry[2].trim();
+  }
+
   const tokens: Record<string, string> = {};
-  for (const entry of block.matchAll(/(--[\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g)) {
-    tokens[entry[1]] = entry[2];
+  for (const [name, value] of Object.entries(raw)) {
+    const indirect = value.match(/^var\((--[\w-]+)\)$/);
+    const resolved = indirect ? raw[indirect[1]] : value;
+    if (resolved && /^#[0-9a-fA-F]{3,8}$/.test(resolved)) tokens[name] = resolved;
   }
   return tokens;
 }
@@ -75,6 +84,8 @@ const REQUIRED_TOKENS = [
   "--destructive",
   "--destructive-foreground",
   "--ring",
+  // The ONE Foundation theme colour every branded/emphasis role derives from.
+  "--ui-brand-accent",
 ] as const;
 
 /**
@@ -173,12 +184,14 @@ describe("Phase D — design tokens (src/app/globals.css)", () => {
     //    competing/overridden ring (duplication → inconsistency);
     //  - any `outline-none` in CSS/TSX would remove the indicator for keyboard
     //    users (focus must never be stripped cosmetically).
-    const focusVisibleBlocks = globals.match(/:focus-visible\s*\{/g) ?? [];
-    expect(focusVisibleBlocks.length).toBeGreaterThanOrEqual(1);
-    expect(
-      focusVisibleBlocks.length,
-      `expected exactly one :focus-visible block in globals.css; found ${focusVisibleBlocks.length}`,
-    ).toBe(1);
+    // The contract is about the RING (the `outline`), so the count below is of
+    // the rules that actually SET an outline on `:focus-visible`: exactly one
+    // may exist. A `:focus-visible` rule that only adjusts another property
+    // (e.g. a selector control's border colour) is not a competing ring and is
+    // deliberately not conflated with one.
+    const ringBlocks = globals.match(/:focus-visible[^{]*\{[^}]*outline/g) ?? [];
+    expect(ringBlocks.length).toBe(1);
+    expect(globals).toMatch(/:focus-visible\s*\{[^}]*var\(--ring\)/);
     expect(globals, "globals.css must not remove the focus indicator").not.toMatch(/outline-none\s*[;{]/);
 
     // No TSX component may remove the focus indicator (e.g. `outline-none`).

@@ -104,9 +104,18 @@ export function Sidebar({
   // reachable using the localized label (never invisible, never an empty box).
   const fallbackLabel =
     isCollapsed ? showLabel ?? DEFAULT_SHOW_LABEL : hideLabel ?? DEFAULT_HIDE_LABEL;
-  const visibleText = active.text !== undefined && active.text !== "" ? active.text : "";
-  const toggleText = visibleText !== "" ? visibleText : fallbackLabel;
+  // P5-5/P6-1 empty-string semantics — the two "no text" states are NOT the
+  // same thing, and conflating them is a bug:
+  //  - `text: ""` WITH an icon → ICON-ONLY by contract: no visible text is
+  //    painted (the accessible name comes from `aria-label`), which is what a
+  //    collapsed rail and an adopter who deliberately removed the label rely on;
+  //  - `text: ""` with NO icon (both leaves empty) → P0-1 wins and the localized
+  //    label is painted, so the toggle can never be an empty, unnamed box;
+  //  - `text` ABSENT → the localized `fallbackLabel` is used.
   const icon = active.icon === undefined || active.icon === "" ? undefined : active.icon;
+  const iconOnly = active.text === "" && icon !== undefined;
+  const visibleText = active.text !== undefined && active.text !== "" ? active.text : "";
+  const toggleText = visibleText !== "" ? visibleText : iconOnly ? "" : fallbackLabel;
 
   return (
     <nav
@@ -131,7 +140,7 @@ export function Sidebar({
           className="ui-sidebar-toggle"
         >
           <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
-          <span>{toggleText}</span>
+          {toggleText !== "" ? <span>{toggleText}</span> : null}
         </button>
       ) : null}
       {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows

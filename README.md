@@ -48,10 +48,12 @@ to the default locale.
    `placeholders/`, `platform-marks/`) and `public/assets/` is its byte-identical
    runtime mirror (`pnpm assets:sync`). For your own graphics, replace
    `assets/branding/...` (e.g. `identity/favicon.svg`, `logos/lockup-horizontal.svg`
-   → `logo-header.svg`) and re-run `pnpm assets:sync`; adopters may equally
+   → `logo-header.svg` **and** `logo-footer.svg` — both logo roles share that one
+   coloured source) and re-run `pnpm assets:sync`; adopters may equally
    overwrite `public/assets/*` in place. The decorative header/footer graphics ship
    **blank by default** (a transparent placeholder) — the branded masters are
-   retained at `assets/branding/page-graphics/`.
+   retained at `assets/branding/page-graphics/`. The page banners are ordinary
+   source assets too (`assets/branding/banners/`), never a runtime-only exception.
    [`BRAND_ASSETS.md`](BRAND_ASSETS.md) is the authoritative, complete
    **brand-asset swap contract** for every replaceable graphic role (filename,
    format, dimensions, transparency, crop behaviour, config key, disable
@@ -65,7 +67,11 @@ to the default locale.
    shell's top region (below the header, above the content) at every width —
    never inside the sidebar, the bottom bar, or a mobile menu (P6-3C). Sidebar
    page icons render at **16 × 16** and come from the reusable icon library
-   (`assets/icon-library/`) unless you configure your own; replace any icon in
+   (`assets/icon-library/`) unless you configure your own; the sidebar open/close
+   **control** renders at **24 × 24** and is left-aligned with the same ≈5px inset
+   the shell CTA uses. The Foundation's brand colour is ONE value
+   (`--ui-brand-accent` in `src/app/globals.css`) that drives both the wordmark and
+   every theme-driven highlight. Replace any icon in
    `public/assets/`
    (in place or via `"icon": "my-icon.svg"`) — see
    `CUSTOMIZING.md` → *Configurable controls, assets & presentation modes (P5-5)*.
@@ -109,7 +115,7 @@ src/adapters    # Concrete integrations (filesystem content, analytics, booking,
 src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (9 supported locales)
 content         # Markdown collections (pages, legal, offerings, posts, testimonials, portfolio)
-assets           # SOURCE asset tree: branding/ · icon-library/ · placeholders/ · platform-marks/ (edit here)
+assets           # SOURCE asset tree: branding/ (banners·identity·logos·page-graphics) · icon-library/ · placeholders/ · platform-marks/ (edit here)
 public/assets    # RUNTIME mirror of assets/** (logo-header.svg, logo-footer.svg, favicon.svg, banner-*.png, icon-*.svg, sidebar-*.svg) — written by scripts/sync-runtime-assets.mjs
 tests           # Architecture boundary, unit, and CDP browser matrix tests
 ```

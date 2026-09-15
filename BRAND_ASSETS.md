@@ -53,11 +53,17 @@ and derives everything the browser can fetch from them:
 
 ```text
 assets/branding/          deployment / business-specific artwork
-                          (identity mark, favicon, logos, page graphics)
+  banners/                the ten page-banner graphics (banner-<page>.png)
+  identity/               the identity mark + favicon
+  logos/                  logo lockups (wordmark/emblem/monochrome variants)
+  page-graphics/          background, header/footer/status graphics, OG image
+  branding-schema.md      the brand-system specification (docs live with the
+                          category they document, never inside a graphic folder)
 assets/icon-library/      reusable NON-business-specific generic icons
                           (ALL retained — used or unused)
 assets/placeholders/      blank / generic defaults for a fresh installation
 assets/platform-marks/    royalty-free platform / social-service marks
+                          (+ their provenance / withheld registers)
 
         ↓  scripts/sync-runtime-assets.mjs  (byte-identical mirror)
 
@@ -69,8 +75,9 @@ public/assets/            the ONLY directory the running site fetches
 | One authority | A file is **edited in `assets/**`** and mirrored. `public/assets/**` is a byte-identical **derivative**, never a second place to maintain artwork |
 | Deterministic | `pnpm assets:sync` writes the mirror; `pnpm assets:check` (and `tests/unit/asset-taxonomy-mirror.test.ts`) fails on any drift, on a missing declared source, and on any **undeclared** file appearing under `public/assets/` |
 | Build-safe | `pnpm build` runs the mirror first, so a deployment can never ship a stale or half-applied asset move |
-| Only justified exception | the approved page-banner family (`banner-<page>.png`) has no in-repository source; it is declared with a reason in the mirror manifest (`RUNTIME_ONLY`) |
+| No permanent exceptions | every **persistent** runtime visual asset has an authoritative source beneath `assets/**` — including the ten page banners (`assets/branding/banners/`). `RUNTIME_ONLY` (the explicit, reasoned allowlist in the mirror manifest) is **empty by design**; a generated, source-less asset would still have to be declared there with a reason |
 | No junk drawer | `assets/placeholders/` holds blank/generic defaults only — never business branding, never general-purpose icons |
+| Graphics ≠ documents | a graphic directory holds graphics; documentation lives with the category it documents (`assets/branding/branding-schema.md`, `assets/platform-marks/platform-marks-*.md`) |
 
 ---
 
@@ -368,6 +375,17 @@ change to swap.**
 | Expanded vs collapsed | expanded = 16 px icon **+** page name; collapsed = 16 px icon **only**, with the page name retained (sr-only accessible name + native `title` tooltip). The icon files may differ per state via `iconOpen`/`iconClosed` |
 | Mobile | the mobile navigation uses its own disclosure control icons and does **not** use these page icons |
 
+**Sidebar open/close CONTROL — a different contract (2026-09 closure pass).**
+
+| Rule | Detail |
+| --- | --- |
+| Rendered size | **HARD: exactly 24 × 24 px** on **desktop and tablet**, expanded **and** collapsed. One token (`--ui-sidebar-control-icon-size: 1.5rem`), **no** breakpoint override |
+| Distinct from page icons | the page icons above are 16 × 16; the control is 24 × 24. They are separate tokens and must never share one |
+| Alignment | **HARD: left-aligned** with the shared page/edge inset `--ui-shell-control-inset` (≈5px, derived from the spacing scale) from the rail's inline edge, in **both** states — it must not shift or resize when the rail collapses |
+| Rail geometry | the collapsed rail's width is its OWN approved token (`--ui-sidebar-rail-collapsed`, 38.4 / 76.8 px) and is **not** derived from the control size |
+| Shell CTA parity | the shell-top primary CTA (`Book Now`) takes the **same** inset value, so the action and the control align on one edge in every preset |
+| Mobile | unchanged — the mobile disclosure keeps its own `32 × 32` control sizing (`h-8 w-8`) |
+
 **Colour.** Every icon in this table renders through the same plain `<img>` as
 the connectivity family and is recoloured by nothing — encode the intended colour
 in the file. `currentColor` does **not** follow the theme through this seam; see
@@ -435,7 +453,7 @@ artwork; it documents only the file/rendering contract and the substitution path
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
 | Alternative supported types | PNG, WebP, AVIF, JPEG |
 | Engine-required dimensions | **HARD: none** |
-| Recommended production master | the approved Foundation living master (`logos/lockup-mono.svg`; same geometry family as `logo-header.svg`). **RECOMMENDED only** |
+| Recommended production master | **the SAME coloured source as the header** — `assets/branding/logos/lockup-horizontal.svg`, mirrored into `logo-footer.svg` (owner ruling, 2026-09 closure pass: the footer uses the coloured lockup, not the monochrome one). **RECOMMENDED only**; the monochrome `lockup-mono.svg` remains a retained optional source asset |
 | Required SVG viewBox | none |
 | Transparency requirement | **RECOMMENDED:** transparent. The mark sits beside the copyright line on the footer surface |
 | Runtime sizing | **HARD:** `height: 1.25rem` (20px), `width: auto`, `shrink-0` → aspect ratio preserved; never cropped |
@@ -480,20 +498,23 @@ artwork; it documents only the file/rendering contract and the substitution path
 
 ### 10.2 Page banners — the `banner-*` family
 
-**Ten canonical runtime filenames** (one per page role):
+**Ten canonical runtime filenames** (one per page role). Each is a **mirrored**
+file: the authoritative source is `assets/branding/banners/<name>` and
+`public/assets/<name>` is its byte-identical derivative (no runtime-only
+exception — see §1.1).
 
-| # | Runtime filename | Config key | Page it decorates |
-| --- | --- | --- | --- |
-| 1 | `public/assets/banner-home.png` | `site.assets.banners["home"]` | the home page (`/` and the regional landing) |
-| 2 | `public/assets/banner-about.png` | `site.assets.banners["about"]` | About |
-| 3 | `public/assets/banner-contact.png` | `site.assets.banners["contact"]` | Contact |
-| 4 | `public/assets/banner-connect.png` | `site.assets.banners["connect"]` | Connect |
-| 5 | `public/assets/banner-offerings.png` | `site.assets.banners["offerings"]` | Offerings |
-| 6 | `public/assets/banner-portfolio.png` | `site.assets.banners["portfolio"]` | Portfolio |
-| 7 | `public/assets/banner-blog.png` | `site.assets.banners["blog"]` | Blog |
-| 8 | `public/assets/banner-resources.png` | `site.assets.banners["resources"]` | Resources |
-| 9 | `public/assets/banner-testimonials.png` | `site.assets.banners["testimonials"]` | Testimonials |
-| 10 | `public/assets/banner-legal.png` | `site.assets.banners["legal"]` | Legal |
+| # | Runtime filename | Source | Config key | Page it decorates |
+| --- | --- | --- | --- | --- |
+| 1 | `public/assets/banner-home.png` | `assets/branding/banners/banner-home.png` | `site.assets.banners["home"]` | the home page (`/` and the regional landing) |
+| 2 | `public/assets/banner-about.png` | `assets/branding/banners/banner-about.png` | `site.assets.banners["about"]` | About |
+| 3 | `public/assets/banner-contact.png` | `assets/branding/banners/banner-contact.png` | `site.assets.banners["contact"]` | Contact |
+| 4 | `public/assets/banner-connect.png` | `assets/branding/banners/banner-connect.png` | `site.assets.banners["connect"]` | Connect |
+| 5 | `public/assets/banner-offerings.png` | `assets/branding/banners/banner-offerings.png` | `site.assets.banners["offerings"]` | Offerings |
+| 6 | `public/assets/banner-portfolio.png` | `assets/branding/banners/banner-portfolio.png` | `site.assets.banners["portfolio"]` | Portfolio |
+| 7 | `public/assets/banner-blog.png` | `assets/branding/banners/banner-blog.png` | `site.assets.banners["blog"]` | Blog |
+| 8 | `public/assets/banner-resources.png` | `assets/branding/banners/banner-resources.png` | `site.assets.banners["resources"]` | Resources |
+| 9 | `public/assets/banner-testimonials.png` | `assets/branding/banners/banner-testimonials.png` | `site.assets.banners["testimonials"]` | Testimonials |
+| 10 | `public/assets/banner-legal.png` | `assets/branding/banners/banner-legal.png` | `site.assets.banners["legal"]` | Legal |
 
 **Page-role resolution (HARD):** the page slug is derived from the URL — the
 leading locale segment is dropped, then an optional configured operating-region
@@ -1048,6 +1069,9 @@ A short map, for maintainers — not required reading for an artwork task.
 | All presentation (sizing, crop, anchor, pointer behaviour) | `src/app/globals.css` |
 | **Source → runtime asset mirror** (the only sanctioned writer of `public/assets/**`) | `scripts/sync-runtime-assets.mjs` — `MIRRORED`, `MIRRORED_DIRECTORIES`, `RUNTIME_ONLY`, `buildPlan`, `syncMirrors`, `checkMirrors` (`pnpm assets:sync` / `pnpm assets:check`; run first by `pnpm build`) |
 | Sidebar page icons (16 × 16 contract, icon-library mapping, tooltip) | `src/app/globals.css` (`--ui-sidebar-nav-icon-size`) · `src/components/site/nav-links.ts` (`withSidebarNavIcons`) · `src/components/ui/nav-item.tsx` · `site.config.json` (`navigation[].iconOpen/iconClosed`) |
+| Sidebar open/close CONTROL (24 × 24 contract, left-aligned inset) | `src/app/globals.css` (`--ui-sidebar-control-icon-size`, `--ui-shell-control-inset`, `--ui-sidebar-rail-collapsed`) · `src/components/ui/sidebar.tsx` · `src/components/shell/shell-engine.tsx` (`resolveControlPresentation`) |
+| **Foundation theme colour** (the ONE `--ui-brand-accent` value → wordmark + highlights) | `src/app/globals.css` (`--ui-brand-accent`; `--primary`/`--ring` derive from it) · consumers: `src/app/[locale]/page.tsx` (wordmark), `src/components/site/{preset,location,language}-switcher.tsx` (selector emphasis), `src/components/ui/cta.tsx` (CTA fill) |
+| Header/footer logo source relationship | `scripts/sync-runtime-assets.mjs` (`MIRRORED`: both roles ← `assets/branding/logos/lockup-horizontal.svg`) |
 
 ---
 

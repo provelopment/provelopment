@@ -160,19 +160,28 @@ describe("P6-3C/B — sidebar NAVIGATION-ITEM icons are exactly 16px on desktop 
 
   it("does NOT reuse the control/toggle token (the tokens are genuinely split)", () => {
     expect(navIconRule).toMatch(/var\(--ui-sidebar-nav-icon-size\)/);
-    expect(navIconRule).not.toMatch(/var\(--ui-sidebar-icon-size\)/);
+    expect(navIconRule).not.toMatch(/var\(--ui-sidebar-control-icon-size\)/);
   });
 
-  it("keeps the approved rail geometry: the collapsed width still derives from the CONTROL icon", () => {
+  it("keeps the approved rail geometry as an EXPLICIT token (no longer borrowed from the control)", () => {
     const collapsed = /\.ui-sidebar-rail\[data-collapsed="true"\]\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
-    expect(collapsed).toMatch(/width:\s*calc\(var\(--ui-sidebar-icon-size\) \* 1\.2\)/);
-    expect(collapsed).toMatch(/padding-inline:\s*calc\(var\(--ui-sidebar-icon-size\) \* 0\.1\)/);
-    expect(globals).toMatch(/--ui-sidebar-icon-size:\s*2rem/);
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-icon-size:\\s*4rem"));
-    // The control icon keeps its own token (and therefore its hit-target size).
-    const toggleIcon = /\.ui-sidebar-toggle-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
-    expect(toggleIcon).toMatch(/width:\s*var\(--ui-sidebar-icon-size\)/);
-    expect(toggleIcon).toMatch(/height:\s*var\(--ui-sidebar-icon-size\)/);
+    // 2026-09 closure pass — the collapsed rail is the APPROVED geometry
+    // (formerly "icon x 1.2", i.e. 2rem→2.4rem below lg and 4rem→4.8rem at lg)
+    // but it is now spelled as its own token, because the control is 24px on
+    // EVERY breakpoint and can no longer be the rail's width basis.
+    expect(collapsed).toMatch(/width:\s*var\(--ui-sidebar-rail-collapsed\)/);
+    expect(collapsed).toMatch(/padding-inline:\s*var\(--ui-sidebar-rail-collapsed-pad\)/);
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*2\.4rem/); // 2rem x 1.2
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed-pad:\s*0\.2rem/); // 2rem x 0.1
+    expect(globals).toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-rail-collapsed:\\s*4\\.8rem"),
+    ); // 4rem x 1.2
+    expect(globals).toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-rail-collapsed-pad:\\s*0\\.4rem"),
+    ); // 4rem x 0.1
+    // The retired rail-basis token is no longer DECLARED anywhere (comments may
+    // still explain the rename; only declarations matter).
+    expect(globals).not.toMatch(/--ui-sidebar-icon-size\s*:/);
   });
 });
 
