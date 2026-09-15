@@ -607,6 +607,9 @@ html[data-ui-hero="showcase"] .home-hero {
   width: 1em;
   height: 1em;
   object-fit: contain;
+  /* Never stretched, shrunk or grown by the flex row it sits in: the icon box
+   * is the declared size, always. */
+  flex: none;
   flex-shrink: 0;
 }
 
@@ -659,20 +662,26 @@ html[data-ui-hero="showcase"] .home-hero {
  *    No hard-coded collapsed px: changing the icon token re-derives the rail.
  *  - `.ui-sidebar-toggle-icon` (the show/hide CONTROL; >=32px below `lg`,
  *    >=64px at `lg`) carries the control-icon token that DERIVES the collapsed
- *    rail. `.ui-shell-sidebar .ui-nav-item-icon` (the sidebar LIST icons) uses
- *    its own token — 16px below `lg`, 32px at `lg` (P6-3C). State-paired
+ *    rail. `.ui-shell-sidebar .ui-nav-item-icon` (the sidebar LIST page icons)
+ *    renders at EXACTLY 16x16 on every breakpoint and in both states (owner
+ *    ruling, 2026-09) — it never shares the control token. State-paired
  *    `.ui-nav-item-icon-open/-closed` swap on the rail's `data-collapsed`.
  *
  * Token-only; the global :focus-visible ring covers keyboard focus. The
  * reduced-motion rule above strips transitions.
  */
 :root {
-  /* P6-3C navigation-item icon size contract: 16px below `lg`, 32px at `lg`.
-   * This is the size of the ICONS INSIDE the sidebar list (content). */
+  /* P6-3C (owner ruling, 2026-09) navigation-item icon size contract: EVERY
+   * sidebar page icon renders at EXACTLY 16px x 16px — expanded or collapsed,
+   * desktop or tablet, at every width. There is deliberately NO breakpoint
+   * override for this token: the rendered icon box is one shared contract, not
+   * a desktop size and a tablet size. This is the size of the ICONS INSIDE the
+   * sidebar list (content). */
   --ui-sidebar-nav-icon-size: 1rem;
   /* P6-3B sidebar CONTROL (show/hide toggle) icon size — unchanged: this token
    * DERIVES the collapsed rail width, so the rail geometry the owner approved
-   * is preserved exactly (`icon × 1.2`). */
+   * is preserved exactly (`icon × 1.2`). The CONTROL is not a page icon and is
+   * deliberately excluded from the 16px page-icon contract. */
   --ui-sidebar-icon-size: 2rem;
   /* The intended EXPANDED sidebar rail width. */
   --ui-sidebar-rail-expanded: 13.75rem;
@@ -680,7 +689,6 @@ html[data-ui-hero="showcase"] .home-hero {
 
 @media (min-width: 1024px) {
   :root {
-    --ui-sidebar-nav-icon-size: 2rem;
     --ui-sidebar-icon-size: 4rem;
   }
 }
@@ -783,7 +791,15 @@ html[data-ui-hero="showcase"] .home-hero {
 
 /* P6-3B — collapsed rail: labels GENUINELY hidden (sr-only; kept for assistive
  * tech) — never clipped by the rail edge. Every sidebar item has an icon
- * (configured pair or the shipped dot/plus defaults), so nothing is invisible. */
+ * (configured pair or the shipped dot/plus fallbacks), so nothing is invisible.
+ *
+ * Owner ruling (2026-09) — the collapsed rail shows ONLY the 16x16 page icon,
+ * and the page name stays discoverable without a second visible label:
+ *  - assistive tech / keyboard: the sr-only `.ui-nav-item-label` here remains
+ *    the link's accessible name (never `display:none`d, never removed);
+ *  - pointer: the icon-bearing sidebar link carries the page name as a native
+ *    `title` tooltip (see NavItem), which the browser renders on hover.
+ * Both come from the ONE label the expanded rail already shows. */
 .ui-sidebar-rail[data-collapsed="true"] li.ui-nav-item--has-icon .ui-nav-item-label,
 .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:has(.ui-sidebar-toggle-icon) > span {
   position: absolute;
@@ -798,10 +814,11 @@ html[data-ui-hero="showcase"] .home-hero {
   border: 0;
 }
 
-/* P6-3C — sidebar NAVIGATION-ITEM icon sizing: its own token (32px `lg` /
- * 16px below), distinct from the control/toggle icon token that derives the
- * collapsed rail. The shared `.ui-nav-item-icon` base stays 1em for
- * top-nav / bottom-bar. `max-width: none` defeats preflight's
+/* P6-3C (owner ruling, 2026-09) — sidebar PAGE-ICON sizing: every sidebar
+ * navigation-item icon renders at EXACTLY 16px x 16px on desktop AND tablet,
+ * expanded AND collapsed. Its own token (never the control/toggle token that
+ * derives the collapsed rail), with NO breakpoint override, so the rendered box
+ * is one shared contract. `max-width: none` defeats preflight's
  * `img { max-width: 100% }` clamp. */
 .ui-shell-sidebar .ui-nav-item-icon {
   width: var(--ui-sidebar-nav-icon-size);

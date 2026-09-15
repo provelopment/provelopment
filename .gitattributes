@@ -10,3 +10,15 @@
 #
 # Edit the MASTER and re-propagate; never edit a distributed copy in place.
 instruction-manuals/** -text
+
+# Asset artwork is verified BYTE-FOR-BYTE.
+#
+# `assets/**` is the SOURCE asset tree and `public/assets/**` is its mirrored
+# runtime derivative (`scripts/sync-runtime-assets.mjs`, `pnpm assets:check`,
+# `tests/unit/asset-taxonomy-mirror.test.ts`). The mirror proof is a SHA-256
+# comparison of the two files as they exist on disk, and the favicon contract
+# compares the branding mark with the favicon derived from it — so no automatic
+# line-ending conversion may rewrite either side. Store source artwork and its
+# runtime mirror verbatim.
+assets/** -text
+public/assets/** -text

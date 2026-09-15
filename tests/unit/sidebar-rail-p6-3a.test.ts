@@ -92,13 +92,19 @@ describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height bo
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*height:\\s*100%"));
   });
 
-  it("P6-3C — nav-item icons have their OWN token (16px below `lg`, 32px at `lg`); the control token still derives the rail", () => {
-    // Navigation-ITEM icon token (P6-3C): 1rem below `lg`, 2rem at `lg`.
+  it("P6-3C (owner ruling 2026-09) — page icons are EXACTLY 16px on desktop AND tablet; the control token still derives the rail", () => {
+    // Navigation-ITEM (page icon) token: declared ONCE at 1rem = 16px. The
+    // former at-`lg` 2rem override is deliberately GONE — desktop and tablet
+    // share one sizing contract, expanded and collapsed alike.
     expect(globals).toMatch(/--ui-sidebar-nav-icon-size:\s*1rem/);
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-nav-icon-size:\\s*2rem"));
+    expect(globals).not.toMatch(/--ui-sidebar-nav-icon-size:\s*2rem/);
+    expect(globals).not.toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-nav-icon-size"),
+    );
     expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar \\.ui-nav-item-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-nav-icon-size\\)"));
     // The show/hide CONTROL icon keeps the P6-3B token — the one that DERIVES
-    // the collapsed rail geometry the owner approved (unchanged).
+    // the collapsed rail geometry the owner approved (unchanged), and is NOT a
+    // page icon.
     expect(globals).toMatch(/--ui-sidebar-icon-size:\s*2rem/);
     expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-icon-size:\\s*4rem"));
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-toggle-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-icon-size\\)"));

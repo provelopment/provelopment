@@ -27,13 +27,15 @@ import { resolveOgImageUrl } from "@/core/seo-metadata";
  * Locks in what a FRESH Foundation pull now contains, and that it is AVAILABLE
  * without being CONFIGURED:
  *
- *  1. all five approved Foundation-owned graphics are shipped under
- *     `public/assets/` and all FIVE are ACTIVE through the existing
- *     `site.assets.*` roles (background / header band / footer / status /
- *     Open Graph). The header band's activation was a one-line configuration
- *     change; the measured `cover` crop of its 8:1 artwork inside the header box
- *     is a Master-Brand-Architect-owned aesthetic judgement recorded in the
- *     living-pack provenance, never a coding gate;
+ *  1. the four approved Foundation-owned PAGE graphics ship under
+ *     `public/assets/` and are ACTIVE through the existing `site.assets.*` roles
+ *     (background / footer / status / Open Graph). The decorative HEADER band is
+ *     also ACTIVE, but its shipped default artwork is the BLANK TRANSPARENT
+ *     placeholder (owner ruling 2026-09): the role is supported and swappable
+ *     while the default presentation is "blank / not used" — the branded
+ *     Foundation artwork stays available in the source package
+ *     (`assets/branding/page-graphics/header-graphic.svg`) for a deployment that
+ *     wants it;
  *  2. the seven approved third-party platform marks ship as an ADOPTION-READY
  *     library while ZERO canonical account, handle, number or profile exists —
  *     their presence must never create a rendered link;
@@ -153,15 +155,16 @@ describe("approved-asset integration — the five Foundation-owned graphics are 
     );
   });
 
-  it("the header graphic SHIPS and its canonical role is ACTIVATED", () => {
-    // The approved header graphic is distributed (a fresh pull has the bytes)…
+  it("the header graphic role is ACTIVATED with the BLANK default (no branded graphic required)", () => {
+    // OWNER RULING (2026-09) — the default Foundation configuration does not
+    // require a branded decorative header graphic. The role stays shipped,
+    // ACTIVATED and swap-ready, and the artwork it resolves to is the BLANK
+    // TRANSPARENT placeholder (see `assets/placeholders/header-graphic.svg`), so
+    // the default presentation is "blank / not used".
     expect(existsSync(runtimeAsset("header-graphic.svg"))).toBe(true);
-    // …and the ROLE is POPULATED. Activation was the documented one-line
-    // configuration change; it is a TECHNICAL validation only. The measured
-    // `cover` crop of the 8:1 artwork inside a 19.46:1 (desktop) / 2.59:1 (mobile)
-    // header box is a Master-Brand-Architect-owned aesthetic judgement recorded in
-    // the living-pack provenance — never a coding gate. No artwork was altered and
-    // no engine CSS was added to compensate.
+    const shipped = readFileSync(runtimeAsset("header-graphic.svg"), "utf8");
+    expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|image|text)\b/i);
+    expect(shipped).toBe(read("assets", "placeholders", "header-graphic.svg"));
     expect(siteConfig.assets?.headerGraphic).toBeDefined();
     expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBe(
       "/assets/header-graphic.svg",

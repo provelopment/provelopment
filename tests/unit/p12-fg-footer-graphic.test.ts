@@ -76,16 +76,21 @@ describe("P12-FG — schema / backward compatibility", () => {
     );
   });
 
-  it("the shipped canonical Foundation config ACTIVATES the integrated footer graphic", () => {
-    // APPROVED-ASSET INTEGRATION — the approved Foundation footer graphic is
-    // integrated, so the canonical role is POPULATED and points at the shipped
-    // `public/assets/footer-graphic.svg` (PROVELOPMENT_FOUNDATION_INTEGRATION).
-    // The role stays OPTIONAL and replaceable: `availableFooterGraphicPath`
-    // (proven below) still renders NOTHING for an absent/missing value, so an
-    // adopter may remove the role with no code change.
+  it("the shipped canonical Foundation config ACTIVATES the footer graphic with a BLANK default", () => {
+    // OWNER RULING (2026-09) — the default Foundation configuration does not
+    // require a branded decorative footer graphic: the role stays POPULATED and
+    // points at the shipped `public/assets/footer-graphic.svg`, whose artwork is
+    // the BLANK TRANSPARENT placeholder. The role stays OPTIONAL and
+    // replaceable: `availableFooterGraphicPath` (proven below) still renders
+    // NOTHING for an absent/missing value, so an adopter may remove or swap it
+    // with no code change.
     const configured = siteConfig.assets?.footerGraphic ?? "";
     expect(configured).not.toBe("");
     expect(new URL(configured).pathname).toBe("/assets/footer-graphic.svg");
+    expect(availableFooterGraphicPath(configured)).toBe("/assets/footer-graphic.svg");
+    const shipped = readFileSync(path.join(root, "public", "assets", "footer-graphic.svg"), "utf8");
+    expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|line|image|text)\b/i);
+    expect(shipped).toBe(readFileSync(path.join(root, "assets", "placeholders", "footer-graphic.svg"), "utf8"));
   });
 });
 

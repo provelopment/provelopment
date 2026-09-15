@@ -1730,9 +1730,12 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
     const navIcon = rail.querySelector('.ui-nav-item-icon-open') || rail.querySelector('.ui-nav-item-icon');
     const nir = navIcon ? navIcon.getBoundingClientRect() : null;
     const ends = (li, cls, suffix) => { const el = li.querySelector(cls); return !!(el && (el.getAttribute('src') || '').endsWith(suffix)); };
+    const favicon = document.querySelector('link[rel="icon"]');
+    const headerEl = document.querySelector('.ui-site-header');
     return {
       hasToggle: !!rail.querySelector('.ui-sidebar-toggle'),
       navIconW: nir ? Math.round(nir.width) : null,
+      navIconH: nir ? Math.round(nir.height) : null,
       toggleW: tr ? Math.round(tr.width) : null, toggleH: tr ? Math.round(tr.height) : null,
       railHeight: Math.round(rr.height), mainHeight: mr ? Math.round(mr.height) : null,
       border: getComputedStyle(rail).borderRightWidth, itemCount: items.length,
@@ -1741,10 +1744,21 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
       closedVisible: items.filter((li) => shown(li.querySelector('.ui-nav-item-icon-closed'))).length,
       labelsVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-label'))).length,
       defaultDots: items.filter((li) => ends(li, '.ui-nav-item-icon-open', 'sidebar-default-icon-open.svg')).length,
+      // 2026-09 owner ruling — the sidebar page icons come from the generic ICON
+      // LIBRARY (/assets/icon-<name>.svg), not from the dot/plus placeholder.
+      libraryIcons: items.filter((li) => { const el = li.querySelector('.ui-nav-item-icon-open'); const src = el ? (el.getAttribute('src') || '') : ''; return /^\\/assets\\/icon-[a-z0-9-]+\\.svg$/.test(src) && !/sidebar-default-icon/.test(src); }).length,
+      // Every icon-bearing item carries its page name as a native tooltip, so the
+      // collapsed rail stays discoverable without a second visible label.
+      tooltipLabels: items.filter((li) => { const a = li.querySelector('a'); const l = li.querySelector('.ui-nav-item-label'); return !!(a && l && a.getAttribute('title') === l.textContent); }).length,
+      faviconHref: favicon ? favicon.getAttribute('href') : null,
+      headerBand: headerEl ? headerEl.getAttribute('data-ui-header-graphic') : null,
+      headerBandValue: headerEl ? getComputedStyle(headerEl).getPropertyValue('--ui-header-graphic').trim() : '',
+      headerBandImage: headerEl ? getComputedStyle(headerEl).backgroundImage : '',
     };
   })()`);
-  // P6-3C — sidebar NAVIGATION icons are 32×32 at the desktop breakpoint.
-  check(rows, `${tag}.p6b.desktop.navIcon32`, !!exp && exp.navIconW === 32, `navIconW=${exp && exp.navIconW}`);
+  // 2026-09 owner ruling — every sidebar PAGE icon renders at EXACTLY 16x16 on
+  // desktop (and tablet): one shared sizing contract, no breakpoint override.
+  check(rows, `${tag}.p6b.desktop.navIcon16`, !!exp && exp.navIconW === 16 && exp.navIconH === 16, `w=${exp && exp.navIconW} h=${exp && exp.navIconH}`);
   if (exp && exp.hasToggle) {
     check(rows, `${tag}.p6b.desktop.toggleIcon64`, exp.toggleW >= 64 && exp.toggleH >= 64, `w=${exp.toggleW} h=${exp.toggleH}`);
   } else {
@@ -1756,7 +1770,16 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
   check(rows, `${tag}.p6b.desktop.openIconsVisible`, !!exp && exp.itemCount > 0 && exp.openVisible === exp.itemCount, `${exp && exp.openVisible}/${exp && exp.itemCount}`);
   check(rows, `${tag}.p6b.desktop.closedIconsHidden`, !!exp && exp.closedVisible === 0);
   check(rows, `${tag}.p6b.desktop.labelsVisible`, !!exp && exp.itemCount > 0 && exp.labelsVisible === exp.itemCount);
-  check(rows, `${tag}.p6b.desktop.defaultDot`, !!exp && exp.itemCount > 0 && exp.defaultDots === exp.itemCount, `${exp && exp.defaultDots}/${exp && exp.itemCount}`);
+  // 2026-09 owner ruling — the sidebar uses the acquired GENERIC ICON LIBRARY:
+  // every item's page icon resolves to /assets/icon-<name>.svg, never the
+  // dot/plus placeholder.
+  check(rows, `${tag}.p6b.desktop.iconLibrary`, !!exp && exp.itemCount > 0 && exp.libraryIcons === exp.itemCount && exp.defaultDots === 0, `library=${exp && exp.libraryIcons}/${exp && exp.itemCount} dots=${exp && exp.defaultDots}`);
+  check(rows, `${tag}.p6b.desktop.tooltipLabels`, !!exp && exp.itemCount > 0 && exp.tooltipLabels === exp.itemCount, `${exp && exp.tooltipLabels}/${exp && exp.itemCount}`);
+  // The live favicon is the corrected branding-derived one (never a stale route).
+  check(rows, `${tag}.p6b.favicon`, !!exp && exp.faviconHref === "/assets/favicon.svg", `href=${exp && exp.faviconHref}`);
+  // 2026-09 owner ruling — the decorative header band's default is BLANK: the band
+  // resolves to the transparent placeholder file, which paints nothing visible.
+  check(rows, `${tag}.p6b.headerBandDefault`, !!exp && exp.headerBandValue === "url(\"/assets/header-graphic.svg\")" && exp.headerBandImage.includes("header-graphic.svg"), `var=${exp && exp.headerBandValue} img=${exp && exp.headerBandImage}`);
   check(rows, `${tag}.p6b.desktop.border`, !!exp && exp.border === "1px");
   check(rows, `${tag}.p6b.desktop.borderFullHeight`, !!exp && exp.mainHeight > 0 && Math.abs(exp.railHeight - exp.mainHeight) <= 4, `rail=${exp && exp.railHeight} main=${exp && exp.mainHeight}`);
 }
@@ -1791,13 +1814,22 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
       labelsVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-label'))).length,
       closedVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-icon-closed'))).length,
       openVisible: items.filter((li) => vis(li.querySelector('.ui-nav-item-icon-open'))).length,
+      // 2026-09 owner ruling — collapsed discoverability: the page name stays in
+      // the DOM (sr-only → accessible name) and on the link as a native tooltip.
+      labelsInDom: items.filter((li) => !!li.querySelector('.ui-nav-item-label')).length,
+      labelDisplayNone: items.filter((li) => { const l = li.querySelector('.ui-nav-item-label'); return !!l && getComputedStyle(l).display === 'none'; }).length,
+      tooltipLabels: items.filter((li) => { const a = li.querySelector('a'); const l = li.querySelector('.ui-nav-item-label'); return !!(a && l && a.getAttribute('title') === l.textContent); }).length,
+      itemCount: items.length,
     };
   })()`);
   check(rows, `${tag}.p6b.collapsed.state`, !!col && col.dataCollapsed === "true");
   check(rows, `${tag}.p6b.collapsed.widthDerived`, !!col && col.toggleIconW != null && col.railWidth >= Math.round(col.toggleIconW * 1.15) && col.railWidth <= Math.round(col.toggleIconW * 1.3), `rail=${col && col.railWidth} toggleIcon=${col && col.toggleIconW}`);
-  // P6-3C — the collapsed rail's navigation icons are the 32px desktop size and
-  // remain fully inside the rail (never clipped by the derived width).
-  check(rows, `${tag}.p6c.collapsed.navIcon32`, !!col && col.iconW === 32, `navIcon=${col && col.iconW}`);
+  // 2026-09 owner ruling — the collapsed rail still renders the page icons at
+  // EXACTLY 16x16 (the single shared sizing contract), never the 32px desktop size.
+  check(rows, `${tag}.p6c.collapsed.navIcon16`, !!col && col.iconW === 16, `navIcon=${col && col.iconW}`);
+  // …and the page name is retained for assistive tech + pointer discovery.
+  check(rows, `${tag}.p6c.collapsed.labelsRetained`, !!col && col.itemCount > 0 && col.labelsInDom === col.itemCount && col.labelDisplayNone === 0, `inDom=${col && col.labelsInDom}/${col && col.itemCount} displayNone=${col && col.labelDisplayNone}`);
+  check(rows, `${tag}.p6c.collapsed.tooltips`, !!col && col.itemCount > 0 && col.tooltipLabels === col.itemCount, `${col && col.tooltipLabels}/${col && col.itemCount}`);
   check(rows, `${tag}.p6c.collapsed.navIconFits`, !!col && col.iconW != null && col.railWidth > col.iconW, `rail=${col && col.railWidth} icon=${col && col.iconW}`);
   check(rows, `${tag}.p6b.collapsed.closedIconsVisible`, !!col && col.closedVisible > 0 && col.openVisible === 0);
   check(rows, `${tag}.p6b.collapsed.labelsHidden`, !!col && col.labelsVisible === 0);

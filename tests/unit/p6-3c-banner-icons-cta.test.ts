@@ -135,16 +135,27 @@ describe("P6-3C/A — PageBanner rendering", () => {
     ).toBe("");
   });
 });
-describe("P6-3C/B — sidebar NAVIGATION-ITEM icons are 16px (tablet) / 32px (desktop)", () => {
+describe("P6-3C/B — sidebar NAVIGATION-ITEM icons are exactly 16px on desktop AND tablet", () => {
   const navIconRule = /\.ui-shell-sidebar \.ui-nav-item-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
-  it("uses its OWN token — 1rem below `lg`, 2rem at `lg` — for width and height", () => {
+  it("uses its OWN token — declared once at 1rem (16px) with NO breakpoint override", () => {
+    // OWNER RULING (2026-09): every sidebar page icon renders at EXACTLY 16x16
+    // on desktop and tablet, expanded and collapsed. The former desktop-only
+    // `2rem` override is deliberately GONE — there is ONE shared sizing
+    // contract, not a tablet size and a desktop size.
     expect(globals).toMatch(/--ui-sidebar-nav-icon-size:\s*1rem/);
-    expect(globals).toMatch(
-      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-nav-icon-size:\\s*2rem"),
+    expect(globals).not.toMatch(/--ui-sidebar-nav-icon-size:\s*2rem/);
+    expect(globals).not.toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-nav-icon-size"),
     );
     expect(navIconRule).toMatch(/width:\s*var\(--ui-sidebar-nav-icon-size\)/);
     expect(navIconRule).toMatch(/height:\s*var\(--ui-sidebar-nav-icon-size\)/);
+  });
+
+  it("cannot be stretched by the flex row it sits in (the declared box wins)", () => {
+    const baseRule = /\.ui-nav-item-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(baseRule).toMatch(/flex:\s*none/);
+    expect(baseRule).toMatch(/object-fit:\s*contain/);
   });
 
   it("does NOT reuse the control/toggle token (the tokens are genuinely split)", () => {

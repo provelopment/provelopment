@@ -46,6 +46,32 @@ A **coding** acceptance decision is: *technically conforms, renders correctly, i
 replaceable, is optional, does not break the UI.* Aesthetic acceptance belongs to
 the artwork / owner review process and is never a coding gate.
 
+### 1.1 Source assets vs runtime assets (the two-tree model)
+
+The Foundation keeps **one authority per file** and **four source categories**,
+and derives everything the browser can fetch from them:
+
+```text
+assets/branding/          deployment / business-specific artwork
+                          (identity mark, favicon, logos, page graphics)
+assets/icon-library/      reusable NON-business-specific generic icons
+                          (ALL retained — used or unused)
+assets/placeholders/      blank / generic defaults for a fresh installation
+assets/platform-marks/    royalty-free platform / social-service marks
+
+        ↓  scripts/sync-runtime-assets.mjs  (byte-identical mirror)
+
+public/assets/            the ONLY directory the running site fetches
+```
+
+| Rule | Detail |
+| --- | --- |
+| One authority | A file is **edited in `assets/**`** and mirrored. `public/assets/**` is a byte-identical **derivative**, never a second place to maintain artwork |
+| Deterministic | `pnpm assets:sync` writes the mirror; `pnpm assets:check` (and `tests/unit/asset-taxonomy-mirror.test.ts`) fails on any drift, on a missing declared source, and on any **undeclared** file appearing under `public/assets/` |
+| Build-safe | `pnpm build` runs the mirror first, so a deployment can never ship a stale or half-applied asset move |
+| Only justified exception | the approved page-banner family (`banner-<page>.png`) has no in-repository source; it is declared with a reason in the mirror manifest (`RUNTIME_ONLY`) |
+| No junk drawer | `assets/placeholders/` holds blank/generic defaults only — never business branding, never general-purpose icons |
+
 ---
 
 ## 2. How to read every field: HARD RUNTIME REQUIREMENT vs CANONICAL PRODUCTION RECOMMENDATION
@@ -79,7 +105,10 @@ document says so explicitly rather than inventing a requirement.
 Both are fully supported and neither requires a code change:
 
 1. **Replace in place** — overwrite the file under `public/assets/`. The
-   configuration keeps pointing at the same role file.
+   configuration keeps pointing at the same role file. (In *this* repository the
+   file is authored in `assets/**` and mirrored — see §1.1; overwriting only the
+   runtime copy is correct for an adopter, and `pnpm assets:sync` keeps the two
+   trees identical for the Foundation itself.)
 2. **Point configuration at your own file** — set the role's `site.assets.*`
    key to an **absolute URL** (required by the schema, validated at build time)
    whose basename matches a file in `public/assets/`.
@@ -226,12 +255,18 @@ Rules that follow from this:
 | viewBox | `0 0 4096 512` — the documented **RECOMMENDED CANONICAL MASTER** for this role |
 | Content | transparent canvas + neutral dashed bounds, diagonals and corner ticks. No brand artwork, no script, no animation, no embedded raster, no font dependency, no external resource |
 | Purpose | give the swap-contract tests controlled, neutral bytes at the exact canonical filename, so the seam is validated **without touching or asserting on any approved artwork's visual content** |
-| Runtime status | **not shipped.** The approved production artwork is what ships at `public/assets/header-graphic.svg` |
+| Runtime status | **blank by default (2026-09 owner ruling).** The decorative header/footer roles ship a valid, transparent, drawing-free placeholder, so the default presentation is "blank / not used". The role stays ACTIVATED and swappable — see §10.5 and §10.4 |
+| Shipped blank placeholder (header) | `assets/placeholders/header-graphic.svg` → mirrored to `public/assets/header-graphic.svg` |
+| Shipped blank placeholder (footer) | `assets/placeholders/footer-graphic.svg` → mirrored to `public/assets/footer-graphic.svg` |
+| Optional branded artwork | the branded Foundation masters are retained as **source** in `assets/branding/page-graphics/` (`header-graphic.svg`, `footer-graphic.svg`) and are activated by replacing the runtime file — a pure artwork swap |
 
-> **The shipped production asset is already the real artwork.** The header role is
-> ACTIVE against the approved `public/assets/header-graphic.svg` (see §10.5). The
-> placeholder above exists only so that *testing* the swap contract never depends
-> on artwork content.
+> **The decorative defaults are blank, and the branded artwork is one copy away.**
+> The header/footer decorative roles are ACTIVE against a **transparent, empty**
+> placeholder: nothing paints, nothing is required, and a deployment activates its
+> own graphic by replacing `public/assets/header-graphic.svg` /
+> `public/assets/footer-graphic.svg` (or by re-pointing the role). The neutral
+> *test* fixture at `tests/fixtures/placeholder-assets/header-graphic.svg` remains a
+> testing-only source and is never resolved by the runtime.
 
 ---
 
@@ -320,6 +355,18 @@ change to swap.**
 | `sidebar-default-icon-open.svg` | `navigation[]` expanded default | SVG recommended | **yes** | **no** |
 | `sidebar-default-icon-closed.svg` | `navigation[]` collapsed default | SVG recommended | **yes** | **no** |
 | any `*.svg` / `*.png` | `ui.cta.icon`, `navigation[].icon/iconOpen/iconClosed` | any browser-renderable image | per leaf | **no** |
+| any `icon-<name>.svg` from `assets/icon-library/` | `navigation[].iconOpen` / `navigation[].iconClosed` (the sidebar page icons) | SVG (generic, reusable) | **yes** | **no** |
+
+**Sidebar page icons — the icon library is the normal source (2026-09 owner ruling).**
+
+| Rule | Detail |
+| --- | --- |
+| Rendered size | **HARD: exactly 16 × 16 px** for every sidebar page icon on **desktop and tablet**, expanded **and** collapsed. One shared token (`--ui-sidebar-nav-icon-size: 1rem`), no breakpoint override, `object-fit: contain`, `flex: none` |
+| Source precedence | 1. an explicitly configured deployment icon (business-specific artwork under `assets/branding/`) → 2. the recognized generic icon from `assets/icon-library/` → 3. the neutral fallback pair `sidebar-default-icon-*` under `assets/placeholders/` |
+| Shipped default | the canonical deployment maps each of its page types to a semantically appropriate library icon (`icon-home`, `icon-about`, `icon-resources`, `icon-testimonials`, `icon-portfolio`, `icon-blog`, `icon-contact`, `icon-services`) |
+| Retention | **all** library icons stay in the repository whether or not the current navigation uses them — the library is the template's reusable store |
+| Expanded vs collapsed | expanded = 16 px icon **+** page name; collapsed = 16 px icon **only**, with the page name retained (sr-only accessible name + native `title` tooltip). The icon files may differ per state via `iconOpen`/`iconClosed` |
+| Mobile | the mobile navigation uses its own disclosure control icons and does **not** use these page icons |
 
 **Colour.** Every icon in this table renders through the same plain `<img>` as
 the connectivity family and is recoloured by nothing — encode the intended colour
@@ -413,6 +460,8 @@ artwork; it documents only the file/rendering contract and the substitution path
 | Consumer | Next.js metadata `icons.icon` — a single authoritative `<link rel="icon">` declaration. There is no competing file-based icon route |
 | Required file type | **HARD:** a browser icon format. **RECOMMENDED:** SVG. PNG and ICO also work |
 | Engine-required dimensions | **HARD: none.** The browser renders it at its own icon size |
+| Source of truth / derivation | **HARD (2026-09 owner ruling): the favicon is DERIVED from `assets/branding/identity/mark.svg`** — the high-resolution mark is never modified. `assets/branding/identity/favicon.svg` is the mark rendered into a **24 × 24 canvas**, mirrored to `public/assets/favicon.svg` |
+| Required favicon geometry | **HARD: 24 × 24 canvas, the mark's own (square) `viewBox`, uniform scaling, no crop, no distortion, whole circular mark visible with transparent breathing room.** A narrowed `viewBox` (e.g. `256 256 1536 1536` on a 2048 mark) crops the artwork and produces flat-sided edges — locked against by `tests/unit/favicon-contract.test.ts` |
 | Recommended production master | square, transparent, legible at 16px (the approved Foundation master uses a square `viewBox`). **RECOMMENDED only** |
 | Required SVG viewBox | square recommended (a non-square viewBox is letterboxed by the browser) |
 | Transparency requirement | **RECOMMENDED:** transparent |
@@ -532,7 +581,8 @@ both, or neither.
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
 | Alternative supported types | PNG · JPEG · WebP · AVIF · GIF |
 | Engine-required dimensions | **HARD: none.** No size is read for this role |
-| Recommended production master | the approved Foundation master is **2048 × 2048** (`width`/`height` 2048, `viewBox="0 0 2048 2048"`). **RECOMMENDED only** |
+| Recommended production master | the branded Foundation master is **2048 × 2048** (`width`/`height` 2048, `viewBox="0 0 2048 2048"`). **RECOMMENDED only** |
+| Shipped default artwork | **blank / transparent (2026-09 owner ruling)** — the runtime file is the byte-identical mirror of `assets/placeholders/footer-graphic.svg`, which declares the role's `viewBox` and **draws nothing**. The branded master is retained as source at `assets/branding/page-graphics/footer-graphic.svg` |
 | Required SVG viewBox | none |
 | Transparency requirement | **strongly RECOMMENDED: transparent.** The engine applies no opacity, so the layer's subtlety must come from the artwork itself, and footer content must remain readable on top of it |
 | Runtime sizing / scaling | **HARD:** `background-size: cover`, `background-position: center center`, `background-repeat: no-repeat` on `position: absolute; inset: 0` |
@@ -584,7 +634,8 @@ navigation.
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
 | Alternative supported types | PNG · JPEG · WebP · AVIF · GIF |
 | Engine-required dimensions | **HARD: none.** No width, height or aspect ratio is required or read. `cover` accepts **any** ratio |
-| Recommended production master | **RECOMMENDED CANONICAL MASTER: 4096 × 512, `viewBox="0 0 4096 512"`** (8:1) — the approved Foundation master's geometry. This is a **RECOMMENDATION**, not an engine requirement |
+| Recommended production master | **RECOMMENDED CANONICAL MASTER: 4096 × 512, `viewBox="0 0 4096 512"`** (8:1) — the branded Foundation master's geometry. This is a **RECOMMENDATION**, not an engine requirement |
+| Shipped default artwork | **blank / transparent (2026-09 owner ruling)** — `public/assets/header-graphic.svg` is the byte-identical mirror of `assets/placeholders/header-graphic.svg`, a valid 4096 × 512 canvas that **draws nothing** and carries no branded content. The branded master is retained as source at `assets/branding/page-graphics/header-graphic.svg` |
 | Required SVG viewBox | none. Set it to the canvas you designed; `cover` sizes it |
 | Transparency requirement | **strongly RECOMMENDED: transparent.** The band paints over the header's own `background-color` (the `data-ui-header` treatment), so transparent areas are what let the header surface show through |
 | Runtime sizing / scaling | **HARD:** `cover` magnifies the artwork until it covers the header box. The header box is wide and short: **measured 1265 × 65 ≈ 19.46:1 at desktop 1280**, **885 × 65 ≈ 13.62:1 at tablet 900**, **375 × 145 ≈ 2.59:1 at mobile 390** |
@@ -604,16 +655,19 @@ navigation.
 
 #### Activation status (recorded, not a coding gate)
 
-The approved master **ships** and the canonical role is **ACTIVE**. The measured
-`cover` crop above is a **Master-Brand-Architect-owned aesthetic judgement**
-recorded in the living-pack provenance
-(`.project-instructions/deployment-info/brands-provelopment/provenance/display-graphics-provenance.json`).
-It is deliberately **not** a coding acceptance criterion: the seam is technically
-validated (resolves, paints, adds no DOM/height/stacking context, no overflow,
-navigation and the mobile drawer unaffected) and disabling it is a one-line
-config removal. Whatever the artwork outcome — a narrower master, a restricted
-activation surface, or an explicit acceptance of the crop — it is **a file
-replacement or a one-line config change, with no code change**.
+The role **ships** and the canonical role is **ACTIVE**, and the artwork it paints by
+default is the **blank transparent placeholder** — the default presentation is
+"blank / not used", so no branded decorative header graphic is required (2026-09
+owner ruling). The seam is technically validated (resolves, paints nothing, adds no
+DOM/height/stacking context, no overflow, navigation and the mobile drawer
+unaffected); enabling a branded graphic is **a file replacement or a one-line
+config change, with no code change**. The branded Foundation master — and the
+measured `cover` crop it implies inside the wide, short header box — is retained in
+the source package
+(`assets/branding/page-graphics/header-graphic.svg`) and the living-pack provenance
+(`.project-instructions/deployment-info/brands-provelopment/provenance/display-graphics-provenance.json`);
+that crop remains a **Master-Brand-Architect-owned aesthetic judgement**, never a
+coding acceptance criterion.
 
 ### 10.6 Decorative status graphic — `status-graphic.svg`
 
@@ -698,7 +752,7 @@ loudly (paths, URLs and query strings are rejected).
 | Engine-required dimensions | **HARD: none.** A fixed CSS box governs the rendered size, so a file's intrinsic dimensions can never overflow the layout |
 | Recommended production master | square, single-colour, with the intended colour **encoded in the file** (the shipped `sidebar-default-icon-open.svg` uses a literal `fill="#6b7280"`). A `currentColor` master renders in the image document's own initial colour (**black**), not the surrounding text/theme colour — see the box in §11. **RECOMMENDED only** |
 | Transparency requirement | **RECOMMENDED:** transparent |
-| Runtime sizing | shared icons: `1em × 1em`, `object-fit: contain`, `flex-shrink: 0` (so they scale with the surrounding text). Sidebar navigation-item icons: their own token (32px at `lg`, 16px below), with `max-width: none` to defeat the preflight clamp |
+| Runtime sizing | shared icons: `1em × 1em`, `object-fit: contain`, `flex: none` (so they scale with the surrounding text and are never stretched). **Sidebar page icons: exactly 16 × 16 px** — one token (`--ui-sidebar-nav-icon-size: 1rem`), no breakpoint override, with `max-width: none` to defeat the preflight clamp |
 | Runtime crop behaviour | **HARD: none.** `object-fit: contain` letterboxes rather than crops |
 | Position / anchor | inline with the label (leading by default, `iconPosition` may make it trailing); sidebar items use state-paired classes (`…-open` / `…-closed`) |
 | Repetition | per configured control / nav item |
@@ -710,7 +764,8 @@ loudly (paths, URLs and query strings are rejected).
 | Replacement procedure | replace the file in place, or set the leaf to your own filename — **a new filename requires no code change** |
 | Requires code change to swap? | **no** |
 | Accessibility | icons are decorative (`alt=""`, `aria-hidden="true"`); the visible label (or an explicit `ariaLabel`) remains the accessible name |
-| `sidebar-open`/`sidebar-close` vs `sidebar-default-icon-*` | the first pair is the **disclosure control** (show/hide the sidebar); the second pair is the **navigation-item default** (dot when expanded, plus when collapsed). They are separate roles with separate sizing — do not assume they share a size |
+| `sidebar-open`/`sidebar-close` vs `sidebar-default-icon-*` | the first pair is the **disclosure control** (show/hide the sidebar); the second pair is the **neutral navigation-item fallback** (dot when expanded, plus when collapsed) and lives in `assets/placeholders/`. They are separate roles with separate sizing — do not assume they share a size |
+| Source category | the disclosure control pair lives in `assets/placeholders/`; the generic page icons live in `assets/icon-library/`; business-specific overrides live in `assets/branding/` — see §1.1 |
 
 ---
 
@@ -924,8 +979,9 @@ Run from the repository root of the Foundation runtime
 ```bash
 pnpm exec tsc --noEmit      # typecheck
 pnpm lint                   # ESLint
+pnpm assets:check           # runtime mirror is byte-identical to assets/** (no drift)
 pnpm test                   # unit + architecture-boundary tests
-pnpm build                  # production build (config validation runs here)
+pnpm build                  # production build (mirror + config validation run here)
 pnpm run test:browser       # CDP browser matrix across presets and viewports
 ```
 
@@ -933,9 +989,12 @@ Locking tests for this contract:
 
 | Suite | What it locks |
 | --- | --- |
-| `tests/unit/brand-asset-swap-contract.test.ts` | the swap/file contract itself — role index ↔ config keys, filename-only resolution, optional-role removal, the file-only swap guarantee, the placeholder's neutrality, that this document names every shipped role, and that the icon colour seam is stated as measured (no inheritance claim) |
-| `tests/unit/approved-assets-integration.test.ts` | the five Foundation-owned graphics ship **and** are active; the admitted/withheld mark register; availability never creates a link |
-| `tests/unit/p12-hg-header-graphic.test.ts` | the header band contract — attributes only, no DOM, no height, no stacking context, no recolouring, removable by config |
+| `tests/unit/brand-asset-swap-contract.test.ts` | the swap/file contract itself — role index ↔ config keys, filename-only resolution, optional-role removal, the file-only swap guarantee, the placeholder's neutrality, that this document names every shipped role, that the decorative header/footer defaults are blank, and that the icon colour seam is stated as measured (no inheritance claim) |
+| `tests/unit/asset-taxonomy-mirror.test.ts` | the four source categories, the source→runtime mirror (byte-identical, no undeclared runtime file, icon-library retention), and the blank placeholder rules |
+| `tests/unit/favicon-contract.test.ts` | the favicon is DERIVED from the untouched `mark.svg`: same `viewBox`, same path data, uniform scaling, no clip/crop, artwork strictly inside the 24 × 24 canvas |
+| `tests/unit/sidebar-page-icon-contract.test.ts` | 16 × 16 sidebar page icons on desktop and tablet, the page → icon-library mapping and precedence, expanded/collapsed behaviour and tooltip discoverability, and unchanged mobile navigation |
+| `tests/unit/approved-assets-integration.test.ts` | the Foundation-owned page graphics ship **and** are active; the header/footer decorative defaults are blank; the admitted/withheld mark register; availability never creates a link |
+| `tests/unit/p12-hg-header-graphic.test.ts` | the header band contract — attributes only, no DOM, no height, no stacking context, no recolouring, removable by config, blank default artwork |
 | `tests/unit/p12-bg-page-background.test.ts` · `p12-fg-footer-graphic.test.ts` · `p12-sg-status-graphic.test.ts` | the background / footer / status contracts, including that each role is independent |
 | `tests/unit/connectivity-icons.test.ts` | the filename-only connectivity contract |
 | `tests/unit/branding-placeholders.test.ts` | the shipped default role filenames |
@@ -987,6 +1046,8 @@ A short map, for maintainers — not required reading for an artwork task.
 | Connectivity icon screening | `src/components/site/connectivity-links.ts` |
 | Open Graph / Twitter metadata | `src/app/[locale]/layout.tsx` + `src/core/seo-metadata.ts` (`resolveOgImageUrl`) |
 | All presentation (sizing, crop, anchor, pointer behaviour) | `src/app/globals.css` |
+| **Source → runtime asset mirror** (the only sanctioned writer of `public/assets/**`) | `scripts/sync-runtime-assets.mjs` — `MIRRORED`, `MIRRORED_DIRECTORIES`, `RUNTIME_ONLY`, `buildPlan`, `syncMirrors`, `checkMirrors` (`pnpm assets:sync` / `pnpm assets:check`; run first by `pnpm build`) |
+| Sidebar page icons (16 × 16 contract, icon-library mapping, tooltip) | `src/app/globals.css` (`--ui-sidebar-nav-icon-size`) · `src/components/site/nav-links.ts` (`withSidebarNavIcons`) · `src/components/ui/nav-item.tsx` · `site.config.json` (`navigation[].iconOpen/iconClosed`) |
 
 ---
 
@@ -1008,4 +1069,7 @@ runtime tree:
 ```
 
 The runtime never reads those paths. It reads `public/assets/<basename>` only —
-which is precisely why the swap is a file operation and never a code change.
+which is precisely why the swap is a file operation and never a code change. The
+in-repository **source** of each runtime file is declared in the mirror manifest
+(§1.1, `scripts/sync-runtime-assets.mjs`), so "source ↔ living ↔ runtime" is
+verifiable byte-for-byte with `pnpm assets:check`.

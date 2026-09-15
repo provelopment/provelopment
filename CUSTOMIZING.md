@@ -58,7 +58,7 @@ The boundary between "Foundation-owned" and "downstream/user-owned" is:
 | `src/**` — application code, components, framework wiring | `site.config.json` — site identity, navigation, features, UI preset, theme, assets |
 | configuration **schema + loaders** (`src/config/`) | `content/**` — Markdown pages, offerings, portfolio, posts, testimonials, legal |
 | UI/preset engine (`src/core/ui/`, `src/components/ui/`) | `config/i18n/<locale>.json` — localized interface strings |
-| design-system implementation (`src/app/globals.css` tokens) | `public/assets/*` — the shipped default asset files you replace |
+| design-system implementation (`src/app/globals.css` tokens) | `assets/**` — the source asset tree; `public/assets/*` is its mirrored runtime derivative |
 | localization infrastructure + dictionary schema | asset URL values you supply through `site.assets.*` |
 | build/deploy machinery, tests, proofs-of-consistency | feature/provider switches (`features.*`, `provider: "none"`) you choose |
 | Foundation **defaults** (what the layers above fall back to) | presentation values you expose through the configuration contract (preset, `ui.theme.background`, …) |
@@ -526,9 +526,10 @@ and the same left-side vertical position.
   - **Show/Hide disclosure (control) icon:** **64×64 at ≥`lg`**, **32×32 below
     `lg`** — unchanged from P6-3B; this is the token the collapsed width derives
     from, and it keeps the toggle's hit area intact.
-  - **Sidebar navigation-item icons:** **32×32 at ≥`lg`**, **16×16 below `lg`**
-    (browser-measured: `navIconW=32` desktop; `w=16 h=16` at 800/900/1000/1023),
-    via `--ui-sidebar-nav-icon-size` (`2rem` ≥`lg`, `1rem` below).
+  - **Sidebar navigation-item (page) icons:** **exactly 16×16 on desktop AND
+    tablet**, expanded and collapsed, via one shared token
+    `--ui-sidebar-nav-icon-size: 1rem` with **no breakpoint override**
+    (2026-09 owner ruling; the former 32px-at-`lg` override is deliberately gone).
   - The mobile disclosure control icon renders **32×32**. Top-nav / bottom-bar
     keep the shared `1em` base.
 - **Full-height right border.** The rail's `border-inline-end` spans the whole
@@ -546,16 +547,27 @@ and the same left-side vertical position.
   bottom bar or the disclosure (browser-verified at desktop **and** tablet:
   `aside.cta.outsideSidebar inAside=false`, `aside.cta.reachableInTop`,
   `aside.cta.single count=1`, `open.cta.notInPanel`).
-- **Navigation-item icons (P6-3B).** Every sidebar navigation item shows an icon:
-  the default is a **large dot** when expanded (`sidebar-default-icon-open.svg`)
-  and a **large plus** when collapsed (`sidebar-default-icon-closed.svg`). Each
-  item is independently replaceable, per state, through configuration:
+- **Navigation-item icons (P6-3B).** Every sidebar navigation item shows a page
+  icon at **16×16** in both states — expanded (icon **+** page name) and collapsed
+  (icon **only**, with the page name kept as the sr-only accessible name plus a
+  native `title` tooltip). The canonical configuration maps each page to a
+  **semantic icon from `assets/icon-library/`** (`icon-home.svg`,
+  `icon-about.svg`, `icon-resources.svg`, `icon-testimonials.svg`,
+  `icon-portfolio.svg`, `icon-blog.svg`, `icon-contact.svg`, `icon-services.svg`);
+  the neutral dot/plus pair in `assets/placeholders/` is the fallback for an
+  unmapped page type. Each item is independently replaceable, per state, through
+  configuration:
 
   | Configuration (`navigation[]`) | Expanded icon | Collapsed icon |
   | --- | --- | --- |
-  | *(none)* | `iconOpen ?? icon ?? sidebar-default-icon-open.svg` | `iconClosed ?? icon ?? sidebar-default-icon-closed.svg` |
+  | *(none)* | `iconOpen ?? icon ?? sidebar-default-icon-open.svg` (placeholder fallback) | `iconClosed ?? icon ?? sidebar-default-icon-closed.svg` (placeholder fallback) |
   | `"icon": "my-icon.svg"` | `my-icon.svg` | `my-icon.svg` |
   | `"iconOpen": "a.svg"`, `"iconClosed": "b.svg"` | `a.svg` | `b.svg` |
+
+  Source precedence: an explicitly configured deployment icon (business artwork in
+  `assets/branding/`) → a generic icon from `assets/icon-library/` → the neutral
+  placeholder fallback. All library icons are retained whether or not a page uses
+  them. Mobile navigation does **not** use these page icons.
 
   Mixed configurations are supported (some items custom, others on the defaults)
   without any component change. A configured name with no backing file fails the
@@ -1354,7 +1366,7 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   bypasses the Next image optimizer. **The approved Foundation background artwork
   now ships at `public/assets/background-all.svg` and is ACTIVE** through the
   reserved global `all` role.
-- **`footer-graphic` (P12-FG)** — **capability composed; approved artwork integrated and ACTIVE**:
+- **`footer-graphic` (P12-FG)** — **capability composed; role ACTIVE with a BLANK default**:
   `site.assets.footerGraphic` is ONE optional **global** decorative footer graphic /
   watermark — deliberately **not** the footer identity mark, so a deployment may have
   a footer logo, a decorative graphic, both, or neither. The server resolves it
@@ -1373,9 +1385,15 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   artwork carries its own subtlety and is never recoloured. One asset `cover`s any
   viewport (no mobile/desktop variants, no art direction) and it is static only (no
   animation, no parallax). As a CSS `background-image` it bypasses the Next image
-  optimizer. **The approved Foundation footer graphic now ships at
-  `public/assets/footer-graphic.svg` and is ACTIVE** through `site.assets.footerGraphic`.
-- **`header-graphic` (P12-HG)** — **capability composed; approved artwork SHIPS and the role is configured (ACTIVE)**:
+  optimizer. **The default Foundation configuration no longer requires a branded
+  decorative footer graphic**: `public/assets/footer-graphic.svg` is the byte-identical
+  mirror of the blank transparent placeholder
+  (`assets/placeholders/footer-graphic.svg`), so the default presentation is
+  **blank / not used** while the role stays ACTIVE through
+  `site.assets.footerGraphic`. The branded Foundation footer graphic is retained as
+  source at `assets/branding/page-graphics/footer-graphic.svg` and is activated by
+  replacing the runtime file (2026-09 owner ruling).
+- **`header-graphic` (P12-HG)** — **capability composed; role ACTIVE with a BLANK default**:
   `site.assets.headerGraphic` is ONE optional **global** decorative header band /
   structural graphic layer — deliberately **not** the header identity mark (that stays
   the independent `logo-header` role) and **not** a page banner (that stays the
@@ -1402,14 +1420,20 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   blend mode — the approved artwork carries its own appearance and is never
   recoloured. One asset `cover`s the header edge-to-edge at every viewport (no
   mobile/desktop variants, no art direction) and it is static only (no animation, no
-  parallax). **The approved Foundation header graphic ships at
-  `public/assets/header-graphic.svg` and the canonical role is ACTIVE**
-  (`site.assets.headerGraphic`). The band is `cover`-painted inside the measured
-  header box (19.46:1 desktop / 2.59:1 mobile), so the 8:1 artwork is magnified and
-  cropped; that is an artwork/owner judgement recorded in the living-pack provenance,
-  not a coding gate — no artwork was altered and no CSS was added to compensate.
-  Replacing the file or removing the key needs **no code change**; the full contract
-  is in [`BRAND_ASSETS.md`](BRAND_ASSETS.md) §10.5.
+  parallax). **The default Foundation configuration no longer requires a branded
+  decorative header graphic**: `public/assets/header-graphic.svg` is the
+  byte-identical mirror of the blank transparent placeholder
+  (`assets/placeholders/header-graphic.svg`) — a valid 4096 × 512 canvas that draws
+  nothing — so the default presentation is **blank / not used** while the canonical
+  role stays ACTIVE (`site.assets.headerGraphic`). The branded Foundation header
+  graphic is retained as source at
+  `assets/branding/page-graphics/header-graphic.svg`; activating it is a pure file
+  replacement, and the measured `cover` crop it would imply inside the header box
+  (19.46:1 desktop / 2.59:1 mobile) stays an artwork/owner judgement recorded in the
+  living-pack provenance — never a coding gate, and no artwork was altered and no CSS
+  was added to compensate. Replacing the file or removing the key needs **no code
+  change**; the full contract is in [`BRAND_ASSETS.md`](BRAND_ASSETS.md) §10.5
+  (2026-09 owner ruling).
 - **`status-graphic` (P12-SG)** — **capability composed; approved artwork integrated and ACTIVE**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
   shared by **both** status surfaces (`[locale]/error.tsx` and
@@ -1483,58 +1507,63 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 > The expanded reverse variants (`lockup-reversed-mono.svg`, `lockup-reversed-color.svg`,
 > `lockup-reversed-knockout.svg`) are **not** consumed by any runtime role yet.
 
-#### Branding reference package — `branding/` (P6-2C)
+#### Source asset tree — `assets/` (the four ownership categories)
 
-The repository root also carries a **source/reference package**, `branding/`
-— NOT a runtime asset directory and NOT served under `public/`:
+The repository carries the **source** asset tree in `assets/`. It is NOT served
+under `public/`; the runtime files are byte-identical mirrors of it (see below):
 
 ```text
-branding/
-├── branding-schema.md   — the brand specification (colors, typography, logo
-│                          anatomy, favicon/asset architecture) a human or a
-│                          future branding agent reads FIRST
-├── <source graphics>    — the full-resolution/source branding artwork a
-│                          branding pass selects from (SVG/PNG/JPEG variants)
-└── placeholders/        — reference-only memory of the P6-2A placeholder
-                           asset roles/filenames/dimensions used during
-                           development; NEVER read at runtime
+assets/
+├── branding/          — deployment/business-specific artwork (this repo: the
+│   ├── identity/        Provelopment Foundation mark + favicon)
+│   ├── logos/           logo lockups/wordmark/emblem sources
+│   └── page-graphics/   branded page graphics (background, header/footer/status
+│                        graphics, Open Graph image, brand specification)
+├── icon-library/      — reusable, NON-business-specific generic icons (ALL
+│   ├── icons/           retained, whether or not a page currently uses them)
+│   └── licensing/       provenance + upstream licence
+├── placeholders/      — blank/generic defaults a fresh installation renders
+└── platform-marks/    — royalty-free platform/social-service marks
 ```
 
-Architecture (never a second runtime asset system):
+Architecture (one authority per file — never a second asset system):
 
 ```text
-branding/                          (source/reference — this repo only)
-    ↓  (human or branding-agent selects + maps roles, one at a time)
-generic Foundation asset roles      (logo-header, logo-footer, banner-*,
-                                      sidebar-open, sidebar-close, favicon,
-                                      sidebar-default-icon-open/-closed)
-    ↓
-public/assets/                     (the ONLY runtime asset directory)
+assets/**                          (source of truth — edit here)
+    ↓  scripts/sync-runtime-assets.mjs   (byte-identical mirror)
+public/assets/                     (the ONLY directory the site fetches)
     ↓
 Foundation components / site.assets.* configuration
 ```
 
-`branding/` is retained alongside the project **for humans and future
-branding agents**, not consumed by any component, script, or build step.
-React/server code must never import from or reference a `branding/...` path.
+- `pnpm assets:sync` writes the mirror; `pnpm assets:check` fails on **any** drift,
+  on a missing declared source and on an **undeclared** file appearing under
+  `public/assets/`. `pnpm build` runs the mirror first, so a half-applied asset
+  move can never ship. `tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
+- The only declared exception is the page-banner family (`banner-<page>.png`),
+  whose source lives in the living brand pack rather than in this repository.
+- The four categories have distinct responsibilities: **branding** is the
+  deployment's own artwork, **icon-library** is the reusable generic store,
+  **placeholders** are the blank/generic defaults, **platform-marks** are the
+  optional social-service marks. Do not mix them (no generic icons in branding, no
+  brand artwork in placeholders, no platform marks in the icon library).
 
-**Future branding-agent workflow** (documented intent, not automated by this
-task):
+**Branding-agent workflow** (source tree → runtime):
 
-1. Read `branding/branding-schema.md` (the specification).
-2. Review the source/reference graphics in `branding/`.
+1. Read the brand specification
+   (`assets/branding/page-graphics/branding-schema.md`).
+2. Review the source graphics under `assets/branding/`.
 3. Determine the required branding for the target site.
-4. Populate the six generic runtime roles under `public/assets/` (file swap
-   only — no component change).
-5. Leave the source/reference material in `branding/` for the next agent or
-   developer (never delete it because a copy now lives in `public/assets/`).
+4. Author/replace the role file **in `assets/`** (e.g.
+   `assets/branding/identity/favicon.svg`).
+5. Run `pnpm assets:sync` to mirror it to `public/assets/`, then `pnpm assets:check`.
 6. Build the Foundation (`pnpm build`).
 7. Verify the assets resolve (no broken images; gate green).
 8. Deploy.
 
-A future customer/branding implementation should never require a Foundation
-component-source change merely to replace branding — only a `public/assets/`
-file swap and/or a `site.assets.*` URL change.
+A customer/branding implementation should never require a Foundation
+component-source change merely to replace branding — only an `assets/**` file
+replacement (mirrored) and/or a `site.assets.*` URL change.
 
 #### Shipped brand assets — what a fresh clone already contains
 
@@ -1546,7 +1575,8 @@ activates some of those roles while deliberately leaving others merely available
 | --- | --- | --- |
 | Identity | `logo-header.svg`, `logo-footer.svg`, `favicon.svg` | yes — `logo`, `logoFooter`, `favicon` |
 | Page banners | `banner-home/about/contact/connect/offerings/portfolio/blog/resources/testimonials/legal.png` | yes — `banners` (ten page roles) |
-| Decorative graphics | `background-all.svg`, `header-graphic.svg`, `footer-graphic.svg`, `status-graphic.svg` | yes — `backgrounds.all`, `headerGraphic`, `footerGraphic`, `statusGraphic` |
+| Decorative graphics | `background-all.svg`, `status-graphic.svg` (branded); `header-graphic.svg`, `footer-graphic.svg` (**blank transparent defaults**) | yes — `backgrounds.all`, `headerGraphic`, `footerGraphic`, `statusGraphic` |
+| Generic page icons | the `assets/icon-library/` set (`icon-home.svg`, `icon-about.svg`, `icon-services.svg`, …) — every library icon is mirrored into `public/assets/` | yes — `navigation[].iconOpen/iconClosed` for the sidebar pages |
 | Social preview | `og-image.png` (1200 × 630) | yes — `ogImage` (the generated per-locale route remains the fallback) |
 | Generic connectivity icons | `icon-phone.svg`, `icon-email.svg`, `icon-message.svg`, `icon-link.svg`, `icon-external-link.svg`, `icon-share.svg`, `icon-globe.svg` | **no** — available for your own connectivity items |
 | Admitted platform marks | `whatsapp.svg`, `telegram.svg`, `facebook.png`, `messenger.svg`, `instagram.svg`, `linkedin.png`, `github.svg` | **no** — available only; see below |
@@ -1557,11 +1587,16 @@ URL) — no component, no config grammar and no engine change is involved. **Rem
 one by deleting its config key; a configured-but-missing role behaves exactly like an
 absent one and renders nothing (never a placeholder, never a broken image).
 
-> **`header-graphic.svg` ships and is configured (ACTIVE).** The approved header band
-> is an 8:1 graphic; the header box measures 19.46:1 on desktop and 2.59:1 on mobile,
-> so the `cover` treatment magnifies the artwork and crops it. That crop outcome is a
-> **Master-Brand-Architect-owned aesthetic judgement**, recorded in the living-pack
-> provenance — it is deliberately **not** a coding criterion, and the seam is
+> **`header-graphic.svg` and `footer-graphic.svg` ship as BLANK transparent
+> defaults (ACTIVE).** The default Foundation configuration does not require a
+> branded decorative graphic: each runtime file is the byte-identical mirror of its
+> `assets/placeholders/` source and draws nothing, so the default presentation is
+> **blank / not used**. Activating branded artwork is a pure file replacement — the
+> branded masters are retained at `assets/branding/page-graphics/`. The header band
+> is `cover`-painted inside the measured header box (19.46:1 desktop / 2.59:1
+> mobile), so activating the 8:1 branded master would magnify and crop it; that crop
+> outcome is a **Master-Brand-Architect-owned aesthetic judgement**, recorded in the
+> living-pack provenance — deliberately **not** a coding criterion, and the seam is
 > technically validated: it adds no DOM, no layout height and no stacking context,
 > never overflows, and leaves the navigation, the logo and the mobile drawer working.
 > Replace the file (or remove the key) at any time — **no code change**. See

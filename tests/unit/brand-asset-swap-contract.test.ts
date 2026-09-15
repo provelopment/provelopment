@@ -289,17 +289,37 @@ describe("swap contract — every optional role is removable by configuration", 
   });
 });
 
-describe("swap contract — the neutral placeholder is a source fixture", () => {
+describe("swap contract — the neutral placeholder is a source fixture, and the SHIPPED default is blank", () => {
   const placeholder = read(...PLACEHOLDER.split("/"));
 
   it("uses the canonical runtime filename but is NOT a runtime asset", () => {
     expect(PLACEHOLDER.endsWith("/header-graphic.svg")).toBe(true);
-    // The shipped role file is the approved artwork; the placeholder is separate.
+    // The shipped role file exists and is the BLANK placeholder artwork — the
+    // neutral TEST fixture is still separate from it and never resolved by code.
     expect(existsSync(path.join(ROOT, "public", "assets", "header-graphic.svg"))).toBe(true);
     expect(existsSync(path.join(ROOT, "public", "assets", "header-graphic-placeholder.svg"))).toBe(
       false,
     );
     expect(JSON.stringify(siteConfig.assets)).not.toMatch(/placeholder/i);
+  });
+
+  it("ships a blank, transparent decorative header/footer default that draws nothing", () => {
+    // OWNER RULING (2026-09) — the default must be blank/not used, and the
+    // shipped artwork must therefore be free of invisible branded content. Each
+    // runtime file is the byte-identical mirror of its placeholder source.
+    for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
+      const shipped = read("public", "assets", role);
+      expect(shipped, `${role} must be its placeholder source`).toBe(
+        read("assets", "placeholders", role),
+      );
+      expect(shipped, `${role} must draw nothing`).not.toMatch(
+        /<(path|rect|circle|ellipse|polygon|line|image|text)\b/i,
+      );
+      expect(shipped, `${role} must carry no brand colour`).not.toMatch(/#4F7CAC/i);
+      expect(shipped, `${role} must declare a viewBox`).toMatch(/viewBox="[^"]+"/);
+      // …while the branded Foundation artwork for the role is preserved as source.
+      expect(existsSync(path.join(ROOT, "assets", "branding", "page-graphics", role))).toBe(true);
+    }
   });
 
   it("is a valid, self-contained, inert SVG on the documented recommended master", () => {

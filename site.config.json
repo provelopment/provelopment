@@ -86,35 +86,51 @@
   "navigation": [
     {
       "label": "Home",
-      "href": "/"
+      "href": "/",
+      "iconOpen": "icon-home.svg",
+      "iconClosed": "icon-home.svg"
     },
     {
       "label": "About",
-      "href": "/about"
+      "href": "/about",
+      "iconOpen": "icon-about.svg",
+      "iconClosed": "icon-about.svg"
     },
     {
       "label": "Resources",
-      "href": "/resources"
+      "href": "/resources",
+      "iconOpen": "icon-resources.svg",
+      "iconClosed": "icon-resources.svg"
     },
     {
       "label": "Testimonials",
-      "href": "/testimonials"
+      "href": "/testimonials",
+      "iconOpen": "icon-testimonials.svg",
+      "iconClosed": "icon-testimonials.svg"
     },
     {
       "label": "Portfolio",
-      "href": "/portfolio"
+      "href": "/portfolio",
+      "iconOpen": "icon-portfolio.svg",
+      "iconClosed": "icon-portfolio.svg"
     },
     {
       "label": "Blog",
-      "href": "/blog"
+      "href": "/blog",
+      "iconOpen": "icon-blog.svg",
+      "iconClosed": "icon-blog.svg"
     },
     {
       "label": "Connect",
-      "href": "/connect"
+      "href": "/connect",
+      "iconOpen": "icon-contact.svg",
+      "iconClosed": "icon-contact.svg"
     },
     {
       "label": "Offerings",
-      "href": "/offerings"
+      "href": "/offerings",
+      "iconOpen": "icon-services.svg",
+      "iconClosed": "icon-services.svg"
     }
   ],
   "business": {
