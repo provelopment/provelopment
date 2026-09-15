@@ -33,7 +33,7 @@ import { PageBackground } from "@/components/site/page-background";
 import { configuredRegionIds } from "@/core/regional-pages";
 import "../globals.css";
 
-// P6-2D — brand typography (branding/branding-schema.md): the brand's primary
+// P6-2D — brand typography (assets/branding/branding-schema.md): the brand's primary
 // heading/body typeface family is Inter, Plus Jakarta Sans, or Geist Sans;
 // Plus Jakarta Sans is the sanctioned brand choice here (the one code-surface
 // change CUSTOMIZING.md documents for re-branding fonts). Monospace stays

@@ -80,11 +80,16 @@ describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height bo
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*transition:\\s*width\\s+200ms"));
   });
 
-  it("collapsed width is DERIVED from the icon size: icon + 10% padding each side (no hard-coded px)", () => {
-    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*width:\\s*calc\\(var\\(--ui-sidebar-icon-size\\) \\* 1\\.2\\)"));
-    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*padding-inline:\\s*calc\\(var\\(--ui-sidebar-icon-size\\) \\* 0\\.1\\)"));
-    // The old hard-coded collapsed tokens are GONE.
-    expect(globals).not.toMatch(/--ui-sidebar-rail-collapsed/);
+  it("collapsed rail uses its OWN approved geometry token (no hard-coded px, no control coupling)", () => {
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-rail-collapsed\\)"));
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\[data-collapsed=\"true\"\\]\\s*\\{[^}]*padding-inline:\\s*var\\(--ui-sidebar-rail-collapsed-pad\\)"));
+    // 2026-09 closure pass — the APPROVED geometry (formerly "icon x 1.2" and
+    // "icon x 0.1") is preserved as its own token. The rail no longer borrows
+    // the control's icon size, because the control is 24px on EVERY breakpoint
+    // while the rail's tablet/desktop geometry differs.
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*2\.4rem/);
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed-pad:\s*0\.2rem/);
+    expect(globals).not.toMatch(/--ui-sidebar-icon-size\s*:/);
   });
 
   it("full-height border: the frame + band child + rail all stretch to the shell row", () => {
@@ -92,7 +97,7 @@ describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height bo
     expect(globals).toMatch(new RegExp("\\.ui-sidebar-rail\\s*\\{[^}]*height:\\s*100%"));
   });
 
-  it("P6-3C (owner ruling 2026-09) — page icons are EXACTLY 16px on desktop AND tablet; the control token still derives the rail", () => {
+  it("P6-3C (owner ruling 2026-09) — page icons are EXACTLY 16px; the CONTROL is EXACTLY 24px", () => {
     // Navigation-ITEM (page icon) token: declared ONCE at 1rem = 16px. The
     // former at-`lg` 2rem override is deliberately GONE — desktop and tablet
     // share one sizing contract, expanded and collapsed alike.
@@ -102,12 +107,14 @@ describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height bo
       new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-nav-icon-size"),
     );
     expect(globals).toMatch(new RegExp("\\.ui-shell-sidebar \\.ui-nav-item-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-nav-icon-size\\)"));
-    // The show/hide CONTROL icon keeps the P6-3B token — the one that DERIVES
-    // the collapsed rail geometry the owner approved (unchanged), and is NOT a
-    // page icon.
-    expect(globals).toMatch(/--ui-sidebar-icon-size:\s*2rem/);
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-icon-size:\\s*4rem"));
-    expect(globals).toMatch(new RegExp("\\.ui-sidebar-toggle-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-icon-size\\)"));
+    // The show/hide CONTROL has its OWN, DIFFERENT contract (2026-09 closure
+    // pass): exactly 24px on desktop AND tablet, one value, no breakpoint
+    // override. It is not a page icon, and it no longer derives the rail.
+    expect(globals).toMatch(/--ui-sidebar-control-icon-size:\s*1\.5rem/);
+    expect(globals).not.toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-control-icon-size"),
+    );
+    expect(globals).toMatch(new RegExp("\\.ui-sidebar-toggle-icon\\s*\\{[^}]*width:\\s*var\\(--ui-sidebar-control-icon-size\\)"));
     // Mobile disclosure control icon sized at the component level
     // (`h-8 w-8` in ShellMobileNav) rather than by an unlayered global override.
     const shellMobileNav = readFileSync(

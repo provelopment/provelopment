@@ -107,7 +107,11 @@ describe("P6-1 — Sidebar disclosure (desktop/tablet)", () => {
     // Open rail → hide control: icon-only, no visible text, aria-label name.
     expect(html).toContain("/assets/sidebar-close.svg");
     expect(html).toContain('aria-label="Hide Sidebar"');
+    // `text: ""` is EXPLICIT icon-only (P5-5): no visible label is painted, and
+    // the accessible name carries the meaning. Conflating `""` with "unset"
+    // would paint a label the adopter deliberately removed.
     expect(html).not.toMatch(/<span>Hide Sidebar<\/span>/);
+    expect(html).toMatch(/<button[^>]*aria-label="Hide Sidebar"[^>]*>\s*<img[^>]*\/>\s*<\/button>/);
   });
 
   it("text-only (icon: \"\") renders NO image element", () => {
@@ -151,6 +155,11 @@ describe("P6-1 — Sidebar disclosure (desktop/tablet)", () => {
       Sidebar({ label: "Navigation", id: "s", collapsible: true, open: { icon: undefined, text: undefined }, close: { icon: undefined, text: undefined }, children: rail }),
     );
     expect(html).toContain("Hide Sidebar");
-    expect(html).toContain("/assets/sidebar-close.svg");
+    // The PRIMITIVE never invents an icon: the shipped default asset is resolved
+    // by the COMPOSER (`resolveControlPresentation`, `defaultIcon`), so a
+    // primitive rendered with no icon leaf is a text-only control — and must
+    // therefore never emit a broken `<img>`.
+    expect(html).not.toContain("<img");
+    expect(html).toContain('aria-controls="s-panel"');
   });
 });

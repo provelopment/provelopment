@@ -510,28 +510,31 @@ and the same left-side vertical position.
 | State | Behavior |
 | --- | --- |
 | **Expanded** | Icons **and** labels, at the intended width (`13.75rem` / 220px rail; with the frame inset the total footprint is the previous 240px). |
-| **Collapsed** | The rail **remains visible** as a narrow column whose width is **derived from the icon** — `icon + 10% padding-left + 10% padding-right` (`width: calc(var(--ui-sidebar-icon-size) * 1.2)`, `padding-inline: calc(var(--ui-sidebar-icon-size) * 0.1)`). Icons stay; labels are hidden from the visual layout. |
+| **Collapsed** | The rail **remains visible** as a narrow column at its approved width (`--ui-sidebar-rail-collapsed`: `4.8rem`/77px at ≥`lg`, `2.4rem`/38px below — the former `icon × 1.2`, with `icon × 0.1` inline padding). Icons stay; labels are hidden from the visual layout. |
 
 - **Horizontal only.** Collapse/expand is a **width** change
   (`transition: width 200ms`, stripped under `prefers-reduced-motion`) — never a
   vertical move, never a disappearance.
-- **The collapsed width is NOT a fixed pixel value.** It is derived from the
-  sidebar **CONTROL (toggle) icon** token, so changing that icon size re-derives
-  the rail: `--ui-sidebar-icon-size` is `2rem` (32px) below `lg` and `4rem`
-  (64px) at ≥`lg`; collapsed width = `icon × 1.2` → **≈38px** below `lg`,
-  **≈77px** at ≥`lg` (browser-measured: `rail=77 toggleIcon=64` at 1280;
-  `rail=38` with a 32px control icon at 800–1023).
-- **Icon sizes (P6-3C).** The control icon and the navigation-item icons are
-  deliberately **separate tokens** so the rail geometry above is untouched:
-  - **Show/Hide disclosure (control) icon:** **64×64 at ≥`lg`**, **32×32 below
-    `lg`** — unchanged from P6-3B; this is the token the collapsed width derives
-    from, and it keeps the toggle's hit area intact.
+- **The collapsed width is a geometry TOKEN, not a multiple of the control.**
+  It is the owner-approved geometry above; it is deliberately NOT derived from the
+  control icon's size (browser-measured: `rail=77` with a `24px` control at 1280,
+  `rail=38` at 800–1023). Changing the control size therefore cannot silently
+  shrink the rail.
+- **Icon sizes (2026-09 closure pass).** THREE separate contracts, one token each:
+  - **Show/Hide disclosure (CONTROL) icon:** **exactly 24×24 on desktop AND
+    tablet** — `--ui-sidebar-control-icon-size: 1.5rem`, one value with **no
+    breakpoint override**. The control is **left-aligned** with the shared
+    `--ui-shell-control-inset` (≈5px) from the rail's inline edge, in **both**
+    states, so it never shifts when the rail collapses.
   - **Sidebar navigation-item (page) icons:** **exactly 16×16 on desktop AND
     tablet**, expanded and collapsed, via one shared token
     `--ui-sidebar-nav-icon-size: 1rem` with **no breakpoint override**
     (2026-09 owner ruling; the former 32px-at-`lg` override is deliberately gone).
-  - The mobile disclosure control icon renders **32×32**. Top-nav / bottom-bar
-    keep the shared `1em` base.
+  - The **mobile** disclosure control icon renders **32×32** (unchanged). Top-nav /
+    bottom-bar keep the shared `1em` base.
+- **The shell-top CTA shares the same inset.** `--ui-shell-control-inset` also
+  pads `.ui-shell-cta` (`Book Now`), so the action and the rail control line up on
+  one edge in every preset — from ONE value, never per-preset magic numbers.
 - **Full-height right border.** The rail's `border-inline-end` spans the whole
   sidebar/page-shell row (browser-measured `rail=774` vs `main=774` at 1280),
   not merely the navigation content.
@@ -1039,12 +1042,14 @@ toggle).
 | `--card` / `--card-foreground` | card surfaces (offerings, connect, FAQ) / text on them |
 | `--border` | hairline borders |
 | `--input` | form control borders |
-| `--ring` | keyboard focus ring |
+| `--ui-brand-accent` | **THE Foundation theme colour** — the ONE value that drives both the brand wordmark and every theme-driven UI highlight |
+| `--ring` | keyboard focus ring (**derived** from `--ui-brand-accent`) |
 | `--accent` | highlight / badge surfaces |
-| `--primary` / `--primary-foreground` | brand color / text on brand |
+| `--primary` / `--primary-foreground` | brand color / text on brand (**derived** from `--ui-brand-accent`) |
 | `--secondary` / `--secondary-foreground` | secondary action surfaces |
 | `--success` | "Open now" status text |
-| `--destructive` / `--destructive-foreground` | error text / error surfaces |
+| `--destructive` / `--destructive-foreground` | error text / error surfaces (the separate danger role — **not** the brand colour) |
+| `--ui-shell-control-inset` | the shared page/edge inset (≈5px) for shell controls: the sidebar show/hide control and the shell-top primary CTA |
 | `--radius-sm` / `--radius-md` / `--radius-lg` | corner radii (`rounded-*`) |
 | `--container-page` | page/container width (`max-w-page`) |
 
@@ -1052,13 +1057,50 @@ Shape and layout tokens are declared in the `@theme` block (so they generate
 Tailwind utilities); the color mapping lives in `@theme inline` which keeps
 utilities referencing your `:root` values at runtime.
 
+### One theme colour (required invariant)
+
+The Foundation has **exactly one** brand-accent value per scheme. It is declared
+once as `--ui-brand-accent`, and the two branded consumers are **indirections** of
+it rather than copies:
+
+```text
+        --ui-brand-accent: #3f6791;      ← the ONE value you change
+                   ↓
+        ┌──────────┴──────────┐
+   --primary              --ring
+   (wordmark, brand       (focus ring, selector
+    text, CTA fill)        emphasis, accent-color)
+                   ↕
+   select[data-selector] { accent-color: var(--ui-brand-accent) }
+```
+
+Setting that one value re-colours the Foundation wordmark **and** every
+application-controlled highlight together, so the two can never drift apart.
+`#3f6791` is the approved *functional* Foundation blue ("Foundation Blue Strong");
+the canonical identity colour `#4f7cac` is the **artwork** colour (emblem/lockup
+geometry) and is deliberately not used for text, because 4.37:1 on white is below
+the WCAG AA text minimum. The dark scheme declares its own lifted tint
+(`#8fb4d9`) for the same single concept. `#c5161d` (Provelopment Crimson) is the
+**provelopment.com** expression and must never appear in a Foundation
+branding/emphasis role.
+
+`tests/unit/theme-color-contract.test.ts` enforces the relationship: one
+declaration per scheme, both consumers derived, no crimson declarations, and no
+component carrying its own brand colour.
+
 ### Changing colors
 
-Edit the hex values in the light block and, for a proper dark experience, the
-corresponding values in the dark block — then run
+**To re-brand, change the ONE theme colour first.** Editing `--ui-brand-accent`
+re-colours the Foundation wordmark, the focus ring, the selector emphasis and the
+CTA fill together (see "One theme colour" above) — that single edit is all a
+Foundation re-brand normally needs. Then, if you want a different treatment for
+any role, edit the other hex values in the light block and, for a proper dark
+experience, the corresponding values in the dark block — then run
 `pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build`.
 `tests/unit/design-tokens.test.ts` verifies the **default** token set meets
-WCAG 2.1 AA contrast (≥ 4.5:1) for every documented pair in both schemes.
+WCAG 2.1 AA contrast (≥ 4.5:1) for every documented pair in both schemes, and
+`tests/unit/theme-color-contract.test.ts` fails if a consumer stops deriving from
+the single source.
 
 > **Accessibility is your responsibility when you customize.** The Foundation's
 > default tokens are contrast-verified, but an arbitrary downstream color
@@ -1073,7 +1115,7 @@ WCAG 2.1 AA contrast (≥ 4.5:1) for every documented pair in both schemes.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `branding/branding-schema.md`
+  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `assets/branding/branding-schema.md`
   — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
@@ -1515,15 +1557,19 @@ under `public/`; the runtime files are byte-identical mirrors of it (see below):
 ```text
 assets/
 ├── branding/          — deployment/business-specific artwork (this repo: the
-│   ├── identity/        Provelopment Foundation mark + favicon)
+│   ├── banners/         Provelopment Foundation mark, favicons, logos, banners,
+│   ├── identity/        branded page graphics and the brand specification)
 │   ├── logos/           logo lockups/wordmark/emblem sources
-│   └── page-graphics/   branded page graphics (background, header/footer/status
-│                        graphics, Open Graph image, brand specification)
+│   ├── page-graphics/   branded page graphics (background, header/footer/status
+│   │                    graphics, Open Graph image)
+│   └── branding-schema.md  the brand-system specification (docs live with the
+│                        category they document, never inside a graphic folder)
 ├── icon-library/      — reusable, NON-business-specific generic icons (ALL
 │   ├── icons/           retained, whether or not a page currently uses them)
 │   └── licensing/       provenance + upstream licence
 ├── placeholders/      — blank/generic defaults a fresh installation renders
-└── platform-marks/    — royalty-free platform/social-service marks
+└── platform-marks/    — royalty-free platform/social-service marks (+ their
+                         provenance/withheld registers)
 ```
 
 Architecture (one authority per file — never a second asset system):
@@ -1540,8 +1586,14 @@ Foundation components / site.assets.* configuration
   on a missing declared source and on an **undeclared** file appearing under
   `public/assets/`. `pnpm build` runs the mirror first, so a half-applied asset
   move can never ship. `tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
-- The only declared exception is the page-banner family (`banner-<page>.png`),
-  whose source lives in the living brand pack rather than in this repository.
+- There are **no permanent runtime-only exceptions**: every persistent runtime
+  visual asset has an authoritative source beneath `assets/` (the ten
+  `banner-<page>.png` page banners live in `assets/branding/banners/` and are
+  mirrored like any other graphic, so the runtime-only allowlist is empty).
+- The header and footer logo ROLES derive from **one** authoritative coloured
+  source (`assets/branding/logos/lockup-horizontal.svg`), so the footer uses the
+  same coloured lockup as the header; the monochrome lockup remains a retained
+  optional source asset.
 - The four categories have distinct responsibilities: **branding** is the
   deployment's own artwork, **icon-library** is the reusable generic store,
   **placeholders** are the blank/generic defaults, **platform-marks** are the
@@ -1551,7 +1603,7 @@ Foundation components / site.assets.* configuration
 **Branding-agent workflow** (source tree → runtime):
 
 1. Read the brand specification
-   (`assets/branding/page-graphics/branding-schema.md`).
+   (`assets/branding/branding-schema.md`).
 2. Review the source graphics under `assets/branding/`.
 3. Determine the required branding for the target site.
 4. Author/replace the role file **in `assets/`** (e.g.

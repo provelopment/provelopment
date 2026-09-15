@@ -44,8 +44,13 @@ const RUNTIME_DIR = "public/assets";
 export const MIRRORED = [
   // ── Branding: the deployment's own identity + page graphics ──────────────
   { from: "assets/branding/identity/favicon.svg", to: "favicon.svg", note: "favicon (derived from identity/mark.svg)" },
+  // Owner ruling (2026-09 closure pass) — the header and footer logo ROLES share
+  // ONE authoritative coloured source (`lockup-horizontal.svg`): the footer no
+  // longer resolves to the monochrome lockup. Both runtime basenames must still
+  // exist, because the roles are addressed by basename (`site.assets.logo` /
+  // `site.assets.logoFooter`), so both are derived from the same source file.
   { from: "assets/branding/logos/lockup-horizontal.svg", to: "logo-header.svg", note: "header logo role" },
-  { from: "assets/branding/logos/lockup-mono.svg", to: "logo-footer.svg", note: "footer logo role" },
+  { from: "assets/branding/logos/lockup-horizontal.svg", to: "logo-footer.svg", note: "footer logo role — same coloured source as the header (owner 2026-09)" },
   { from: "assets/branding/page-graphics/background-all.svg", to: "background-all.svg", note: "page-background role" },
   { from: "assets/branding/page-graphics/status-graphic.svg", to: "status-graphic.svg", note: "status-graphic role" },
   { from: "assets/branding/page-graphics/og-image.png", to: "og-image.png", note: "Open Graph role" },
@@ -63,20 +68,24 @@ export const MIRRORED = [
 export const MIRRORED_DIRECTORIES = [
   { from: "assets/icon-library/icons", to: RUNTIME_DIR, note: "generic icon library" },
   { from: "assets/platform-marks", to: RUNTIME_DIR, note: "platform/social marks" },
+  { from: "assets/branding/banners", to: RUNTIME_DIR, note: "per-page banner family (branded page graphics)" },
 ];
 
 /**
- * Runtime files with NO in-repository source. Each entry is an explicit,
+ * Runtime files with NO in-repository source. Each entry must be an explicit,
  * justified exception: an undeclared runtime-only file is a manifest error,
- * which is what keeps a second, uncontrolled asset library from appearing
- * under `public/assets/`.
+ * which is what keeps a second, uncontrolled asset library from appearing under
+ * `public/assets/`.
+ *
+ * EMPTY BY DESIGN (2026-09 closure pass): the ten `banner-*.png` files used to be
+ * the only entries here. Persistent branded artwork must have an authoritative
+ * source beneath `assets/`, so the banner family now lives in
+ * `assets/branding/banners/` and is mirrored deterministically like every other
+ * runtime graphic. A genuinely runtime-ONLY (generated, source-less) asset may
+ * still be declared here with its reason — but nothing is kept here merely
+ * because it already was.
  */
-export const RUNTIME_ONLY = [
-  {
-    pattern: /^banner-[\w-]+\.png$/,
-    note: "approved per-page banner family — sourced from the living brand pack (`.project-instructions/deployment-info/brands-provelopment/`); the shipped runtime copy is tracked here",
-  },
-];
+export const RUNTIME_ONLY = [];
 
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 

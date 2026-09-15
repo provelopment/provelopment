@@ -112,8 +112,64 @@ describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", (
       .map((match) => match[1])
       .join(" ");
     expect(collapsedBlocks).not.toMatch(/ui-nav-item-icon[^{]*\{[^}]*width/);
-    expect(globals).toMatch(/--ui-sidebar-icon-size:\s*2rem/);
-    expect(globals).toMatch(new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-icon-size:\\s*4rem"));
+    // The collapsed rail's own (approved) geometry, now an explicit token.
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*2\.4rem/);
+    expect(globals).toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-rail-collapsed:\\s*4\\.8rem"),
+    );
+  });
+});
+
+describe("sidebar open/close CONTROL — 24x24 on desktop AND tablet, distinct from page icons", () => {
+  const toggleIconRule = /\.ui-sidebar-toggle-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+  const toggleRule = /\.ui-shell-sidebar \.ui-sidebar-toggle\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+  const collapsedToggleRule =
+    /\.ui-sidebar-rail\[data-collapsed="true"\] \.ui-sidebar-toggle\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+
+  it("declares the control size ONCE at 1.5rem (24px) with NO breakpoint override", () => {
+    // OWNER RULING (2026-09 closure pass): the show/hide control is 24x24 on
+    // desktop and tablet. It is NOT a page icon (16px) and it is NOT the rail's
+    // width basis — three separate contracts.
+    expect(globals).toMatch(/--ui-sidebar-control-icon-size:\s*1\.5rem/);
+    expect(globals).not.toMatch(/--ui-sidebar-control-icon-size:\s*(2rem|4rem)/);
+    expect(globals).not.toMatch(
+      new RegExp("@media \\(min-width: 1024px\\)[^}]*--ui-sidebar-control-icon-size"),
+    );
+    expect(toggleIconRule).toMatch(/width:\s*var\(--ui-sidebar-control-icon-size\)/);
+    expect(toggleIconRule).toMatch(/height:\s*var\(--ui-sidebar-control-icon-size\)/);
+    expect(toggleIconRule).toMatch(/max-width:\s*none/);
+  });
+
+  it("exposes the two sizes as INDEPENDENT tokens (16px page icon vs 24px control)", () => {
+    expect(globals).toMatch(/--ui-sidebar-nav-icon-size:\s*1rem/);
+    expect(globals).toMatch(/--ui-sidebar-control-icon-size:\s*1\.5rem/);
+    // Neither rule borrows the other's token.
+    expect(toggleIconRule).not.toMatch(/var\(--ui-sidebar-nav-icon-size\)/);
+    const navIconRule = /\.ui-shell-sidebar \.ui-nav-item-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(navIconRule).not.toMatch(/var\(--ui-sidebar-control-icon-size\)/);
+  });
+
+  it("is LEFT-ALIGNED with the shared ~5px edge inset in BOTH states", () => {
+    // One shared inset value, derived from the Tailwind spacing scale
+    // (0.25rem x 1.25 = 5px) — never a per-preset magic number.
+    expect(globals).toMatch(/--ui-shell-control-inset:\s*calc\(var\(--spacing\) \* 1\.25\)/);
+    for (const rule of [toggleRule, collapsedToggleRule]) {
+      expect(rule).toMatch(/justify-content:\s*flex-start/);
+      expect(rule).toMatch(/var\(--ui-shell-control-inset\)/);
+      // Re-anchored by exactly (inset - the rail padding in force), so the
+      // control's leading edge sits one inset in and its trailing edge stays
+      // flush with the rail's content box.
+      expect(rule).toMatch(/margin-inline-start:\s*calc\(/);
+    }
+    expect(toggleRule).toMatch(/var\(--ui-sidebar-rail-inline\)/);
+    expect(collapsedToggleRule).toMatch(/var\(--ui-sidebar-rail-collapsed-pad\)/);
+    // The old centred collapsed control is gone: it must not recentre on collapse.
+    expect(collapsedToggleRule).not.toMatch(/justify-content:\s*center/);
+  });
+
+  it("gives the shell-top CTA the SAME shared inset (one value, all presets)", () => {
+    const ctaRule = /\.ui-shell-cta\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(ctaRule).toMatch(/padding-inline-start:\s*var\(--ui-shell-control-inset\)/);
   });
 });
 

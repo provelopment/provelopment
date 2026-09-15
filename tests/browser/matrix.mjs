@@ -8,6 +8,7 @@
 //  - emits a machine-readable report and exits non-zero on any failure.
 // Run: `pnpm test:browser` (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -34,6 +35,73 @@ const VIEWPORTS = {
 };
 
 const CTR = { enabled: true, action: "book", label: "Book Now", href: "/en/contact" };
+
+/**
+ * 2026-09 closure pass — the theme/control expectations are READ FROM THE APP'S OWN
+ * SINGLE SOURCE (`src/app/globals.css` → `--ui-brand-accent`), never duplicated
+ * here: the gate then proves the UI really consumes that one value instead of
+ * merely agreeing with a copy of it.
+ */
+const GLOBALS_CSS = readFileSync(join(ROOT, "src", "app", "globals.css"), "utf8");
+const ACCENT_HEX = /--ui-brand-accent\s*:\s*(#[0-9a-fA-F]{6})\s*;/.exec(GLOBALS_CSS)[1];
+const rgbOf = (hex) => {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgb(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255})`;
+};
+const ACCENT_RGB = rgbOf(ACCENT_HEX);
+/** The shared shell-control inset target (~5px) and its tolerance. */
+const INSET_TARGET = 5;
+
+/**
+ * Probes everything the closure pass must hold in EVERY preset: the theme colour
+ * consumers, the sidebar CONTROL size/alignment, the shell CTA inset and the
+ * logo roles. Returns a JSON string (CDP `returnByValue`).
+ */
+const THEME_PROBE = `(() => {
+  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')]
+    .find((el) => el && el.getBoundingClientRect().width > 0) || null;
+  const rb = rail ? rail.getBoundingClientRect() : null;
+  const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
+  const tb = toggle ? toggle.getBoundingClientRect() : null;
+  const tIcon = rail ? rail.querySelector('.ui-sidebar-toggle-icon') : null;
+  const ti = tIcon ? tIcon.getBoundingClientRect() : null;
+  // The VISIBLE page icon: the state-paired open/closed pair swaps on collapse,
+  // so the hidden variant must not be the one measured.
+  const navIcon = rail
+    ? [...rail.querySelectorAll('.ui-nav-item-icon')].find((el) => el.getBoundingClientRect().width > 0) || null
+    : null;
+  const ni = navIcon ? navIcon.getBoundingClientRect() : null;
+  const wordmark = document.querySelector('.home-hero-copy > p');
+  const ctaWrap = document.querySelector('.ui-shell-header-row .ui-shell-cta');
+  const ctaLink = ctaWrap ? ctaWrap.querySelector('a') : null;
+  const cb = ctaWrap ? ctaWrap.getBoundingClientRect() : null;
+  const cl = ctaLink ? ctaLink.getBoundingClientRect() : null;
+  const root = getComputedStyle(document.documentElement);
+  const sels = {};
+  for (const s of document.querySelectorAll('select[data-selector]')) {
+    sels[s.getAttribute('data-selector')] = getComputedStyle(s).accentColor;
+  }
+  return JSON.stringify({
+    vw: window.innerWidth,
+    hasRail: !!rail,
+    hasToggle: !!toggle,
+    railLeft: rb ? Math.round(rb.left) : null,
+    collapsed: rail ? rail.getAttribute('data-collapsed') : null,
+    toggleLeft: tb ? Math.round(tb.left) : null,
+    toggleIconW: ti ? Math.round(ti.width) : null,
+    toggleIconH: ti ? Math.round(ti.height) : null,
+    navIconW: ni ? Math.round(ni.width) : null,
+    navIconH: ni ? Math.round(ni.height) : null,
+    wordmarkColor: wordmark ? getComputedStyle(wordmark).color : null,
+    ctaWrapLeft: cb ? Math.round(cb.left) : null,
+    ctaLinkLeft: cl ? Math.round(cl.left) : null,
+    primary: root.getPropertyValue('--primary').trim(),
+    ring: root.getPropertyValue('--ring').trim(),
+    accent: root.getPropertyValue('--ui-brand-accent').trim(),
+    sels,
+    logos: [...document.querySelectorAll('img[src*="logo-"]')].map((i) => i.getAttribute('src')),
+  });
+})()`;
 
 const PRESETS = [
   { name: "adaptive", ui: { preset: "adaptive", cta: { ...CTR, style: "standard" } } },
@@ -329,7 +397,9 @@ async function runAsidePreset(rows, preset, cdp) {
         check(rows, `${vpName}.aside.toggle.labelHide`, init.toggleText === "Hide Sidebar");
         // P6-1 — edge spacing + second-level inset (control vs navigation items).
         check(rows, `${vpName}.aside.spacing.railInset`, !!(init.railLeft != null && init.railLeft >= 16), `railLeft=${init.railLeft}`);
-        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(init.toggleLeft != null && init.railLeft != null && init.toggleLeft >= init.railLeft + 8), `toggle=${init.toggleLeft} rail=${init.railLeft}`);
+        // 2026-09 closure pass — the show/hide CONTROL is LEFT-ALIGNED with the
+        // ONE shared shell-control inset (~5px) from the rail's inline edge.
+        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(init.toggleLeft != null && init.railLeft != null && init.toggleLeft >= init.railLeft + 4 && init.toggleLeft <= init.railLeft + 6), `toggle=${init.toggleLeft} rail=${init.railLeft} inset=${init.toggleLeft - init.railLeft} (target ~5)`);
         check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(init.itemLeft != null && init.toggleLeft != null && init.itemLeft >= init.toggleLeft + 4), `item=${init.itemLeft} toggle=${init.toggleLeft}`);
         check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(init.itemLeft != null && init.itemLeft >= 24), `itemLeft=${init.itemLeft}`);
       } else {
@@ -479,7 +549,7 @@ const s = await cdp.evaluate(`(() => ({
         };
       })()`);
       check(rows, `p6-1.${w}.railInset`, !!sp && sp.railLeft != null && sp.railLeft >= 16, `rail=${sp && sp.railLeft}`);
-      check(rows, `p6-1.${w}.toggleInset`, !!sp && sp.toggleLeft != null && sp.railLeft != null && sp.toggleLeft >= sp.railLeft + 8, `toggle=${sp && sp.toggleLeft} rail=${sp && sp.railLeft}`);
+      check(rows, `p6-1.${w}.toggleInset`, !!sp && sp.toggleLeft != null && sp.railLeft != null && sp.toggleLeft >= sp.railLeft + 4 && sp.toggleLeft <= sp.railLeft + 6, `toggle=${sp && sp.toggleLeft} rail=${sp && sp.railLeft} (target ~5)`);
       check(rows, `p6-1.${w}.itemDeeper`, !!sp && sp.itemLeft != null && sp.toggleLeft != null && sp.itemLeft >= sp.toggleLeft + 4, `item=${sp && sp.itemLeft} toggle=${sp && sp.toggleLeft}`);
       check(rows, `p6-1.${w}.labelHide`, !!sp && sp.text === "Hide Sidebar", `text=[${sp && sp.text}]`);
       check(rows, `p6-1.${w}.onePerRow`, !!sp && sp.onePerRow);
@@ -1067,6 +1137,10 @@ async function runPreset(preset, chrome) {
     await runBrandingChecks(rows, preset.name, cdp);
     // P6-3C — banner scaling (three cases) + Book Now placement at every width.
     await runP6cChecks(rows, preset.name, cdp);
+    // 2026-09 closure pass — the Foundation theme colour, the 24x24 sidebar
+    // CONTROL (left-aligned, shared inset), the CTA inset and the coloured footer
+    // logo, verified for EVERY preset at desktop AND tablet.
+    await runThemeClosureChecks(rows, preset.name, cdp);
     if (preset.name === "adaptive" || preset.name === "workspace" || preset.name === "immersive") {
       await runP6bSidebarChecks(rows, preset.name, cdp);
       await runP6bCollapsedChecks(rows, preset.name, cdp);
@@ -1760,7 +1834,10 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
   // desktop (and tablet): one shared sizing contract, no breakpoint override.
   check(rows, `${tag}.p6b.desktop.navIcon16`, !!exp && exp.navIconW === 16 && exp.navIconH === 16, `w=${exp && exp.navIconW} h=${exp && exp.navIconH}`);
   if (exp && exp.hasToggle) {
-    check(rows, `${tag}.p6b.desktop.toggleIcon64`, exp.toggleW >= 64 && exp.toggleH >= 64, `w=${exp.toggleW} h=${exp.toggleH}`);
+    // 2026-09 closure pass — the open/close CONTROL is exactly 24x24 on desktop
+    // and tablet (one token, no breakpoint override). It is NOT the page icon
+    // (16x16, asserted above) and it no longer derives the rail width.
+    check(rows, `${tag}.p6b.desktop.toggleIcon24`, exp.toggleW === 24 && exp.toggleH === 24, `w=${exp.toggleW} h=${exp.toggleH}`);
   } else {
     // A deliberately NON-collapsible rail (e.g. immersive `floating`) has no
     // toggle control at all — the §3 toggle-size contract does not apply.
@@ -1816,6 +1893,140 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
 }
 
 
+/**
+ * 2026-09 CLOSURE PASS — theme + control contract for EVERY preset.
+ *
+ * The owner's requirements are cross-cutting, so they are verified from the ONE
+ * theme token OUTWARD and for every configured preset at desktop AND tablet —
+ * never per-preset by hand:
+ *   theme      the wordmark renders in the Foundation theme colour, and
+ *              `--primary`/`--ring` are computed INDIRECTIONS of
+ *              `--ui-brand-accent` (not copies of the value);
+ *   selectors  preset/location/language opt into the shared hook and their
+ *              application-controlled emphasis (accent-color, hover border) is
+ *              that same colour;
+ *   sidebar    the show/hide CONTROL is 24x24 with a ~5px left inset, in BOTH
+ *              rail states, while the page icons stay 16x16;
+ *   cta        the shell-top CTA takes the same ~5px inset;
+ *   logos      the footer resolves to the SAME coloured graphic as the header.
+ *
+ * Browser-native `<option>` popup internals are OS-owned and are therefore NOT
+ * asserted; everything the application controls is.
+ */
+async function runThemeClosureChecks(rows, tag, cdp) {
+  /** The shared inset: ~5px, from an existing spacing token (never a literal). */
+  const nearInset = (value) =>
+    value !== null && value >= INSET_TARGET - 1 && value <= INSET_TARGET + 1;
+
+  const assertProbe = (d, vpName, state) => {
+    // ── ONE Foundation theme colour, consumed by both roles ────────────────
+    check(
+      rows,
+      `${tag}.${vpName}.${state}.theme.oneSource`,
+      d.primary === d.accent && d.ring === d.accent,
+      `primary=${d.primary} ring=${d.ring} accent=${d.accent}`,
+    );
+    check(
+      rows,
+      `${tag}.${vpName}.${state}.theme.wordmarkBlue`,
+      d.wordmarkColor === ACCENT_RGB,
+      `wordmark=${d.wordmarkColor} expected=${ACCENT_RGB}`,
+    );
+    const selectorNames = Object.keys(d.sels).sort();
+    check(
+      rows,
+      `${tag}.${vpName}.${state}.theme.selectorsPresent`,
+      selectorNames.join(",") === "language,location,preset",
+      `selectors=${selectorNames.join(",")}`,
+    );
+    for (const name of selectorNames) {
+      check(
+        rows,
+        `${tag}.${vpName}.${state}.theme.sel.${name}`,
+        d.sels[name] === ACCENT_RGB,
+        `accent-color=${d.sels[name]} expected=${ACCENT_RGB}`,
+      );
+    }
+    // ── Sidebar CONTROL 24x24 + ~5px left inset; PAGE icons stay 16x16 ─────
+    // (A rail may legitimately have NO control: immersive's rail is not
+    // collapsible, so the control contract simply does not apply there.)
+    if (d.hasToggle) {
+      check(
+        rows,
+        `${tag}.${vpName}.${state}.sidebar.control24`,
+        d.toggleIconW === 24 && d.toggleIconH === 24,
+        `w=${d.toggleIconW} h=${d.toggleIconH}`,
+      );
+      check(
+        rows,
+        `${tag}.${vpName}.${state}.sidebar.controlInset`,
+        nearInset(d.toggleLeft === null || d.railLeft === null ? null : d.toggleLeft - d.railLeft),
+        `inset=${d.toggleLeft - d.railLeft} (target ~${INSET_TARGET})`,
+      );
+    }
+    if (d.hasRail) {
+      check(
+        rows,
+        `${tag}.${vpName}.${state}.sidebar.pageIcon16`,
+        d.navIconW === 16 && d.navIconH === 16,
+        `w=${d.navIconW} h=${d.navIconH}`,
+      );
+    }
+    // ── The shell CTA shares the same inset in every preset ────────────────
+    check(
+      rows,
+      `${tag}.${vpName}.${state}.cta.inset`,
+      nearInset(d.ctaLinkLeft === null || d.ctaWrapLeft === null ? null : d.ctaLinkLeft - d.ctaWrapLeft),
+      `linkLeft=${d.ctaLinkLeft} wrapLeft=${d.ctaWrapLeft}`,
+    );
+  };
+
+  for (const [vpName, viewport] of [
+    ["desktop", VIEWPORTS.desktop],
+    ["tablet", VIEWPORTS.tablet],
+  ]) {
+    await cdp.setViewport(viewport.width, viewport.height);
+    await cdp.navigate(`${BASE_URL}/en`);
+    await waitReady(cdp);
+    const expanded = JSON.parse(await cdp.evaluate(THEME_PROBE));
+    assertProbe(expanded, vpName, "expanded");
+
+    // The footer logo is the SAME COLOURED graphic as the header: identical
+    // bytes, and it really carries the Foundation identity blue.
+    const logoPair = await cdp.evaluate(`(async () => {
+      const head = await (await fetch('/assets/logo-header.svg')).text();
+      const foot = await (await fetch('/assets/logo-footer.svg')).text();
+      return JSON.stringify({ same: head === foot, coloured: /#3F6791|#4F7CAC/i.test(foot) });
+    })()`);
+    const pair = JSON.parse(logoPair);
+    check(
+      rows,
+      `${tag}.${vpName}.logo.footerIsColouredHeaderLogo`,
+      pair.same === true && pair.coloured === true,
+      `identical=${pair.same} coloured=${pair.coloured} srcs=${expanded.logos.join(",")}`,
+    );
+
+    // ── BOTH rail states: the control must not move or resize on collapse ──
+    if (expanded.hasToggle) {
+      const clicked = await cdp.evalBool(
+        "(() => { const t = document.querySelector('#shell-sidebar-desktop-rail .ui-sidebar-toggle, #shell-sidebar-tablet-rail .ui-sidebar-toggle'); if (!t) return false; t.click(); return true; })()",
+      );
+      if (clicked) {
+        await sleep(450);
+        const collapsed = JSON.parse(await cdp.evaluate(THEME_PROBE));
+        assertProbe(collapsed, vpName, "collapsed");
+        check(
+          rows,
+          `${tag}.${vpName}.collapsed.theme.wordmarkBlue`,
+          collapsed.wordmarkColor === ACCENT_RGB,
+          `wordmark=${collapsed.wordmarkColor}`,
+        );
+      }
+    }
+  }
+}
+
+
 /** P6-3B — collapsed rail: derived width, closed icons, no stray labels. */
 async function runP6bCollapsedChecks(rows, tag, cdp) {
   const collapsible = await cdp.evalBool(`!!document.querySelector('#shell-sidebar-desktop-rail .ui-sidebar-toggle')`);
@@ -1854,7 +2065,13 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
     };
   })()`);
   check(rows, `${tag}.p6b.collapsed.state`, !!col && col.dataCollapsed === "true");
-  check(rows, `${tag}.p6b.collapsed.widthDerived`, !!col && col.toggleIconW != null && col.railWidth >= Math.round(col.toggleIconW * 1.15) && col.railWidth <= Math.round(col.toggleIconW * 1.3), `rail=${col && col.railWidth} toggleIcon=${col && col.toggleIconW}`);
+  // 2026-09 closure pass — the collapsed rail's width is its OWN approved
+  // geometry token, NOT a multiple of the control's icon size: the control is
+  // 24px at every breakpoint while the rail keeps its approved tablet/desktop
+  // widths (38.4px / 76.8px = the former `icon x 1.2`). Deriving the rail from
+  // the control would have silently shrunk it to 28.8px.
+  check(rows, `${tag}.p6b.collapsed.widthApproved`, !!col && col.railWidth >= 76 && col.railWidth <= 78, `rail=${col && col.railWidth} (approved desktop geometry)`);
+  check(rows, `${tag}.p6b.collapsed.widthIndependentOfControl`, !!col && col.toggleIconW != null && col.railWidth !== Math.round(col.toggleIconW * 1.2), `rail=${col && col.railWidth} control=${col && col.toggleIconW}`);
   // 2026-09 owner ruling — the collapsed rail still renders the page icons at
   // EXACTLY 16x16 (the single shared sizing contract), never the 32px desktop size.
   check(rows, `${tag}.p6c.collapsed.navIcon16`, !!col && col.iconW === 16, `navIcon=${col && col.iconW}`);
@@ -1911,9 +2128,11 @@ async function runP6bTabletSweep(rows, tag, cdp) {
     // The CONTROL (toggle) icon keeps its approved sizes — 32px below `lg`
     // (tablet band) and 64px at `lg` — independently of the smaller
     // navigation-item icons (P6-3C token split).
+    // 2026-09 closure pass — the show/hide CONTROL is exactly 24px x 24px at
+    // EVERY width (desktop and tablet, one token, no breakpoint override),
+    // independently of the smaller 16px page icons.
     if (s.toggleIcon) {
-      const expectedToggle = width < 1024 ? 32 : 64;
-      check(rows, `${tag}.p6b.sweep.${width}.controlIcon${expectedToggle}`, s.toggleIcon.w === expectedToggle && s.toggleIcon.h === expectedToggle, `w=${s.toggleIcon.w} h=${s.toggleIcon.h}`);
+      check(rows, `${tag}.p6b.sweep.${width}.controlIcon24`, s.toggleIcon.w === 24 && s.toggleIcon.h === 24, `w=${s.toggleIcon.w} h=${s.toggleIcon.h}`);
     }
     // P6-3C — below `lg` the sidebar NAVIGATION icons are 16×16 (the sweep
     // covers just-below / at / just-above the tablet range).
@@ -2323,7 +2542,7 @@ async function runMatrix(chrome, onlyPreset) {
   try {
     for (const preset of toRun) {
       const config = JSON.parse(original);
-      config.ui = preset.ui;
+      config.ui = { ...config.ui, ...preset.ui };
       await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
       const rows = await runPreset(preset, chrome);
       allRows = allRows.concat(rows);

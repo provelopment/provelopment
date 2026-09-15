@@ -34,8 +34,10 @@ editing components.
 
 | Role | Color Name | Hex Code | Purpose & Usage |
 | --- | --- | --- | --- |
-| **Primary** | Provelopment Crimson | `#C5161D` | Network-node globe emblem, primary action CTAs, active states, key focal points. |
-| **Primary Hover** | Deep Crimson Accent | `#A11217` | Hover and active tap states on primary interactive elements. |
+| **Primary** | Foundation Blue Strong | `#3F6791` | The Foundation THEME colour (`--ui-brand-accent`): brand wordmark/eyebrow text, primary action CTAs, active/selected states, focus rings, selector emphasis. |
+| **Primary Hover** | Foundation Blue Deep | `#33557A` | Hover and active tap states on primary interactive elements. |
+| **Identity** | Foundation Blue (canonical) | `#4F7CAC` | Emblem/lockup ARTWORK only (the identity geometry): the approved canonical expression colour. Not used for text — 4.37:1 on white is below the WCAG AA text minimum this token set guarantees. |
+| **Dark canvas theme** | Foundation Blue (lifted) | `#8FB4D9` | The same ONE theme colour, lifted for the dark scheme (8.25:1 on `#0F172A`). |
 | **Neutral Dark** | Dark Slate Navy | `#0F172A` / `#1E293B` | Main typography, primary wordmark, dark-mode backgrounds, deep headers. |
 | **Accent / Auxiliary** | Regulatory Amber Gold | `#B45309` | Trust badges, statutory fee tags, credential verifications, secondary highlights. |
 | **Accent Hover** | Deep Amber | `#92400E` | Hover states for auxiliary badges and interactive tags. |
@@ -43,6 +45,14 @@ editing components.
 | **Surface Subtle** | Cold Ice / Off-White | `#F8FAFC` | Sub-sections, subtle hero gradient tints, alternating table stripes, card borders. |
 | **Border / Divider** | Crisp Slate Border | `#E2E8F0` | Separation lines, input borders, structured grid dividers. |
 | **Body Text** | Slate Gray | `#334155` | Paragraphs, documentation prose, body copy. |
+
+> **The Foundation theme colour is ONE value.** It is declared once per scheme as
+> `--ui-brand-accent` in `src/app/globals.css`, and the brand-text token
+> (`--primary`) and the focus/selection token (`--ring`) are INDIRECTIONS of it —
+> so changing that one line re-colours the wordmark and every theme-driven UI
+> highlight together. `#C5161D` (Provelopment Crimson) is the **provelopment.com**
+> expression, not a Foundation colour; `#DC2626` remains the separate
+> error/destructive role.
 
 ---
 
