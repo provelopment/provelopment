@@ -23,7 +23,7 @@ interface LegalPageProps {
 }
 
 /**
- * Statically generates every exposed legal detail page (each locale Ã— slug
+ * Statically generates every exposed legal detail page (each locale × slug
  * present in both the `legal` config block and default-locale content). Any
  * other slug returns a 404 via `dynamicParams`.
  */
@@ -100,9 +100,9 @@ export async function generateMetadata({
 /**
  * `/legal/[slug]` (Phase D). A legal document is exposed only when it is BOTH:
  *  - in the `legal` config block (config governs exposure), and
- *  - canonical (exists in the default locale â€” content governs existence).
+ *  - canonical (exists in the default locale — content governs existence).
  * Otherwise it is a proper 404 (no `/legal` index; legal docs are reached from
- * the footer). Rendering uses the same content repository `findBySlug` locale â†’
+ * the footer). Rendering uses the same content repository `findBySlug` locale →
  * default fallback as every other collection.
  */
 export default async function LegalPage({ params }: LegalPageProps) {

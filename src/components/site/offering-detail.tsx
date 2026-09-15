@@ -34,15 +34,15 @@ interface OfferingDetailProps {
 }
 
 /**
- * Phase C â€” offering detail presentation.
+ * Phase C — offering detail presentation.
  *
- * Deterministic section order: image â†’ `<h1>` title â†’ featured badge â†’ blurb â†’
- * price â†’ Markdown body â†’ "What's included" (`<ul>`) â†’ FAQ (native
- * `<details>/<summary>` disclosure â€” keyboard/focus behavior comes from the
- * browser, no JS) â†’ resolved CTA â†’ back link.
+ * Deterministic section order: image → `<h1>` title → featured badge → blurb →
+ * price → Markdown body → "What's included" (`<ul>`) → FAQ (native
+ * `<details>/<summary>` disclosure — keyboard/focus behavior comes from the
+ * browser, no JS) → resolved CTA → back link.
  *
  * The CTA renders ONLY when the resolved action is a link AND a localized
- * label exists â€” a `none` action (e.g. booking disabled) leaves zero visual or
+ * label exists — a `none` action (e.g. booking disabled) leaves zero visual or
  * focusable residue. FAQ answers are plain text (deterministic, no nested
  * markdown parsing).
  */

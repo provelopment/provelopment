@@ -443,7 +443,8 @@ icon leaf serves **both** connectivity families:
   and may be added only after its official source / licence / trademark-use
   conditions have been reviewed for the intended Foundation use — a file
   licence (even MIT) does **not** grant trademark rights. Marks are produced,
-  approved and parked separately; this seam creates and installs **no** platform
+  approved separately — the admitted marks ship as artwork files in the living
+  pack; this seam creates and installs **no** platform
   artwork.
 - **No integrations.** No WhatsApp API, Telegram Bot API, Slack API, Messenger
   SDK, OAuth or calling JavaScript exists anywhere in this contract — it is a
@@ -1282,7 +1283,7 @@ without changing component source code.
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide Sidebar control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
 | `footer-graphic` | `public/assets/footer-graphic.svg` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) — **approved artwork integrated and ACTIVE** |
-| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) — **approved artwork SHIPS but the role is NOT configured** (readability-gate block; see [`header/README.md`](header/README.md)) |
+| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) — **approved artwork integrated and ACTIVE** (technically validated; the measured `cover` crop is an artwork/owner review item, not a coding gate) |
 | `background-all` | `public/assets/background-all.svg` | `site.assets.backgrounds.all` → `PageBackground` (P12-BG — the reserved `all` key: ONE global decorative watermark layered **over** the flat `ui.theme.background` colour) — **approved artwork integrated and ACTIVE** |
 | `status-graphic` | `public/assets/status-graphic.svg` | `site.assets.statusGraphic` → `StatusGraphic` (P12-SG — ONE shared decorative graphic above the heading on **both** status surfaces; **not** an error icon) — **approved artwork integrated and ACTIVE** |
 
@@ -1374,7 +1375,7 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   animation, no parallax). As a CSS `background-image` it bypasses the Next image
   optimizer. **The approved Foundation footer graphic now ships at
   `public/assets/footer-graphic.svg` and is ACTIVE** through `site.assets.footerGraphic`.
-- **`header-graphic` (P12-HG)** — **capability composed; approved artwork SHIPS but the role is NOT configured**:
+- **`header-graphic` (P12-HG)** — **capability composed; approved artwork SHIPS and the role is configured (ACTIVE)**:
   `site.assets.headerGraphic` is ONE optional **global** decorative header band /
   structural graphic layer — deliberately **not** the header identity mark (that stays
   the independent `logo-header` role) and **not** a page banner (that stays the

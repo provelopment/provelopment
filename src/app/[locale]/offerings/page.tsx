@@ -63,13 +63,13 @@ export async function generateMetadata({ params }: OfferingsPageProps): Promise<
 /**
  * `/offerings` (Phase C). Three independent concerns:
  *  - content (`content/offerings/`) determines which offerings exist;
- *  - `features.offerings` enables/disables the routes (disabled â†’ 404);
+ *  - `features.offerings` enables/disables the routes (disabled → 404);
  *  - `navigation[]` determines discoverability (config-authoritative).
  */
 export default async function OfferingsPage({ params }: OfferingsPageProps) {
   const { locale } = await params;
 
-  // Feature disabled â†’ the offering catalog is not exposed at all. Strongest
+  // Feature disabled → the offering catalog is not exposed at all. Strongest
   // "capability not enabled" semantics: no placeholder page.
   if (!siteConfig.offeringsFeature) {
     notFound();

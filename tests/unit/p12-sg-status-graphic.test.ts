@@ -328,7 +328,7 @@ describe("P12-SG — geometry / responsive contract", () => {
   });
 });
 
-describe("P12-SG — separation, reusability and parked-graphic status", () => {
+describe("P12-SG — separation, reusability and role independence", () => {
   it("15/16. the PAGE BANNER and PAGE BACKGROUND seams remain completely independent", () => {
     expect(layout).toContain("availableBannerPath(");
     expect(layout).toContain("availableBackgroundMap(siteConfig.assets?.backgrounds)");
