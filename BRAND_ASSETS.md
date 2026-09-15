@@ -1071,5 +1071,12 @@ runtime tree:
 The runtime never reads those paths. It reads `public/assets/<basename>` only —
 which is precisely why the swap is a file operation and never a code change. The
 in-repository **source** of each runtime file is declared in the mirror manifest
-(§1.1, `scripts/sync-runtime-assets.mjs`), so "source ↔ living ↔ runtime" is
-verifiable byte-for-byte with `pnpm assets:check`.
+(§1.1, `scripts/sync-runtime-assets.mjs`), so **source ↔ runtime is enforced
+byte-for-byte** by `pnpm assets:check`. Parity with the **living pack** is a
+per-role property, not an assumption: the identity mark, the logo family, the
+Open Graph image and the banner family are byte-identical to the pack today,
+while (a) the re-saved page graphics and platform marks differ from the pack only
+in whitespace/formatting, and (b) `identity/favicon.svg` deliberately differs —
+it was re-derived from the pack's untouched `identity/mark.svg` to remove the
+cropped `viewBox` that produced the flat-sided tab icon, so the pack's own
+favicon still needs the same correction by its owner.
