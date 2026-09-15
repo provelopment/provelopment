@@ -127,7 +127,7 @@ describe("P12-SG — schema / configuration contract", () => {
 
   it("2. the canonical config ACTIVATES the integrated status graphic (role declared, artwork shipped)", () => {
     // APPROVED-ASSET INTEGRATION — the approved Foundation status graphic exists
-    // in the canonical archive, so the role is POPULATED and the artwork is
+    // in the living brand pack, so the role is POPULATED and the artwork is
     // shipped in the runtime role directory under the role's own filename.
     const configured = siteConfig.assets?.statusGraphic ?? "";
     expect(configured).not.toBe("");
@@ -328,7 +328,7 @@ describe("P12-SG — geometry / responsive contract", () => {
   });
 });
 
-describe("P12-SG — separation, reusability and parked-graphic status", () => {
+describe("P12-SG — separation, reusability and role independence", () => {
   it("15/16. the PAGE BANNER and PAGE BACKGROUND seams remain completely independent", () => {
     expect(layout).toContain("availableBannerPath(");
     expect(layout).toContain("availableBackgroundMap(siteConfig.assets?.backgrounds)");

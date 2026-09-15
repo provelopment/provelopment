@@ -24,10 +24,10 @@ const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
 /**
- * Phase L â€” regional content page `/{locale}/{region}/{page}`.
+ * Phase L — regional content page `/{locale}/{region}/{page}`.
  *
  * Only configured `(locale, region, slug)` combinations are generated
- * (`dynamicParams` â†’ unknown combinations are a proper 404). The content page
+ * (`dynamicParams` → unknown combinations are a proper 404). The content page
  * body reuses the locale's flat content file (`content/pages/{locale}/{slug}.md`,
  * Phase K decision); the region supplies the complete operational identity
  * (timezone/address/contact/hours/holidays/status/directions/JSON-LD).

@@ -116,7 +116,7 @@ describe("approved-asset integration — the five Foundation-owned graphics are 
       expect(configuredPathname(graphic.url), `${graphic.key} must name the role file`).toBe(
         sameOrigin(graphic.file),
       );
-      // …shipped — a fresh pull has the bytes without the canonical archive…
+      // …shipped — a fresh pull has the bytes in the repository, with no dependency on the removed archive…
       expect(existsSync(runtimeAsset(graphic.file)), `${graphic.file} must be on disk`).toBe(true);
       // …and resolvable, so no rendered asset URL is broken.
       expect(graphic.resolved, `${graphic.key} must resolve to its same-origin path`).toBe(

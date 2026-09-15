@@ -46,7 +46,7 @@ const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
 ]);
 
 /**
- * Phase L â€” segment two dispatch: `/{locale}/{item}`.
+ * Phase L — segment two dispatch: `/{locale}/{item}`.
  *
  *  - When `item` is a configured REGION LANDING for the locale (a landing
  *    entry `{ locale, region }`), this renders the regional home: the locale's

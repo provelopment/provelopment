@@ -68,7 +68,7 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
 }
 
 /**
- * The Connect page (Phase M) â€” the first-class communication/connection hub.
+ * The Connect page (Phase M) — the first-class communication/connection hub.
  * Content is markdown (`content/pages/<locale>/connect.md`); for each
  * configured connection method a card is rendered with the method's label and
  * target. Methods marked `demoOnly` carry a visible demo badge, and the page
