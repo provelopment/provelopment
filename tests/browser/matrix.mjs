@@ -1777,6 +1777,37 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
   check(rows, `${tag}.p6b.desktop.tooltipLabels`, !!exp && exp.itemCount > 0 && exp.tooltipLabels === exp.itemCount, `${exp && exp.tooltipLabels}/${exp && exp.itemCount}`);
   // The live favicon is the corrected branding-derived one (never a stale route).
   check(rows, `${tag}.p6b.favicon`, !!exp && exp.faviconHref === "/assets/favicon.svg", `href=${exp && exp.faviconHref}`);
+  // …and it renders as a COMPLETE, uncropped circle: no ink may touch the canvas
+  // edge. The previous favicon narrowed its viewBox, which clipped the emblem and
+  // produced flat sides (measured 160 opaque px ON the outer edge, with straight
+  // runs up to 32 px per side), so this check is the live-browser regression guard.
+  const faviconEdgeInk = await cdp.evaluate(`(async () => {
+    const link = document.querySelector('link[rel="icon"]');
+    const href = link ? link.getAttribute('href') : null;
+    if (!href) return -1;
+    const text = await (await fetch(href)).text();
+    if (!/<svg/i.test(text)) return -2;
+    const img = new Image();
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(text)));
+    await img.decode();
+    const S = 256;
+    const c = document.createElement('canvas'); c.width = S; c.height = S;
+    const ctx = c.getContext('2d'); ctx.clearRect(0, 0, S, S);
+    ctx.drawImage(img, 0, 0, S, S);
+    const d = ctx.getImageData(0, 0, S, S).data;
+    const a = (x, y) => d[(y * S + x) * 4 + 3];
+    let ink = 0;
+    for (let i = 0; i < S; i++) {
+      for (let b = 0; b < 2; b++) {
+        if (a(b, i) > 32) ink++;
+        if (a(S - 1 - b, i) > 32) ink++;
+        if (a(i, b) > 32) ink++;
+        if (a(i, S - 1 - b) > 32) ink++;
+      }
+    }
+    return ink;
+  })()`);
+  check(rows, `${tag}.p6b.faviconUncropped`, faviconEdgeInk === 0, `outerBandInk=${faviconEdgeInk}`);
   // 2026-09 owner ruling — the decorative header band's default is BLANK: the band
   // resolves to the transparent placeholder file, which paints nothing visible.
   check(rows, `${tag}.p6b.headerBandDefault`, !!exp && exp.headerBandValue === "url(\"/assets/header-graphic.svg\")" && exp.headerBandImage.includes("header-graphic.svg"), `var=${exp && exp.headerBandValue} img=${exp && exp.headerBandImage}`);
