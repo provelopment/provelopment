@@ -341,13 +341,16 @@ nesting (a section has items; no sections inside sections), and no publishing me
 beyond title/summary — article dates, feeds and draft states belong to a publishing
 capability that does not exist yet and would need its own increment.
 
-**Known gap, recorded and NOT fixed by A2 (required before the reference content).** The
-Markdown authoring mode still lets an author write a `# Heading` in a page body, which
-renders as a SECOND level-1 heading beside the page title the renderer supplies. The JSON
-mode has no such gap (its envelope title is the only h1). Closing it is a small bounded
-page-authoring increment scheduled after N2 and before the reference content — it belongs
-to the Markdown mode's own contract, so it is deliberately not mixed into the shell
-presentation work.
+**The page title is the ONLY level-1 heading, in both modes.** A JSON document's envelope title
+is its `h1` (sections are level 2, item titles level 3, and no field selects a level). The
+Markdown mode reaches the same document shape from the other direction: a heading written in a
+body is rendered RELATIVE to the page title, so `# Services` becomes `<h2 id="services">` and
+`## Website design` becomes `<h3>`, capping at `h6`. Authors therefore keep writing ordinary
+Markdown — a `#` heading is still how a section is written, nothing is removed and no page is
+refused — while the rendered page cannot contain an authored `h1` at all (`h1` is absent from
+the Markdown allowlist, so even a renderer mistake could not add one). The heading's generated
+fragment id is derived from its WORDS, not its level, so section links
+(`[hours](#opening-hours)`) and their sticky-navigation clearance are unaffected by the shift.
 
 ### `public`
 

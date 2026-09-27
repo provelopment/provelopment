@@ -38,7 +38,6 @@ export const MARKDOWN_ALLOWED_TAGS: readonly string[] = [
   "code",
   "del",
   "em",
-  "h1",
   "h2",
   "h3",
   "h4",
@@ -73,7 +72,6 @@ export const MARKDOWN_ALLOWED_ATTRIBUTES: Readonly<Record<string, readonly strin
   a: ["href", "title"],
   img: ["src", "alt", "title"],
   code: ["class"],
-  h1: ["id"],
   h2: ["id"],
   h3: ["id"],
   h4: ["id"],
@@ -82,11 +80,38 @@ export const MARKDOWN_ALLOWED_ATTRIBUTES: Readonly<Record<string, readonly strin
 };
 
 /**
- * Elements whose `id` the renderer may generate. It is exactly the headings, so a
- * page can never put an id anywhere else — another reason the allowlist stays
- * narrow.
+ * Elements whose `id` the renderer may generate. It is exactly the headings a Markdown page
+ * can produce, so a page can never put an id anywhere else — another reason the allowlist
+ * stays narrow.
  */
-export const MARKDOWN_HEADING_TAGS: readonly string[] = ["h1", "h2", "h3", "h4", "h5", "h6"];
+export const MARKDOWN_HEADING_TAGS: readonly string[] = ["h2", "h3", "h4", "h5", "h6"];
+
+/**
+ * THE PAGE TITLE IS THE ONLY H1, AND AUTHORED HEADINGS ARE RELATIVE TO IT.
+ *
+ * A rendered page's level-1 heading is the page title — the envelope title for a JSON page,
+ * and for a Markdown page the `title:` metadata, else its first `# Heading`, else the readable
+ * filename (see `@/adapters/content/authoring-page`). Every heading written INSIDE the body is
+ * therefore placed BELOW it, which is what keeps ordinary Markdown authoring working:
+ *
+ *     author writes        rendered as
+ *     # Services           <h2 id="services">
+ *     ## Website design    <h3 id="website-design">
+ *     ### Card layouts     <h4 id="card-layouts">
+ *     #### Details         <h5 id="details">
+ *     ##### Fine print     <h6 id="fine-print">
+ *     ###### Footnotes     <h6 id="footnotes">
+ *
+ * An author never has to remember to start at `##` or to remove a heading: the shift happens
+ * here, once. It also means this path cannot produce an authored `h1` at all — `h1` is absent
+ * from the allowlist above, so even a mistake in the renderer cannot put a second level-1
+ * heading on a page. The offset is DATA so the mapping can be asserted and documented rather
+ * than assumed.
+ */
+export const MARKDOWN_HEADING_LEVEL_OFFSET = 1;
+
+/** The deepest heading HTML has: authored levels cap here (Markdown's `######` and beyond). */
+export const MARKDOWN_MAX_HEADING_LEVEL = 6;
 
 /** The only class a page may set: the language of a fenced code block. */
 export const MARKDOWN_ALLOWED_CLASSES: Readonly<Record<string, readonly string[]>> = {

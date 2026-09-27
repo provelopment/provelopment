@@ -294,7 +294,13 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
       .sort();
 
     expect(carriers).toEqual([...MARKDOWN_HEADING_TAGS].sort());
-    expect(MARKDOWN_HEADING_TAGS).toEqual(["h1", "h2", "h3", "h4", "h5", "h6"]);
+    expect(MARKDOWN_HEADING_TAGS).toEqual(["h2", "h3", "h4", "h5", "h6"]);
+    // The page title is the page's ONLY level-1 heading (FOUNDATION-PAGES-H1), so this path
+    // cannot produce one: `h1` is absent from the allowlist, the shallowest heading it can
+    // carry is `h2`, and an authored heading is therefore always subordinate to the title.
+    expect(MARKDOWN_ALLOWED_TAGS).not.toContain("h1");
+    expect(MARKDOWN_ALLOWED_ATTRIBUTES).not.toHaveProperty("h1");
+    expect(MARKDOWN_HEADING_TAGS[0]).toBe("h2");
     for (const tag of MARKDOWN_HEADING_TAGS) {
       expect(MARKDOWN_ALLOWED_TAGS).toContain(tag);
     }

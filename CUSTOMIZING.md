@@ -824,6 +824,14 @@ ignored; repeats become `-2`, `-3`; documentation:
 [`content/pages/markdown/README.md`](content/pages/markdown/README.md)). A capability
 not listed here is deliberately not part of the mode.
 
+Every rendered page has exactly ONE top-level heading — its **page title**. A heading
+written inside a body is therefore rendered RELATIVE to that title (`# Opening hours` →
+`<h2 id="opening-hours">`, `## …` → `<h3>`, … capping at `<h6>`), so ordinary authoring is
+unchanged: `#` is still how a section is written, nothing is removed and no page is
+refused. The fragment id follows the heading's WORDS rather than its level, so existing
+section links keep resolving; the shallowest heading the mode can produce is `h2`, which
+is why a page can never carry a second level-1 heading.
+
 If the same slug exists in both modes, the order is: JSON, then safe Markdown —
 within the requested language first, and only then falling back to the default
 language. A safe Markdown page needs nothing but prose (a title comes from

@@ -90,6 +90,11 @@ level yourself:
 | a section heading | 2 | `heading` inside a section |
 | an item title | 3 | `title`/`question` inside a section's items |
 
+The **Markdown mode follows the same principle**: its page title is the only `<h1>`, and
+a heading written in the body is placed below it automatically (`# Services` becomes a
+level-2 heading). You never choose a level in either mode — see
+[`../markdown/README.md`](../markdown/README.md).
+
 That is why no section can produce a second page heading, and why the document outline is
 always readable.
 
