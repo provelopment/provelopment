@@ -46,7 +46,7 @@ src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (one shipped locale: en)
 config/pages-markdown # Safe Markdown pages — config/pages-markdown/<locale>/<slug>.md  (see its README)
 config/pages-json     # Declarative JSON pages — config/pages-json/<locale>/<slug>.json  (see its README)
-content         # LEGACY content collections — Markdown, EMPTY by default (pages, legal, offerings, posts, testimonials, portfolio)
+content         # NON-PAGE content collections — Markdown, EMPTY by default (legal, offerings, posts, testimonials, portfolio)
 assets          # SOURCE asset tree: placeholders/ (neutral defaults) · icon-library/ · platform-marks/  (edit here)
 public/assets   # RUNTIME mirror of assets/** — written by scripts/sync-runtime-assets.mjs
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
@@ -55,7 +55,7 @@ tests           # Architecture-boundary, unit, integration and CDP browser-matri
 
 The Foundation ships **one authored page** (the configuration-driven landing page)
 and **no page files**: the two authoring roots hold their documentation only, and
-every legacy collection is empty until you add Markdown. Technical
+every content collection is empty until you add Markdown. Technical
 routes (`/sitemap.xml`, `/robots.txt`) and generated metadata are not content pages.
 
 ## Customize identity
@@ -79,7 +79,14 @@ The template ships **no** `assets/branding/` tree and no example artwork: identi
 is yours to supply. Artwork-only roles (page banners, page background, status
 graphic, social-preview image) ship nothing and stay off until configured.
 
-## Add a page (safe Markdown)
+## Add a page
+
+Pages are authored in **exactly two ways**:
+
+| Mode | Where |
+| --- | --- |
+| **Simple, safe Markdown** — for anyone who can write a text file | `config/pages-markdown/<locale>/<slug>.md` |
+| **Advanced declarative JSON** — for developers; its component vocabulary is still to come | `config/pages-json/<locale>/<slug>.json` |
 
 Author a page by creating one file:
 
@@ -98,33 +105,30 @@ destinations are dropped, and the rendered page is checked against a fixed
 element/attribute allowlist. See
 [`config/pages-markdown/README.md`](config/pages-markdown/README.md) for the
 author-facing guide, and
-[`config/pages-json/README.md`](config/pages-json/README.md) for the advanced
-declarative mode (its vocabulary is still to come — a JSON page file currently
-stops the build with an error naming the file rather than being ignored).
+[`config/pages-json/README.md`](config/pages-json/README.md) for the advanced mode
+(a JSON page file currently stops the build with an error naming the file rather
+than being ignored, because nothing yet interprets it).
 
-## Add content (legacy collections)
+## Add content (collections)
 
-The `content/**` collections remain fully supported: create
+The `content/**` tree holds the **non-page** collections: create
 `content/<collection>/<locale>/<slug>.md` with `title` frontmatter — e.g.
-`content/pages/en/about.md` creates `/en/about`. The collections are `pages`,
-`legal`, `offerings`, `posts`, `testimonials` and `portfolio`; a page whose file is
-absent returns a proper 404 rather than an empty shell. Navigation entries are
-configuration (`navigation[]`), and their labels come from
+`content/legal/en/privacy.md`. The collections are `legal`, `offerings`, `posts`,
+`testimonials` and `portfolio`; a page whose file is absent returns a proper 404
+rather than an empty shell. Navigation entries are configuration
+(`navigation[]`), and their labels come from
 `config/i18n/en.json` → `navigation.items`.
 
-> **`content/pages` is the legacy page mechanism.** It is resolved after the two
-> first-class modes above and keeps its original treatment, including trusted raw
-> HTML (those files are reviewed like source code). New pages should use
-> `config/pages-markdown/`; the other collections (`offerings`, `legal`, `posts`,
-> `testimonials`, `portfolio`) remain here.
+These files are reviewed like source code and are rendered by the trusted
+collection renderer (raw HTML passes through), which is why they are distinct from
+the two page-authoring modes above.
 
 ### Author your home page (optional)
 
 The locale root is configuration-driven by default. To author it as **content**
 instead, add `config/pages-markdown/<locale>/home.md` (or
-`config/pages-json/<locale>/home.json`, or the legacy
-`content/pages/<locale>/home.md`) — the locale-root route then renders it through
-the same page-source composition as every other page (same precedence, same
+`config/pages-json/<locale>/home.json`) — the locale-root route then renders it
+through the same page-source composition as every other page (same precedence, same
 per-locale fallback). A site that authors no `home.md` keeps the generic starter
 homepage, so this is purely additive.
 

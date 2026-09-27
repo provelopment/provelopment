@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createPageSources } from "@/adapters/content/page-sources";
-import { PageBody } from "@/components/site/page-body";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
@@ -29,9 +29,9 @@ const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature
  * Phase L — regional content page `/{locale}/{region}/{page}`.
  *
  * Only configured `(locale, region, slug)` combinations are generated
- * (`dynamicParams` → unknown combinations are a proper 404). The content page
- * body reuses the locale's flat content file (`content/pages/{locale}/{slug}.md`,
- * Phase K decision); the region supplies the complete operational identity
+ * (`dynamicParams` → unknown combinations are a proper 404). The page body is the
+ * locale's page source for `{slug}` (safe Markdown or declarative JSON); the region
+ * supplies the complete operational identity
  * (timezone/address/contact/hours/holidays/status/directions/JSON-LD).
  */
 export const dynamicParams = false;
@@ -127,7 +127,7 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
     <Section as="article">
       <Heading level={1} tone="title">{page.title}</Heading>
       <div className="mt-6">
-        <PageBody kind={page.kind} markdown={page.body} />
+        <SafeMarkdownContent markdown={page.body} />
       </div>
 
       <ResolvedRegionBlock

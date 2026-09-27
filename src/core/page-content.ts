@@ -13,13 +13,11 @@ export interface PageContent {
   /**
    * An OPTIONAL author-supplied search/social summary.
    *
-   * A page that supplies one carries its own short standalone description; a
-   * page that omits it keeps the site's configured description, so this is
-   * purely additive and changes no existing page's metadata.
-   *
-   * It is deliberately NOT read by the legacy `content/pages` parser: that path
-   * keeps exactly the behaviour existing adopters have today. The first-class
-   * authoring modes (`config/pages-markdown`, `config/pages-json`) supply it.
+   * A page that supplies one carries its own short standalone description; a page
+   * that omits it keeps the site's configured description, so this is purely
+   * additive and changes no existing page's metadata. The first-class authoring
+   * modes supply it (`config/pages-markdown` frontmatter today; the JSON mode's
+   * validated vocabulary when it lands).
    */
   readonly description?: string;
 }
@@ -31,12 +29,13 @@ export interface PageContent {
  * its rule is declared ONCE here and imported by everything that must agree on
  * it:
  *
- *   · the legacy content repository — a slug that is not well formed is never
- *     read (`@/adapters/content/fs-page-content-repository`);
  *   · the page-source contract — which spells an authoring file path from a slug
  *     (`@/core/page-source`);
  *   · the authoring-source discovery adapter, which turns a directory listing
  *     into slugs;
+ *   · the content-collection repository, so a collection item can never be named
+ *     something the platform would refuse as a page;
+ *   · the configuration schema, where a configured slug must name a real file;
  *   · any tooling or test that must accept exactly what the runtime accepts.
  *
  * A competing private regex anywhere else in the tree is a defect: two rules
@@ -62,9 +61,10 @@ export function isContentSlug(value: string): boolean {
  * The RESERVED content slug for a site's HOME page.
  *
  * A site may author its home page as ordinary content —
- * `content/pages/<locale>/home.md` — and the locale-root route (`/{locale}`)
- * renders it. Authoring the home page this way is OPTIONAL: a site with no
- * `home.md` keeps the generic configuration-driven starter homepage.
+ * `config/pages-markdown/<locale>/home.md` (or its JSON counterpart) — and the
+ * locale-root route (`/{locale}`) renders it. Authoring the home page this way is
+ * OPTIONAL: a site with no home page keeps the generic configuration-driven
+ * starter homepage.
  *
  * Declaring the slug ONCE here keeps the three consequences in agreement, so no
  * caller can re-derive its own literal and drift:

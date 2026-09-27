@@ -15,32 +15,40 @@ export type ContentParser<T extends PageContent = PageContent> = (
   locale: Locale,
 ) => T;
 
+/**
+ * The content COLLECTIONS the filesystem repository serves.
+ *
+ * There is deliberately no `pages` member. A page is authored in one of the two
+ * first-class modes (`@/core/page-source` → `config/pages-markdown`,
+ * `config/pages-json`) and resolved by the page-source composition; `content/pages`
+ * is not a collection, is never read, and a file left there can never name, answer
+ * or shadow a page. That is enforced here at the type level, not by convention.
+ */
+export type ContentCollection =
+  | "offerings"
+  | "legal"
+  | "testimonials"
+  | "portfolio"
+  | "posts";
+
 export interface FileSystemPageContentRepositoryOptions<
   T extends PageContent = PageContent,
 > {
   /** Locale used when the requested locale has no translation yet. */
   readonly defaultLocale: Locale;
   /**
-   * Collection directory under `content/`, e.g. `pages` (the template's page
-   * content) or `offerings` (the offerings catalog). A single port/adapter
-   * serves every content collection.
+   * Collection directory under `content/`. A single port/adapter serves every
+   * content collection, and the collection is ALWAYS named explicitly so no
+   * default can quietly point at a path that is not a collection.
    */
-  readonly collection?:
-    | "pages"
-    | "offerings"
-    | "legal"
-    | "testimonials"
-    | "portfolio"
-    | "posts";
+  readonly collection: ContentCollection;
   /** Override parser (used for the `offerings` collection). */
   readonly parse?: ContentParser<T>;
 }
 
-function resolveParser(
-  collection: "pages" | "offerings" | "legal" | "testimonials" | "portfolio" | "posts",
-): ContentParser {
-  // Each structured collection uses its dedicated parser; `pages` and `legal`
-  // share the basic title + body page contract (Phase T additions).
+function resolveParser(collection: ContentCollection): ContentParser {
+  // Each structured collection uses its dedicated parser; a legal document shares
+  // the basic title + body contract with the page parser (Phase T additions).
   switch (collection) {
     case "offerings":
       return parseOfferingsFile as ContentParser;
@@ -50,15 +58,19 @@ function resolveParser(
       return parsePortfolioFile as ContentParser;
     case "posts":
       return parsePostFile as ContentParser;
-    default:
+    case "legal":
       return parsePageFile;
   }
 }
 
 /**
- * Adapter that reads content from Markdown files under
- * `content/<collection>/<locale>/<slug>.md`, falling back to the default
- * locale when the requested locale has no translation.
+ * Adapter that reads NON-PAGE content from Markdown files under
+ * `content/<collection>/<locale>/<slug>.md`, falling back to the default locale
+ * when the requested locale has no translation.
+ *
+ * Pages are NOT served here: they are authored under `config/pages-*` and resolved
+ * by the page-source composition, and `pages` is deliberately absent from
+ * `ContentCollection`.
  */
 export function createFileSystemPageContentRepository<
   T extends PageContent = PageContent,
@@ -66,7 +78,7 @@ export function createFileSystemPageContentRepository<
   options: FileSystemPageContentRepositoryOptions<T>,
 ): PageContentRepository<T> {
   const defaultLocale = options.defaultLocale;
-  const collection = options.collection ?? "pages";
+  const collection: ContentCollection = options.collection;
   // The default parser produces exactly the requested subtype for its
   // collection (offerings → `OfferingsContent`); callers opting into `T`
   // assert the match explicitly via the `parse` override.
@@ -114,9 +126,9 @@ export function createFileSystemPageContentRepository<
       return entries
         .filter((file) => file.endsWith(".md"))
         .map((file) => file.slice(0, -3))
-        // The slug rule is the ONE core authority (`@/core/page-content`), so the
-        // legacy repository can never disagree with the authoring modes about what
-        // a page may be called.
+        // The slug rule is the ONE core authority (`@/core/page-content`), so a
+        // collection can never disagree with the page modes about what a
+        // collection item may be called.
         .filter((slug) => isContentSlug(slug))
         .sort();
     },

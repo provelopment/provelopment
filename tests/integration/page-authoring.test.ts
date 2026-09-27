@@ -14,26 +14,31 @@ vi.mock("next/navigation", () => ({
 }));
 
 import ItemPage, { generateMetadata, generateStaticParams } from "@/app/[locale]/[item]/page";
+import AboutPage from "@/app/[locale]/about/page";
 import HomePage from "@/app/[locale]/page";
 import sitemap from "@/app/sitemap";
 import { siteConfig } from "@/config";
 
 /**
- * THE AUTHORING MODES, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1).
+ * THE TWO AUTHORING MODES, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1/A1C).
  *
  * A1 succeeds only if a REAL file under `config/pages-markdown/<locale>/<slug>.md`
  * produces a REAL generated page: a static route, its metadata, its sitemap entry —
  * through the normal Foundation application, not a bespoke path. The same fixtures
- * prove that an EMPTY locale directory and an UNCONFIGURED locale directory produce
- * no phantom route, and that the legacy mechanism's behaviour is unchanged.
+ * prove that a page-shaped file under `content/pages` publishes NOTHING (no route, no
+ * sitemap entry, a 404), that an EMPTY locale directory and an UNCONFIGURED locale
+ * directory produce no phantom route, and that a dedicated page route (`/about`)
+ * renders its source through the same composition.
  *
  * The file under `config/pages-markdown/en/` is a run fixture, created here and
  * removed afterwards: the template still ships no authored pages.
  */
 const root = process.cwd();
 const MARKDOWN_SLUG = "zz-authoring-fixture";
-const LEGACY_SLUG = "zz-legacy-fixture";
+const ABOUT_SLUG = "about";
 const HOME_FIXTURE = "zz-home-fixture";
+// A file planted under `content/pages` — the NON-page collection path.
+const COLLECTION_PATH_SLUG = "zz-collection-path-fixture";
 const EMPTY_LOCALE_NAME = "zz-empty";
 // A well-formed language tag that the site does NOT configure (subtags are 2–8
 // characters), holding a page that must therefore never be published.
@@ -47,7 +52,8 @@ const UNCONFIGURED_LOCALE_DIRECTORY = path.join(
 );
 const createdPaths = [
   path.join(root, "config", "pages-markdown", "en", `${MARKDOWN_SLUG}.md`),
-  path.join(root, "content", "pages", "en", `${LEGACY_SLUG}.md`),
+  path.join(root, "config", "pages-markdown", "en", `${ABOUT_SLUG}.md`),
+  path.join(root, "content", "pages", "en", `${COLLECTION_PATH_SLUG}.md`),
 ];
 
 function write(file: string, contents: string): void {
@@ -86,8 +92,13 @@ describe("the first-class authoring modes, through the real application", () => 
       ].join("\n"),
     );
     write(
-      path.join(root, "content", "pages", "en", `${LEGACY_SLUG}.md`),
-      `---\ntitle: Legacy fixture page\n---\n\nLegacy body with <div id="legacy-raw">trusted markup</div>\n`,
+      path.join(root, "config", "pages-markdown", "en", `${ABOUT_SLUG}.md`),
+      "# About the fixture\n\nA safe Markdown page for the dedicated About route.\n",
+    );
+    // A page-shaped file under `content/pages`: NOT a page source, at all.
+    write(
+      path.join(root, "content", "pages", "en", `${COLLECTION_PATH_SLUG}.md`),
+      `---\ntitle: Collection-path page\n---\n\nThis must never be published.\n`,
     );
     // An EMPTY locale directory, and a locale the site does not configure.
     mkdirSync(EMPTY_LOCALE_DIRECTORY, { recursive: true });
@@ -98,13 +109,26 @@ describe("the first-class authoring modes, through the real application", () => 
     for (const file of createdPaths) cleanUp(file);
     rmSync(EMPTY_LOCALE_DIRECTORY, { recursive: true, force: true });
     rmSync(UNCONFIGURED_LOCALE_DIRECTORY, { recursive: true, force: true });
+    // Never leave the page-specific collection directory behind: `content/pages` is
+    // not a collection.
+    try {
+      rmdirSync(path.join(root, "content", "pages"));
+    } catch {
+      /* not empty, or already gone: leave it exactly as it is */
+    }
   });
 
   it("generates a real static route for a safe Markdown page", async () => {
     const generated = await generateStaticParams();
     expect(generated).toContainEqual({ locale: "en", item: MARKDOWN_SLUG });
-    // The legacy mechanism still generates its own route, unchanged.
-    expect(generated).toContainEqual({ locale: "en", item: LEGACY_SLUG });
+  });
+
+  it("generates NO route for a page-shaped file under `content/pages`", async () => {
+    const generated = await generateStaticParams();
+    // The collection path is not a page source: it creates no route…
+    expect(generated.some((route) => route.item === COLLECTION_PATH_SLUG)).toBe(false);
+    // …and the route that would serve it is a proper 404.
+    await expect(ItemPage(params(COLLECTION_PATH_SLUG))).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("publishes no phantom page from an empty or unconfigured locale directory", async () => {
@@ -126,12 +150,13 @@ describe("the first-class authoring modes, through the real application", () => 
     expect(metadata.description).toBe("A summary written by the author.");
   });
 
-  it("keeps a legacy page's metadata exactly as before", async () => {
-    const metadata = await generateMetadata(params(LEGACY_SLUG));
-    expect(metadata.title).toBe("Legacy fixture page");
-    // The legacy parser supplies no summary, so the site's own description applies —
-    // which is precisely the behaviour before this increment.
-    expect(metadata.description).toBe(siteConfig.description);
+  it("renders the safe Markdown body of a dedicated page route", async () => {
+    // `/about` owns its URL, but its SOURCE is an ordinary page: the route renders
+    // the authored Markdown under the safe policy, like every other page.
+    const html = renderToStaticMarkup(await AboutPage({ params: Promise.resolve({ locale: "en" }) }));
+
+    expect(html).toContain("About the fixture");
+    expect(html).toContain("A safe Markdown page for the dedicated About route.");
   });
 
   it("renders the authored Markdown page, with raw HTML inert", async () => {
@@ -146,24 +171,19 @@ describe("the first-class authoring modes, through the real application", () => 
     expect(html).toContain("window.__authorScript");
   });
 
-  it("keeps the legacy mechanism's trusted markup exactly as before", async () => {
-    const html = renderToStaticMarkup(await ItemPage(params(LEGACY_SLUG)));
-
-    expect(html).toContain("Legacy fixture page");
-    // The same trust boundary the legacy path always had: its raw HTML renders.
-    expect(html).toContain('<div id="legacy-raw">trusted markup</div>');
-  });
-
   it("treats an absent page as not found", async () => {
     await expect(ItemPage(params("does-not-exist"))).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
-  it("lists both authored and legacy pages in the sitemap, and nothing else", async () => {
+  it("lists the authored pages in the sitemap, and nothing else", async () => {
     const entries = await sitemap();
     const urls = entries.map((entry) => entry.url);
 
     expect(urls).toContain(`${siteConfig.url}/en/${MARKDOWN_SLUG}`);
-    expect(urls).toContain(`${siteConfig.url}/en/${LEGACY_SLUG}`);
+    expect(urls).toContain(`${siteConfig.url}/en/${ABOUT_SLUG}`);
+    // The collection path advertises nothing…
+    expect(urls.some((url) => url.includes(COLLECTION_PATH_SLUG))).toBe(false);
+    // …and neither does an unconfigured locale, a prepared-empty one or a README.
     expect(urls.some((url) => url.includes(UNCONFIGURED_LOCALE_NAME))).toBe(false);
     expect(urls.some((url) => url.includes("a-page"))).toBe(false);
     expect(urls.some((url) => url.endsWith("/README"))).toBe(false);

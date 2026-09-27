@@ -170,8 +170,8 @@ function parseBlockObject(
  * True when a file opens with a `---` frontmatter block.
  *
  * The first-class Markdown authoring mode uses this to keep frontmatter
- * OPTIONAL: a file that is nothing but prose is a complete page there, while the
- * legacy content collections still require their frontmatter.
+ * OPTIONAL: a file that is nothing but prose is a complete page there, while every
+ * file in a content COLLECTION still requires its frontmatter.
  */
 export function hasFrontmatter(raw: string): boolean {
   return frontmatterPattern.test(raw);

@@ -26,10 +26,10 @@ export interface SitemapRouteOptions {
 
 export function buildSitemapRoutes(options: SitemapRouteOptions): string[] {
   // The RESERVED home slug is excluded: a site's home page may be authored as
-  // ordinary content (`content/pages/<locale>/home.md`) but is SERVED by the
-  // locale root (the `""` entry below), never at `/{locale}/home`. Route
-  // discovery owns this rule so no sitemap caller has to remember it, and so a
-  // site can never advertise a URL it does not serve.
+  // ordinary content (`config/pages-markdown/<locale>/home.md`, or its JSON
+  // counterpart) but is SERVED by the locale root (the `""` entry below), never at
+  // `/{locale}/home`. Route discovery owns this rule so no sitemap caller has to
+  // remember it, and so a site can never advertise a URL it does not serve.
   const routes = [
     "",
     ...options.pages

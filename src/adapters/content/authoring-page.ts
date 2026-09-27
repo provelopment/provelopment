@@ -3,10 +3,9 @@
  * ===================================================
  *
  * Reads one `config/pages-markdown/<locale>/<slug>.md` file into a page. It is
- * deliberately the OPPOSITE of the legacy content parser in one respect:
- * **frontmatter is OPTIONAL**. An author writes a paragraph, or a `# Heading` and
- * a paragraph, and that is a page. Nothing has to be remembered, and nothing has
- * to be looked up.
+ * deliberately the OPPOSITE of the collection parser in one respect: **frontmatter
+ * is OPTIONAL**. An author writes a paragraph, or a `# Heading` and a paragraph, and
+ * that is a page. Nothing has to be remembered, and nothing has to be looked up.
  *
  * WHERE THE TITLE COMES FROM (in order)
  * -------------------------------------

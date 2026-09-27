@@ -10,10 +10,11 @@ import type { PostContent } from "@/core/posts";
 import { regionsForLocale, regionalPath } from "@/core/regional-pages";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // The page inventory is the UNION of both first-class authoring modes and the
-  // legacy content mechanism, per configured locale — the SAME composition every
-  // page route resolves through, so a newly authored file becomes a route and a
-  // sitemap entry in the same step.
+  // The page inventory is the UNION of both first-class authoring modes, per
+  // configured locale — the SAME composition every page route resolves through, so a
+  // newly authored file becomes a route and a sitemap entry in the same step. The
+  // non-page collections below are read from `content/**`, which is never a page
+  // source.
   const pages = createPageSources({
     defaultLocale: siteConfig.defaultLocale,
     locales: siteConfig.locales.map((locale) => locale.code),

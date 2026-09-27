@@ -1,6 +1,6 @@
 import {
   pageResolutionCandidates,
-  type PageSourceKind,
+  type PageAuthoringMode,
   type PageSourceRequest,
 } from "@/core/page-source";
 
@@ -10,9 +10,9 @@ import {
  *
  * Answers exactly one question: **which source is authoritative for this
  * requested page?** and nothing else. It knows a source by its IDENTITY — the
- * kind (JSON / Markdown / legacy content), the locale that answered, whether that
- * locale is a fallback, and the source itself — and it applies the ONE declared
- * order (`@/core/page-source` → `PAGE_RESOLUTION_ORDER`).
+ * kind (JSON or Markdown), the locale that answered, whether that locale is a
+ * fallback, and the source itself — and it applies the ONE declared order
+ * (`@/core/page-source` → `PAGE_RESOLUTION_ORDER`).
  *
  * It does not know how Markdown is parsed or sanitised, how a page title is
  * derived, how a JSON composition is interpreted, what a component needs, or
@@ -27,8 +27,8 @@ import {
  * precedence lives in ONE place (the loop below) while interpretation lives
  * behind the providers, which is the separation the architecture requires:
  *
- *   resolution     → which source wins                (this module + the order)
- *   interpretation → how a winning source is read     (the per-kind readers)
+ * resolution     → which source wins                (this module + the order)
+ * interpretation → how a winning source is read     (the per-mode readers)
  *
  * No route, reader or sitemap may reimplement the order; a caller asks this
  * authority and then interprets what it was handed.
@@ -46,7 +46,7 @@ import {
  * honestly.
  */
 export interface ResolvedPageSource<TSource> {
-  readonly kind: PageSourceKind;
+  readonly kind: PageAuthoringMode;
   readonly slug: string;
   /** The locale the winning source came from. */
   readonly locale: string;
@@ -60,14 +60,12 @@ export type PageSourceProvider<TSource> = (
   locale: string,
 ) => Promise<TSource | null> | TSource | null;
 
-/** The three kinds a request can be answered from, each with its own reader. */
+/** The two authoring modes a request can be answered from, each with its own reader. */
 export interface PageSourceProviders<TSource> {
   /** The advanced (JSON) authoring mode. */
   readonly json: PageSourceProvider<TSource>;
   /** The accessibility-first Markdown authoring mode. */
   readonly markdown: PageSourceProvider<TSource>;
-  /** The legacy page-content compatibility mechanism. */
-  readonly content: PageSourceProvider<TSource>;
 }
 
 /**

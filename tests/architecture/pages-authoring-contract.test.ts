@@ -12,13 +12,13 @@ import {
 import { PAGE_AUTHORING_MODES, PAGE_AUTHORING_ROOTS } from "@/core/page-source";
 
 /**
- * THE PAGE-AUTHORING ARCHITECTURE CONTRACT (FOUNDATION-PAGES-A1).
+ * THE PAGE-AUTHORING ARCHITECTURE CONTRACT (FOUNDATION-PAGES-A1/A1C).
  *
- * These are boundaries, not behaviour: exactly two first-class modes, the legacy
- * mechanism as compatibility, ONE decision point for precedence, ONE slug
- * authority, ONE sanitiser import, and a core that stays framework- and
- * filesystem-free. A violation here is an architectural regression even when every
- * page renders.
+ * These are boundaries, not behaviour: exactly two first-class modes and no third
+ * kind, ONE decision point for precedence, ONE slug authority, ONE sanitiser import,
+ * page routes that can never reach the trusted collection renderer, and a core that
+ * stays framework- and filesystem-free. A violation here is an architectural
+ * regression even when every page renders.
  */
 const projectRoot = process.cwd();
 const srcDirectory = path.join(projectRoot, "src");
@@ -50,24 +50,43 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     }
   });
 
-  it("never treats the legacy content mechanism as a mode", () => {
-    expect(PAGE_AUTHORING_MODES).not.toContain("content");
-    // It is a KIND in the declared order, and the composition names it as legacy.
-    expect(read("core/page-source.ts")).toContain('"content"');
-    expect(read("adapters/content/page-sources.ts").toLowerCase()).toContain("legacy");
+  it("has no compatibility kind and no page source outside the two roots", () => {
+    // The contract exposes exactly the two modes: there is no third kind.
+    expect(PAGE_AUTHORING_MODES).toHaveLength(2);
+
+    // The composition consults only the two authoring roots.
+    const composition = read("adapters/content/page-sources.ts");
+    expect(composition).not.toContain("content/pages");
+    expect(composition).not.toContain("fs-page-content-repository");
+
+    // The collection repository cannot even NAME a `pages` collection, so the
+    // collection path is structurally unreachable rather than merely unused.
+    const repository = read("adapters/content/fs-page-content-repository.ts");
+    expect(repository).toContain("export type ContentCollection");
+    expect(repository).not.toContain('"pages"');
+    expect(repository).not.toContain('?? "pages"');
   });
 
-  it("keeps every page route on ONE decision point, and off the legacy repository", () => {
+  it("keeps every page route on ONE decision point, and off the collections", () => {
     for (const route of [
       "app/[locale]/page.tsx",
       "app/[locale]/[item]/page.tsx",
       "app/[locale]/[item]/[slug]/page.tsx",
+      "app/[locale]/about/page.tsx",
+      "app/[locale]/resources/page.tsx",
+      "app/[locale]/connect/page.tsx",
+      "app/[locale]/contact/page.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("createPageSources");
-      // A route that read the legacy repository itself would own a second,
-      // competing precedence rule.
+      // A route that read the collection repository itself would own a second,
+      // competing precedence rule — and could serve a non-page collection as a page.
       expect(source, route).not.toContain("createFileSystemPageContentRepository");
+      expect(source, route).not.toContain("content/pages");
+      // A page body is ALWAYS rendered under the safe Markdown policy: the trusted
+      // collection renderer is unreachable from a page route.
+      expect(source, route).toContain("SafeMarkdownContent");
+      expect(source, route).not.toContain('from "@/components/site/markdown-content"');
     }
   });
 
@@ -150,7 +169,7 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     // The `html` hook escapes; there is no passthrough of the token's raw text.
     expect(source).toContain("escapeAuthorText(token.text");
     expect(source).not.toContain("token.raw");
-    // The legacy renderer keeps its own documented behaviour — untouched.
+    // The trusted collection renderer keeps its own documented behaviour — untouched.
     expect(read("components/site/markdown-content.tsx")).toContain("dangerouslySetInnerHTML");
   });
 
@@ -167,12 +186,13 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     expect(MARKDOWN_ALLOWED_TAGS).not.toContain("span");
   });
 
-  it("routes a body through ONE selector and never pretends a JSON page can render", () => {
-    const pageBody = read("components/site/page-body.tsx");
-    expect(pageBody).toContain("SafeMarkdownContent");
-    expect(pageBody).toContain("MarkdownContent");
-    // A JSON winner stops the build with the file named, in ONE place.
+  it("never pretends a JSON page can render, and keeps that boundary in ONE place", () => {
+    // A JSON source that would be served stops the build with the file named, from
+    // the composition alone — no route knows about it.
     expect(read("adapters/content/page-sources.ts")).toContain("not yet interpreted");
+    for (const route of ["core/page-source.ts", "application/page-source-resolution.ts"]) {
+      expect(read(route), route).not.toContain("not yet interpreted");
+    }
   });
 });
 

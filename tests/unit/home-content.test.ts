@@ -4,23 +4,23 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import HomePage from "@/app/[locale]/page";
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 
 /**
- * The OPTIONAL content-authored home page (FOUNDATION-WEB-R1C).
+ * The OPTIONAL content-authored home page.
  *
- * A site may author `content/pages/<locale>/home.md` and have the locale-root
- * route render it through the NORMAL content repository. A site that authors no
- * `home.md` keeps the generic configuration-driven starter homepage — so this
- * capability is purely additive and changes no existing adopter's site.
+ * A site may author `config/pages-markdown/<locale>/home.md` (or its JSON
+ * counterpart) and have the locale-root route render it through the NORMAL
+ * page-source composition. A site that authors no home page keeps the generic
+ * configuration-driven starter homepage — so this capability is purely additive.
  *
- * The capability's three coupled consequences must agree, which is why the slug
- * is declared ONCE (`@/core/page-content`) and imported rather than re-typed:
- * the home route looks it up, `/{locale}/home` is never generated, and it never
- * enters the sitemap.
+ * The capability's three coupled consequences must agree, which is why the slug is
+ * declared ONCE (`@/core/page-content`) and imported rather than re-typed: the
+ * home route looks it up, `/{locale}/home` is never generated, and it never enters
+ * the sitemap.
  */
 
 const root = process.cwd();
@@ -109,16 +109,15 @@ describe("/home is never a route and never a sitemap entry", () => {
   });
 });
 
-describe("a site that authors no home.md keeps the generic starter homepage", () => {
-  it("finds no authored home content in the shipped template", async () => {
-    const repository = createFileSystemPageContentRepository({
+describe("a site that authors no home page keeps the generic starter homepage", () => {
+  it("finds no authored home page in the shipped template", async () => {
+    const pages = createPageSources({
       defaultLocale: siteConfig.defaultLocale,
+      locales: siteConfig.locales.map((locale) => locale.code),
     });
-    // The template ships NO content, so the very lookup the home route performs
+    // The template ships NO page files, so the very lookup the home route performs
     // resolves to nothing — which is what makes the fallback the live path here.
-    expect(
-      await repository.findBySlug(HOME_CONTENT_SLUG, siteConfig.defaultLocale),
-    ).toBeNull();
+    expect(await pages.resolve(HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
   });
 
   it("renders the generic configuration-driven homepage at the locale root", async () => {
@@ -151,9 +150,9 @@ describe("a site that authors no home.md keeps the generic starter homepage", ()
     const starterAt = homeRouteSource.indexOf("home-hero");
     expect(lookupAt).toBeGreaterThan(-1);
     expect(starterAt).toBeGreaterThan(lookupAt);
-    // …and it renders through the SHARED page-body selector, which owns the ONE
-    // decision about which trust regime renders a body (safe Markdown or the legacy
-    // content mechanism) — never a bespoke path in this route.
-    expect(homeRouteSource).toContain("PageBody");
+    // …and it renders through the SAFE page renderer, the same one every other page
+    // uses — never the trusted collection renderer.
+    expect(homeRouteSource).toContain("SafeMarkdownContent");
+    expect(homeRouteSource).not.toContain('from "@/components/site/markdown-content"');
   });
 });

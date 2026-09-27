@@ -3,9 +3,10 @@
  * ====================================
  *
  * Turns author-written Markdown into HTML that CANNOT carry active web behaviour.
- * This is the primitive the `config/pages-markdown` authoring mode renders
- * through; it is deliberately NOT the renderer the legacy `content/pages`
- * mechanism uses, whose trusted-raw-HTML behaviour is preserved unchanged.
+ * This is the primitive the `config/pages-markdown` authoring mode renders through;
+ * it is deliberately NOT the renderer the trusted content collections use
+ * (`src/components/site/markdown-content.tsx`), which passes raw HTML through
+ * because those files are reviewed like source code and are never page sources.
  *
  * TWO INDEPENDENT LAYERS
  * ----------------------

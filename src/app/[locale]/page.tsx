@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createBookingActionResolver } from "@/adapters/booking";
 import { BookingAction } from "@/components/site/booking-action";
-import { PageBody } from "@/components/site/page-body";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Heading } from "@/components/ui/heading";
 import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
@@ -28,13 +28,12 @@ const pages = createPageSources({
 /**
  * The home page is CONTENT-FIRST and OPTIONAL.
  *
- * A site may author its home page as ordinary content — now in either first-class
- * mode (`config/pages-markdown/<locale>/home.md`, `config/pages-json/<locale>/home.json`)
- * or in the legacy `content/pages/<locale>/home.md` mechanism — and this route
- * renders it through the SAME page-source composition every other page uses (same
- * precedence, same trust regime per kind, same per-locale fallback). A site that
- * authors no home page keeps the generic configuration-driven starter homepage
- * below, unchanged.
+ * A site may author its home page as ordinary content — safe Markdown at
+ * `config/pages-markdown/<locale>/home.md`, or declarative JSON at
+ * `config/pages-json/<locale>/home.json` — and this route renders it through the
+ * SAME page-source composition every other page uses (same precedence, same
+ * per-locale fallback, same safe Markdown policy). A site that authors no home page
+ * keeps the generic configuration-driven starter homepage below, unchanged.
  *
  * The reserved slug lives in `@/core/page-content` so this route, the `[item]`
  * route and the sitemap cannot drift: `/{locale}/home` is never generated and
@@ -93,11 +92,10 @@ export default async function HomePage({
   const { locale } = await params;
   const dictionary = getDictionary(locale);
 
-  // CONTENT-FIRST: an authored home page — in either first-class mode, or through
-  // the legacy content mechanism — supplies the locale-root homepage through the
-  // normal page-source composition. Absent → the generic starter homepage below
-  // renders exactly as it always has, so a site that authors no home page is
-  // unaffected.
+  // CONTENT-FIRST: an authored home page — in either first-class mode — supplies the
+  // locale-root homepage through the normal page-source composition. Absent → the
+  // generic starter homepage below renders exactly as it always has, so a site that
+  // authors no home page is unaffected.
   const authoredHome = await pages.resolve(HOME_CONTENT_SLUG, locale);
   if (authoredHome) {
     return (
@@ -106,7 +104,7 @@ export default async function HomePage({
           {authoredHome.title}
         </Heading>
         <div className="mt-6">
-          <PageBody kind={authoredHome.kind} markdown={authoredHome.body} />
+          <SafeMarkdownContent markdown={authoredHome.body} />
         </div>
       </Section>
     );

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
-import { MarkdownContent } from "@/components/site/markdown-content";
+import { createPageSources } from "@/adapters/content/page-sources";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { AssetIcon } from "@/components/ui/asset-icon";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
@@ -15,11 +15,18 @@ import { buildLanguageAlternates } from "@/core/locale";
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 import { isInternalHref } from "@/core/regional-pages";
 
-const pageContentRepository = createFileSystemPageContentRepository({
-  defaultLocale: siteConfig.defaultLocale,
-});
-
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/**
+ * THE PAGE-SOURCE COMPOSITION for this route's page. `/connect` owns its URL, but its
+ * SOURCE is authored like every other page: safe Markdown under
+ * `config/pages-markdown/<locale>/connect.md`, or declarative JSON under
+ * `config/pages-json/<locale>/connect.json`.
+ */
+const pages = createPageSources({
+  defaultLocale: siteConfig.defaultLocale,
+  locales: localeCodes,
+});
 
 interface ConnectPageProps {
   readonly params: Promise<{ readonly locale: string }>;
@@ -36,9 +43,9 @@ function languageAlternates(): Record<string, string> {
 
 export async function generateMetadata({ params }: ConnectPageProps): Promise<Metadata> {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("connect", locale);
+  const page = await pages.resolve("connect", locale);
 
-  const title = content?.title ?? "Connect";
+  const title = page?.title ?? "Connect";
   const canonical = `${siteConfig.url}/${locale}/connect`;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
@@ -69,11 +76,11 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
 
 /**
  * The Connect page (Phase M) — the first-class communication/connection hub.
- * Content is markdown (`content/pages/<locale>/connect.md`); for each
- * configured connection method a card is rendered with the method's label and
- * target. Methods marked `demoOnly` carry a visible demo badge, and the page
- * always displays the demo notice: a visitor can never mistake the template's
- * demonstration options for a real integration.
+ * Its body is an ordinary page source (`config/pages-markdown/<locale>/connect.md`
+ * or its JSON counterpart); for each configured connection method a card is
+ * rendered with the method's label and target. Methods marked `demoOnly` carry a
+ * visible demo badge, and the page always displays the demo notice: a visitor can
+ * never mistake the template's demonstration options for a real integration.
  *
  * CONNECTIVITY ICON SEAM — a method may also carry the optional generic `icon`
  * asset (`connect.methods[i].icon`). It renders as supplementary, decorative
@@ -84,8 +91,8 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
  */
 export default async function ConnectPage({ params }: ConnectPageProps) {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("connect", locale);
-  if (!content) notFound();
+  const page = await pages.resolve("connect", locale);
+  if (!page) notFound();
 
   const dictionary = getDictionary(locale);
 
@@ -93,7 +100,7 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
     <Section as="article">
       <Heading level={1} tone="title">{dictionary.connect.heading}</Heading>
       <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
+        <SafeMarkdownContent markdown={page.body} />
       </div>
 
       <Grid columns="sm:grid-cols-2" gap="gap-4" className="mt-8">
