@@ -835,7 +835,13 @@ html[data-ui-hero="showcase"] .home-hero {
   padding-block: 1rem 1.5rem;
   padding-inline: var(--ui-sidebar-rail-inline);
   border-inline-end: 1px solid var(--border);
-  overflow-x: hidden;
+  /* PERSISTENT NAVIGATION — `clip`, NOT `hidden`. With `hidden` the `visible`
+   * inline-axis pair computes to `auto`, which makes the rail a SCROLL
+   * CONTAINER: the sticky content column inside it would then be pinned to the
+   * rail's own (scrolling) box instead of the viewport, and the rail could never
+   * persist. `clip` clips exactly as `hidden` did — the same guard against a
+   * long label overflowing the rail — without creating a scroll container. */
+  overflow-x: clip;
   transition: width 200ms ease;
 }
 
@@ -1004,6 +1010,108 @@ html[data-ui-hero="showcase"] .home-hero {
 
 .ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-closed {
   display: inline-block;
+}
+
+/* ── PERSISTENT NAVIGATION (shell top region + rail content column) ────────
+ *
+ * THE CONTRACT: while a visitor scrolls, the site's PRIMARY NAVIGATION stays
+ * reachable — nobody has to scroll back to the top of the page to go somewhere
+ * else.
+ *
+ * TWO PERSISTENT REGIONS, NEVER AT THE SAME WIDTH:
+ *  - `.ui-shell-top` — the shell's TOP region (the header: identity, any
+ *    header-slot primary navigation, and the mobile disclosure trigger). The
+ *    shell composes it in `src/components/shell/shell-engine.tsx`;
+ *  - `.ui-sidebar-rail-sticky` — the aside rail's content column (its show/hide
+ *    control and its navigation list).
+ *
+ * A rail is composed BESIDE the content only at the widths the resolved
+ * composition declares, and the engine marks exactly those widths on the top
+ * region (`--rail-md` = a rail band at md…lg, `--rail-lg` = a rail band at lg+).
+ * Where a rail is present, the RAIL is the persistent navigation and the top
+ * region returns to normal flow — so the two can never be sticky simultaneously,
+ * can never overlap, and no measured offset between them is required. That is why
+ * this contract has no magic numbers keyed to a device and no per-device branch.
+ * The `md`/`lg` bounds below are the composition's OWN breakpoints (48rem/64rem —
+ * the same values Tailwind's `md:`/`lg:` utilities resolve from), so the
+ * stylesheet and the shell's responsive classes cannot disagree about where a
+ * band begins.
+ *
+ * `position: sticky` is used deliberately in preference to `fixed`: both regions
+ * stay IN FLOW, so they reserve their own height, can never cover page content,
+ * leave the footer scrolling into view beneath them, and need no spacer.
+ *
+ * The top region paints the page's own `--background` token behind itself — the
+ * same surface the `data-ui-header="elevated"` treatment already uses — so
+ * scrolling content can never show through its controls.
+ */
+:root {
+  /* The clearance a fragment target leaves for the persistent top region
+   * (`html { scroll-padding-top }` below). The shipped top region is a >=44px
+   * brand/navigation row inside the header's own block padding plus its 1px
+   * hairline, so this is that height with a small allowance for a brand row that
+   * wraps at the narrowest supported width. */
+  --ui-shell-top-clearance: 6rem;
+}
+
+.ui-shell-top {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: var(--background);
+}
+
+/* Where a rail band is composed beside the content, the top region scrolls
+ * normally instead. Each suppression is scoped to ITS OWN band, so a mixed
+ * composition (for example a desktop rail with a tablet top bar) still keeps the
+ * header persistent exactly where the header is the navigation carrier. */
+@media (min-width: 48rem) and (max-width: 63.999rem) {
+  .ui-shell-top--rail-md {
+    position: static;
+    z-index: auto;
+    background-color: transparent;
+  }
+}
+@media (min-width: 64rem) {
+  .ui-shell-top--rail-lg {
+    position: static;
+    z-index: auto;
+    background-color: transparent;
+  }
+}
+
+/* A fragment target (the skip link's `#main`, any in-page anchor) must never land
+ * BENEATH the persistent top region: the browser aligns the target with the
+ * clearance instead of the viewport edge. In the ranges where the top region is
+ * not persistent, the clearance is removed — nothing changes there. */
+html:has(.ui-shell-top) {
+  scroll-padding-top: var(--ui-shell-top-clearance);
+}
+@media (min-width: 48rem) and (max-width: 63.999rem) {
+  html:has(.ui-shell-top--rail-md) {
+    scroll-padding-top: 0;
+  }
+}
+@media (min-width: 64rem) {
+  html:has(.ui-shell-top--rail-lg) {
+    scroll-padding-top: 0;
+  }
+}
+
+/* The rail's persistent content column: the show/hide control and the navigation
+ * list stay in view while the page scrolls, and the column is bounded by the
+ * VIEWPORT — never taller than the space actually available to it. A navigation
+ * taller than that scrolls INSIDE the column (`overscroll-behavior: contain`
+ * keeps that scroll from chaining to the page), so no destination becomes
+ * unreachable. The rail's own box is untouched, so its divider still spans the
+ * whole shell row (P6-3A/P6-3B). */
+.ui-sidebar-rail-sticky {
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* ── P6-3B header logo + page banner ────────────────────────────────── */

@@ -2394,6 +2394,451 @@ async function runConnectivityIconScenario(chrome) {
   return rows;
 }
 
+/**
+ * PERSISTENT NAVIGATION (FOUNDATION-N1) — browser-real acceptance.
+ *
+ * The composition/CSS contract is asserted by
+ * `tests/unit/shell-persistent-navigation.test.ts`; THIS is the behavioural half,
+ * on the shipped one-canonical composition (a collapsible rail beside the content
+ * at md+ through `collapsed-sidebar`, and the bottom bar below md):
+ *
+ *   · at desktop and tablet widths the RAIL's content column stays in view while
+ *     the page is scrolled, bounded by the viewport, with its control and its
+ *     destinations reachable and the header returned to normal flow;
+ *   · the rail never overlaps the content column, and expanding the collapsed
+ *     tablet rail while scrolled still works (the trip back to the top of the page
+ *     that this increment removes);
+ *   · at every breakpoint boundary exactly ONE of the two regions is persistent
+ *     (header below md, rail at/above md);
+ *   · a deliberately LONG navigation scrolls INSIDE the rail column and its last
+ *     destination stays reachable, which is what makes a short viewport safe;
+ *   · a fragment target is not hidden beneath the sticky header, and the clearance
+ *     is removed exactly where the rail (not the header) is persistent;
+ *   · at mobile widths the sticky header and the bottom bar are both present
+ *     without swallowing the viewport, and the More disclosure opens, moves focus
+ *     inside, locks the background and returns focus on Escape — all while the page
+ *     is scrolled;
+ *   · the primary CTA is NOT part of what persists (persistence is for navigation,
+ *     not for actions), and the touch-target and destination contracts are
+ *     unchanged.
+ *
+ * Every assertion is derived from the page and from the fixture this scenario
+ * writes (a long generic navigation and one tall Markdown page), never from a copy
+ * of a site's words, and nothing is left written.
+ */
+
+/** Probe helpers injected into each expression — kept in ONE place, backtick-free. */
+const NAV_PROBE_HELPERS = `
+  const inView = (r) => !!r && r.width > 0 && r.height > 0 && r.top >= -1 && r.bottom <= document.documentElement.clientHeight + 1;
+  const sticky = (el) => !!el && getComputedStyle(el).position === 'sticky';
+  const navPaths = (root) => [...root.querySelectorAll('a[href]')].map((a) => new URL(a.href).pathname);
+  const visibleRail = () => [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+  const railColumn = () => { const r = visibleRail(); return r ? r.querySelector('.ui-sidebar-rail-sticky') : null; };
+  const railControl = () => { const r = visibleRail(); return r ? r.querySelector('[aria-controls$="-panel"]') : null; };
+  const hittable = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !!hit && (hit === el || el.contains(hit)); };
+  const scrollToMiddle = () => { window.scrollTo(0, Math.round(document.documentElement.scrollHeight * 0.45)); };
+`;
+
+/**
+ * The tall fixture page: ordinary authored Markdown (the generic template ships
+ * no content) with ONE in-page fragment target, so a fragment navigation has
+ * somewhere below the fold to land. Written for the duration of the run only.
+ */
+function tallPageFixture() {
+  const paragraph = (n) =>
+    `Paragraph ${n}. The rail stays reachable while this page scrolls, so a visitor never has to travel back to the top of the document to navigate elsewhere.`;
+  const block = (from, to) => Array.from({ length: to - from }, (_, i) => paragraph(from + i)).join("\n\n");
+  return `---\ntitle: Persistent navigation fixture\n---\n\n${block(1, 25)}\n\n<div id="zz-nav-anchor"></div>\n\n${block(25, 100)}\n`;
+}
+
+async function runPersistentNavigationScenario(chrome) {
+  const port = BASE_PORT + 210;
+  BASE_URL = `http://localhost:${port}`;
+  const homeUrl = `${BASE_URL}/en`;
+  const tallUrl = `${BASE_URL}/en/zz-nav-tall`;
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+
+  // A deliberately LONG, entirely generic navigation: it proves the rail's own
+  // scrollability and derives every destination assertion below (persistence may
+  // change WHERE navigation is reachable, never WHAT it points at). No business,
+  // site, host or locale-specific route is named.
+  const NAV_FIXTURE = Array.from({ length: 30 }, (_, index) => ({
+    label: `Fixture ${String(index + 1).padStart(2, "0")}`,
+    href: `/fixture-${String(index + 1).padStart(2, "0")}`,
+    position: "middle",
+  }));
+  const configuredPaths = NAV_FIXTURE.map((item) => `/en${item.href}`);
+
+  const config = JSON.parse(original);
+  // The shipped one-canonical composition is untouched (a collapsible rail at md+
+  // and the bottom bar below md); only the CTA destination is added, so the
+  // "actions do not persist" contract has something to observe.
+  config.ui = { ...config.ui, cta: { ...CTR, style: "standard" } };
+  config.navigation = NAV_FIXTURE;
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+
+  // FS1 — the generic template ships NO content, so this fixture supplies the tall
+  // page the scroll assertions need (removed in `finally`).
+  const tallPath = join(ROOT, "content", "pages", "en", "zz-nav-tall.md");
+  await mkdir(dirname(tallPath), { recursive: true });
+  await writeFile(tallPath, tallPageFixture(), "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(homeUrl);
+    cdp = await Cdp.connect(chrome);
+
+    // ── DESKTOP: the rail beside the content is the persistent navigation ────
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(tallUrl);
+    await waitReady(cdp);
+    const before = await cdp.evaluate(
+      `(() => { ${NAV_PROBE_HELPERS} return { paths: navPaths(visibleRail() || document) }; })()`,
+    );
+    await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
+    await sleep(350);
+    const desk = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const rail = visibleRail();
+      const column = railColumn();
+      const control = railControl();
+      const links = rail ? [...rail.querySelectorAll('a[href]')] : [];
+      const main = document.querySelector('main');
+      const header = document.querySelector('.ui-shell-top');
+      const ctaRow = document.querySelector('.ui-shell-header-row');
+      const cr = column ? column.getBoundingClientRect() : null;
+      const rr = rail ? rail.getBoundingClientRect() : null;
+      const mr = main ? main.getBoundingClientRect() : null;
+      const ar = ctaRow ? ctaRow.getBoundingClientRect() : null;
+      return {
+        scrolled: window.scrollY > 0,
+        railVisible: !!rail && rr.width > 0,
+        columnSticky: sticky(column),
+        controlInView: inView(control ? control.getBoundingClientRect() : null),
+        controlHittable: hittable(control),
+        firstLinkInView: links.length > 0 && inView(links[0].getBoundingClientRect()),
+        lastLinkInView: links.length > 0 && inView(links[links.length - 1].getBoundingClientRect()),
+        columnBounded: !!cr && cr.top >= -1 && cr.bottom <= document.documentElement.clientHeight + 1,
+        headerInFlow: !!header && !sticky(header),
+        ctaInFlow: !!ar && !sticky(ctaRow) && ar.bottom <= 1,
+        noOverlapMain: !!rr && !!mr && rr.right <= mr.left + 1,
+        diag: {
+          scrollY: Math.round(window.scrollY),
+          vh: document.documentElement.clientHeight,
+          columnTop: cr ? Math.round(cr.top) : null,
+          columnH: cr ? Math.round(cr.height) : null,
+          columnBottom: cr ? Math.round(cr.bottom) : null,
+          columnScrollH: column ? column.scrollHeight : null,
+          railTop: rr ? Math.round(rr.top) : null,
+          railH: rr ? Math.round(rr.height) : null,
+          frameH: (() => { const f = document.querySelector('.ui-shell-sidebar > div'); return f ? Math.round(f.getBoundingClientRect().height) : null; })(),
+          docH: document.documentElement.scrollHeight,
+          footerBottom: (() => { const f = document.querySelector('footer'); return f ? Math.round(f.getBoundingClientRect().bottom + window.scrollY) : null; })(),
+        },
+        paths: navPaths(rail || document),
+      };
+    })()`);
+    check(rows, "persist.desktop.scrolled", !!desk.scrolled, `scrollY>0=${desk.scrolled}`);
+    check(rows, "persist.desktop.rail.visible", !!desk.railVisible);
+    check(rows, "persist.desktop.rail.columnSticky", !!desk.columnSticky);
+    check(rows, "persist.desktop.rail.controlInView", !!desk.controlInView, JSON.stringify(desk.diag));
+    check(rows, "persist.desktop.rail.controlHittable", !!desk.controlHittable, JSON.stringify(desk.diag));
+    // A deliberately LONG navigation: the rail's own top is what must be reachable
+    // while scrolled; the LAST destination's reachability is proven by the
+    // short-viewport block below, after scrolling the column to its end.
+    check(rows, "persist.desktop.rail.firstNavInView", !!desk.firstLinkInView, JSON.stringify(desk.diag));
+    check(rows, "persist.desktop.rail.bounded", !!desk.columnBounded, JSON.stringify(desk.diag));
+    // The rail persists HERE, so the top region scrolls normally: the two can never
+    // be sticky at once, and the rail can never cover the content column.
+    check(rows, "persist.desktop.header.inFlow", !!desk.headerInFlow);
+    check(rows, "persist.desktop.cta.inFlow", !!desk.ctaInFlow);
+    check(rows, "persist.desktop.noOverlapMain", !!desk.noOverlapMain);
+    check(
+      rows,
+      "persist.desktop.destinations.unchanged",
+      JSON.stringify(desk.paths) === JSON.stringify(before.paths) &&
+        JSON.stringify([...desk.paths].sort()) === JSON.stringify([...configuredPaths].sort()),
+      `before=${before.paths.length} after=${desk.paths.length} configured=${configuredPaths.length}`,
+    );
+
+    // ── TABLET: the collapsed rail persists, and its control still works ─────
+    await cdp.setViewport(VIEWPORTS.tablet.width, VIEWPORTS.tablet.height);
+    await cdp.navigate(tallUrl);
+    await waitReady(cdp);
+    await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
+    await sleep(350);
+    const tab = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const rail = visibleRail();
+      const control = railControl();
+      const links = rail ? [...rail.querySelectorAll('a[href]')] : [];
+      const header = document.querySelector('.ui-shell-top');
+      return {
+        scrolled: window.scrollY > 0,
+        collapsed: !!rail && rail.getAttribute('data-collapsed') === 'true',
+        columnSticky: sticky(railColumn()),
+        controlInView: inView(control ? control.getBoundingClientRect() : null),
+        controlHittable: hittable(control),
+        firstItemInView: links.length > 0 && inView(links[0].getBoundingClientRect()),
+        headerInFlow: !!header && !sticky(header),
+      };
+    })()`);
+    check(rows, "persist.tablet.scrolled", !!tab.scrolled, `scrollY>0=${tab.scrolled}`);
+    check(rows, "persist.tablet.rail.collapsedByDefault", !!tab.collapsed);
+    check(rows, "persist.tablet.rail.columnSticky", !!tab.columnSticky);
+    check(rows, "persist.tablet.rail.controlInView", !!tab.controlInView);
+    check(rows, "persist.tablet.rail.controlHittable", !!tab.controlHittable);
+    check(rows, "persist.tablet.rail.itemInView", !!tab.firstItemInView);
+    check(rows, "persist.tablet.header.inFlow", !!tab.headerInFlow);
+    // Expanding it WHILE THE PAGE IS SCROLLED — the trip back to the top of the
+    // page that this increment removes.
+    const expandedClick = await cdp.clickCenter(
+      "#shell-sidebar-tablet-rail [aria-controls='shell-sidebar-tablet-panel']",
+    );
+    await sleep(300);
+    const tabExpanded = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const rail = visibleRail();
+      const links = rail ? [...rail.querySelectorAll('ul a[href]')] : [];
+      const first = links.length > 0 ? links[0] : null;
+      // Expanded means the LABELS are painted again (the collapsed rail keeps them
+      // only for assistive tech).
+      const label = first ? first.querySelector('.ui-nav-item-label') : null;
+      const lr = label ? label.getBoundingClientRect() : null;
+      return {
+        expanded: !!rail && rail.getAttribute('data-collapsed') === 'false',
+        stillPersistent: sticky(railColumn()),
+        labelsShown: !!lr && lr.width > 1 && getComputedStyle(label).position !== 'absolute',
+        firstInView: inView(first ? first.getBoundingClientRect() : null),
+        firstHittable: hittable(first),
+        firstNamed: !!first && !!first.textContent.trim(),
+      };
+    })()`);
+    check(rows, "persist.tablet.expand.clicked", !!expandedClick);
+    check(rows, "persist.tablet.expand.expanded", !!tabExpanded.expanded);
+    check(rows, "persist.tablet.expand.stillPersistent", !!tabExpanded.stillPersistent);
+    check(rows, "persist.tablet.expand.labelsShown", !!tabExpanded.labelsShown && !!tabExpanded.firstNamed);
+    // The first destination is immediately usable; every OTHER destination stays
+    // reachable through the column's own scroll (the short-viewport block below
+    // proves the end of a long navigation is reachable).
+    check(rows, "persist.tablet.expand.firstReachable", !!tabExpanded.firstInView && !!tabExpanded.firstHittable, `inView=${tabExpanded.firstInView} hittable=${tabExpanded.firstHittable}`);
+
+    // ── BOUNDARIES: exactly ONE persistent navigation at every width ─────────
+    for (const width of [767, 768, 1023, 1024]) {
+      await cdp.setViewport(width, 820);
+      await cdp.navigate(tallUrl);
+      await waitReady(cdp);
+      const s = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+        const header = document.querySelector('.ui-shell-top');
+        const rail = visibleRail();
+        const bar = document.querySelector('.ui-shell-bottom-bar');
+        return {
+          headerSticky: sticky(header),
+          railVisible: !!rail && rail.getBoundingClientRect().width > 0,
+          railSticky: !!rail && rail.getBoundingClientRect().width > 0 && sticky(railColumn()),
+          topBarVisible: inView(bar ? bar.getBoundingClientRect() : null),
+        };
+      })()`);
+      check(rows, `persist.boundary.${width}.headerSticky`, s.headerSticky === width < 768, `sticky=${s.headerSticky}`);
+      check(rows, `persist.boundary.${width}.railSticky`, s.railSticky === width >= 768, `visible=${s.railVisible} sticky=${s.railSticky}`);
+      check(rows, `persist.boundary.${width}.exactlyOne`, s.headerSticky !== s.railSticky, `header=${s.headerSticky} rail=${s.railSticky}`);
+      if (width < 768) check(rows, `persist.boundary.${width}.bottomBarVisible`, !!s.topBarVisible);
+    }
+
+    // ── RAIL BAND: the fragment clearance is REMOVED where the rail persists ──
+    await cdp.setViewport(VIEWPORTS.tablet.width, VIEWPORTS.tablet.height);
+    await cdp.navigate(tallUrl);
+    await waitReady(cdp);
+    // A fragment navigation on the SAME document fires no load event, so the
+    // harness sets the hash exactly as the skip link / an in-page anchor does.
+    await cdp.evaluate("location.hash = '#zz-nav-anchor'");
+    await sleep(400);
+    const railAnchor = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const column = railColumn();
+      const anchor = document.getElementById('zz-nav-anchor');
+      return {
+        clearance: getComputedStyle(document.documentElement).scrollPaddingTop,
+        columnSticky: sticky(column),
+        anchorTop: anchor ? Math.round(anchor.getBoundingClientRect().top) : null,
+      };
+    })()`);
+    check(rows, "persist.railband.anchor.clearanceRemoved", railAnchor.clearance === "0px", `scrollPaddingTop=${railAnchor.clearance}`);
+    check(rows, "persist.railband.anchor.reached", railAnchor.anchorTop != null, `anchorTop=${railAnchor.anchorTop}`);
+    check(rows, "persist.railband.railStillPersistent", !!railAnchor.columnSticky);
+
+    // ── MOBILE: a compact persistent header, and navigation that stays put ───
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await cdp.navigate(tallUrl);
+    await waitReady(cdp);
+    await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
+    await sleep(350);
+    const mob = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const header = document.querySelector('.ui-shell-top');
+      const bar = document.querySelector('.ui-shell-bottom-bar');
+      const trigger = document.querySelector('#shell-bottom-more');
+      const hr = header ? header.getBoundingClientRect() : null;
+      const br = bar ? bar.getBoundingClientRect() : null;
+      const tr = trigger ? trigger.getBoundingClientRect() : null;
+      const vh = document.documentElement.clientHeight;
+      return {
+        scrolled: window.scrollY > 0,
+        headerSticky: sticky(header),
+        headerPinned: !!hr && hr.top >= -1 && hr.top <= 1 && hr.bottom > 0,
+        barSticky: sticky(bar),
+        barInView: inView(br),
+        triggerInView: inView(tr),
+        triggerHittable: hittable(trigger),
+        triggerTarget: tr ? Math.round(Math.min(tr.width, tr.height)) : null,
+        railHidden: !visibleRail(),
+        chromeBudget: hr && br ? Math.round(((hr.height + br.height) / vh) * 100) / 100 : null,
+        dialogs: document.querySelectorAll('[role="dialog"]').length,
+      };
+    })()`);
+    check(rows, "persist.mobile.scrolled", !!mob.scrolled, `scrollY>0=${mob.scrolled}`);
+    check(rows, "persist.mobile.header.sticky", !!mob.headerSticky);
+    check(rows, "persist.mobile.header.pinned", !!mob.headerPinned);
+    check(rows, "persist.mobile.bar.sticky", !!mob.barSticky);
+    check(rows, "persist.mobile.bar.inView", !!mob.barInView);
+    check(rows, "persist.mobile.trigger.inView", !!mob.triggerInView);
+    check(rows, "persist.mobile.trigger.hittable", !!mob.triggerHittable);
+    // VIS1C — the existing >=44x44 mobile disclosure trigger target is unchanged.
+    check(rows, "persist.mobile.trigger.touchTarget", mob.triggerTarget != null && mob.triggerTarget >= 44, `trigger=${mob.triggerTarget}`);
+    // No rail is composed below md — the header and the bar carry navigation there.
+    check(rows, "persist.mobile.rail.hidden", !!mob.railHidden);
+    // The persistent chrome must leave the viewport to its content (this is what
+    // keeps a SHORT viewport usable).
+    check(rows, "persist.mobile.chrome.budget", mob.chromeBudget != null && mob.chromeBudget <= 0.35, `budget=${mob.chromeBudget}`);
+    check(rows, "persist.mobile.noDialogWhileScrolling", mob.dialogs === 0);
+
+    // ── MOBILE: a fragment target is not hidden beneath the sticky header ────
+    await cdp.evaluate("location.hash = '#zz-nav-anchor'");
+    await sleep(400);
+    const anchor = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const header = document.querySelector('.ui-shell-top');
+      const target = document.getElementById('zz-nav-anchor');
+      const hr = header ? header.getBoundingClientRect() : null;
+      const tr = target ? target.getBoundingClientRect() : null;
+      return {
+        clearance: getComputedStyle(document.documentElement).scrollPaddingTop,
+        scrolled: window.scrollY > 0,
+        targetTop: tr ? Math.round(tr.top) : null,
+        headerBottom: hr ? Math.round(hr.bottom) : null,
+      };
+    })()`);
+    check(rows, "persist.mobile.anchor.clearance", anchor.clearance === "96px", `scrollPaddingTop=${anchor.clearance}`);
+    check(rows, "persist.mobile.anchor.reached", !!anchor.scrolled, `scrollY>0=${anchor.scrolled}`);
+    check(
+      rows,
+      "persist.mobile.anchor.belowHeader",
+      anchor.targetTop != null && anchor.headerBottom != null && anchor.targetTop >= anchor.headerBottom - 1 && anchor.targetTop >= 90,
+      `targetTop=${anchor.targetTop} headerBottom=${anchor.headerBottom}`,
+    );
+
+    // ── MOBILE: the disclosure still works while the page is scrolled ────────
+    const barPaths = await cdp.evaluate(
+      `(() => { ${NAV_PROBE_HELPERS} const bar = document.querySelector('.ui-shell-bottom-bar'); return bar ? navPaths(bar) : []; })()`,
+    );
+    await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
+    await sleep(300);
+    const opened = await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
+    const drawer = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const panel = document.querySelector('#shell-bottom-more-panel');
+      const main = document.querySelector('main');
+      return {
+        open: !!panel,
+        role: panel ? panel.getAttribute('role') : null,
+        modal: panel ? panel.getAttribute('aria-modal') : null,
+        labelResolves: !!(panel && document.getElementById(panel.getAttribute('aria-labelledby'))),
+        focusInside: !!(panel && panel.contains(document.activeElement)),
+        mainInert: !!(main && main.closest('[inert]')),
+        scrollLocked: document.body.style.overflow === 'hidden',
+        paths: panel ? navPaths(panel) : [],
+      };
+    })()`);
+    check(rows, "persist.mobile.disclosure.opened", !!opened && !!drawer.open);
+    check(rows, "persist.mobile.disclosure.semantics", drawer.role === "dialog" && drawer.modal === "true" && !!drawer.labelResolves);
+    check(rows, "persist.mobile.disclosure.focusInside", !!drawer.focusInside);
+    check(rows, "persist.mobile.disclosure.backgroundInert", !!drawer.mainInert);
+    check(rows, "persist.mobile.disclosure.scrollLocked", !!drawer.scrollLocked);
+    // The bar's items plus the drawer's = the whole configured navigation:
+    // persistence changed WHERE it is reachable, not WHAT it contains.
+    check(
+      rows,
+      "persist.mobile.destinations.union",
+      JSON.stringify([...barPaths, ...drawer.paths].sort()) === JSON.stringify([...configuredPaths].sort()),
+      `bar=${barPaths.length} drawer=${drawer.paths.length} configured=${configuredPaths.length}`,
+    );
+    await cdp.pressKey("Escape");
+    await sleep(300);
+    const closed = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const bar = document.querySelector('.ui-shell-bottom-bar');
+      return {
+        dialogs: document.querySelectorAll('[role="dialog"]').length,
+        focusReturned: !!document.activeElement && document.activeElement.id === 'shell-bottom-more',
+        inertCleared: !document.querySelector('main').closest('[inert]'),
+        scrollRestored: document.body.style.overflow !== 'hidden',
+        barStillInView: inView(bar ? bar.getBoundingClientRect() : null),
+      };
+    })()`);
+    check(rows, "persist.mobile.disclosure.escape.closed", closed.dialogs === 0);
+    check(rows, "persist.mobile.disclosure.escape.focusReturned", !!closed.focusReturned);
+    check(rows, "persist.mobile.disclosure.escape.inertCleared", !!closed.inertCleared);
+    check(rows, "persist.mobile.disclosure.escape.scrollRestored", !!closed.scrollRestored);
+    check(rows, "persist.mobile.disclosure.escape.barStillInView", !!closed.barStillInView);
+
+    // ── SHORT VIEWPORT: a LONG navigation stays reachable inside the rail ────
+    for (const [label, viewport] of [
+      ["desktop", { width: VIEWPORTS.desktop.width, height: 420 }],
+      ["tablet", { width: VIEWPORTS.tablet.width, height: 420 }],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await cdp.navigate(tallUrl);
+      await waitReady(cdp);
+      // The page is scrolled first, so the rail column is PINNED and its viewport
+      // bound is the viewport's own height — the state the bound exists for.
+      await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
+      await sleep(350);
+      // Then scroll INSIDE the rail column to its end, without touching the page.
+      const railScroll = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+        const column = railColumn();
+        if (!column) return null;
+        const before = window.scrollY;
+        const cr = column.getBoundingClientRect();
+        const pinned = cr.top >= -1 && cr.top <= 1 && cr.bottom > 0;
+        const bounded = cr.height <= document.documentElement.clientHeight + 1 && cr.bottom <= document.documentElement.clientHeight + 1;
+        column.scrollTop = column.scrollHeight;
+        const links = [...column.querySelectorAll('a[href]')];
+        const last = links.length > 0 ? links[links.length - 1] : null;
+        return {
+          pinned,
+          bounded,
+          overflowed: column.scrollHeight > column.clientHeight + 1,
+          overscroll: getComputedStyle(column).overscrollBehaviorY,
+          atEnd: column.scrollTop + column.clientHeight >= column.scrollHeight - 1,
+          pageStayed: window.scrollY === before,
+          lastInView: inView(last ? last.getBoundingClientRect() : null),
+          lastHittable: hittable(last),
+          lastNamed: !!last && !!last.textContent.trim(),
+        };
+      })()`);
+      check(rows, `persist.short.${label}.rail.pinned`, !!railScroll && railScroll.pinned);
+      check(rows, `persist.short.${label}.rail.bounded`, !!railScroll && railScroll.bounded);
+      check(rows, `persist.short.${label}.rail.overflow`, !!railScroll && railScroll.overflowed, `overflowed=${railScroll && railScroll.overflowed}`);
+      check(rows, `persist.short.${label}.rail.overscrollContained`, !!railScroll && railScroll.overscroll === "contain", `overscroll=${railScroll && railScroll.overscroll}`);
+      check(rows, `persist.short.${label}.rail.scrolledToEnd`, !!railScroll && railScroll.atEnd);
+      check(rows, `persist.short.${label}.rail.ownScrollOnly`, !!railScroll && railScroll.pageStayed);
+      check(rows, `persist.short.${label}.lastReachable`, !!railScroll && railScroll.lastInView && railScroll.lastHittable && railScroll.lastNamed, `inView=${railScroll && railScroll.lastInView} hittable=${railScroll && railScroll.lastHittable}`);
+    }
+  } catch (error) {
+    check(rows, "persistent-navigation.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
+    await writeFile(CONFIG_PATH, original, "utf8");
+    await rm(tallPath, { force: true });
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -2417,6 +2862,12 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(connectivityRows.map((r) => ({ presentation: "connectivity-icons", ...r })));
     const connectivityFails = connectivityRows.filter((r) => !r.ok).length;
     console.log(`[matrix] connectivity-icons: ${connectivityRows.length - connectivityFails}/${connectivityRows.length} checks passed${connectivityFails ? ` FAIL=${connectivityFails}` : ""}`);
+    // FOUNDATION-N1 — PERSISTENT NAVIGATION (own server + fixtures, config and
+    // content restored by the scenario).
+    const persistRows = await runPersistentNavigationScenario(chrome);
+    allRows = allRows.concat(persistRows.map((r) => ({ presentation: "persistent-navigation", ...r })));
+    const persistFails = persistRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] persistent-navigation: ${persistRows.length - persistFails}/${persistRows.length} checks passed${persistFails ? ` FAIL=${persistFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

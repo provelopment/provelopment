@@ -170,32 +170,78 @@ export function ShellEngine({
   ) : null;
   const topCtaNode = decision.cta.present ? ctaNode : null;
 
-  // The shell's TOP region: the header, then the single CTA beneath it. Neither
-  // belongs to the aside rail, so collapsing or expanding the rail can neither
-  // move the action nor clip it. No responsive duplication is needed at all —
-  // the one instance is reachable at every width.
-  const headerContent = topCtaNode ? (
-    <div className="ui-shell-header-row">{header}{topCtaNode}</div>
-  ) : (
-    header
+  // ── PERSISTENT NAVIGATION — the shell's TOP region, and WHERE it persists ──
+  //
+  // The region is the header: identity, any header-slot primary navigation, and
+  // the mobile disclosure trigger. Nothing here belongs to the aside rail, so
+  // collapsing or expanding the rail can neither move nor clip anything in it.
+  //
+  // WHY THE HEADER GETS ITS OWN CONTAINER: `position: sticky` is bounded by its
+  // CONTAINING BLOCK, so a persistent element must be a direct child of the tall
+  // shell frame — not of a content-sized box, which would give it no room to stay
+  // pinned (globals.css — persistent navigation).
+  //
+  // `md:w-full` ALSO carries the P0-1 (converged from the verified UI-12.2 demo
+  // fix) layout rule: in the ASIDE composition the page frame becomes a wrapping
+  // row (`md:flex-row md:flex-wrap`, P6-3B). The header is a flex ITEM like the
+  // rail and `<main>`, so without an explicit full-width basis it sits INLINE
+  // beside the sidebar (seen live: header 36%, rail 240px beside it, main
+  // squeezed to 45%). The header must break to its own full-width row above the
+  // rail/main row; the footer does the same below. Header-slot compositions
+  // (asideActive === false) are untouched.
+  //
+  // WHICH REGION PERSISTS AT WHICH WIDTH: one marker class per viewport band
+  // whose composition puts the RAIL beside the content. There the rail is the
+  // persistent primary navigation, so the top region scrolls normally — the two
+  // can never be sticky at once, can never overlap, and never need a measured
+  // offset between them. Where no rail band is composed (a header-slot
+  // composition, or every width below `md`) the header itself carries the
+  // navigation, so it persists instead. Both markers are pure functions of the
+  // resolved slot vocabulary; no configuration and no composition identity is
+  // read here.
+  const railBesideMd = asideActive && decision.tablet.slot === "aside";
+  const railBesideLg = asideActive && decision.desktop.slot === "aside";
+  const topRegion = (
+    <div
+      className={[
+        "ui-shell-top",
+        railBesideMd ? "ui-shell-top--rail-md" : undefined,
+        railBesideLg ? "ui-shell-top--rail-lg" : undefined,
+        asideActive ? "md:w-full" : undefined,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {header}
+    </div>
   );
-  // P0-1 (converged from the verified UI-12.2 demo fix): in the ASIDE
-  // composition the page frame becomes a wrapping row (`md:flex-row md:flex-wrap`,
-  // P6-3B). The header is a flex ITEM like the rail and `<main>`, so without an
-  // explicit full-width basis it sits INLINE beside the sidebar (seen live:
-  // header 36%, rail 240px beside it, main squeezed to 45%). The header must
-  // break to its own full-width row above the rail/main row; the footer does the
-  // same below. Header-slot compositions (asideActive === false) are untouched.
-  const headerSlot = asideActive ? (
-    <div className="md:w-full">{headerContent}</div>
-  ) : (
-    headerContent
-  );
+
+  // P6-3C — the primary CTA keeps its ONE authoritative home in the shell's TOP
+  // region, directly beneath the header and structurally OUTSIDE the aside rail.
+  // It stays in NORMAL FLOW and is deliberately NOT part of the persistent
+  // region: persistence exists for NAVIGATION (so a visitor never has to scroll
+  // back to the top of the page to reach another one), and an action is not a
+  // destination list. Its position, wording and presentation are unchanged, and
+  // it is still rendered exactly once, for every viewport.
+  const ctaRow = topCtaNode ? (
+    <div
+      className={["ui-shell-header-row", asideActive ? "md:w-full" : undefined]
+        .filter(Boolean)
+        .join(" ")}
+    >
+      {topCtaNode}
+    </div>
+  ) : null;
 
   return (
     <div className={wrapperClass}>
       <AppShell
-        header={headerSlot}
+        header={
+          <>
+            {topRegion}
+            {ctaRow}
+          </>
+        }
         main={main}
         footer={asideActive ? <div className="md:w-full">{footer}</div> : footer}
         sidebar={buildAside()}
