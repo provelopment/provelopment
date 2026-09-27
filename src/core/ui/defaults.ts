@@ -13,7 +13,9 @@ import type {
   ThemeRadius,
   UiDensity,
 } from "./vocabulary";
-import { PRESENTATION_DEFAULTS, type UiPresentation } from "./presentation";
+import type { UiPresentation } from "./presentation";
+import { PRESENTATION_DEFAULTS } from "./presentation";
+import type { ShellLayout } from "./layout";
 
 /**
  * Foundation-level UI defaults (UI-02 — Configuration Infrastructure).
@@ -132,6 +134,13 @@ export interface UiFoundationDefaults {
   readonly content: { readonly width: ContentWidth };
   /** P5-3 — the canonical presentation intent (balanced). */
   readonly presentation: UiPresentation;
+  /**
+   * N2 — the shell layout presentation switcher. DELIBERATELY disabled: the
+   * Foundation's own composition offers no choice (exactly as it renders no CTA),
+   * and an adopter enables the switcher explicitly. `sidebar` is the documented
+   * default when they do, because it is the canonical composition.
+   */
+  readonly layoutSwitcher: { readonly enabled: boolean; readonly default: ShellLayout };
   readonly cta: {
     /** DELIBERATE neutral default (D1, owner-approved): the Foundation's own
      *  composition renders no CTA; an action is a business decision, never
@@ -194,6 +203,7 @@ export const FOUNDATION_UI_DEFAULTS: Readonly<UiFoundationDefaults> = {
   density: "comfortable",
   content: { width: "standard" },
   presentation: PRESENTATION_DEFAULTS,
+  layoutSwitcher: { enabled: false, default: "sidebar" },
   cta: {
     enabled: false,
     action: undefined,

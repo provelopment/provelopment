@@ -10,8 +10,12 @@ import {
   DEFAULT_SIDEBAR_CLOSE_ICON,
   DEFAULT_SIDEBAR_OPEN_ICON,
   densityClass,
+  layoutScopeAttributes,
+  railCompositions,
+  railLayouts,
   resolveControlPresentation,
   resolveShellPattern,
+  shellLayoutCompositions,
   type MenuMode,
 } from "@/core/ui";
 
@@ -124,8 +128,20 @@ export function ShellEngine({
   ctaHref,
 }: ShellEngineProps) {
   const decision = resolveShellPattern(resolved);
-  const asideActive =
-    (decision.desktop.slot === "aside" || decision.tablet.slot === "aside") && asideContent !== undefined;
+  // N2 — the LAYOUT PRESENTATION. With the switcher disabled this is the single
+  // composition the shell has always produced. With it enabled the shell exposes the
+  // structures of BOTH layouts and marks each one with the layouts it IS the active
+  // navigation for (`layoutScopeAttributes`); the stylesheet then exposes exactly one
+  // of them for the active `data-ui-shell-layout` value, so two structures can never
+  // be focusable or announced at once. The MOBILE composition is shared by both
+  // layouts, so it is composed once, unchanged, from the resolved decision.
+  const layoutCompositions = shellLayoutCompositions(resolved);
+  const scopedLayouts = layoutCompositions.some((composition) => composition.scoped);
+  const desktopRail = railCompositions(resolved, "desktop");
+  const tabletRail = railCompositions(resolved, "tablet");
+  const desktopRailLayouts = railLayouts(resolved, "desktop");
+  const tabletRailLayouts = railLayouts(resolved, "tablet");
+  const asideActive = (desktopRail.length > 0 || tabletRail.length > 0) && asideContent !== undefined;
 
   // Default (header-slot) path stays byte-identical (UI-04): flex column,
   // full page width to header/footer. The aside layout switches the page frame
@@ -199,8 +215,8 @@ export function ShellEngine({
   // navigation, so it persists instead. Both markers are pure functions of the
   // resolved slot vocabulary; no configuration and no composition identity is
   // read here.
-  const railBesideMd = asideActive && decision.tablet.slot === "aside";
-  const railBesideLg = asideActive && decision.desktop.slot === "aside";
+  const railBesideMd = asideActive && tabletRail.length > 0;
+  const railBesideLg = asideActive && desktopRail.length > 0;
   const topRegion = (
     <div
       className={[
@@ -279,8 +295,14 @@ export function ShellEngine({
     const sidebarCollapsible = resolved.shell.sidebar.collapsible;
     const renderBand = (id: string, band: "desktop" | "tablet") => {
       const isDesktopBand = band === "desktop";
+      // A collapsed-sidebar composition means "collapsed by default, always
+      // expandable" — a property of the PATTERN, so it is read from the layouts that
+      // serve this band (the one composition, unless a switcher composes several).
       const tabletCollapsedSidebar =
-        !isDesktopBand && decision.tablet.primitiveKind === "collapsed-sidebar";
+        !isDesktopBand &&
+        tabletRail.some(
+          (composition) => composition.decision.tablet.primitiveKind === "collapsed-sidebar",
+        );
       // A collapsed-sidebar band is collapsible BY DEFINITION (its initial
       // state is collapsed; the user must be able to expand it — never a
       // dead-end). Non-collapsed bands follow the configured intent.
@@ -310,11 +332,21 @@ export function ShellEngine({
     };
     return (
       <>
-        {decision.desktop.slot === "aside" ? (
-          <div className="hidden lg:block">{renderBand("shell-sidebar-desktop", "desktop")}</div>
+        {desktopRail.length > 0 ? (
+          <div
+            className="hidden lg:block"
+            {...layoutScopeAttributes("rail", desktopRailLayouts, scopedLayouts)}
+          >
+            {renderBand("shell-sidebar-desktop", "desktop")}
+          </div>
         ) : null}
-        {decision.tablet.slot === "aside" ? (
-          <div className="hidden md:block lg:hidden">{renderBand("shell-sidebar-tablet", "tablet")}</div>
+        {tabletRail.length > 0 ? (
+          <div
+            className="hidden md:block lg:hidden"
+            {...layoutScopeAttributes("rail", tabletRailLayouts, scopedLayouts)}
+          >
+            {renderBand("shell-sidebar-tablet", "tablet")}
+          </div>
         ) : null}
       </>
     );

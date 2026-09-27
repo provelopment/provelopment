@@ -74,6 +74,15 @@ tree stays clean.
   → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is
   measured on a target the author created; a raw-HTML anchor attempt in the same
   fixture must stay inert, and the scenario asserts both.
+- **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
+  enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
+  sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does
+  the reverse — and a Tab sweep proves the hidden structure is never focusable. The
+  document, its main content, the route, the locale and the usable content column are
+  unchanged, persistent navigation and fragment clearance follow the active layout, the
+  choice survives client-side navigation and a full reload (and an unusable stored value
+  falls back to the configured default), and at mobile width the control is not offered
+  because both layouts share the same mobile navigation.
 - **advanced JSON** (`advanced-json` scenario): a declarative document authored under
   `content/pages/json/en/` is discovered, validated and served by the real application —
   exactly one `<h1>` (the document title), a Markdown field rendered (`**bold**`), a table

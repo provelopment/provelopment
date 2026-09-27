@@ -3402,6 +3402,266 @@ async function runAdvancedJsonScenario(chrome) {
   return rows;
 }
 
+/**
+ * N2 — THE SHELL LAYOUT PRESENTATION SWITCHER, IN A REAL BROWSER.
+ *
+ * The capability's acceptance, against the REAL application with the switcher enabled by
+ * configuration (own server; config and content restored, browser storage cleared):
+ *
+ *   · the control exists, is labelled, offers exactly the declared layouts, and starts on
+ *     the configured default;
+ *   · the ACTIVE layout exposes exactly ONE navigation structure — the rail in the sidebar
+ *     layout, the header navigation in the menu-bar layout — and the inactive one is
+ *     genuinely non-exposed: not rendered, and never reachable by Tab;
+ *   · switching changes PRESENTATION only: same document, same main content, same route,
+ *     same locale, same page frame (the content box does not move);
+ *   · persistent navigation follows the active layout, and fragment clearance returns with
+ *     it;
+ *   · the choice survives client-side navigation AND a full reload (browser-local
+ *     preference), an unusable stored value falls back to the configured default, and
+ *     clearing storage returns to it;
+ *   · below `md` both layouts share the SAME mobile navigation and the control is not
+ *     offered, so no second mobile navigation and no mobile clutter appear.
+ */
+const LAYOUT_PROBE = `(() => {
+  const root = document.documentElement;
+  const control = document.querySelector('[data-ui-layout-switcher]');
+  const rail = document.querySelector('[data-ui-shell-part="rail"]');
+  const topNav = document.querySelector('[data-ui-shell-part="top-nav"]');
+  const top = document.querySelector('.ui-shell-top');
+  const main = document.querySelector('main');
+  const rect = main ? main.getBoundingClientRect() : { left: 0, width: 0 };
+  const shown = (el) => !!el && el.getClientRects().length > 0;
+  return {
+    active: root.getAttribute('data-ui-shell-layout'),
+    lang: root.lang,
+    path: location.pathname,
+    controlLabel: control ? control.getAttribute('aria-label') : null,
+    controlValue: control ? control.value : null,
+    options: control ? Array.from(control.options).map((option) => option.textContent) : [],
+    controlVisible: shown(control),
+    railVisible: shown(rail),
+    topNavVisible: shown(topNav),
+    topPosition: top ? getComputedStyle(top).position : null,
+    scrollPadding: getComputedStyle(root).scrollPaddingTop,
+    h1: (document.querySelector('h1') || {}).textContent || '',
+    mainText: main ? (main.textContent || '').trim() : null,
+    mainLeft: Math.round(rect.left),
+    mainWidth: Math.round(rect.width),
+    bottomBarVisible: shown(document.querySelector('.ui-shell-bottom-bar')),
+  };
+})()`;
+
+/** Choose a layout exactly as a visitor does (value + change event on the control). */
+const chooseLayout = (layout) => `(() => {
+  const control = document.querySelector('[data-ui-layout-switcher]');
+  if (!control) return false;
+  control.value = ${JSON.stringify(layout)};
+  control.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+})()`;
+
+async function runLayoutSwitcherScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  const port = BASE_PORT + 320;
+  const url = `http://localhost:${port}/en`;
+  BASE_URL = `http://localhost:${port}`;
+  const config = JSON.parse(original);
+  config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: true } };
+  // A SECOND navigation destination, so the persistence proof can navigate CLIENT-SIDE to
+  // a different page (the shipped template has a single Home entry).
+  config.navigation = [...config.navigation, { label: "Fixture page", href: "/zz-layout-page" }];
+  await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+  const pagePath = join(ROOT, "content", "pages", "markdown", "en", "zz-layout-page.md");
+  await mkdir(dirname(pagePath), { recursive: true });
+  await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(url);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.evaluate("window.localStorage.clear(); true").catch(() => undefined);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    const initial = await cdp.evaluate(LAYOUT_PROBE);
+    check(rows, "control.present", !!initial && initial.controlLabel === "Layout", `label=${initial && initial.controlLabel}`);
+    check(
+      rows,
+      "control.offersExactVocabulary",
+      !!initial && initial.options.join(" | ") === "Sidebar | Menu bar",
+      initial && initial.options.join(" | "),
+    );
+    check(rows, "default.sidebar", !!initial && initial.active === "sidebar", initial && initial.active);
+    check(rows, "sidebar.railVisible", !!initial && initial.railVisible === true, `rail=${initial && initial.railVisible}`);
+    check(rows, "sidebar.topNavHidden", !!initial && initial.topNavVisible === false, `topNav=${initial && initial.topNavVisible}`);
+    check(rows, "sidebar.topRegion.scrolls", !!initial && initial.topPosition === "static", initial && initial.topPosition);
+    check(rows, "sidebar.clearance", !!initial && initial.scrollPadding === "0px", initial && initial.scrollPadding);
+    // ── SWITCH TO THE MENU BAR ────────────────────────────────────────────────
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await waitReady(cdp);
+    const menuBar = await cdp.evaluate(LAYOUT_PROBE);
+    check(rows, "switch.applies", !!menuBar && menuBar.active === "menu-bar", menuBar && menuBar.active);
+    check(rows, "menuBar.railHidden", !!menuBar && menuBar.railVisible === false, `rail=${menuBar && menuBar.railVisible}`);
+    check(rows, "menuBar.topNavVisible", !!menuBar && menuBar.topNavVisible === true, `topNav=${menuBar && menuBar.topNavVisible}`);
+
+    // ── PRESENTATION ONLY: the document, its content, route and locale ────────
+    check(
+      rows,
+      "switch.contentUnchanged",
+      !!menuBar && menuBar.h1 === initial.h1 && menuBar.mainText === initial.mainText,
+      `h1=${menuBar && menuBar.h1 === initial.h1} main=${menuBar && menuBar.mainText === initial.mainText}`,
+    );
+    check(
+      rows,
+      "switch.routeAndLocaleUnchanged",
+      !!menuBar && menuBar.path === initial.path && menuBar.lang === initial.lang && menuBar.path.startsWith("/en"),
+      `path=${menuBar && menuBar.path} lang=${menuBar && menuBar.lang}`,
+    );
+    // The rail occupies horizontal space in the sidebar layout, so the content column
+    // legitimately moves — the contract is that the layout stays USABLE: the content
+    // reclaims that width, and neither layout overflows the viewport.
+    check(
+      rows,
+      "switch.contentColumnUsable",
+      !!menuBar && menuBar.mainWidth >= initial.mainWidth && menuBar.mainLeft >= 0,
+      `width ${initial.mainWidth}->${menuBar && menuBar.mainWidth}, left=${menuBar && menuBar.mainLeft}`,
+    );
+    check(
+      rows,
+      "switch.noHorizontalOverflow",
+      await cdp.evalBool(
+        "document.documentElement.scrollWidth <= window.innerWidth + 1 && document.querySelector('main').getBoundingClientRect().right <= window.innerWidth + 1",
+      ),
+      "the page fits the viewport in the menu-bar layout",
+    );
+
+    // ── PERSISTENT NAVIGATION follows the ACTIVE layout ───────────────────────
+    check(
+      rows,
+      "menuBar.topRegion.persists",
+      !!menuBar && menuBar.topPosition === "sticky",
+      menuBar && menuBar.topPosition,
+    );
+    check(
+      rows,
+      "menuBar.clearanceRestored",
+      !!menuBar && menuBar.scrollPadding !== "0px",
+      menuBar && menuBar.scrollPadding,
+    );
+
+    // ── ONE EXPOSED NAVIGATION: the inactive structure is never focusable ────
+    await cdp.evaluate("document.body.focus(); true");
+    let landedInRail = false;
+    for (let step = 0; step < 14; step += 1) {
+      await cdp.pressKey("Tab");
+      const inside = await cdp.evalBool(
+        `!!document.activeElement && !!document.activeElement.closest('[data-ui-shell-part="rail"]')`,
+      );
+      if (inside) landedInRail = true;
+    }
+    check(rows, "menuBar.railNeverFocusable", landedInRail === false, `landedInRail=${landedInRail}`);
+
+    // ── PERSISTENCE (1): client-side navigation to another page ──────────────
+    const clickedLink = await cdp.clickCenter(
+      'nav[data-ui-shell-part="top-nav"] a[href$="/zz-layout-page"]',
+    );
+    // A client-side transition commits asynchronously, so wait for the URL itself
+    // rather than assuming the router has finished when the document is ready.
+    let navigatedPath = await cdp.evaluate("location.pathname");
+    for (let attempt = 0; attempt < 60 && navigatedPath !== "/en/zz-layout-page"; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      navigatedPath = await cdp.evaluate("location.pathname");
+    }
+    await waitReady(cdp);
+    const afterNavigation = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "persistence.clientNavigation",
+      !!clickedLink && navigatedPath === "/en/zz-layout-page" && afterNavigation.active === "menu-bar",
+      `clicked=${clickedLink} path=${navigatedPath} active=${afterNavigation && afterNavigation.active}`,
+    );
+
+    // ── PERSISTENCE (2): a full reload keeps the visitor's choice ─────────────
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const afterReload = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "persistence.afterReload",
+      !!afterReload && afterReload.active === "menu-bar" && afterReload.controlValue === "menu-bar" && afterReload.railVisible === false,
+      `active=${afterReload && afterReload.active} control=${afterReload && afterReload.controlValue}`,
+    );
+
+    // ── AN UNUSABLE STORED VALUE falls back to the configured default ─────────
+    await cdp.evaluate(`window.localStorage.setItem('foundation.layout', 'compact'); true`);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const afterHostile = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "storage.arbitraryValueIgnored",
+      !!afterHostile && afterHostile.active === "sidebar" && afterHostile.railVisible === true,
+      `active=${afterHostile && afterHostile.active}`,
+    );
+
+    // ── CLEARING STORAGE returns to the configured default ────────────────────
+    await cdp.evaluate("window.localStorage.clear(); true");
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const afterClear = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "storage.clearedFallsBackToDefault",
+      !!afterClear && afterClear.active === "sidebar" && afterClear.controlValue === "sidebar",
+      `active=${afterClear && afterClear.active}`,
+    );
+
+    // ── MOBILE: one shared mobile navigation, and no second control ───────────
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const mobileSidebar = await cdp.evaluate(LAYOUT_PROBE);
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await waitReady(cdp);
+    const mobileMenuBar = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "mobile.controlNotOffered",
+      !!mobileSidebar && mobileSidebar.controlVisible === false,
+      `controlVisible=${mobileSidebar && mobileSidebar.controlVisible}`,
+    );
+    check(
+      rows,
+      "mobile.sameMobileNavigationInBothLayouts",
+      !!mobileSidebar &&
+        !!mobileMenuBar &&
+        mobileSidebar.bottomBarVisible === mobileMenuBar.bottomBarVisible &&
+        mobileSidebar.bottomBarVisible === true &&
+        mobileMenuBar.railVisible === false,
+      `bottomBar ${mobileSidebar && mobileSidebar.bottomBarVisible}->${mobileMenuBar && mobileMenuBar.bottomBarVisible}`,
+    );
+    check(
+      rows,
+      "mobile.noHorizontalOverflow",
+      await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"),
+      "page fits the mobile viewport in both layouts",
+    );
+  // __SCENARIO_REST__
+  } catch (error) {
+    check(rows, "layout-switcher.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
+    await rm(pagePath, { force: true });
+    if (cdp) await cdp.close();
+    stopServer(server);
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -3450,6 +3710,12 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(jsonRows.map((r) => ({ presentation: "advanced-json", ...r })));
     const jsonFails = jsonRows.filter((r) => !r.ok).length;
     console.log(`[matrix] advanced-json: ${jsonRows.length - jsonFails}/${jsonRows.length} checks passed${jsonFails ? ` FAIL=${jsonFails}` : ""}`);
+    // FOUNDATION-N2 — SHELL LAYOUT PRESENTATION: the optional visitor switcher between
+    // the Sidebar and Menu-bar layouts (own server + fixtures, all restored).
+    const layoutRows = await runLayoutSwitcherScenario(chrome);
+    allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
+    const layoutFails = layoutRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

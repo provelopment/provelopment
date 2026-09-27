@@ -691,12 +691,70 @@ with the localized label (P0-1: a collapsible rail is never a dead-end — see
 | `navigation[].position` | `top` \| `middle` \| `bottom` |
 | `ui.cta.iconPosition` | `start` \| `end` |
 | `ui.cta.state` | `default` \| `disabled` |
+| `ui.layoutSwitcher.enabled` | `true` \| `false` (absent = off) |
+| `ui.layoutSwitcher.default` | `sidebar` \| `menu-bar` |
 | icon leaves | plain asset filename, or `""` on control leaves |
 
 The resolved modes are observable on `<html>` as `data-ui-sidebar-mode`,
 `data-ui-top-mode`, `data-ui-bottom-mode`, `data-ui-cta-state` — the same
 generalized attribute surface as the P5-3 presentation layer (no identity
 coupling, so downstream CSS may key on vocabulary values if desired).
+
+### The `ui.layoutSwitcher` block (N2 — optional shell layout switcher)
+
+A Foundation site ships with **ONE shell composition** (the canonical sidebar layout). If
+you want a visitor to be able to choose between the platform's two layouts, enable the
+switcher:
+
+```jsonc
+{
+  "ui": {
+    "layoutSwitcher": {
+      "enabled": true,      // off unless you say otherwise
+      "default": "sidebar"  // "sidebar" (default) | "menu-bar"
+    }
+  }
+}
+```
+
+What it does:
+
+- renders one secondary **Layout** dropdown in the header (`Sidebar` / `Menu bar`),
+  labelled for screen readers from the dictionary and offered at `md` and up;
+- switches the **shell layout only** — the page, its route, its locale, its content, its
+  assets and every other `ui` leaf are untouched. Both layouts share the SAME mobile
+  navigation, so below `md` nothing changes (and the control is therefore not offered);
+- remembers the visitor's choice in browser-local storage (that preference and nothing
+  else — no cookie, no session, no account, and no route becomes dynamically rendered);
+  storage that is blocked, empty or holds a value the vocabulary does not declare falls
+  back to your configured `default`;
+- exposes exactly ONE navigation structure at a time: the inactive one is removed from the
+  accessibility tree and the focus order, so there is never a second focusable navigation
+  system, and persistent navigation plus fragment clearance follow the active layout
+  automatically.
+
+| Leaf | Values |
+| --- | --- |
+| `ui.layoutSwitcher.enabled` | `true` \| `false` (absent = off) |
+| `ui.layoutSwitcher.default` | `sidebar` \| `menu-bar` (absent = `sidebar`) |
+
+The two layouts are named presets of existing vocabulary, nothing more:
+
+| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` |
+| --- | --- | --- |
+| `sidebar` | `sidebar` | `collapsed-sidebar` |
+| `menu-bar` | `top` | `top-compact` |
+
+Because a layout IS those two leaves, enabling the switcher **and** setting
+`ui.navigation.desktop`/`ui.navigation.tablet` is refused at build time with an actionable
+message — remove those two leaves, or leave the switcher off. Everything else
+(`ui.navigation.mobile`, the sidebar/top/bottom modes, density, width, theme, CTA and the
+P5-3 presentation intent) still applies to both layouts.
+
+The active layout is observable on `<html>` as `data-ui-shell-layout` (the same inert
+attribute surface as `data-ui-typography`, `data-ui-sidebar-mode`, …), so downstream CSS
+can key on it if desired. With the switcher disabled that attribute and every layout
+marker are absent — a site that offers no choice renders exactly the markup it always has.
 
 ### Theme presentation — `ui.theme`
 

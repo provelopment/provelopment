@@ -33,6 +33,11 @@
   "language": {
     "label": "Language"
   },
+  "layout": {
+    "label": "Layout",
+    "sidebar": "Sidebar",
+    "menuBar": "Menu bar"
+  },
   "location": {
     "label": "Location",
     "unspecified": "Global"

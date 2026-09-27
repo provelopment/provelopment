@@ -90,3 +90,20 @@ export {
   resolveControlPresentation,
 } from "./controls";
 export type { ControlPresentation } from "./controls";
+
+export {
+  applyShellLayout,
+  headerNavigationCompositions,
+  headerNavigationLayouts,
+  isShellLayout,
+  layoutDataAttributes,
+  layoutScopeAttributes,
+  railCompositions,
+  railLayouts,
+  shellLayoutCompositions,
+  SHELL_LAYOUT_ATTRIBUTE,
+  SHELL_LAYOUT_PATTERNS,
+  SHELL_LAYOUT_STORAGE_KEY,
+  SHELL_LAYOUTS,
+} from "./layout";
+export type { ShellLayout, ShellLayoutComposition } from "./layout";

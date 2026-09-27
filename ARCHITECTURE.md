@@ -341,6 +341,14 @@ nesting (a section has items; no sections inside sections), and no publishing me
 beyond title/summary — article dates, feeds and draft states belong to a publishing
 capability that does not exist yet and would need its own increment.
 
+**Known gap, recorded and NOT fixed by A2 (required before the reference content).** The
+Markdown authoring mode still lets an author write a `# Heading` in a page body, which
+renders as a SECOND level-1 heading beside the page title the renderer supplies. The JSON
+mode has no such gap (its envelope title is the only h1). Closing it is a small bounded
+page-authoring increment scheduled after N2 and before the reference content — it belongs
+to the Markdown mode's own contract, so it is deliberately not mixed into the shell
+presentation work.
+
 ### `public`
 
 
@@ -1379,6 +1387,59 @@ width**:
   (rendered behaviour: stickiness, reachability, one persistent region per width,
   no rail/content overlap, a long navigation scrolled inside the column, fragment
   clearance, the mobile disclosure while scrolled, and unchanged destinations).
+
+### Shell layout presentation — the optional visitor switcher (N2)
+
+A Foundation site has **one** shell composition. N2 adds the *optional* capability for a
+visitor to choose between the platform's two layouts — a desktop **sidebar** and a top
+**menu bar** — which exists so a deployment can demonstrate the same site in two
+presentations.
+
+- **A layout is a PRESET, not a second shell system.** It names two existing vocabulary
+  leaves: `sidebar` = `navigation.desktop: "sidebar"` + `navigation.tablet:
+  "collapsed-sidebar"`; `menu-bar` = `"top"` + `"top-compact"`
+  (`@/core/ui/layout.ts`). Every decision still flows through the ONE decision core
+  (`resolveShellPattern`), so a layout cannot invent a composition the shell engine does
+  not already implement, and the mobile leaf is deliberately **not** part of a layout —
+  both layouts share the same mobile navigation, so a visitor never gets a second mobile
+  product.
+- **Configuration decides whether it exists.** `ui.layoutSwitcher: { enabled, default }`
+  (`@/core/ui/defaults.ts` → `FOUNDATION_UI_DEFAULTS.layoutSwitcher`) is **disabled by
+  default**: the Foundation's own composition offers no choice, exactly as it renders no
+  CTA. When it is enabled the default layout's patterns ARE the resolved
+  `navigation.desktop`/`tablet`, and the schema REFUSES enabling it alongside those two
+  leaves (two answers to one question is a contradiction, and the Foundation fails loudly
+  rather than picking one).
+- **One exposed navigation, by construction.** The shell composes the structures of both
+  layouts and marks each one with the layouts it is the active navigation for
+  (`data-ui-shell-part="rail" | "top-nav"` + `data-ui-shell-layouts`); the stylesheet
+  (`globals.css` — shell layout presentation) exposes exactly one for the active
+  `data-ui-shell-layout` value on `<html>`. The gate is `display: none`, which is
+  SEMANTIC: the inactive structure leaves the accessibility tree and the focus order, so
+  there is never a second focusable navigation system and never a duplicate landmark.
+  Persistent navigation and fragment clearance follow the active layout in the same CSS
+  layer (in the menu-bar layout the top region becomes the persistent navigation at the
+  widths where a hidden rail structure is also composed).
+- **Static generation is untouched.** The server emits the attribute for the configured
+  default and the preference lives in browser-local storage (`foundation.layout`) read by
+  one small client control (`@/components/site/layout-switcher.tsx`) after hydration — no
+  cookie, no session, no server state, so no route becomes dynamically rendered and
+  hydration can never disagree with the server. Unavailable/blocked storage or a value the
+  vocabulary does not declare falls back to the configured default. With the switcher
+  disabled, no attribute, marker, control or extra structure is emitted at all: the markup
+  is byte-identical to the single-composition shell.
+- **Content is never duplicated.** There is one content tree, one route namespace and one
+  locale model; `/de/about` stays `/de/about` under both layouts, and switching changes no
+  DOM content — only which of the two composed navigation structures is exposed.
+- Asserted by `tests/unit/ui-layout-switcher.test.ts` (vocabulary, resolution,
+  configuration coherence, completeness), by `tests/unit/shell-layout-presentation.test.ts`
+  (the composed markup, the scope markers, the byte-identity guarantee, and the stylesheet
+  contract) and by the browser matrix's `layout-switcher` scenario (rendered behaviour:
+  one exposed navigation, Tab never reaching the hidden rail, unchanged content/route/
+  locale, persistence through client navigation and reload, an unusable stored value
+  ignored, and the shared mobile composition).
+
+### Boundaries
 
 ### Boundaries
 

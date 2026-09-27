@@ -58,6 +58,15 @@ export const dictionarySchema = z.object({
   language: z.object({
     label: z.string(),
   }),
+  /**
+   * N2 — the shell layout presentation control (Sidebar / Menu bar). The labels name
+   * the two layouts; the group label is the control's accessible name.
+   */
+  layout: z.object({
+    label: z.string(),
+    sidebar: z.string(),
+    menuBar: z.string(),
+  }),
   /** Accessible label for the location (region) selector (Phase L). */
   location: z.object({
     label: z.string(),

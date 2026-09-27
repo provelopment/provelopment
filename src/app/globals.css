@@ -1114,6 +1114,65 @@ html:has(.ui-shell-top) {
   overscroll-behavior: contain;
 }
 
+/* ── N2 — SHELL LAYOUT PRESENTATION (visitor-selectable) ─────────────────────
+ *
+ * The RENDERER for the optional layout switcher (`ui.layoutSwitcher`). The shell
+ * exposes the structures of BOTH layouts and each structure declares the layouts it
+ * IS the active navigation for (`data-ui-shell-part` / `data-ui-shell-layouts`, set
+ * by the shell engine and the header). The active layout is the inert
+ * `data-ui-shell-layout` attribute on `<html>`, which the visitor's control rewrites.
+ *
+ * EXACTLY ONE EXPOSED NAVIGATION. `display: none` is the gate because it is a
+ * SEMANTIC gate, not a visual one: the inactive structure is removed from the
+ * accessibility tree AND from the focus order, so there is never a second focusable
+ * navigation system and never a duplicate landmark — hiding-with-opacity would be
+ * neither. The classes above are width-scoped (`hidden md:block`, `hidden
+ * lg:block`), and these two rules add the LAYOUT dimension; the attributes carry
+ * more specificity than Tailwind's single-class utilities, so no `!important` is
+ * needed and no arbitrary CSS is introduced.
+ *
+ * The MOBILE composition is shared by both layouts, so nothing here touches it: below
+ * `md` the site behaves exactly as it always has.
+ */
+html[data-ui-shell-layout="menu-bar"] [data-ui-shell-part="rail"] {
+  display: none;
+}
+
+html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="top-nav"] {
+  display: none;
+}
+
+/* Where the ACTIVE layout carries navigation in the header, the top region IS the
+ * persistent navigation — including at the widths where a (now hidden) rail
+ * structure is also composed. The band-scoped suppression documented above is
+ * therefore reversed for the menu-bar layout, and the fragment-target clearance
+ * returns with it, so an in-page anchor never lands beneath the header. */
+@media (min-width: 48rem) and (max-width: 63.999rem) {
+  html[data-ui-shell-layout="menu-bar"] .ui-shell-top--rail-md {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: var(--background);
+  }
+
+  html[data-ui-shell-layout="menu-bar"]:has(.ui-shell-top--rail-md) {
+    scroll-padding-top: var(--ui-shell-top-clearance);
+  }
+}
+
+@media (min-width: 64rem) {
+  html[data-ui-shell-layout="menu-bar"] .ui-shell-top--rail-lg {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: var(--background);
+  }
+
+  html[data-ui-shell-layout="menu-bar"]:has(.ui-shell-top--rail-lg) {
+    scroll-padding-top: var(--ui-shell-top-clearance);
+  }
+}
+
 /* ── P6-3B header logo + page banner ────────────────────────────────── */
 
 /* Brand logo DISPLAY size — ONE token governs BOTH logo roles, so the footer

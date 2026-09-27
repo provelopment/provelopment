@@ -20,6 +20,7 @@ import {
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
+  layoutDataAttributes,
   presentationDataAttributes,
   radiusDataAttribute,
   resolveShellPattern,
@@ -259,6 +260,10 @@ export default async function LocaleLayout({
   const htmlPresentationAttrs = {
     ...presentationDataAttributes(resolvedUi.presentation),
     ...radiusDataAttribute(resolvedUi.theme.radius),
+    // N2 — the ACTIVE shell layout presentation. Emitted ONLY when the adopter enables
+    // the switcher, so a site without it produces byte-identical markup; the client
+    // control changes this one attribute (see globals.css — shell layout presentation).
+    ...layoutDataAttributes(resolvedUi),
     "data-ui-sidebar-mode": resolvedUi.navigation.sidebar.mode,
     "data-ui-top-mode": resolvedUi.navigation.top.mode,
     "data-ui-bottom-mode": resolvedUi.navigation.bottom.mode,
