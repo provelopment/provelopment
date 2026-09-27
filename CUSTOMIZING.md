@@ -733,15 +733,34 @@ token mechanism — no components need to change. Invalid values (a non-hex
 string, wrong length) fail the build with an actionable message.
 ## 2. Content — Markdown Pages
 
-Pages live at `content/pages/<locale>/<slug>.md`. Frontmatter sets the page
-title; the body is rendered as Markdown.
+A page is authored in one of **two first-class modes**, or through the **legacy
+content** mechanism existing sites already use.
+
+| Where | What it is |
+| --- | --- |
+| `config/pages-markdown/<locale>/<slug>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
+| `config/pages-json/<locale>/<slug>.json` | **Declarative JSON** — the advanced mode, for a page that needs presentation Markdown cannot express. Its vocabulary is not implemented yet: adding a JSON page file currently stops the build with an error naming the file. |
+| `content/pages/<locale>/<slug>.md` | **Legacy content** — supported exactly as before, including trusted raw HTML. It is resolved last, and new pages should use the Markdown mode instead. |
+
+Each root's own `README.md` explains its mode in plain language, and is never
+itself a page. A page becomes a route and a sitemap entry as soon as its file
+exists for a configured language — publishing the route needs no configuration
+change; `navigation` in `site.config.json` controls the menu, not existence.
+
+If the same slug exists in more than one place, the order is: JSON, then safe
+Markdown, then legacy content — within the requested language first, and only then
+falling back to the default language. A legacy page always keeps its frontmatter
+`title` and its raw-HTML treatment; a safe Markdown page needs nothing but prose (a
+title comes from frontmatter, then the first `# heading`, then the filename).
 
 ### The home page is OPTIONAL, and may be authored as content (`home.md`)
 
 The locale root (`/{locale}`) renders the generic, configuration-driven starter homepage
-**unless you author it as content**: add `content/pages/<locale>/home.md` and the
-locale-root route renders THAT, through the same content repository as every other page —
-same Markdown treatment, same per-locale fallback, same trust boundary.
+**unless you author it as content**: add `config/pages-markdown/<locale>/home.md` (or
+`config/pages-json/<locale>/home.json`, or the legacy `content/pages/<locale>/home.md`)
+and the locale-root route renders THAT, through the same page-source composition as every
+other page — same precedence, same per-locale fallback, and the trust regime of whichever
+kind answered.
 
 ```markdown
 ---

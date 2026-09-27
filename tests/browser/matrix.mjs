@@ -12,7 +12,7 @@
 // Run: `pnpm test:browser` (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { readFile, writeFile, mkdir, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdir, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -2839,6 +2839,127 @@ async function runPersistentNavigationScenario(chrome) {
   return rows;
 }
 
+/**
+ * SAFE MARKDOWN, IN A REAL BROWSER (FOUNDATION-PAGES-A1).
+ *
+ * The policy is proven twice in unit tests (`safe-markdown`, `safe-url`); what only
+ * a browser can prove is that the SERVED page — through the real route, the real
+ * server and the real parser — contains no active markup: no author script, no
+ * event handler, no unsafe destination, and no forbidden element. The fixture is an
+ * ordinary authored page with hostile fragments inside it, written for the run and
+ * removed afterwards.
+ */
+const SAFE_MARKDOWN_SLUG = "zz-safe-markdown-fixture";
+
+const SAFE_MARKDOWN_FIXTURE = `---
+title: Safe Markdown fixture
+description: An authored page that tries to be dangerous.
+---
+
+# Safe Markdown fixture
+
+Ordinary **Markdown** with a [link](/about) and a list:
+
+- one
+- two
+
+<script>window.__authorScript = true;</script>
+
+<div onclick="window.__authorHandler = true">raw html text</div>
+
+<iframe src="//evil.example"></iframe>
+
+<style>body { display: none; }</style>
+
+<img src=x onerror="window.__authorImageHandler = true">
+
+[unsafe link](javascript:window.__authorHref = true)
+`;
+
+async function runSafeMarkdownScenario(chrome) {
+  const port = BASE_PORT + 260;
+  BASE_URL = `http://localhost:${port}`;
+  const fixturePath = join(ROOT, "config", "pages-markdown", "en", `${SAFE_MARKDOWN_SLUG}.md`);
+  const url = `${BASE_URL}/en/${SAFE_MARKDOWN_SLUG}`;
+  const rows = [];
+  await mkdir(dirname(fixturePath), { recursive: true });
+  await writeFile(fixturePath, SAFE_MARKDOWN_FIXTURE, "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(`${BASE_URL}/en`);
+    cdp = await Cdp.connect(chrome);
+    // Collect any page-level error BEFORE the page loads: a policy that "works" by
+    // throwing is not a policy that works.
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: "window.__pageErrors = []; window.addEventListener('error', (e) => window.__pageErrors.push(String(e.message)));",
+    });
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    const page = await cdp.evaluate(`(() => {
+      const text = document.body.textContent || '';
+      const handlers = [...document.querySelectorAll('*')].flatMap((el) =>
+        [...el.attributes].map((a) => a.name).filter((name) => /^on/i.test(name)),
+      );
+      return {
+        title: (document.querySelector('h1') || {}).textContent || '',
+        strong: !!document.querySelector('main strong'),
+        link: !!document.querySelector('main a[href="/about"]'),
+        unsafeHref: [...document.querySelectorAll('a[href]')].some((a) => a.getAttribute('href').toLowerCase().includes('javascript')),
+        authorScript: document.querySelectorAll('script').length,
+        ranScript: !!window.__authorScript,
+        ranHandler: !!window.__authorHandler,
+        ranImageHandler: !!window.__authorImageHandler,
+        ranHref: !!window.__authorHref,
+        pageErrors: window.__pageErrors || [],
+        handlers,
+        // The AUTHOR'S region is <main>. A framework legitimately injects its own
+        // style element (fonts, dev CSS) into the document head, so the element scan
+        // is scoped to the content — and the document-level scan covers the elements
+        // no framework needs for this page.
+        forbiddenInContent: ['script', 'style', 'iframe', 'form', 'object', 'embed'].filter(
+          (tag) => document.querySelector('main ' + tag),
+        ),
+        forbiddenInDocument: ['iframe', 'form', 'object', 'embed'].filter(
+          (tag) => document.querySelectorAll(tag).length > 0,
+        ),
+        // The author's raw HTML is still readable — as inert text.
+        rawTextVisible: text.includes('raw html text'),
+        visible: text.includes('Ordinary'),
+      };
+    })()`);
+
+    check(rows, "safeMarkdown.page.renders", !!page && page.visible);
+    check(rows, "safeMarkdown.title.authored", !!page && page.title === "Safe Markdown fixture", page && page.title);
+    check(rows, "safeMarkdown.markdown.rendered", !!page && page.strong && page.link);
+    check(rows, "safeMarkdown.rawHtml.textVisible", !!page && page.rawTextVisible);
+    check(rows, "safeMarkdown.authorScript.absent", !!page && !page.ranScript, `scripts=${page && page.authorScript} ran=${page && page.ranScript}`);
+    check(rows, "safeMarkdown.handler.absent", !!page && !page.ranHandler);
+    check(rows, "safeMarkdown.imageHandler.absent", !!page && !page.ranImageHandler);
+    check(rows, "safeMarkdown.unsafeHref.dropped", !!page && !page.ranHref && !page.unsafeHref);
+    check(rows, "safeMarkdown.noHandlerAttributes", !!page && page.handlers.length === 0, JSON.stringify(page && page.handlers));
+    check(rows, "safeMarkdown.content.noForbiddenElements", !!page && page.forbiddenInContent.length === 0, JSON.stringify(page && page.forbiddenInContent));
+    check(rows, "safeMarkdown.document.noForbiddenElements", !!page && page.forbiddenInDocument.length === 0, JSON.stringify(page && page.forbiddenInDocument));
+    check(rows, "safeMarkdown.noPageErrors", !!page && page.pageErrors.length === 0, JSON.stringify(page && page.pageErrors));
+  } catch (error) {
+    check(rows, "safe-markdown.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
+    await rm(fixturePath, { force: true });
+    // Remove the locale directory ONLY if the fixture left it empty.
+    try {
+      await rmdir(dirname(fixturePath));
+    } catch {
+      /* not empty (or already gone): leave it exactly as it is */
+    }
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -2868,6 +2989,12 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(persistRows.map((r) => ({ presentation: "persistent-navigation", ...r })));
     const persistFails = persistRows.filter((r) => !r.ok).length;
     console.log(`[matrix] persistent-navigation: ${persistRows.length - persistFails}/${persistRows.length} checks passed${persistFails ? ` FAIL=${persistFails}` : ""}`);
+    // FOUNDATION-PAGES-A1 — SAFE MARKDOWN: the served page under the real route
+    // carries no active markup (own server + fixture, both restored).
+    const safeRows = await runSafeMarkdownScenario(chrome);
+    allRows = allRows.concat(safeRows.map((r) => ({ presentation: "safe-markdown", ...r })));
+    const safeFails = safeRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] safe-markdown: ${safeRows.length - safeFails}/${safeRows.length} checks passed${safeFails ? ` FAIL=${safeFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

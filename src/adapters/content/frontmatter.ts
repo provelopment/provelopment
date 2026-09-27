@@ -166,6 +166,17 @@ function parseBlockObject(
   return { value: obj, next: i };
 }
 
+/**
+ * True when a file opens with a `---` frontmatter block.
+ *
+ * The first-class Markdown authoring mode uses this to keep frontmatter
+ * OPTIONAL: a file that is nothing but prose is a complete page there, while the
+ * legacy content collections still require their frontmatter.
+ */
+export function hasFrontmatter(raw: string): boolean {
+  return frontmatterPattern.test(raw);
+}
+
 export function parseFrontmatter(raw: string, slug: string): ParsedFrontmatter {
   const match = frontmatterPattern.exec(raw);
 

@@ -147,11 +147,13 @@ describe("a site that authors no home.md keeps the generic starter homepage", ()
   it("is CONTENT-FIRST: the authored lookup precedes the generic starter render", () => {
     // If the generic return came first, an authored home page would be silently
     // ignored — the exact failure this ordering guards.
-    const lookupAt = homeRouteSource.indexOf("findBySlug(HOME_CONTENT_SLUG");
+    const lookupAt = homeRouteSource.indexOf("pages.resolve(HOME_CONTENT_SLUG");
     const starterAt = homeRouteSource.indexOf("home-hero");
     expect(lookupAt).toBeGreaterThan(-1);
     expect(starterAt).toBeGreaterThan(lookupAt);
-    // …and it renders through the shared Markdown trust boundary, not a bespoke path.
-    expect(homeRouteSource).toContain("MarkdownContent");
+    // …and it renders through the SHARED page-body selector, which owns the ONE
+    // decision about which trust regime renders a body (safe Markdown or the legacy
+    // content mechanism) — never a bespoke path in this route.
+    expect(homeRouteSource).toContain("PageBody");
   });
 });

@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
-import { MarkdownContent } from "@/components/site/markdown-content";
+import { createPageSources } from "@/adapters/content/page-sources";
+import { PageBody } from "@/components/site/page-body";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
@@ -13,15 +13,17 @@ import { resolveRegionalPageContext } from "@/application/page-context";
 import { hasPageEntry, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
-const pageContentRepository = createFileSystemPageContentRepository({
+const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/** The page-source composition — the same one the flat page routes use. */
+const pages = createPageSources({
   defaultLocale: siteConfig.defaultLocale,
+  locales: localeCodes,
 });
 
 // Composition boundary (identical pattern to the app factories): the maps
 // factory selects the directions adapter from validated configuration.
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
-
-const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
 /**
  * Phase L — regional content page `/{locale}/{region}/{page}`.
@@ -57,8 +59,8 @@ export async function generateStaticParams(): Promise<
 export async function generateMetadata({ params }: RegionalPageProps): Promise<Metadata> {
   const { locale, item, slug } = await params;
   if (slug === "offerings") return {};
-  const content = await pageContentRepository.findBySlug(slug, locale);
-  if (!content) return {};
+  const page = await pages.resolve(slug, locale);
+  if (!page) return {};
 
   // hreflang only for genuinely existing (locale, region, page) combinations.
   const alternates = buildRegionalLanguageAlternates({
@@ -70,13 +72,14 @@ export async function generateMetadata({ params }: RegionalPageProps): Promise<M
     slug,
   });
 
-  const title = content.title;
+  const title = page.title;
+  const description = page.description ?? siteConfig.description;
   const canonical = `${siteConfig.url}${regionalPath(locale, item, slug)}`;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   return {
     title,
-    description: siteConfig.description,
+    description,
     alternates: {
       canonical,
       languages: Object.keys(alternates).length > 0 ? alternates : undefined,
@@ -109,8 +112,8 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
     notFound();
   }
 
-  const content = await pageContentRepository.findBySlug(slug, locale);
-  if (!content) notFound();
+  const page = await pages.resolve(slug, locale);
+  if (!page) notFound();
 
   const context = resolveRegionalPageContext(
     { regions: siteConfig.regions },
@@ -122,9 +125,9 @@ export default async function RegionalPage({ params }: RegionalPageProps) {
 
   return (
     <Section as="article">
-      <Heading level={1} tone="title">{content.title}</Heading>
+      <Heading level={1} tone="title">{page.title}</Heading>
       <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
+        <PageBody kind={page.kind} markdown={page.body} />
       </div>
 
       <ResolvedRegionBlock
