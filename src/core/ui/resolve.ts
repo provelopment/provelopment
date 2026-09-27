@@ -1,4 +1,5 @@
 import { FOUNDATION_UI_DEFAULTS } from "./defaults";
+import { SHELL_LAYOUT_PATTERNS, SHELL_LAYOUTS, type ShellLayout } from "./layout";
 import { PRESENTATION_DEFAULTS, type UiPresentation } from "./presentation";
 import {
   CONTENT_WIDTHS,
@@ -72,6 +73,17 @@ export interface UiConfigInput {
   };
   readonly density?: UiDensity;
   readonly content?: { readonly width?: ContentWidth };
+  /**
+   * N2 — the optional visitor-selectable shell layout presentation. Absent (or
+   * `enabled: false`) → the shell composes exactly one layout and no switcher is
+   * rendered. A layout is a preset of `navigation.desktop`/`navigation.tablet`, so
+   * configuring those two leaves explicitly AND enabling the switcher is refused by
+   * the configuration schema (they would contradict each other).
+   */
+  readonly layoutSwitcher?: {
+    readonly enabled?: boolean;
+    readonly default?: ShellLayout;
+  };
   /** P5-3 — generalized presentation intent (optional; Foundation defaults supply the rest). */
   readonly presentation?: {
     readonly typography?: PresentationTypography;
@@ -180,6 +192,17 @@ export interface ResolvedUiConfig {
   readonly content: { readonly width: ContentWidth };
   /** P5-3 — the fully-resolved presentation intent (renderer consumes it). */
   readonly presentation: UiPresentation;
+  /**
+   * N2 — the fully-resolved shell layout presentation choice. `available` lists the
+   * layouts the shell must be able to present: the whole vocabulary when a visitor
+   * may choose, the default alone when the switcher is disabled (so every consumer
+   * has one deterministic rule).
+   */
+  readonly layoutSwitcher: {
+    readonly enabled: boolean;
+    readonly default: ShellLayout;
+    readonly available: readonly ShellLayout[];
+  };
   readonly cta: {
     readonly enabled: boolean;
     readonly action?: CtaAction;
@@ -209,6 +232,7 @@ const VOCAB_MEMBERSHIP: Readonly<Record<string, readonly string[]>> = {
   "cta.style": CTA_STYLES,
   "cta.iconPosition": ICON_POSITIONS,
   "cta.state": CTA_STATES,
+  "layoutSwitcher.default": SHELL_LAYOUTS,
   "theme.mode": THEME_MODES,
   "theme.radius": THEME_RADII,
   "presentation.typography": PRESENTATION_TYPOGRAPHIES,
@@ -277,6 +301,10 @@ export function assertResolvedUiConfigComplete(
   check("presentation.surface", resolved.presentation?.surface);
   check("presentation.header", resolved.presentation?.header);
   check("presentation.hero", resolved.presentation?.hero);
+  // N2 — the shell layout presentation choice must be fully determined too.
+  check("layoutSwitcher.enabled", resolved.layoutSwitcher?.enabled);
+  check("layoutSwitcher.default", resolved.layoutSwitcher?.default);
+  check("layoutSwitcher.available", resolved.layoutSwitcher?.available);
 
   if (issues.length > 0) {
     throw new UiConfigResolutionError(issues);
@@ -295,6 +323,16 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
   // leaf resolves from an explicit override or from the Foundation canonical
   // default (`FOUNDATION_UI_DEFAULTS`). The schema, loader and every other
   // module inject nothing.
+  //
+  // N2 — the ONE exception is the optional LAYOUT SWITCHER, which the adopter
+  // enables explicitly. When it is enabled, `navigation.desktop`/`tablet` are not
+  // read as leaves at all: they ARE the default layout's pattern values (the
+  // schema refuses configuring both, so there is no contradiction to resolve) and
+  // the other layout is composed additionally. Everything else resolves as before.
+  const switcherEnabled = raw.layoutSwitcher?.enabled === true;
+  const defaultLayout: ShellLayout = raw.layoutSwitcher?.default ?? FOUNDATION_UI_DEFAULTS.layoutSwitcher.default;
+  const layoutPatterns = SHELL_LAYOUT_PATTERNS[defaultLayout];
+
   const resolved: ResolvedUiConfig = {
     shell: {
       header: resolveLeaf(raw.shell?.header, FOUNDATION_UI_DEFAULTS.shell.header),
@@ -307,8 +345,12 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
       },
     },
     navigation: {
-      desktop: resolveLeaf(raw.navigation?.desktop, FOUNDATION_UI_DEFAULTS.navigation.desktop),
-      tablet: resolveLeaf(raw.navigation?.tablet, FOUNDATION_UI_DEFAULTS.navigation.tablet),
+      desktop: switcherEnabled
+        ? layoutPatterns.desktop
+        : resolveLeaf(raw.navigation?.desktop, FOUNDATION_UI_DEFAULTS.navigation.desktop),
+      tablet: switcherEnabled
+        ? layoutPatterns.tablet
+        : resolveLeaf(raw.navigation?.tablet, FOUNDATION_UI_DEFAULTS.navigation.tablet),
       mobile: resolveLeaf(raw.navigation?.mobile, FOUNDATION_UI_DEFAULTS.navigation.mobile),
       // P5-5 — sidebar/top/bottom presentation values are adopter configuration
       // with Foundation defaults (the canonical composition leaves them open).
@@ -339,6 +381,11 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
       surface: resolveLeaf(raw.presentation?.surface, PRESENTATION_DEFAULTS.surface),
       header: resolveLeaf(raw.presentation?.header, PRESENTATION_DEFAULTS.header),
       hero: resolveLeaf(raw.presentation?.hero, PRESENTATION_DEFAULTS.hero),
+    },
+    layoutSwitcher: {
+      enabled: switcherEnabled,
+      default: defaultLayout,
+      available: switcherEnabled ? SHELL_LAYOUTS : [defaultLayout],
     },
     cta: {
       enabled: resolveLeaf(raw.cta?.enabled, FOUNDATION_UI_DEFAULTS.cta.enabled),

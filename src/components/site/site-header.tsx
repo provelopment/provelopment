@@ -5,11 +5,18 @@ import { assetPathFromUrl, availableHeaderGraphicPath, availableIconName } from 
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { configuredRegionIds } from "@/core/regional-pages";
-import { menuModeClass, resolveShellPattern, type ResolvedUiConfig } from "@/core/ui";
+import {
+    headerNavigationLayouts,
+    layoutScopeAttributes,
+    menuModeClass,
+    resolveShellPattern,
+    type ResolvedUiConfig,
+} from "@/core/ui";
 import { ShellMobileNav } from "@/components/shell";
 import { Stack } from "@/components/ui/stack";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
+import { LayoutSwitcher } from "./layout-switcher";
 import { LocationSwitcher } from "./location-switcher";
 import { getSiteNavLinks } from "./nav-links";
 import { headerGraphicBandProps } from "./header-graphic";
@@ -61,20 +68,35 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
     const mobilePattern = decision.mobile.primitiveKind;
     const desktopSlot = decision.desktop.slot;
     const tabletSlot = decision.tablet.slot;
+    // N2 — when the layout switcher is enabled the header must ALSO carry the
+    // navigation for every composed layout that uses the header slot, because which
+    // structure is displayed is decided client-side: the header's nav and the rail
+    // both exist and the active layout presentation exposes exactly one of them
+    // (globals.css — shell layout presentation).
+    const layoutHeaderLayouts = resolved.layoutSwitcher.enabled
+        ? headerNavigationLayouts(resolved)
+        : [];
     // The header renders the ≥md navigation landmark ONLY when the resolved
-    // composition places navigation in the header slot (top-bar patterns). With
-    // an aside composition (adaptive sidebar) the single nav landmark lives in
-    // the shell sidebar instead — exactly one exposed landmark per viewport.
-    const hasHeaderNav = (desktopSlot === "header" || tabletSlot === "header") && resolved.navigation.top.mode !== "closed";
+    // composition places navigation in the header slot (top-bar patterns) or a
+    // composed layout does. With an aside composition (adaptive sidebar) the single
+    // nav landmark lives in the shell sidebar instead — exactly one exposed landmark
+    // per viewport, in either case.
+    const headerNavPresent =
+        desktopSlot === "header" || tabletSlot === "header" || layoutHeaderLayouts.length > 0;
+    const hasHeaderNav = headerNavPresent && resolved.navigation.top.mode !== "closed";
     const topModeClass = menuModeClass(resolved.navigation.top.mode);
     const sidebarModeClass = menuModeClass(resolved.navigation.sidebar.mode);
     const desktopNavClassName = !hasHeaderNav
         ? undefined
-        : desktopSlot === "header" && tabletSlot === "header"
+        : layoutHeaderLayouts.length > 0
+            // A switcher composes this navigation for a layout that uses it at BOTH
+            // md bands, so the class covers whichever layout is active.
             ? "hidden md:block"
-            : desktopSlot === "header"
-                ? "hidden lg:block"
-                : "hidden md:block lg:hidden";
+            : desktopSlot === "header" && tabletSlot === "header"
+                ? "hidden md:block"
+                : desktopSlot === "header"
+                    ? "hidden lg:block"
+                    : "hidden md:block lg:hidden";
     // Phase M: the selector inventory is every CONFIGURED operating location
     // (`business.regions` is authoritative), so once any region is configured
     // the Location selector is available for every locale.
@@ -179,7 +201,15 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
 
                 <Stack direction="row" gap="gap-x-4 gap-y-2" items="items-center">
                     {hasHeaderNav ? (
-                        <nav aria-label={dictionary.navigation.primaryLabel} className={desktopNavClassName}>
+                        <nav
+                            aria-label={dictionary.navigation.primaryLabel}
+                            className={desktopNavClassName}
+                            {...layoutScopeAttributes(
+                                "top-nav",
+                                layoutHeaderLayouts,
+                                resolved.layoutSwitcher.enabled,
+                            )}
+                        >
                             {navListElement}
                         </nav>
                     ) : null}
@@ -198,6 +228,22 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                                 locale={locale}
                                 label={dictionary.language.label}
                             />
+                        ) : null}
+                        {/* N2 — the layout presentation control: secondary, ≥md only.
+                            Below md both layouts compose the SAME mobile navigation, so
+                            there is nothing to switch and the mobile header stays
+                            uncluttered. */}
+                        {resolved.layoutSwitcher.enabled ? (
+                            <div className="hidden md:block">
+                                <LayoutSwitcher
+                                    label={dictionary.layout.label}
+                                    defaultLayout={resolved.layoutSwitcher.default}
+                                    labels={{
+                                        sidebar: dictionary.layout.sidebar,
+                                        "menu-bar": dictionary.layout.menuBar,
+                                    }}
+                                />
+                            </div>
                         ) : null}
                     </Stack>
                 </Stack>

@@ -24,6 +24,7 @@ import {
   PRESENTATION_SURFACES,
   PRESENTATION_TYPOGRAPHIES,
   SHELL_VARIANTS,
+  SHELL_LAYOUTS,
   TABLET_NAVIGATION_PATTERNS,
   THEME_MODES,
   THEME_RADII,
@@ -965,6 +966,24 @@ const uiThemeSchema = z
   })
   .strict();
 
+/**
+ * N2 — the optional visitor-selectable shell layout presentation.
+ *
+ * Strict and cross-checked: `default` must be a member of the shipped layout
+ * vocabulary (never a free-form name), and enabling the switcher while ALSO
+ * configuring `navigation.desktop`/`navigation.tablet` is REFUSED, because a layout
+ * IS those two leaves — two answers to one question is a contradiction, not a
+ * preference, and the Foundation fails loudly instead of silently picking one.
+ */
+const uiLayoutSwitcherSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    default: z
+      .enum(SHELL_LAYOUTS, { message: `must be one of: ${SHELL_LAYOUTS.join(", ")}` })
+      .optional(),
+  })
+  .strict();
+
 export const uiConfigSchema = z
   .object({
     shell: uiShellSchema.optional(),
@@ -975,10 +994,25 @@ export const uiConfigSchema = z
     content: uiContentSchema.optional(),
     /** P5-3 — generalized presentation intent (Foundation defaults supply the rest). */
     presentation: uiPresentationSchema.optional(),
+    /** N2 — the optional visitor-selectable shell layout presentation. */
+    layoutSwitcher: uiLayoutSwitcherSchema.optional(),
     cta: uiCtaSchema.optional(),
     theme: uiThemeSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (ui) =>
+      ui.layoutSwitcher?.enabled !== true ||
+      (ui.navigation?.desktop === undefined && ui.navigation?.tablet === undefined),
+    {
+      message:
+        "the layout switcher defines ui.navigation.desktop/tablet itself, so setting " +
+        "ui.layoutSwitcher.enabled: true together with ui.navigation.desktop or " +
+        "ui.navigation.tablet is ambiguous — remove those two leaves (the layouts supply " +
+        "them), or leave ui.layoutSwitcher.enabled unset",
+      path: ["layoutSwitcher", "enabled"],
+    },
+  );
 
 export const siteConfigFileSchema = z.object({
   site: siteSettingsSchema,

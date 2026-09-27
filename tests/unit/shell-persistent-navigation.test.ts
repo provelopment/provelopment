@@ -306,9 +306,13 @@ describe("PERSISTENT NAVIGATION — the CSS contract (globals.css)", () => {
 
 describe("PERSISTENT NAVIGATION — genericity (no site, host or business concept)", () => {
   it("derives every persistence decision from the resolved slot vocabulary, never from configuration or identity", () => {
-    // The two markers are a function of the DECISION's slots only.
-    expect(engineSource).toContain('asideActive && decision.tablet.slot === "aside"');
-    expect(engineSource).toContain('asideActive && decision.desktop.slot === "aside"');
+    // The two markers are a function of the DECISION's slots only. N2 generalized the
+    // source expression to `railCompositions(...)` — the same rule read from the
+    // composed layout(s), which with the switcher disabled is exactly one decision.
+    expect(engineSource).toContain("asideActive && tabletRail.length > 0");
+    expect(engineSource).toContain("asideActive && desktopRail.length > 0");
+    expect(engineSource).toContain('railCompositions(resolved, "tablet")');
+    expect(engineSource).toContain('railCompositions(resolved, "desktop")');
     // No configuration, no adapter, no hostname/site/tenancy concept.
     for (const forbidden of ["@/config", "@/adapters", "siteId", "tenant", "regional"]) {
       expect(engineSource.toLowerCase(), forbidden).not.toContain(forbidden.toLowerCase());

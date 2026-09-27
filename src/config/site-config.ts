@@ -12,6 +12,7 @@ import type {
   MenuMode,
   MobileNavigationPattern,
   NavRegion,
+  ShellLayout,
   ShellVariant,
   TabletNavigationPattern,
   ThemeMode,
@@ -152,8 +153,25 @@ export interface UiConfig {
   readonly content?: UiContentConfig;
   /** Primary CTA intent (roadmap §19). */
   readonly cta?: UiCtaConfig;
-  /** Visual theme intent — kept separate from the layout composition (roadmap §18). */
+  /**
+   * Visual theme intent — kept separate from the layout composition (roadmap §18).
+   */
   readonly theme?: UiThemeConfig;
+  /**
+   * N2 — the optional visitor-selectable shell layout presentation. Enabling it lets
+   * a visitor choose between the configured default layout and the platform's other
+   * layout; `navigation.desktop`/`tablet` then come from the layouts, so configuring
+   * them as well is refused by the schema.
+   */
+  readonly layoutSwitcher?: UiLayoutSwitcherConfig;
+}
+
+/** N2 — the shell layout presentation switcher (`ui.layoutSwitcher`). */
+export interface UiLayoutSwitcherConfig {
+  /** Whether a visitor may switch layouts (`false`/absent → one fixed composition). */
+  readonly enabled?: boolean;
+  /** The layout the site starts in (and the only one when the switcher is off). */
+  readonly default?: ShellLayout;
 }
 
 export interface UiShellConfig {

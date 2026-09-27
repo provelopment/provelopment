@@ -129,13 +129,19 @@ file under `content/`.
 >    reference-site/configuration concern — generic platform runtime logic must not
 >    hard-code it — and the starter content that carries it lands with the reference
 >    work, not before.
-> 2. **A presentation switcher.** The reference site will let a visitor switch between
->    the **Sidebar** and **Menu-bar** presentations from a simple dropdown, without
->    changing the page, the locale or the content: same content authority, same current
->    route, presentation only. An adopter can disable or configure it, the reference
->    deployment ships with it enabled, and it receives its own bounded
->    navigation/presentation increment after the JSON vocabulary (A2). It is not
->    implemented yet.
+> 2. **A shell layout switcher (available now).** A Foundation site can optionally let a
+>    visitor switch between the **Sidebar** and **Menu-bar** layouts from a simple
+>    dropdown, without changing the page, the locale or the content: same content
+>    authority, same current route, presentation only. It is **off by default**, an
+>    adopter enables it with one configuration block (`ui.layoutSwitcher` — see
+>    CUSTOMIZING.md), and the reference deployment will ship with it enabled. The
+>    capability itself is generic platform behaviour; the reference site's own choice to
+>    enable it is reference configuration and lands with the reference content.
+> 3. **A recorded Markdown detail (required before the reference content).** A Markdown
+>    page's authored `# Heading` can still produce a second level-1 heading beside the
+>    page title the renderer supplies. The JSON authoring mode has no such gap; the
+>    Markdown mode gets a small bounded page-authoring closure increment (after N2, before
+>    the reference content) so the one-H1 contract holds in both modes.
 
 The Foundation ships **one authored page** (the configuration-driven landing page)
 and **no page files**: the two authoring roots hold their documentation only, so a
