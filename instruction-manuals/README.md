@@ -1,8 +1,9 @@
 # Provelopment Foundation Instruction Manuals
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-25.1`
+> **Manual revision:** `2026-09-27.3`
 > **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
+> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 > **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
 >
@@ -11,7 +12,7 @@
 
 ## How to read the version header
 
-Four different Foundation references are easy to confuse, and confusing them is how
+Five different Foundation references are easy to confuse, and confusing them is how
 a project ends up claiming a baseline it never acquired. They are defined here and
 nowhere else; every manual's header uses exactly these terms.
 
@@ -19,6 +20,7 @@ nowhere else; every manual's header uses exactly these terms.
 | --- | --- | --- |
 | **Manual revision** | The version of this manual **set**. Bumped when the procedures change. Not a Foundation release. | The header of every manual + the version table below. |
 | **Procedure validated against** | The exact Foundation ref on which this manual **set** was last exercised **end to end, with recorded evidence** — for *any* procedure in the set. A procedure statement is only trustworthy to the ref at which *that* procedure was last exercised; the version table records which run produced the current revision. | The header of every manual. |
+| **Content model described** | The Foundation ref whose **content-authoring model** this manual set teaches — the authoring layout, the page modes and the URLs a page gets. It is recorded **separately** from *procedure validated against* because a model can be documented truthfully before its procedures are re-exercised end to end: the two move independently, exactly as the manual revision and an adopter baseline do. A manual may therefore describe a newer model than the ref its procedures were last exercised at — and it says so rather than implying a validation run that did not happen. | The header of every manual. |
 | **Adopter baseline** | The Foundation ref a **specific adopter project** actually runs. Independent per adopter. | That project's `platform/SOURCE.md`. |
 | **Target ref** | The immutable ref **selected for one upgrade** (a release tag, or a full commit SHA when no tag covers the accepted state — never a moving branch name). | The upgrade record + `platform/SOURCE.md` after acceptance. |
 
@@ -128,6 +130,9 @@ project is adopted.
 
 | Manual revision | Procedure validated against | Commit | Date |
 | --- | --- | --- | --- |
+| `2026-09-27.3` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
+| `2026-09-27.2` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
+| `2026-09-27.1` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
 | `2026-09-25.1` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-25 |
 | `2026-09-19.1` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-19 |
 | `2026-09-17.2` | Foundation template release `v2026.09.17-foundation-generic-template` + the FS1 repository split | `b9f7a18` (template) · `fb721b3` (historical baseline) | 2026-09-17 |
@@ -138,6 +143,136 @@ project is adopted.
 | `2026-09-15.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-15 |
 | `2026-09-11.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-11 |
 
+> `2026-09-27.3` updates this set to the **final delivered Foundation architecture**: the
+> authoring model has a **site** segment, and the Markdown mode has a **single level-1
+> heading**. Two delivered releases are incorporated — `FOUNDATION-S1`
+> (`v2026.09.27-foundation-multisite-localization`) and the `FOUNDATION-PAGES-H1` closure
+> (`v2026.09.27-foundation-markdown-single-h1`, full commit
+> `df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`, short `df50fc2`, which contains S1).
+>
+> **What the manuals now teach.** Every content path carries its site
+> (`content/pages/markdown/<site>/<language>/<page>.md`), a page's identity is **site + locale
+> path key + route path**, and every public URL is `/<site>/<language>/<route>`.
+> `content-management.md` teaches the site model — recognized lowercase two-letter country
+> codes, the Foundation-defined `ww` Worldwide/Global code (which is **not** an ISO country
+> code), arbitrary names such as `main`, `canada` or `my-office` being invalid, and the
+> maintained reference shipped with the product as `content/COUNTRY-CODES.md` instead of a
+> second handwritten list; **sites versus locations** (an office, city or region is a location
+> *inside* a site — Canada and France may be sites, while Toronto, Montreal and Vancouver are
+> locations); the **four independent visitor dimensions** (Site, Language, Location, Layout,
+> with unneeded controls simply absent); the **site-bounded page resolution order**
+> (exact-language JSON → exact-language Markdown → site default-language JSON when the site's
+> configured fallback permits → site default-language Markdown → not found); and the hard rule
+> that **a missing page is never satisfied from another site**, merely because the language or
+> route matches.
+>
+> **Localization now documented.** The **simple and explicit locale forms** (`ca/fr` → `fr-CA`,
+> with `ca/fr-fr`, `tw/zh-hant`, `tw/zh-hant-tw` for exact dialect, script or region),
+> lowercase paths in URLs with canonical tag casing in standards-facing metadata, the absence of
+> an implicit country assumption in `ww` (`ww/fr` may simply be canonical `fr`; `ww/en → en-US`
+> is an explicit deployment choice), **duplicate effective locales as a HARD configuration
+> error** (`ca/en` together with `ca/en-ca`, both meaning `en-CA` — choose one), and the
+> **shared-dictionary + optional per-site override** model (`config/i18n/fr.json` refined by
+> `config/i18n/sites/ca/fr.json`: optional, partial, unknown keys fail, and another site's
+> override is never consulted).
+>
+> **Authoring modes and the heading contract.** The two-mode model is unchanged in principle —
+> simple safe Markdown and advanced declarative JSON, sharing one `site → language → route`
+> addressing model, with no collections. `content-management.md` now states the delivered
+> **single-H1 Markdown contract**: the page title is a page's only level-1 heading, and headings
+> written inside a page are placed underneath it automatically (`#` renders level 2, `##` level
+> 3, and so on, capping at level 6), so an author never has to start at `##` and no heading is
+> removed. The JSON heading contract is unchanged and stated only for consistency (page title 1,
+> section heading 2, item heading 3), with advanced authors pointed at
+> `content/pages/json/README.md`. `site-customization.md` states which configuration may differ
+> per site (navigation, footer navigation, legal destinations, Connect, the CTA's page
+> destination, locale/fallback, page and location bindings) and which stays shared (theme and
+> design, assets, component vocabulary, shell/layout) — a duplicated complete configuration file
+> per country is **not** required.
+>
+> **Superseded, and stated as such.** The `2026-09-27.2` note recorded *Content model described*
+> as `v2026.09.27-foundation-json-authoring` (`475d32b`); that was accurate when written and is
+> **superseded by `2026-09-27.3`**, whose content-model reference is
+> `v2026.09.27-foundation-markdown-single-h1` (`df50fc2`). The site-less path form and the
+> locale-only identity quoted in the `.2` and `.1` notes are the accurate record of *those*
+> revisions and are **superseded** by the site segment documented from `2026-09-27.3` onward;
+> the historical notes below are kept unchanged.
+>
+> **Unchanged, and honest.** *Procedure validated against* still names Foundation template
+> release `v2026.09.17-foundation-generic-template` (`b9f7a18`) plus the current public/private
+> topology: **no procedure-validation run was performed for this revision**, so the field was
+> not advanced.
+>
+> `2026-09-27.2` records the **delivered** advanced authoring mode. `2026-09-27.1`
+> intentionally stated that the declarative JSON vocabulary was *still being completed
+> upstream* — accurate then, stale now. Foundation release
+> **`v2026.09.27-foundation-json-authoring`** (full commit
+> `475d32babe7ba55471431f5433d147cffd48af5a`, short `475d32b`) has delivered it
+> (`FOUNDATION-PAGES-A2`), so the manuals now describe JSON as what it is: the
+> advanced/developer page-authoring mode, **declarative, schema-validated and
+> non-executable**, served from `content/pages/json/<locale>/<route-path>.json` at flat and
+> nested routes, with sixteen page-building section types (`hero`, `prose`, `media`,
+> `gallery`, `actions`, `callout`, `cards`, `features`, `columns`, `steps`, `stats`,
+> `quote`, `table`, `faq`, `list`, `divider`), a finite set of presentation options, and
+> higher precedence than Markdown for the same locale+route.
+>
+> **What the manuals state, and what they deliberately do not.** `content-management.md`
+> states the capability, the **safety model** (data, never code: no scripts, imports, JSX,
+> component names, handlers, raw HTML or styling; Markdown-bearing fields reuse the ONE
+> safe Markdown policy; actions reuse the safe destination rules) and the
+> **accessibility contract** (one page `<h1>` from the title, section/item heading levels,
+> the image alt-or-decorative rule, table headings, FAQ/disclosure semantics) — and points
+> at **`content/pages/json/README.md`**, the author guide that ships with the Foundation,
+> for every section type, property, option, bound and error message. The manual set does
+> **not** reproduce that reference (368 lines) and does not claim arbitrary composition.
+> `validation.md` route validation now covers JSON schema validation too.
+>
+> **SUPERSEDED by `2026-09-27.3`** — *Content model described* now names
+> `v2026.09.27-foundation-markdown-single-h1` (`df50fc2`), and every content path carries its
+> site segment. **The header term now names the delivered release.** *Content model described* moves from
+> `v2026.09.27-foundation-one-page-model` (`d87f61d`) to
+> `v2026.09.27-foundation-json-authoring` (`475d32babe7ba55471431f5433d147cffd48af5a`) in
+> every manual's header. **No procedure was exercised**, so *Procedure validated against*
+> is unchanged — this is again a documentation reconciliation, not a validation run.
+>
+> **Still not propagated.** Both receivers remain at `2026-09-25.1`; propagation is a
+> separate task, to run after this revision is reviewed/merged and the Foundation
+> implementation lane is clear (procedure: `deployment-info/manual-propagation.md`).
+>
+> `2026-09-27.1` reconciles the **content-authoring model** these manuals teach to the
+> **one-page model** of Foundation release `v2026.09.27-foundation-one-page-model`
+> (`d87f61d`). It is a **documentation reconciliation, not a new validation run**: the
+> procedures were last exercised at the ref recorded in *Procedure validated against*, and
+> this revision records that difference explicitly in the header (**Content model
+> described**) rather than implying a run that did not happen.
+>
+> What was corrected. The retired, author-facing **collections** — `content/offerings/`,
+> `content/portfolio/`, `content/testimonials/`, `content/posts/` and `content/legal/`,
+> each with its own directory, parser, route and feature flag — were removed by
+> `FOUNDATION-PAGES-A1E`. They are no longer described, recommended or referenced
+> anywhere in this set. Authoring now has **one content area**, `content/`: **pages** in
+> `content/pages/` and **artwork** in `content/assets/`. **If authored content has its own
+> URL, it is a page**; a page's URL is built from the folders it is authored in
+> (**folders are the address**, up to four deep, another language mirroring the same
+> structure); and there is **no content feature flag** — a page exists because its file
+> exists. `content-management.md` now teaches that model, the two authoring modes, the
+> optional two-key metadata and the complete
+> `edit → save → status → stage → commit → push → checks` sequence;
+> `branding-and-assets.md` places business artwork in `content/assets/` and states that
+> `public/assets/` is a **generated mirror** that is never edited by hand;
+> `deployment.md`, `foundation-upgrade.md` and `site-customization.md` no longer refer to
+> a collection or to a content feature flag.
+>
+> **Deliberately not stated yet.** The declarative **JSON** mode is documented as
+> *declared, discovered and ordered, with its component vocabulary still being completed
+> upstream* (`FOUNDATION-PAGES-A2`). No A2 page-level data, component vocabulary or
+> renderer behaviour is asserted here, because A2 has not been delivered; a
+> propagation/finalisation revision will incorporate the completed vocabulary once it is.
+>
+> **SUPERSEDED by `2026-09-27.2`** — A2 (the declarative JSON vocabulary) was delivered on
+> 2026-09-27; see the `2026-09-27.2` entry above for the current state. The paragraph above
+> is kept as the accurate record of what revision `2026-09-27.1` did.
+>
 > `2026-09-25.1` adds the **access boundary** and its **evidence classes** to
 > `agent-operating-rules.md` (*Access boundary — authorised evidence*), and aligns `deployment.md`
 > (preconditions + rollback) and `troubleshooting.md` entry 8 with it. Provider-account work —
@@ -221,7 +356,7 @@ project is adopted.
 | [`adoption.md`](adoption.md) | Creating a new Foundation-derived project (a single-site **downstream clone**, or a multi-site **vendored** adopter, or a real customer). |
 | [`site-customization.md`](site-customization.md) | Changing identity, navigation, CTA, presentation, theme, contact or metadata **without touching source**. |
 | [`branding-and-assets.md`](branding-and-assets.md) | Replacing logos, favicon, banners, sidebar icons or imagery; runtime roles vs business files. |
-| [`content-management.md`](content-management.md) | Writing/editing pages, offerings, portfolio, testimonials, FAQs, legal pages or dictionaries. |
+| [`content-management.md`](content-management.md) | Writing/editing pages (the simple Markdown mode, or the **delivered** advanced declarative JSON mode), the artwork under `content/assets/`, legal documents and dictionaries. |
 | [`validation.md`](validation.md) | Before claiming any task complete; understanding what each gate proves. |
 | [`deployment.md`](deployment.md) | Taking a validated repository live and verifying production. |
 | [`agent-operating-rules.md`](agent-operating-rules.md) | Operating inside an adopter project: authority, boundaries, **the access boundary and evidence classes**, escalation, handoff. |
