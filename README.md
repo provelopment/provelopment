@@ -140,10 +140,18 @@ A saved-but-uncommitted file cannot be pushed, and an unpushed commit cannot rea
 the site — those four commands are the whole workflow, and it is the same for every
 file under `content/`.
 
-> **Reference deployment — planned, not live yet.** A public, fully configured
-> reference site will be published at **`foundation-template.provelopment.com`**.
-> It does not exist yet; this repository is the product, and the reference
-> deployment will be announced here once it is available.
+> **Public deployment — live technical baseline.** This repository is deployed
+> directly to **`https://foundation-template.provelopment.com/`**: Vercel builds
+> this public repository (production branch `main`), so every accepted change
+> merged to `main` updates that same live site. Nothing is added to make it work —
+> the public repository is the deployment.
+>
+> What is live today is this template **unconfigured**: the placeholder name,
+> tagline, `site.url` and starter landing page it ships with, and no reference
+> pages. The **fully configured reference site** — real content, the link back to
+> `https://foundation.provelopment.com/`, the layout switcher enabled — is the
+> next body of work and has **not** landed yet; this note changes when it does
+> rather than describing it in advance.
 >
 > Two things are already decided for that reference site and are recorded here so no
 > increment invents its own answer:
@@ -286,8 +294,10 @@ Your site deploys from **your own repository** to Vercel. Follow
 [`DEPLOYMENT.md`](DEPLOYMENT.md). No environment variables are required for a default
 build.
 
-> This **template repository has no production deployment of its own**: GitHub is
-> its distribution and documentation surface, and CI is its gate.
+> This repository is also its own live deployment: **`https://foundation-template.provelopment.com/`**
+> is built directly from this public repository by Vercel (production branch `main`).
+> GitHub remains its distribution and documentation surface and CI its gate; a merge
+> to `main` reaches that URL.
 
 ## Upgrade
 

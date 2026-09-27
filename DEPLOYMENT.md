@@ -87,17 +87,28 @@ commit and push to trigger a redeploy.
 
 Run against the live domain:
 
-- [ ] `/` redirects to the default locale (e.g. `/en`) based on browser
-      language.
-- [ ] `/en`, `/en/about`, and `/en/resources` return HTTP 200.
-- [ ] An unknown path such as `/en/does-not-exist` renders the branded 404.
-- [ ] `/sitemap.xml` lists every route for every configured locale.
+- [ ] `/` redirects to the default Site and Language — with the shipped
+      single-Site, single-Language configuration that is `/ww/en`.
+- [ ] `/ww/en` returns HTTP 200 (the landing page). Every page you author is served
+      by the same route at `/ww/en/<slug>`, and a configured location at
+      `/ww/en/<location>/<slug>`; the template itself ships **no page files**, so
+      `/ww/en` is the only page URL until you add content.
+- [ ] An unknown path such as `/ww/en/does-not-exist` returns HTTP **404**. Next.js
+      answers with its own 404 page: only build-discovered routes are served
+      (`dynamicParams = false`), so an unknown path never matches the page route.
+- [ ] `/sitemap.xml` lists every route for every Site and Language.
 - [ ] `/robots.txt` references the sitemap.
 - [ ] Page source contains `<html lang="en">`, hreflang `alternates`
-      (including `x-default`), canonical URL, and Open Graph tags.
+      (including `x-default`), canonical URL, and Open Graph tags — with `site.url`
+      set to your real origin (the template ships the placeholder
+      `https://www.example.com`, which those URLs use until you change it).
 - [ ] Social preview renders correctly (test with a sharing debugger such
       as the LinkedIn Post Inspector or Facebook Sharing Debugger).
-- [ ] Favicon and social preview image render correctly.
+- [ ] Social preview image renders correctly — `/<site>/<language>/opengraph-image`
+      is generated with no configuration.
+- [ ] Favicon renders correctly **once configured**: set `site.assets.favicon` in
+      `site.config.json`. The template ships no favicon, so a browser's implicit
+      `/favicon.ico` request returns 404 until then.
 - [ ] Dark mode renders correctly (emulate `prefers-color-scheme: dark`).
 
 ## Rollback
@@ -110,3 +121,8 @@ is prepared.
 
 Downstream sites repeat this runbook against their own repository, domain,
 and `siteConfig` values. Platform logic requires no modification.
+
+The upstream template's own deployment
+(`https://foundation-template.provelopment.com/`) is produced the same way — built
+directly from its public repository, with no local build, no overlay and no separate
+demo repository — so the runbook above is the process that actually produced it.
