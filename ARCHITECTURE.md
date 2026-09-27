@@ -132,15 +132,33 @@ look uniform. The layout is:
 
 ```text
 content/README.md      the human-facing map
-content/pages/markdown/<locale>/<slug>.md   simple, safe pages
-content/pages/json/<locale>/<slug>.json     advanced, declarative pages
+content/pages/markdown/<locale>/<route-path>.md   simple, safe pages
+content/pages/json/<locale>/<route-path>.json     advanced, declarative pages
 content/assets/**      the ONE user-editable asset authority (see below)
-content/<collection>/<locale>/<slug>.md     legal, offerings, testimonials, portfolio, posts
 ```
 
-**Pages** are authored in exactly two ways — safe Markdown at
-`content/pages/markdown/<locale>/<slug>.md` and declarative JSON at
-`content/pages/json/<locale>/<slug>.json` — see
+**If authored content has its own URL, it is a page.** There are no separate
+author-facing collections (offerings, portfolio, posts, testimonials, legal) and no
+second content store: every one of those is a PAGE, authored in one of the two modes
+above and served by the ONE page route. A collection-shaped directory under
+`content/` is neither read nor shipped.
+
+**A page's URL is its route path** — the path between the locale and the extension,
+built from the folders the page is authored in:
+
+```text
+content/pages/markdown/en/offerings/website-design.md   →  /en/offerings/website-design
+content/pages/markdown/en/blog/choosing-a-domain.md     →  /en/blog/choosing-a-domain
+```
+
+The rule for that value lives ONCE in `src/core/page-route-path.ts`: every segment is
+a content slug (`src/core/page-content.ts`), so `.`/`..`, an empty segment, a leading
+or trailing `/`, a backslash and a percent-encoded traversal are all refused before a
+filesystem path is built. Depth (`PAGE_ROUTE_PATH_MAX_SEGMENTS`) and length
+(`PAGE_ROUTE_PATH_MAX_LENGTH`) are capped and documented there rather than chosen ad
+hoc, so discovery, routing and the sitemap cannot disagree about what exists.
+
+**Pages** are authored in exactly two ways — safe Markdown and declarative JSON — see
 [Page authoring](#page-authoring--two-first-class-modes) below.
 
 **Assets** are authored under `content/assets/**` and mirrored byte-for-byte into
@@ -149,48 +167,33 @@ content/<collection>/<locale>/<slug>.md     legal, offerings, testimonials, port
 `public/assets/**` is a GENERATED derivative that is never edited by hand, and a test
 asserts that no second user-editable asset authority exists at the repository root.
 
-**Other content collections** are read from
-`content/<collection>/<locale>/<slug>.md` (offerings, legal, testimonials, portfolio,
-posts) through one repository. There is no `pages` collection: no file under
-`content/pages` is a page source, and the adapter cannot even name such a
-collection.
-
-Each file begins with minimal frontmatter containing a `title`:
-
-```markdown
----
-title: Page Title
----
-
-Body copy in Markdown.
-```
-
 The content pipeline follows the ports and adapters boundaries:
 
-- `src/core/page-content.ts` defines the `PageContent` concept.
-- `src/application/page-content-repository.ts` defines the
-  `PageContentRepository` port (generic over the content shape so the
-  offerings collection keeps its extra fields without casts).
-- `src/adapters/content/fs-page-content-repository.ts` implements the port
-  against the filesystem.
-- Framework code in `src/app` composes the adapter with the port and renders
-  Markdown to HTML only at the presentation boundary.
+- `src/core/page-content.ts` defines the `PageContent` concept and the ONE
+  content-segment rule.
+- `src/core/page-source.ts` declares the two modes, their roots and the ONE
+  precedence order; `src/core/page-route-path.ts` declares what a page's route path
+  may be.
+- `src/application/page-source-resolution.ts` applies that order behind the two mode
+  readers; `src/adapters/content/page-sources.ts` wires the concrete readers and is
+  the composition every page route and the sitemap consume.
+- Framework code in `src/app` renders the resolved page through the safe Markdown
+  renderer; Markdown becomes HTML only at that presentation boundary.
 
-Application code must depend on the port, never directly on the adapter,
-except at composition time in `src/app`.
+Route discovery is the ONE inventory: it walks the authoring tree recursively
+(`src/adapters/content/authoring-source-discovery.ts`), and the sitemap derives its
+per-locale route set from the same composition, so a new page (at any depth) joins
+the sitemap as soon as its file exists — there is no hard-coded route list to update.
+Navigation config controls exposure and ordering only; it does not define route
+existence.
 
-The port also lists which pages exist for a locale
-(`PageContentRepository.listSlugs`). The sitemap derives its per-locale route
-set from the default-locale content files (plus the locale root), so a new
-page joins the sitemap as soon as its content file exists — there is no
-hard-coded route list to update. Navigation config controls exposure and
-ordering only; it does not define route existence.
-
-Detail collections are **statically generated**: `offerings/[slug]` and
-`legal/[slug]` export `generateStaticParams` (derived from canonical slugs via
-the same content/config seams the sitemap uses) with `dynamicParams = false`,
-so every canonical localized detail page is prerendered at build time and any
-other slug returns a 404 — no on-demand server rendering, no ISR.
+**Every page is statically generated by ONE route**: `src/app/[locale]/[...path]/page.tsx`
+exports `generateStaticParams` (the discovered route paths plus the configured
+regional landings and regional pages) with `dynamicParams = false`, so every page is
+prerendered at build time and any other path returns a 404 — no on-demand rendering,
+no ISR. The home page is served by the locale root (`src/app/[locale]/page.tsx`), and
+`/connect` + `/contact` keep their own route files for their specialised chrome; both
+resolve their page through the same composition.
 
 #### Page authoring — two first-class modes, and no third
 
@@ -219,10 +222,10 @@ allowed on headings only — with layer 2 re-checking the id's SHAPE. The shell'
 fragment clearance (`scroll-padding-top`) therefore applies to authored targets
 exactly as it does to any other in-page target.
 
-There is no third page-source kind. `content/**` hosts the platform's other content
-collections and is never consulted for a page: a file left under `content/pages`
-can neither answer nor shadow a page (the repository cannot even name a `pages`
-collection, so it is unreachable rather than merely unused).
+There is no third page-source kind, and nothing else in `content/` is a page source.
+Everything the platform publishes from `content/` is a PAGE: a file at any other shape
+(`content/README.md`, a stray directory) is never read, so it can neither answer nor
+shadow a page.
 
 **Resolution order** (`src/core/page-source.ts` → `PAGE_RESOLUTION_ORDER`), applied
 by the ONE resolver (`src/application/page-source-resolution.ts`) through the ONE
@@ -242,18 +245,21 @@ ignored — its interpreter does not exist yet.
 
 Rules that hold for both roots:
 
-- only `<root>/<locale>/<slug>.<ext>` is a page source, so a root-level
-  `README.md` can never become a page and `.gitkeep` is ignored;
-- a locale directory MAY BE EMPTY — **a directory's existence is not
-  publication** — and an unconfigured locale publishes nothing, because both the
-  route generation and the sitemap iterate the site's configured locales;
-- the slug rule has ONE authority (`src/core/page-content.ts`), consumed by the
-  page-source contract, both authoring adapters, the collection repository and the
+- only a file INSIDE a locale directory, at any depth, is a page source — so a
+  root-level `README.md` can never become a page, a README beside nested pages is
+  equally inert, and `.gitkeep` is ignored;
+- a locale directory, or any folder inside it, MAY BE EMPTY — **a directory's
+  existence is not publication** — and an unconfigured locale publishes nothing,
+  because both the route generation and the sitemap iterate the site's configured
+  locales;
+- the segment rule has ONE authority (`src/core/page-content.ts`) and the route-path
+  rule that builds on it lives in `src/core/page-route-path.ts`, consumed by the
+  page-source contract, the discovery adapter, the authoring reader and the
   configuration schema;
 - discovery (`src/adapters/content/authoring-source-discovery.ts`) reports what
   the tree holds and nothing else: it decides no precedence and parses nothing;
-- every page route — the locale root, `[item]`, `[item]/[slug]` and the dedicated
-  `/about`, `/resources`, `/connect`, `/contact` routes — resolves through this ONE
+- every page route — the locale root, the ONE generic `[...path]` route and the
+  dedicated `/connect` + `/contact` routes — resolves through this ONE
   composition and renders through the safe page renderer
   (`SafeMarkdownContent`). The trusted collection renderer (`MarkdownContent`) is
   unreachable from a page route, so trusted raw HTML is not a page-authoring
@@ -388,9 +394,10 @@ back to the default locale's dictionary.
 ### Localized content
 
 Pages are organized per locale under `content/pages/markdown/<locale>/` (and
-`content/pages/json/<locale>/`); the non-page collections are organized per locale
-under `content/<collection>/<locale>/`.
-The content port accepts a locale and falls back to the default locale when
+`content/pages/json/<locale>/`), and a nested page keeps the same structure one level
+deeper (`content/pages/markdown/<locale>/offerings/website-design.md`), so a second
+language mirrors the first exactly.
+The page composition accepts a locale and falls back to the default locale when
 a translation has not been authored yet. Missing translations must not
 produce broken routes.
 
@@ -559,12 +566,9 @@ Page = locale + region + page      (e.g. /en/toronto/about)
 ```
 
 - **URL model.** `/{locale}` (site home), `/{locale}/{region}` (regional
-  landing), `/{locale}/{region}/{page}` (regional page). Site-level static
-  routes (`about`, `contact`, `resources`, `offerings*`, `legal*`) keep
-  deterministic precedence. The dynamic route `[locale]/[item]/page.tsx`
-  dispatches segment two (regional landing vs flat content page) and
-  `[locale]/[item]/[slug]/page.tsx` renders configured regional pages; both
-  `dynamicParams = false`, so an unconfigured combination is a proper 404
+  landing), `/{locale}/{region}/{page}` (regional page). The ONE generic page
+  route `[locale]/[...path]/page.tsx` serves every page (flat or nested) and keeps
+  `dynamicParams = false`, so a path that no page answers is a proper 404
   (e.g. `/ja/toronto`, `/en/toronto/contact`).
 - **Config shape (`business.pages`).** Entries are `{ locale, region }`
   (landing) or `{ locale, region, slug }` (regional page). Every bound
@@ -585,19 +589,20 @@ Page = locale + region + page      (e.g. /en/toronto/about)
   The header renders a Location `<select>` beside the Language `<select>`;
   both are config-driven, show the active selection, and produce real URLs
   (no client-side state determines the current location).
-- **Page independence & standardized 4-page layout.** Any region may expose any page
-  inventory under any locale. In the shipped demo, all 13 operating regions (Berlin,
-  Jakarta, London, Los Angeles, Madrid, Moscow, New York, Paris, Seoul, Shanghai, Sydney,
-  Tokyo, Toronto) uniformly expose `Home`, `About`, `Connect`, and `Offerings`.
-  The demo proves same locale → different timezones and currencies (e.g. en/sydney with AUD,
-  en/london with GBP, en/toronto with CAD, en/new-york with USD), and same region → multiple
-  locales (en+fr toronto).
-- **Regional offerings & currency resolution.** Regional offerings routes (`/{locale}/{region}/offerings`
-  and `/{locale}/{region}/offerings/[slug]`) resolve pricing contextually through `resolveOfferingPrice(offering, region)`:
-  each region defines its ISO 4217 `currency` and `currencySymbol` in `site.config.json` (e.g. AUD `A$`,
-  GBP `£`, EUR `€`, JPY `¥`). The offering catalog and detail views also render a prominent demonstration
-  disclaimer banner stating that items are template placeholders. Selecting a city in the header Location
-  Switcher smoothly transitions the user between regional offerings URLs and displays prices in that city's currency.
+- **Page independence.** Any region may expose any page inventory under any locale: a
+  regional page exists exactly when it is BOTH authored as a page AND bound for that
+  `(locale, region)` in config. The private reference demo proves same locale →
+  different timezones and currencies (e.g. en/sydney with AUD, en/london with GBP,
+  en/toronto with CAD, en/new-york with USD) and same region → multiple locales
+  (en+fr toronto).
+- **Regional content is PAGES with region chrome (A1E).** `/{locale}/{region}` is the
+  region's landing and `/{locale}/{region}/{page}` a configured regional page; both are
+  ordinary page sources resolved through the ONE composition, and the region supplies
+  the operational identity (timezone, address, contact, hours, holidays, status,
+  directions, JSON-LD). Nothing else inside a region's namespace is served, so a
+  regional URL can never render without its region. The former regional offerings
+  routes (and their per-region price/currency resolution) went with the offerings
+  collection.
 - **SEO.** Regional pages emit canonical URLs, hreflang only for genuinely
   configured `(locale, region, page)` equivalents (with landing fallback for
   a region that lacks the exact page), and `x-default` only when the default
@@ -829,42 +834,51 @@ cross-cutting contract rather than rebuilt:
   milestone ships as **`v2026.09.03-foundation-phase-i-outbound-seams`**.
 
 ### Locale integration (Phase G composing)
-### Trust & publishing primitives (Phase T)
+### Trust & publishing content (Phase T, re-expressed by A1E)
 
-Testimonials, portfolio/case studies, and the filesystem blog extend the SAME
-content/config → pure resolution → boundary → presentation pipeline as the
-foundational collections (pages, offerings, legal) — no new service layer, no
-CMS, no provider.
+Testimonials, portfolio/case studies, the blog and the offerings catalogue all used to
+be author-facing **collections** with their own directories, parsers, feature flags,
+chrome components and route files. FOUNDATION-PAGES-A1E removed that second model:
+**if authored content has its own URL, it is a page**, so each of those is now
+authored as ordinary pages under `content/pages/` and served by the ONE page route.
 
-- **Collections.** `content/testimonials/`, `content/portfolio/`,
-  `content/posts/` are served by the existing `fs-page-content-repository`
-  (dedicated parsers per collection; default-locale fallback; canonical-set =
-  default-locale slugs with offerings-style enforcement). Route directories
-  (`/testimonials`, `/portfolio`, `/blog`) take precedence over the `[item]`
-  dynamic route and are listed in its `STATIC_ROUTE_SLUGS` defensively.
-- **Chrome + feature gating.** `features.testimonials/portfolio/blog` are
-  booleans (content existence, exposure, and `navigation[]` are separate, as
-  with offerings). Optional dictionary sections with an F1-style
-  `assertDictionarySectionPresent` lock: feature on ⇒ every configured locale
-  has the chrome block, else the build fails naming offenders. Article /
-  testimonial / case-study BODIES are never translation-gated (default-locale
-  fallback is the established contract).
-- **Blog + RSS.** `draft: true` posts are excluded from routes, sitemap, and
-  RSS. Reading time is a deterministic pure helper (latin words + CJK chars,
-  ~200 tokens/min). `buildRssXml` produces fully-escaped RSS 2.0; a static
-  per-locale `/blog/rss.xml` route handler is pre-rendered at build time and
-  linked from `/blog` (`alternates.types`). RSS is a publishing primitive, not
-  an SEO mechanism — no `BlogPosting`/`Review`/`AggregateRating` JSON-LD.
-- **Deterministic route accounting.** The demo inventory is locked: 3
-  testimonials (no detail routes), 2 portfolio items, 3 post files (2
-  published). That yields exactly 7 new HTML routes per locale (× 9 = 63;
-  139 → **202** prerendered HTML pages), 63 new sitemap `<loc>` entries
-  (129 → **192**), and 9 static RSS artifacts (2 items each; drafts never
-  present). The build gate asserts these exact numbers.
-- **Demo content is template/demo.** Testimonials use `Demo Client` /
-  `Demo Partner` placeholders and honest template wording; portfolio and blog
-  bodies are clearly marked template. Adopters must replace them before
-  publishing — the template never fabricates real customer evidence.
+What that means in practice:
+
+- **No collection store.** `fs-page-content-repository` and its port are gone, along
+  with the `ContentCollection` union. Nothing but the two page modes can produce a
+  route, and a test asserts that neither can return.
+- **No collection roots.** `content/offerings/`, `content/legal/`,
+  `content/testimonials/`, `content/portfolio/` and `content/posts/` are gone from
+  the human-facing area and from the tree.
+- **No feature-flag gating for content.** `features.offerings`,
+  `features.testimonials`, `features.portfolio` and `features.blog` are gone: a page
+  exists because a file exists, and it is exposed by linking to it (or by
+  `navigation[]`). A flag that could hide an authored page would be a second,
+  competing notion of existence.
+- **No collection chrome.** The offering/portfolio/post/testimonial cards, lists,
+  details, empty-state and card-image primitives, and their dictionary sections, went
+  with the collections.
+- **Testimonial quotes, feature cards, statistics and FAQ rows are EMBEDDED content**:
+  they live inside the page that shows them (Markdown today; declarative JSON sections
+  when the A2 vocabulary lands). They never needed a filesystem collection.
+- **The booking CTA survives.** `features.booking` still composes the booking action
+  seam the home page renders; it was never collection-specific.
+- **Legal documents survive as configured links to pages.** `legal[]` still decides
+  which policy documents the footer surfaces, in order, with a fallback label and
+  localized labels; the document itself is a page
+  (`content/pages/.../legal/<slug>.md`, served at `/{locale}/legal/<slug>`), and
+  existence is checked through the page composition — so a configured entry without a
+  page is never linked.
+- **Deliberately removed with the collections:** the demo blog's per-locale
+  `/blog/rss.xml` feed and its `buildRssXml` helper. A feed needs an ordered, dated
+  list of records, which pages do not carry (a page has a title, a summary and a
+  body); re-introducing one would be a structured-record capability, not a page
+  capability. Reported rather than replaced speculatively.
+- **Also removed:** the per-region offering price/currency resolution
+  (`resolveOfferingPrice`), which existed to price a catalogue entry in a region's
+  currency. The region `currency` / `currencySymbol` configuration keys were left in
+  place — they are region identity data, not collection machinery — and a deployment
+  that needs currency today states it in the page's own text.
 ### Analytics privacy posture(Phase U — audit, documentation only)
 
 Phase U prosecuted the consent question against evidence instead of adding a consent
@@ -908,75 +922,69 @@ selects a configuration entry. The visible footer address, the structured-data
 **same** resolved location, preserving the Phase G invariant that visible
 business data and structured data can never diverge.
 
-## Offerings catalog (Phase C)
+## Offerings catalogue (Phase C, superseded by A1E)
 
-A single type-agnostic offering primitive (services, products, packages,
-programs, consultations) backed by the **same** content port/adapter used for
-pages — no parallel repository.
+The offerings catalogue was the first author-facing collection: a listing route, a
+detail route per offering, a feature flag, a dedicated parser, its own
+`OfferingsContent` model, sort/featured/price helpers and presentation components
+served by a shared `PageContentRepository`.
 
-- **Reuse:** `PageContentRepository` + `createFileSystemPageContentRepository`
-  gain a `collection` option (`"pages"` | `"offerings"`) with a per-collection
-  parser (`parseOfferingsFile` in `src/adapters/content/frontmatter.ts`).
-  `listSlugs` (canonical set) and `findBySlug` (locale→default fallback) work
-  unchanged; the sitemap and JSON-LD-free metadata flow from the canonical
-  content set + `features.offerings`.
-- **Three-concern contract:** content = which offerings exist (canonical =
-  default-locale slugs; locale-only slugs → 404, never an ambiguous fallback);
-  `features.offerings` = capability/exposure (`false`/absent → 404 + no sitemap
-  entries); `navigation[]` = discoverability only (config-authoritative; never
-  derived from content).
-- **Model:** `OfferingsContent` (extends `PageContent`) adds required `blurb`
-  and optional `order`, `featured`, `price` (display-only string), `image`
-  (site-root-relative asset). `sortOfferings` (featured → order → slug) and
-  `isCanonicalOffering` live in `src/core/offerings.ts` (pure, framework-free).
-- **No commerce semantics:** no pricing math, checkout, booking, payments,
-  inventory, customer state, or JSON-LD `Product`/`Service`/`Offer` in Phase C.
-- **Routes** are in `src/app/[locale]/offerings/` (listing + detail); the
-  listing ships a localized empty state when enabled but no content exists.
+**All of it is gone.** An offering — like any other authored content with its own URL —
+is a PAGE:
 
-## Legal documents (Phase D)
+```text
+content/pages/markdown/en/offerings.md                →  /en/offerings        (the catalogue)
+content/pages/markdown/en/offerings/website-design.md →  /en/offerings/website-design
+```
 
-Optional, config-driven legal pages reached from the footer (no index page).
+That is the same two-mode authoring path as every other page, the same precedence, the
+same per-locale fallback, the same safe Markdown policy and the same ONE route. Nothing
+about it is special-cased, so there is no catalogue chrome to configure and no feature
+flag that could disagree with a file's existence. (See
+[Trust & publishing content](#trust--publishing-content-phase-t-re-expressed-by-a1e)
+for the complete account of what the removal covered.)
 
-- **Reuse:** legal content uses the SAME `PageContentRepository` port + fs
-  adapter (`collection: "legal"`) with the basic `parsePageFile` contract
-  (title + body); no parallel repository.
-- **Exposure = config ∧ canonical content.** A legal document is exposed only
-  when it is BOTH in the `legal` config block (`{ slug, label }[]`) AND has a
-  canonical (default-locale) file under `content/legal/`. Content alone never
-  exposes a route; a configured-but-missing entry is dropped from the footer
-  and its route 404s. Pure helpers in `src/core/legal.ts` (`resolveLegalDocs`,
-  `isCanonicalLegalSlug`, `legalLabel`).
-- **Footer discoverability:** the footer renders a legal `<nav>` (localized
-  header + links) only when resolved legal docs exist; labels fall back from
-  `dictionary.legal.labels[slug]` to the config label.
-- **Body localization is independent of footer labels.** Legal document bodies
-  come from `content/legal/<locale>/<slug>.md` and use the repository's standard
-  locale → default fallback (`findBySlug`: locale file first, then `en`). A
-  localized body is served when present; otherwise the canonical (default) body
-  is served — no Legal-specific translation system. The shipped demo docs are
-  localized to all 9 locales (identically-structured, generic, replaceable
-  templates; no jurisdiction-specific claims).
-- **Sitemap/SEO:** legal slugs (config ∩ canonical) feed `buildSitemapRoutes`;
-  each detail page emits canonical + hreflang. Missing translations use the
-  existing repository default-locale fallback. No JSON-LD, no legal-advice
-  semantics; demo docs are clearly marked replaceable templates.
+## Legal documents (Phase D, re-expressed by A1E)
 
-## Content body localization (all collections)
+A legal document (privacy policy, terms, cookies) is a **PAGE**, reached from the footer
+and never listed at an index URL:
 
-Content **bodies** are localized per-collection via the same repository
-`findBySlug` locale → default fallback: a file at
-`content/<type>/<locale>/<slug>.md` is served when present; otherwise the
-default-locale (`en`) file is served. There is **no translation system** beyond
-the content files — no per-locale schema, no dictionary involvement for bodies.
-This applies uniformly to pages (`about`/`resources`/`contact`), offerings
-(`consultation`/`starter-package`), and legal
-(`privacy`/`terms`/`cookies`). The shipped template localizes every one of these
-to all 9 locales; adopters who omit a locale still get a working page via the
-default-locale fallback. Localized frontmatter fields (e.g. offering
-`title`/`blurb`/`price`) travel in the same files and are served together with
-each locale's body. (Footer **labels** are dictionary-owned and independent —
-see Legal and i18n sections.)
+```text
+content/pages/markdown/en/legal/privacy.md   →  /en/legal/privacy
+```
+
+- **Exposure = config ∧ exists.** A document is surfaced only when it is BOTH listed in
+  the `legal` config block (`{ slug, label }[]`) AND authored as a page. Configuration
+  alone never invents a page and a page alone is never advertised; existence is checked
+  through the SAME page composition every route uses, so there is no second store and no
+  second notion of "exists". The pure helpers are `configuredLegalDocs`,
+  `legalPageRoutePath` and `legalLabel` in `src/core/legal.ts`.
+- **Footer discoverability:** the footer renders a legal `<nav>` (localized heading +
+  links) only when a configured document's page exists; labels fall back from
+  `dictionary.legal.labels[slug]` to the config label. The links point at the page's own
+  URL (`/{locale}/legal/<slug>`), which is produced by the file being there.
+- **Body localization is the page's own fallback**: a German page is served from
+  `content/pages/markdown/de/legal/<slug>.md` when it exists, and the default locale's
+  page answers otherwise — the same rule as every other page. No legal-specific
+  translation system exists.
+- **Sitemap/SEO:** an authored legal page is a page, so it appears in the sitemap and
+  carries canonical + hreflang through the ONE page route like any other page. No
+  JSON-LD and no legal-advice semantics.
+
+## Content body localization (all pages)
+
+Content **bodies** are localized by the SAME rule for every page: the requested
+locale's file is served when it exists, and the default locale's file answers
+otherwise. A file at `content/pages/markdown/<locale>/<route-path>.md` is served when
+present; otherwise the default locale answers. There is **no translation system**
+beyond the content files — no per-locale schema, no dictionary involvement for bodies,
+and no per-kind rule: a page is a page.
+
+The rule applies to the COMPLETE route path, so a nested page falls back exactly as a
+top-level one does (`offerings/website-design` resolves through the same four
+candidates). Frontmatter travels with the file, so a localized `title`/`description`
+is served together with that locale's body. (Footer **labels** and other interface
+strings are dictionary-owned and independent — see the Internationalization sections.)
 
 ## Error handling & recovery (Phase E)
 

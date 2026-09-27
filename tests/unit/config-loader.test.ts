@@ -47,25 +47,6 @@ describe("parseSiteConfig", () => {
     expect(config.analytics).toEqual({ provider: "none" });
   });
 
-  it("maps the Phase T content feature flags through (testimonials/portfolio/blog)", () => {
-    const config = parseSiteConfig({
-      ...validConfig,
-      features: { testimonials: true, portfolio: true, blog: true },
-    });
-
-    expect(config.testimonialsFeature).toBe(true);
-    expect(config.portfolioFeature).toBe(true);
-    expect(config.blogFeature).toBe(true);
-  });
-
-  it("treats absent Phase T feature flags as disabled", () => {
-    const config = parseSiteConfig(validConfig);
-
-    expect(config.testimonialsFeature).toBeUndefined();
-    expect(config.portfolioFeature).toBeUndefined();
-    expect(config.blogFeature).toBeUndefined();
-  });
-
   it("accepts empty contact details", () => {
     const config = parseSiteConfig({ ...validConfig, contact: {} });
 
@@ -467,34 +448,6 @@ describe("parseSiteConfig", () => {
     };
 
     expect(() => parseSiteConfig(invalid)).toThrow(/provider/);
-  });
-
-  it("maps features.offerings true/false through to the site config", () => {
-    const enabled = parseSiteConfig({
-      ...validConfig,
-      features: { offerings: true },
-    });
-    expect(enabled.offeringsFeature).toBe(true);
-
-    const disabled = parseSiteConfig({
-      ...validConfig,
-      features: { offerings: false },
-    });
-    expect(disabled.offeringsFeature).toBe(false);
-  });
-
-  it("leaves offeringsFeature undefined when absent (back-compat)", () => {
-    const config = parseSiteConfig(validConfig);
-    expect(config.offeringsFeature).toBeUndefined();
-  });
-
-  it("rejects a non-boolean offerings value", () => {
-    const invalid = {
-      ...validConfig,
-      features: { offerings: "yes" },
-    };
-
-    expect(() => parseSiteConfig(invalid)).toThrow(/offerings/);
   });
 
   it("maps the legal block through to the site config", () => {

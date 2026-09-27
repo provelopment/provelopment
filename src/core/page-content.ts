@@ -1,11 +1,17 @@
 /**
  * A page of human-authored content.
  *
+ * A page is identified by its ROUTE PATH — the path between the locale and the
+ * extension, which mirrors the folders it is authored in
+ * (`offerings/website-design`). The rule for that value lives in
+ * `@/core/page-route-path` and is imported by everything that must agree on it.
+ *
  * The body is raw Markdown. Converting Markdown to HTML is a presentation
  * concern and must not happen in the domain or application layers.
  */
 export interface PageContent {
-  readonly slug: string;
+  /** The page's route path inside its locale directory, e.g. `offerings/website-design`. */
+  readonly routePath: string;
   /** The locale of the content actually served (after any fallback). */
   readonly locale: string;
   readonly title: string;

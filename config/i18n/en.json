@@ -36,7 +36,7 @@
   "location": {
     "label": "Location",
     "unspecified": "Global"
-  },
+  },
   "business": {
     "open": "Open now",
     "closed": "Closed",
@@ -68,24 +68,11 @@
       "message": "Please enter a message (up to 5000 characters)."
     }
   },
-  "offerings": {
-    "heading": "Offerings",
-    "emptyState": "We will share our offerings here soon.",
-    "featured": "Featured",
-    "deliverables": "What's included",
-    "faq": "Frequently asked questions",
-    "externalCta": "Learn more",
-    "backToOfferings": "Back to offerings",
-    "disclaimerTitle": "Template Demonstration",
-    "disclaimerBody": "The offerings listed below are fictional placeholders for demonstration purposes only. They are configured by the markdown files in content/offerings/ and can be disabled via features.offerings in site.config.json.",
-    "currencyNotice": "Prices displayed in {currency} ({symbol}). Select an operating city in the Location menu to view local currencies."
-  },
   "booking": {
     "book": "Book now"
   },
   "legal": {
     "heading": "Legal",
-    "disclaimer": "These documents are template placeholders for demonstration only and are not legal advice. Consult a qualified professional for your jurisdiction.",
     "labels": {
       "privacy": "Privacy Policy",
       "terms": "Terms of Service",
@@ -101,25 +88,5 @@
       "email": "Email",
       "phone": "Phone"
     }
-  },
-  "testimonials": {
-    "heading": "Testimonials",
-    "emptyState": "No testimonials yet.",
-    "featured": "Featured",
-    "ratingAria": "Rated {rating} out of 5"
-  },
-  "portfolio": {
-    "heading": "Portfolio",
-    "emptyState": "No portfolio items yet.",
-    "featured": "Featured",
-    "tags": "Tags",
-    "backToPortfolio": "Back to portfolio"
-  },
-  "blog": {
-    "heading": "Blog",
-    "emptyState": "No posts yet.",
-    "backToBlog": "Back to blog",
-    "readingTime": "{count} min read",
-    "rss": "RSS feed"
   }
 }

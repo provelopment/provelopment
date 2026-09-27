@@ -1,14 +1,21 @@
 /**
- * Legal documents (Phase D, Tier 1) — config ∧ canonical-content exposure.
+ * Legal documents — configured exposure over PAGES
+ * ===============================================
  *
- * A legal document is shown/exposed only when it is BOTH listed in the
- * `legal` config block AND has canonical content (a default-locale file under
- * `content/legal/`). Content alone never exposes a route; config alone never
- * renders a route (a missing-content slug is dropped from the footer and its
- * route returns 404). No legal-advice semantics are implied.
+ * A policy document (privacy, terms, cookies) is a PAGE like any other: it is
+ * authored at `content/pages/markdown/<locale>/legal/<slug>.md` (or its JSON
+ * counterpart) and served at `/{locale}/legal/{slug}` by the one page route. There is
+ * no legal collection and no legal repository — the document's own file is the page.
+ *
+ * What configuration still decides is EXPOSURE: `legal[]` lists the documents a site
+ * wants surfaced in the footer, in order, with a fallback label. A configured slug
+ * whose page does not exist is not linked (the link would be broken), and a page that
+ * is not configured is not advertised — the same "configuration ∧ exists" rule this
+ * capability has always had, now expressed through the page system rather than a
+ * second storage model.
  */
 export interface LegalConfigEntry {
-  /** Safe slug, e.g. `privacy`; must match `content/legal/<locale>/<slug>.md`. */
+  /** Safe slug: the page is authored at `legal/<slug>` and served at `/{locale}/legal/<slug>`. */
   readonly slug: string;
   /** Footer link text (falls back to the localized dictionary label). */
   readonly label: string;
@@ -20,24 +27,24 @@ export interface ResolvedLegalDoc {
 }
 
 /**
- * Intersects the configured legal entries (in config order) with the canonical
- * (default-locale) documents that actually exist. Entries whose content is
- * missing are dropped.
+ * The configured legal documents, in configuration order.
+ *
+ * Existence is NOT decided here: a caller asks the page composition whether the
+ * document's page exists, so configuration never invents a page and a page never
+ * publishes itself into the footer.
  */
-export function resolveLegalDocs(
+export function configuredLegalDocs(
   config: readonly LegalConfigEntry[] | undefined,
-  canonicalSlugs: readonly string[],
 ): ResolvedLegalDoc[] {
-  return (config ?? []).flatMap((entry) =>
-    canonicalSlugs.includes(entry.slug)
-      ? [{ slug: entry.slug, label: entry.label }]
-      : [],
-  );
+  return (config ?? []).map((entry) => ({ slug: entry.slug, label: entry.label }));
 }
 
-/** A legal slug is canonical only when it exists in the default locale. */
-export function isCanonicalLegalSlug(slug: string, canonicalSlugs: readonly string[]): boolean {
-  return canonicalSlugs.includes(slug);
+/**
+ * The page route path a legal document is authored at, and the URL it is served at
+ * (`legal/privacy` → `/{locale}/legal/privacy`).
+ */
+export function legalPageRoutePath(slug: string): string {
+  return `legal/${slug}`;
 }
 
 /** Localized label wins; falls back to the config label. */

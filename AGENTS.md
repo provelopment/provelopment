@@ -143,11 +143,19 @@ Human-authored content should remain separate from application implementation.
 
 **One human-facing content area.** Everything a normal user authors as website
 content lives under `content/` — pages (`content/pages/markdown`,
-`content/pages/json`), the artwork a site owner replaces (`content/assets`), and the
-other content collections — and `content/README.md` is the map that answers "where do
-I edit my website?". Authored content is never placed under `config/`: configuration
-changes how the site *behaves*, content is what it *says*. Equally, unrelated
-technical configuration is not moved into `content/` merely to make the tree uniform.
+`content/pages/json`) and the artwork a site owner replaces (`content/assets`) — and
+`content/README.md` is the map that answers "where do I edit my website?". Authored
+content is never placed under `config/`: configuration changes how the site *behaves*,
+content is what it *says*. Equally, unrelated technical configuration is not moved into
+`content/` merely to make the tree uniform.
+
+**If authored content has its own URL, it is a page.** There are no author-facing
+collections: offerings, portfolio items, articles, testimonials, policy documents and
+"About" pages are all pages, authored in the same two modes and served by the same ONE
+route. Content that only ever appears inside another page (quotes, cards, statistics,
+FAQ rows) is authored *in* that page — never as a separate filesystem collection. A
+page's route path mirrors the folders it is authored in, and the rule for it is declared
+once (`@/core/page-route-path`); adding one is not a reason to add a route file.
 
 Do not embed large amounts of business copy directly into reusable components.
 

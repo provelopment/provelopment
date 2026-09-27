@@ -40,11 +40,7 @@
     },
     "contact": {
       "provider": "stub"
-    },
-    "offerings": false,
-    "testimonials": false,
-    "portfolio": false,
-    "blog": false
+    }
   },
   "ui": {
     "density": "comfortable",

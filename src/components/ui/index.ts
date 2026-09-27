@@ -18,17 +18,11 @@ export type { ButtonProps } from "./button";
 export { Section } from "./section";
 export type { SectionProps } from "./section";
 
-export { Empty } from "./empty";
-export type { EmptyProps } from "./empty";
-
 export { Grid } from "./grid";
 export type { GridProps } from "./grid";
 
 export { FieldError } from "./field-error";
 export type { FieldErrorProps } from "./field-error";
-
-export { CardImage } from "./card-image";
-export type { CardImageProps } from "./card-image";
 
 export { AssetIcon } from "./asset-icon";
 export type { AssetIconProps } from "./asset-icon";

@@ -101,29 +101,40 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     expect(composition).toContain("PAGE_AUTHORING_ROOTS");
     expect(composition).not.toContain("config/pages");
     expect(composition).not.toContain("fs-page-content-repository");
-
-    // The collection repository cannot even NAME a `pages` collection, so the
-    // collection path is structurally unreachable rather than merely unused.
-    const repository = read("adapters/content/fs-page-content-repository.ts");
-    expect(repository).toContain("export type ContentCollection");
-    expect(repository).not.toContain('"pages"');
-    expect(repository).not.toContain('?? "pages"');
   });
 
-  it("keeps every page route on ONE decision point, and off the collections", () => {
+  it("is the ONLY page authority: no collection repository and no collection root remains", () => {
+    // A1E removed the author-facing collections (offerings/legal/portfolio/posts/
+    // testimonials) and the second content store that served them. A page route must
+    // not be able to reach a competing store, and nothing may reintroduce one.
+    expect(existsSync(path.join(srcDirectory, "adapters/content/fs-page-content-repository.ts"))).toBe(
+      false,
+    );
+    expect(existsSync(path.join(srcDirectory, "application/page-content-repository.ts"))).toBe(false);
+
+    for (const file of sourceFiles.map(relative)) {
+      const source = read(file);
+      expect(source, file).not.toContain("createFileSystemPageContentRepository");
+      expect(source, file).not.toContain("ContentCollection");
+    }
+
+    // The human-facing area holds ONE page tree and the assets beside it — no
+    // historical collection directories, empty or otherwise.
+    expect(readdirSync(path.join(projectRoot, "content")).filter((entry) => entry !== "assets").sort()).toEqual(
+      ["README.md", "pages"],
+    );
+  });
+
+  it("keeps every page route on ONE decision point, and off any other store", () => {
     for (const route of [
       "app/[locale]/page.tsx",
-      "app/[locale]/[item]/page.tsx",
-      "app/[locale]/[item]/[slug]/page.tsx",
-      "app/[locale]/about/page.tsx",
-      "app/[locale]/resources/page.tsx",
+      "app/[locale]/[...path]/page.tsx",
       "app/[locale]/connect/page.tsx",
       "app/[locale]/contact/page.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("createPageSources");
-      // A route that read the collection repository itself would own a second,
-      // competing precedence rule — and could serve a non-page collection as a page.
+      // A route that read a second store itself would own a competing precedence rule.
       expect(source, route).not.toContain("createFileSystemPageContentRepository");
       expect(source, route).not.toContain("config/pages");
       // A page body is ALWAYS rendered under the safe Markdown policy: the trusted
@@ -133,11 +144,36 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     }
   });
 
+  it("serves EVERY page through the one generic route, and keeps dedicated routes to specialised chrome", () => {
+    // The framework route files that remain exist for URL semantics or specialised
+    // features, never for a kind of content: home is the locale root, `connect` and
+    // `contact` carry their own chrome (the connectivity inventory and the contact
+    // form), and every other page — flat, nested or regional — is served by the ONE
+    // catch-all route, which resolves through the same composition.
+    const routeFiles = readdirSync(path.join(srcDirectory, "app/[locale]"))
+      .filter((entry) => entry.endsWith(".tsx"))
+      .sort();
+    expect(routeFiles).toEqual([
+      "error.tsx",
+      "global-error.tsx",
+      "layout.tsx",
+      "not-found.tsx",
+      "opengraph-image.tsx",
+      "page.tsx",
+    ]);
+    const directories = readdirSync(path.join(srcDirectory, "app/[locale]"), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+    expect(directories).toEqual(["[...path]", "connect", "contact"]);
+  });
+
   it("gives the sitemap the same inventory the routes use", () => {
     const sitemap = read("app/sitemap.ts");
     expect(sitemap).toContain("createPageSources");
-    expect(sitemap).toContain("pages.listSlugs");
+    expect(sitemap).toContain("pages.listRoutes");
     expect(sitemap).not.toContain("pagesRepository");
+    expect(sitemap).not.toContain("PageContentRepository");
   });
 });
 
@@ -292,19 +328,25 @@ describe("pages-authoring contract — ONE slug authority", () => {
   });
 
   it("is consumed by every source that must agree with it", () => {
-    for (const file of [
-      "core/page-source.ts",
-      "adapters/content/fs-page-content-repository.ts",
-      "adapters/content/authoring-source-discovery.ts",
-      "adapters/content/authoring-page.ts",
-      // A configured slug that must name a content file consumes it too.
-      "config/schema.ts",
-    ]) {
+    // TWO layers, one authority each: the segment rule (`CONTENT_SLUG_PATTERN`) defines
+    // what a segment may be, and the route-path rule is built on it. Everything
+    // downstream consumes the ROUTE PATH rather than re-testing names itself, so no
+    // second opinion about names can exist in the tree.
+    for (const file of ["core/page-route-path.ts", "config/schema.ts"]) {
       const source = read(file);
       expect(
         source.includes("isContentSlug") || source.includes("CONTENT_SLUG_PATTERN"),
         `${file} must consume the ONE content-slug authority`,
       ).toBe(true);
+    }
+
+    const routePathConsumers: readonly [string, RegExp][] = [
+      ["core/page-source.ts", /isPageRoutePath/],
+      ["adapters/content/authoring-source-discovery.ts", /pageRoutePathFromFile/],
+      ["adapters/content/authoring-page.ts", /isPageRoutePath|pageRouteLeaf/],
+    ];
+    for (const [file, pattern] of routePathConsumers) {
+      expect(read(file), `${file} must consume the ONE route-path rule`).toMatch(pattern);
     }
   });
 });

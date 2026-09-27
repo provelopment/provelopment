@@ -335,14 +335,10 @@ export interface SiteConfig {
   readonly bookingFeature?: BookingConfig;
   /** Contact inquiry provider configuration (`features.contact`). */
   readonly contactFeature?: ContactFeatureConfig;
-  /** Offering content catalog enabled (`features.offerings === true`). */
-  readonly offeringsFeature?: boolean;
-  /** Testimonials collection enabled (`features.testimonials === true`). */
-  readonly testimonialsFeature?: boolean;
-  /** Portfolio / case studies enabled (`features.portfolio === true`). */
-  readonly portfolioFeature?: boolean;
-  /** Filesystem blog + RSS enabled (`features.blog === true`). */
-  readonly blogFeature?: boolean;
-  /** Optional legal documents (config ∧ canonical-content exposure). */
+  /**
+   * Optional legal documents surfaced in the footer. Each entry's slug names a PAGE
+   * (`content/pages/.../legal/<slug>.md`), so configuration decides exposure while
+   * the page decides existence.
+   */
   readonly legal?: readonly LegalConfigEntry[];
 }

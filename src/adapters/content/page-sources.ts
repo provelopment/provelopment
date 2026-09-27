@@ -7,26 +7,31 @@
  * winner. It is the composition boundary the routes and the sitemap consume, so no
  * route reimplements the precedence or the file layout.
  *
- *   `json`      `content/pages/json/<locale>/<slug>.json` — discovered and ordered,
- *               NOT yet interpreted. A JSON source that wins the resolution FAILS
- *               LOUDLY, naming its file: the vocabulary that renders declarative
- *               JSON belongs to a later increment, and silently falling through to
- *               another source would ignore the file the author wrote.
- *   `markdown`  `content/pages/markdown/<locale>/<slug>.md` — read through the
+ *   `json`      `content/pages/json/<locale>/<route-path>.json` — discovered and
+ *               ordered, NOT yet interpreted. A JSON source that wins the resolution
+ *               FAILS LOUDLY, naming its file: the vocabulary that renders
+ *               declarative JSON belongs to a later increment, and silently falling
+ *               through to another source would ignore the file the author wrote.
+ *   `markdown`  `content/pages/markdown/<locale>/<route-path>.md` — read through the
  *               authoring reader (`./authoring-page`) and rendered under the safe
  *               Markdown policy.
  *
+ * A `<route-path>` is one segment (`about`) or several
+ * (`offerings/website-design`): a page's route mirrors the folders it is authored in
+ * (`@/core/page-route-path`), and the declared precedence applies to the COMPLETE
+ * route path, so a nested page resolves exactly as a top-level one does.
+ *
  * There is no third source and no compatibility fallback: a page comes from one of
- * those two roots, or it does not exist. `content/**` hosts the platform's OTHER
- * content collections (offerings, legal, portfolio, posts, testimonials) and is
- * never consulted for a page.
+ * those two roots, or it does not exist. `content/` holds THIS platform's pages and
+ * assets — there are no other author-facing collections competing with the page
+ * model, so no file outside the two roots can be consulted for a page.
  *
  * PUBLICATION IS DECIDED BY CONFIGURATION, NOT BY DIRECTORIES: both entry points
  * take the site's CONFIGURED locales, so a locale directory nobody configured can
  * never produce a route, a sitemap entry or a served page — a directory's
  * existence is not publication.
  */
-import { authoringSlugsFor, readAuthoringPageFile } from "./authoring-source-discovery";
+import { authoringPageRoutesFor, readAuthoringPageFile } from "./authoring-source-discovery";
 import { parseAuthoringPageFile } from "./authoring-page";
 import { resolvePageSource } from "@/application/page-source-resolution";
 import { PAGE_AUTHORING_ROOTS, pageSourceFile } from "@/core/page-source";
@@ -40,7 +45,8 @@ export interface ResolvedPage {
    * refuses to be served (see `resolve`).
    */
   readonly kind: "markdown";
-  readonly slug: string;
+  /** The page's route path inside its locale directory, e.g. `offerings/website-design`. */
+  readonly routePath: string;
   /** The locale that actually answered (which may be the default one standing in). */
   readonly locale: Locale;
   /** True when the default locale answered for a different requested locale. */
@@ -59,14 +65,14 @@ export interface PageSourcesOptions {
 
 export interface PageSources {
   /**
-   * The page that answers `slug` for `locale`, or `null` when no source does.
+   * The page that answers `routePath` for `locale`, or `null` when no source does.
    *
    * Throws when a JSON source wins: it is discovered and ordered, but not yet
    * interpretable — the author must be told, not silently ignored.
    */
-  resolve(slug: string, locale: Locale): Promise<ResolvedPage | null>;
-  /** The publishable page slugs for one configured locale (both modes, sorted). */
-  listSlugs(locale: Locale): Promise<readonly string[]>;
+  resolve(routePath: string, locale: Locale): Promise<ResolvedPage | null>;
+  /** The publishable page route paths for one configured locale (both modes, sorted). */
+  listRoutes(locale: Locale): Promise<readonly string[]>;
 }
 
 /** The authoring roots, for diagnostics — the core contract owns their names. */
@@ -79,22 +85,22 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
   const isPublishedLocale = (locale: Locale): boolean => locales.includes(locale);
 
   return {
-    async resolve(slug, locale) {
+    async resolve(routePath, locale) {
       if (!isPublishedLocale(locale)) return null;
 
       const resolved = await resolvePageSource<string>(
-        { slug, locale, defaultLocale },
+        { routePath, locale, defaultLocale },
         {
           // Availability only — each provider answers "this locale contributes a
           // source" with the RAW source, and interpretation happens below.
-          json: (candidate) => readAuthoringPageFile("json", candidate, slug),
-          markdown: (candidate) => readAuthoringPageFile("markdown", candidate, slug),
+          json: (candidate) => readAuthoringPageFile("json", candidate, routePath),
+          markdown: (candidate) => readAuthoringPageFile("markdown", candidate, routePath),
         },
       );
       if (resolved === null) return null;
 
       if (resolved.kind === "json") {
-        const file = pageSourceFile("json", resolved.locale, slug) ?? slug;
+        const file = pageSourceFile("json", resolved.locale, routePath) ?? routePath;
         throw new Error(
           `JSON page authoring is declared but not yet interpreted: "${file}" would be served in ` +
             "place of any Markdown source, so this build stops instead of ignoring it. " +
@@ -102,10 +108,10 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
         );
       }
 
-      const page = parseAuthoringPageFile(resolved.source, slug, resolved.locale);
+      const page = parseAuthoringPageFile(resolved.source, routePath, resolved.locale);
       return {
         kind: "markdown",
-        slug,
+        routePath,
         locale: resolved.locale,
         fallback: resolved.fallback,
         title: page.title,
@@ -114,12 +120,12 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
       };
     },
 
-    async listSlugs(locale) {
+    async listRoutes(locale) {
       if (!isPublishedLocale(locale)) return [];
 
       const [markdown, json] = await Promise.all([
-        authoringSlugsFor("markdown", locale),
-        authoringSlugsFor("json", locale),
+        authoringPageRoutesFor("markdown", locale),
+        authoringPageRoutesFor("json", locale),
       ]);
 
       return [...new Set([...markdown, ...json])].sort();

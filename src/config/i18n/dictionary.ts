@@ -121,26 +121,6 @@ export const dictionarySchema = z.object({
       message: z.string(),
     }),
   }),
-  /** Offerings catalog strings (Phase C). */
-  offerings: z.object({
-    heading: z.string(),
-    emptyState: z.string(),
-    backToOfferings: z.string(),
-    /** Phase C — featured badge label on offering cards/detail. */
-    featured: z.string(),
-    /** Phase C — "What's included" section heading on the detail page. */
-    deliverables: z.string(),
-    /** Phase C — FAQ section heading on the detail page. */
-    faq: z.string(),
-    /** Phase C — default label for `intent: "external"` offering actions. */
-    externalCta: z.string(),
-    /** Template demonstration disclaimer title. */
-    disclaimerTitle: z.string(),
-    /** Template demonstration disclaimer body. */
-    disclaimerBody: z.string(),
-    /** Template demonstration currency notice. */
-    currencyNotice: z.string(),
-  }),
   /**
    * Booking action strings (Phase H). OPTIONAL: the booking capability is a
    * config-driven feature (`features.booking`), and a localized label is only
@@ -152,53 +132,16 @@ export const dictionarySchema = z.object({
       book: z.string(),
     })
     .optional(),
-  /** Legal documents strings (Phase D). */
+  /**
+   * Legal documents chrome. A legal document is a PAGE (see `@/core/legal`), so this
+   * section holds only the footer group's heading and the localized labels keyed by
+   * document slug.
+   */
   legal: z.object({
     heading: z.string(),
-    /** Footer-of-page note that legal docs are template placeholders. */
-    disclaimer: z.string(),
     /** Localized footer labels keyed by legal slug. */
     labels: z.record(z.string(), z.string()),
   }),
-  /**
-   * Testimonials chrome (Phase T). OPTIONAL: only required when
-   * `features.testimonials` is enabled (enforced by an F1-style lock at module
-   * load). `ratingAria` is a template with a `{rating}` placeholder.
-   */
-  testimonials: z
-    .object({
-      heading: z.string(),
-      emptyState: z.string(),
-      featured: z.string(),
-      ratingAria: z.string(),
-    })
-    .optional(),
-  /**
-   * Portfolio / case-studies chrome (Phase T). OPTIONAL: only required when
-   * `features.portfolio` is enabled.
-   */
-  portfolio: z
-    .object({
-      heading: z.string(),
-      emptyState: z.string(),
-      featured: z.string(),
-      tags: z.string(),
-      backToPortfolio: z.string(),
-    })
-    .optional(),
-  /**
-   * Blog chrome (Phase T). OPTIONAL: only required when `features.blog` is
-   * enabled. `readingTime` is a template with a `{count}` placeholder.
-   */
-  blog: z
-    .object({
-      heading: z.string(),
-      emptyState: z.string(),
-      backToBlog: z.string(),
-      readingTime: z.string(),
-      rss: z.string(),
-    })
-    .optional(),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;

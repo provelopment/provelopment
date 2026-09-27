@@ -74,6 +74,13 @@ tree stays clean.
   → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is
   measured on a target the author created; a raw-HTML anchor attempt in the same
   fixture must stay inert, and the scenario asserts both.
+- **nested pages** (`nested-pages` scenario): a page authored in a FOLDER
+  (`content/pages/markdown/en/zz-nested/web-design.md`) is served at its nested URL
+  (`/en/zz-nested/web-design`) through the ONE page route, with its authored title, its
+  own generated heading fragment reachable in the browser, and its Markdown capability
+  intact (a table renders). Documentation beside it (`…/zz-nested/README.md`) is NOT a
+  route, and a URL that names no page — including the retired collection URLs
+  (`/en/offerings`, `/en/blog`, `/en/testimonials`) — is a proper localized 404.
 - **safe Markdown** (`safe-markdown` scenario): an authored page under
   `content/pages/markdown/en/` is served through the normal route with its authored
   title, its ordinary Markdown rendered, and no active markup anywhere — no author
