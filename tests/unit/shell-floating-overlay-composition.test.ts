@@ -1,3 +1,9 @@
+import { siteConfig } from "@/config";
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -133,7 +139,7 @@ const headerPlain = el("header", null, "Brand");
 const footer = el("footer", null, "Foot");
 const main = el("p", null, "Body");
 
-const base = { locale: "en", pageBindings: [] };
+const base = { locale: "en", pageBindings: [], siteSet: SITE_SET };
 
 const allIds = (html: string) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 

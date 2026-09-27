@@ -4,7 +4,7 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-let mockPath = "/en";
+let mockPath = "/ww/en";
 vi.mock("next/navigation", () => ({ usePathname: () => mockPath }));
 
 import { ContextNavLinks, type ContextNavLink } from "@/components/site/context-nav-links";
@@ -55,7 +55,7 @@ const AVAILABLE_ICON = "sidebar-open.svg";
 const MISSING_ICON = "definitely-missing-connectivity-icon.svg";
 
 function renderLinks(links: readonly ContextNavLink[]): string {
-  mockPath = "/en";
+  mockPath = "/ww/en";
   return renderToStaticMarkup(ContextNavLinks({ locale: "en", links }));
 }
 
@@ -231,7 +231,7 @@ describe("connectivity icon seam — text remains authoritative", () => {
   it("renders a connectivity method without an icon as a usable text link", () => {
     const html = renderLinks([{ href: "/contact", label: "Message Us", key: "message" }]);
     expect(html).toContain("Message Us");
-    expect(html).toContain('href="/en/contact"');
+    expect(html).toContain('href="/ww/en/contact"');
     expect(html).not.toContain("<img");
   });
 
@@ -360,7 +360,7 @@ describe("connectivity icon seam — data-driven, no platform logic", () => {
     "src/components/site/context-nav-links.tsx",
     "src/components/ui/asset-icon.tsx",
     "src/components/ui/nav-item.tsx",
-    "src/app/[...segments]/connect/page.tsx",
+    "src/app/[...segments]/dedicated-pages.tsx",
   ];
 
   it("introduces NO platform-specific icon leaf (one generic `icon` only)", () => {

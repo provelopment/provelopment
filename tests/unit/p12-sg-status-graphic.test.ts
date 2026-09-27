@@ -354,7 +354,7 @@ describe("P12-SG — separation, reusability and role independence", () => {
     expect(errorPage).not.toMatch(/headerGraphic|footerGraphic|statusGraphic/);
     expect(notFoundPage).not.toMatch(/headerGraphic|footerGraphic|statusGraphic/);
     // Navigation still flows through its own seam.
-    expect(layout).toContain("getSiteNavLinks(locale)");
+    expect(layout).toContain("getSiteNavLinks(locale, site.code)");
   });
 
   it("23. the sibling header/footer graphics remain OPTIONAL and never touch this seam", () => {

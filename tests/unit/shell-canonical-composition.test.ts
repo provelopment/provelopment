@@ -1,3 +1,9 @@
+import { siteConfig } from "@/config";
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -63,6 +69,7 @@ describe("ShellEngine — Canonical aside composition (UI-05)", () => {
         asideContent: el("ul", null, el("li", null, "Rail")),
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain('id="shell-sidebar-desktop-rail"');
@@ -98,6 +105,7 @@ describe("ShellEngine — Canonical aside composition (UI-05)", () => {
         asideContent: el("ul", null, el("li", null, el("a", { href: "/en/1" }, "One"))),
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html.indexOf('class="hidden lg:block"')).toBeGreaterThan(-1);
@@ -121,6 +129,7 @@ describe("ShellEngine — Canonical aside composition (UI-05)", () => {
         ctaHref: "/book",
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("nav-item-cta");
@@ -146,6 +155,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         bottomNav: { label: "Primary", moreLabel: "More", links: sevenLinks },
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("ui-shell-bottom-bar");
@@ -174,6 +184,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         bottomNav: { label: "Primary", moreLabel: "More", links: sevenLinks.slice(0, 3) },
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("/en/1");
@@ -193,6 +204,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         ctaHref: "/book",
         locale: "en",
         pageBindings,
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("nav-item-cta");
@@ -207,7 +219,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
 describe("ShellEngine — content-slot absence keeps the frame stable", () => {
   it("renders no aside/sidebar and no bottom layer when the content layer supplies none", () => {
     const html = renderToStaticMarkup(
-      ShellEngine({ resolved: adaptive, header, main: mainText, footer, mainId: "main", locale: "en", pageBindings }),
+      ShellEngine({ resolved: adaptive, header, main: mainText, footer, mainId: "main", locale: "en", pageBindings, siteSet: SITE_SET }),
     );
     expect(html).toContain('<main id="main"');
     expect(html).not.toContain("shell-sidebar");

@@ -7,8 +7,7 @@ import { NavItem } from "@/components/ui/nav-item";
 import type { NavItemModel } from "@/components/ui/nav-item";
 import type { PageRegionBinding } from "@/core/region";
 import { isInternalHref, resolveNavHref } from "@/core/regional-pages";
-import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
-import { siteConfig } from "@/config";
+import { pathContextOr, sitePrefixPath, type SiteSet } from "@/core/site";
 import { menuModeClass, splitBottomNavItems, type MenuMode } from "@/core/ui";
 
 import { ShellMobileNav } from "./shell-mobile-nav";
@@ -54,6 +53,12 @@ export interface ShellBottomBarProps {
   readonly locale: string;
   /** Configured region page bindings (content layer passes its site config). */
   readonly pageBindings: readonly PageRegionBinding[];
+  /**
+   * S1E3A — the deployment's resolved SITES, passed in like every other config-derived value.
+   * The engine layer never imports `@/config`: it receives the site set and resolves the current
+   * site/locale/region context from the URL with the ONE core helper.
+   */
+  readonly siteSet: SiteSet;
   /** Localized demo badge label (for `demoOnly` items). */
   readonly demoBadgeLabel?: string;
   /** P6-1 — label for the explicit "Hide navigation" control in the More drawer
@@ -71,6 +76,7 @@ export function ShellBottomBar({
   links,
   locale,
   pageBindings,
+  siteSet,
   demoBadgeLabel,
   closeLabel,
   mode,
@@ -81,7 +87,7 @@ export function ShellBottomBar({
   // Escape/backdrop/focus machinery is untouched when present).
   if (mode === "closed") return null;
   const parsed = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteSet,
     pageBindings,
     pathname ?? `/${locale}`,
     locale,

@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -78,10 +78,21 @@ describe("authoring-source discovery (recursive)", () => {
   });
 
   afterAll(() => {
-    rmSync(MARKDOWN_FIXTURE, { recursive: true, force: true });
-    rmSync(EMPTY_LOCALE, { recursive: true, force: true });
-    rmSync(JSON_FIXTURE, { recursive: true, force: true });
-  });
+  rmSync(MARKDOWN_FIXTURE, { recursive: true, force: true });
+  rmSync(EMPTY_LOCALE, { recursive: true, force: true });
+  rmSync(JSON_FIXTURE, { recursive: true, force: true });
+  // …and only the now-empty SITE directories, so a run leaves no fixture tree behind.
+  for (const directory of [
+    path.join(markdownRoot, DISCOVERY_SITE),
+    path.join(jsonRoot, DISCOVERY_SITE),
+  ]) {
+    try {
+      rmdirSync(directory);
+    } catch {
+      /* not empty, or already gone */
+    }
+  }
+});
 
   it("finds nested pages, per mode, and reports their route paths", async () => {
     expect(await authoringPageRoutesFor("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE)).toEqual([

@@ -1,3 +1,9 @@
+import { siteConfig } from "@/config";
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -68,6 +74,7 @@ function engineHtml(resolved: typeof enabled): string {
       bottomNav,
       locale: "en",
       pageBindings: [],
+      siteSet: SITE_SET,
     }),
   );
 }

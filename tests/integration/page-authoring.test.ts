@@ -43,6 +43,8 @@ import { siteConfig } from "@/config";
  * the template still ships no authored pages.
  */
 const root = process.cwd();
+// S1 - these fixtures live in ONE site tree: the deployment default site.
+const SITE = siteConfig.defaultSite.code;
 const MARKDOWN_SLUG = "zz-authoring-fixture";
 const HOME_FIXTURE = "zz-home-fixture";
 // A nested section, so the whole chain (discovery → params → route → sitemap) is
@@ -58,13 +60,14 @@ const EMPTY_LOCALE_NAME = "zz-empty";
 // characters), holding a page that must therefore never be published.
 const UNCONFIGURED_LOCALE_NAME = "zz-unconf";
 
-const MARKDOWN_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", "en");
-const EMPTY_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", EMPTY_LOCALE_NAME);
+const MARKDOWN_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", SITE, "en");
+const EMPTY_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", SITE, EMPTY_LOCALE_NAME);
 const UNCONFIGURED_LOCALE_DIRECTORY = path.join(
   root,
   "content",
   "pages",
   "markdown",
+  SITE,
   UNCONFIGURED_LOCALE_NAME,
 );
 
@@ -73,8 +76,8 @@ const createdPaths = [
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_SLUG}.md`),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, "README.md"),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_JSON_SLUG}.md`),
-  path.join(root, "content", "pages", "json", "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
-  path.join(root, "content", "pages", "en", `${OUTSIDE_ROOT_SLUG}.md`),
+  path.join(root, "content", "pages", "json", SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
+  path.join(root, "content", "pages", SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
 ];
 
 function write(file: string, contents: string): void {
@@ -108,10 +111,10 @@ function cleanUp(file: string): void {
 
 /** The route params for a page URL, from its segments (`/en/a/b` → `["a","b"]`). */
 const params = (...segments: string[]) => ({
-  params: Promise.resolve({ segments: ["en", ...segments] }),
+  params: Promise.resolve({ segments: [SITE, "en", ...segments] }),
 });
 
-const urlFor = (routePath: string) => `${siteConfig.url}/en/${routePath}`;
+const urlFor = (routePath: string) => `${siteConfig.url}/${SITE}/en/${routePath}`;
 
 describe("the one page model, through the real application", () => {
   beforeAll(() => {
@@ -161,7 +164,7 @@ describe("the one page model, through the real application", () => {
     // A NESTED JSON page: a valid document, so it wins over the Markdown file with the
     // same route and is served by the declarative composer.
     write(
-      path.join(root, "content", "pages", "json", "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
+      path.join(root, "content", "pages", "json", SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
       jsonDocument("Nested JSON fixture page", [
         { type: "prose", body: "The declarative page wins." },
       ]),
@@ -173,7 +176,7 @@ describe("the one page model, through the real application", () => {
     );
     // A page-shaped file OUTSIDE the two mode roots: never a page source.
     write(
-      path.join(root, "content", "pages", "en", `${OUTSIDE_ROOT_SLUG}.md`),
+      path.join(root, "content", "pages", SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
       `---\ntitle: Outside-root page\n---\n\nThis must never be published.\n`,
     );
     // An EMPTY locale directory, and a locale the site does not configure.
@@ -182,16 +185,18 @@ describe("the one page model, through the real application", () => {
   });
 
   afterAll(() => {
-    for (const file of createdPaths) cleanUp(file);
-    rmSync(EMPTY_LOCALE_DIRECTORY, { recursive: true, force: true });
-    rmSync(UNCONFIGURED_LOCALE_DIRECTORY, { recursive: true, force: true });
-  });
+  // The directory fixtures go FIRST: while they exist their parents are not empty, so the
+  // per-file walk below could not prune them.
+  rmSync(EMPTY_LOCALE_DIRECTORY, { recursive: true, force: true });
+  rmSync(UNCONFIGURED_LOCALE_DIRECTORY, { recursive: true, force: true });
+  for (const file of createdPaths) cleanUp(file);
+});
 
   it("generates a real static route for a flat AND a nested page", async () => {
     const generated = await generateStaticParams();
     const paths = generated
-      .filter((route) => route.segments[0] === "en")
-      .map((route) => route.segments.slice(1).join("/"));
+      .filter((route) => route.segments[0] === SITE && route.segments[1] === "en")
+      .map((route) => route.segments.slice(2).join("/"));
 
     expect(paths).toContain(MARKDOWN_SLUG);
     expect(paths).toContain(NESTED_ROUTE_PATH);
@@ -260,21 +265,21 @@ describe("the one page model, through the real application", () => {
 
   it("stops the build when a JSON document is invalid, naming the file and the property", async () => {
     write(
-      path.join(root, "content", "pages", "json", "en", "zz-invalid.json"),
+      path.join(root, "content", "pages", "json", SITE, "en", "zz-invalid.json"),
       `${JSON.stringify({ schemaVersion: 2, title: "Wrong version", sections: [] }, null, 2)}\n`,
     );
     try {
       await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/zz-invalid\.json/);
       await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/schemaVersion/);
     } finally {
-      cleanUp(path.join(root, "content", "pages", "json", "en", "zz-invalid.json"));
+      cleanUp(path.join(root, "content", "pages", "json", SITE, "en", "zz-invalid.json"));
     }
   });
 
   it("never publishes a README, in any shape, and never serves an unknown path", async () => {
     const generated = await generateStaticParams();
     for (const readme of ["README", "readme"]) {
-      expect(generated.some((route) => route.segments.join("/") === readme), readme).toBe(false);
+      expect(generated.some((route) => route.segments.slice(2).join("/") === readme), readme).toBe(false);
     }
     const urls = (await sitemap()).map((entry) => entry.url);
     expect(urls.some((url) => /\/readme$/i.test(url))).toBe(false);
@@ -301,8 +306,8 @@ describe("the one page model, through the real application", () => {
     const generated = await generateStaticParams();
 
     for (const route of generated) {
-      expect(route.segments[0], JSON.stringify(route)).not.toBe(EMPTY_LOCALE_NAME);
-      expect(route.segments[0], JSON.stringify(route)).not.toBe(UNCONFIGURED_LOCALE_NAME);
+      expect(route.segments[1], JSON.stringify(route)).not.toBe(EMPTY_LOCALE_NAME);
+      expect(route.segments[1], JSON.stringify(route)).not.toBe(UNCONFIGURED_LOCALE_NAME);
     }
     expect(generated.some((route) => route.segments.includes("a-page"))).toBe(false);
   });
@@ -328,7 +333,7 @@ describe("the one page model, through the real application", () => {
     );
     try {
       const html = renderToStaticMarkup(
-        await PageRoute({ params: Promise.resolve({ segments: ["en"] }) }),
+        await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
       );
       expect(html).toContain(HOME_FIXTURE);
       expect(html).not.toContain("home-hero");
@@ -341,12 +346,12 @@ describe("the one page model, through the real application", () => {
     // The locale root is a route, not a second authoring model: `home.json` renders at
     // `/{locale}` with no special case anywhere.
     write(
-      path.join(root, "content", "pages", "json", "en", "home.json"),
+      path.join(root, "content", "pages", "json", SITE, "en", "home.json"),
       jsonDocument("JSON home page", [{ type: "prose", body: "Authored with JSON." }]),
     );
     try {
       const html = renderToStaticMarkup(
-        await PageRoute({ params: Promise.resolve({ segments: ["en"] }) }),
+        await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
       );
       expect(html).toContain("JSON home page");
       expect(html).toContain("Authored with JSON.");
@@ -355,7 +360,7 @@ describe("the one page model, through the real application", () => {
       const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
       expect(paths).not.toContain("home");
     } finally {
-      cleanUp(path.join(root, "content", "pages", "json", "en", "home.json"));
+      cleanUp(path.join(root, "content", "pages", "json", SITE, "en", "home.json"));
     }
   });
 });

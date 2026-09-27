@@ -380,6 +380,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           bottomNav={bottomNav}
           locale={locale}
           pageBindings={siteConfig.pageBindings}
+          siteSet={siteSet}
           ctaLabel={resolvedUi.cta.label}
           ctaHref={ctaHref}
         />

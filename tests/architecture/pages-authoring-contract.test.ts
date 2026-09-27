@@ -132,34 +132,39 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
   });
 
   it("keeps every page route on ONE decision point, and off any other store", () => {
-    for (const route of [
-      "app/[...segments]/page.tsx",
-      "app/[...segments]/[...path]/page.tsx",
-      "app/[...segments]/connect/page.tsx",
-      "app/[...segments]/contact/page.tsx",
-    ]) {
-      const source = read(route);
-      expect(source, route).toContain("createPageSources");
-      // A route that read a second store itself would own a competing precedence rule.
-      expect(source, route).not.toContain("createFileSystemPageContentRepository");
-      expect(source, route).not.toContain("config/pages");
-      // A page body is ALWAYS rendered under the safe Markdown policy: the trusted
-      // collection renderer is unreachable from a page route.
-      expect(source, route).toContain("SafeMarkdownContent");
-      expect(source, route).not.toContain('from "@/components/site/markdown-content"');
-    }
+    // S1 — ONE catch-all route serves every page (home, flat, nested, regional): the route that
+    // resolves a page is the ONE place a page source may be created.
+    const route = "app/[...segments]/page.tsx";
+    const source = read(route);
+    expect(source, route).toContain("createPageSources");
+    // A route that read a second store itself would own a competing precedence rule.
+    expect(source, route).not.toContain("createFileSystemPageContentRepository");
+    expect(source, route).not.toContain("config/pages");
+    // A page body is ALWAYS rendered under the safe Markdown policy: the trusted
+    // collection renderer is unreachable from a page route.
+    expect(source, route).toContain("SafeMarkdownContent");
+    expect(source, route).not.toContain('from "@/components/site/markdown-content"');
+
+    // The dedicated page CHROME (home / connect / contact) lives beside that route and receives
+    // its already-resolved page: it composes no source of its own and uses the SAME safe renderer.
+    const dedicated = read("app/[...segments]/dedicated-pages.tsx");
+    expect(dedicated).not.toContain("createPageSources");
+    expect(dedicated).not.toContain("createFileSystemPageContentRepository");
+    expect(dedicated).not.toContain("config/pages");
+    expect(dedicated).toContain("SafeMarkdownContent");
+    expect(dedicated).not.toContain('from "@/components/site/markdown-content"');
   });
 
   it("serves EVERY page through the one generic route, and keeps dedicated routes to specialised chrome", () => {
     // The framework route files that remain exist for URL semantics or specialised
-    // features, never for a kind of content: home is the locale root, `connect` and
-    // `contact` carry their own chrome (the connectivity inventory and the contact
-    // form), and every other page — flat, nested or regional — is served by the ONE
-    // catch-all route, which resolves through the same composition.
+    // features, never for a kind of content: S1 folded home, `connect` and `contact` INTO the ONE
+    // catch-all route — their chrome is composed by `dedicated-pages.tsx` for the SAME resolved
+    // page — and every other page (flat, nested or regional) is served by that route.
     const routeFiles = readdirSync(path.join(srcDirectory, "app/[...segments]"))
       .filter((entry) => entry.endsWith(".tsx"))
       .sort();
     expect(routeFiles).toEqual([
+      "dedicated-pages.tsx",
       "error.tsx",
       "global-error.tsx",
       "layout.tsx",
@@ -167,17 +172,20 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       "opengraph-image.tsx",
       "page.tsx",
     ]);
+    // …and no nested route directory survives: a page URL is `/<site>/<locale>/<route>`, so there
+    // is nothing for a `[locale]`-style tree (or a per-page route folder) to express.
     const directories = readdirSync(path.join(srcDirectory, "app/[...segments]"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
-    expect(directories).toEqual(["[...path]", "connect", "contact"]);
+    expect(directories).toEqual([]);
   });
 
   it("gives the sitemap the same inventory the routes use", () => {
     const sitemap = read("app/sitemap.ts");
     expect(sitemap).toContain("createPageSources");
-    expect(sitemap).toContain("pages.listRoutes");
+    // S1 — the inventory is asked PER SITE: `listRoutes(site.code, localePath)`.
+    expect(sitemap).toContain("routes.listRoutes");
     expect(sitemap).not.toContain("pagesRepository");
     expect(sitemap).not.toContain("PageContentRepository");
   });
@@ -311,11 +319,11 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     // second schema can appear.
     expect(read("adapters/content/page-sources.ts")).toContain("parseJsonPageFile");
     expect(read("adapters/content/page-sources.ts")).not.toContain("not yet interpreted");
+    // S1 — the pages that render a document are the ONE catch-all route and the dedicated chrome
+    // module beside it (home / connect / contact); both hand the document to the SAME composer.
     for (const route of [
       "app/[...segments]/page.tsx",
-      "app/[...segments]/[...path]/page.tsx",
-      "app/[...segments]/connect/page.tsx",
-      "app/[...segments]/contact/page.tsx",
+      "app/[...segments]/dedicated-pages.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("PageDocumentContent");
@@ -337,9 +345,7 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
       .map(relative)
       .sort();
     expect(composers).toEqual([
-      "app/[...segments]/[...path]/page.tsx",
-      "app/[...segments]/connect/page.tsx",
-      "app/[...segments]/contact/page.tsx",
+      "app/[...segments]/dedicated-pages.tsx",
       "app/[...segments]/page.tsx",
     ]);
 

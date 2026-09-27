@@ -20,6 +20,7 @@ import {
 } from "@/core/ui";
 
 import { ShellBottomBar, type ShellBottomBarLink } from "./shell-bottom-bar";
+import type { SiteSet } from "@/core/site";
 
 /**
  * ShellEngine (UI-04/UI-05 — Shell Engine).
@@ -100,6 +101,11 @@ export interface ShellEngineProps {
   /** Client nav context: current locale + configured region page bindings. */
   readonly locale: string;
   readonly pageBindings: readonly PageRegionBinding[];
+  /**
+   * S1E3A — the resolved sites, passed down like every other config-derived value (the engine
+   * layer imports no configuration; see the UI-04 boundary).
+   */
+  readonly siteSet: SiteSet;
   /** Optional <md frame-level layer (drawer/bottom bar etc.). */
   readonly mobileNavigation?: ReactNode;
   /** CTA label (only composed when `resolved.cta.enabled`). */
@@ -123,6 +129,7 @@ export function ShellEngine({
   bottomNav,
   locale,
   pageBindings,
+  siteSet,
   mobileNavigation,
   ctaLabel,
   ctaHref,
@@ -362,6 +369,7 @@ export function ShellEngine({
             links={bottomNav.links}
             locale={locale}
             pageBindings={pageBindings}
+            siteSet={siteSet}
             demoBadgeLabel={bottomNav.demoBadgeLabel}
             closeLabel={bottomNav.closeLabel}
             mode={bottomNav.mode}

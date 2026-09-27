@@ -1,3 +1,9 @@
+import { siteConfig } from "@/config";
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -44,7 +50,7 @@ const items = createElement(
 );
 
 describe("ShellEngine (server) — frame & decision-driven composition", () => {
-  const base = { locale: "en", pageBindings: [] };
+  const base = { locale: "en", pageBindings: [], siteSet: SITE_SET };
   it("renders the AppShell frame with the deterministic main id and content slots", () => {
     const resolved = resolveUiConfig({});
     const html = renderToStaticMarkup(
@@ -131,6 +137,7 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
         ctaHref: "/book",
         locale: "en",
         pageBindings: [],
+        siteSet: SITE_SET,
       }),
     );
     // Aside composition → the header breaks to its own full-width row (P0-1
@@ -176,6 +183,7 @@ describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placeme
         ctaHref: "/book",
         locale: "en",
         pageBindings: [],
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("ui-shell-header-row");
@@ -209,6 +217,7 @@ describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placeme
         ctaHref: "/book",
         locale: "en",
         pageBindings: [],
+        siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("ui-shell-bottom-bar");
@@ -236,6 +245,7 @@ describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placeme
         ctaHref: "/book",
         locale: "en",
         pageBindings: [],
+        siteSet: SITE_SET,
       }),
     );
     expect(html.indexOf("nav-item-cta")).toBeGreaterThan(html.indexOf("<header>"));
@@ -261,6 +271,7 @@ describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placeme
         ctaHref: "/book",
         locale: "en",
         pageBindings: [],
+        siteSet: SITE_SET,
       }),
     );
     expect(html).not.toContain("ui-shell-cta");

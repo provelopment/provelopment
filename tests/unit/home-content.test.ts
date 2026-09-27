@@ -93,7 +93,7 @@ describe("/home is never a route and never a sitemap entry", () => {
   });
 
   it("reserves the slug on the page route so it can never double-route", () => {
-    expect(pageRouteSource).toMatch(/RESERVED_FIRST_SEGMENTS[\s\S]*HOME_CONTENT_SLUG/);
+    expect(pageRouteSource).toMatch(/segments\.length === 1[\s\S]*HOME_CONTENT_SLUG/);
   });
 
   it("is not filtered ad hoc in the sitemap route itself", () => {
@@ -142,7 +142,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
     // If the generic return came first, an authored home page would be silently
     // ignored — the exact failure this ordering guards.
     const lookupAt = homeRouteSource.indexOf("routes.resolve(site.code, HOME_CONTENT_SLUG");
-    const starterAt = homeRouteSource.indexOf("home-hero");
+    const starterAt = homeRouteSource.indexOf("<StarterHome");
     expect(lookupAt).toBeGreaterThan(-1);
     expect(starterAt).toBeGreaterThan(lookupAt);
     // …and it renders through the SAFE page renderer, the same one every other page

@@ -9,7 +9,7 @@ import { resolveSites } from "@/core/site";
 /**
  * THE COMPOSITION, END TO END (FOUNDATION-PAGES-A1; two-mode contract, A1C).
  *
- * These fixtures live under a test-only locale directory (`zz-sources`) in the REAL
+ * These fixtures live under a test-only locale directory (`zz-srcs`) in the REAL
  * authoring roots, so the declared precedence is proven on the real layout, not on
  * stubs. A fixture is ALSO planted under `content/pages/<locale>/` to prove the
  * collection path is not a page source at all: it can neither serve a page nor shadow
@@ -18,15 +18,20 @@ import { resolveSites } from "@/core/site";
 const root = process.cwd();
 // A locale UNIQUE to this suite: vitest runs test FILES in parallel, so two suites
 // sharing one fixture locale would overwrite each other's fixtures.
-const SOURCES_LOCALE = "zz-sources";
+const SOURCES_LOCALE = "zz-srcs";
 // S1 — the SITE segment comes first: `content/pages/<mode>/<siteId>/<locale>/…`.
-const SOURCES_SITE = "ww";
+// S1 — the SITE segment comes first: `content/pages/<mode>/<siteId>/<locale>/…`. This suite uses a
+// recognized-but-synthetic country code, so its fixtures can never collide with the other suites'
+// fixture sites (`ww`, `aq`, `tf`, `bv`) when vitest runs test files in parallel.
+const SOURCES_SITE = "hm";
 const SOURCES_SITES = resolveSites({
-  input: [{ code: SOURCES_SITE }],
+  // S1 — cross-locale fallback is a PER-SITE decision, scoped to that site's own page tree:
+  // the fixture site opts in explicitly, which is what the fallback assertions below prove.
+  input: [{ code: SOURCES_SITE, fallback: true }],
   defaultLocale: "en",
   locales: ["en", SOURCES_LOCALE],
 }).sites;
-const EMPTY_LOCALE_NAME = "zz-sources-empty";
+const EMPTY_LOCALE_NAME = "zz-srcs-ez";
 const createdDirectories = [
   path.join(root, "content", "pages", "markdown", SOURCES_SITE, SOURCES_LOCALE),
   path.join(root, "content", "pages", "json", SOURCES_SITE, SOURCES_LOCALE),
@@ -85,17 +90,17 @@ describe("the page-sources composition", () => {
       "# Not a page\n",
     );
     write(
-      path.join(root, "content", "pages", "markdown", "en", "zz-fallback.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "zz-fallback.md"),
       "# Fallback page\n\nAnswered by the default locale.\n",
     );
     write(
-      path.join(root, "content", "pages", "markdown", "en", "offerings", "fallback-page.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "offerings", "fallback-page.md"),
       "# Nested fallback page\n\nAnswered by the default locale.\n",
     );
     // The default locale also has `offerings/shared`; the REQUESTED locale's page must
     // still win, whatever the other locale holds.
     write(
-      path.join(root, "content", "pages", "markdown", "en", "offerings", "shared.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "offerings", "shared.md"),
       "# Shared (default locale)\n\nOnly in the default locale.\n",
     );
     // JSON (first-class) fixtures: one shadowing the Markdown page, one alone, one
@@ -142,8 +147,15 @@ describe("the page-sources composition", () => {
       recursive: true,
       force: true,
     });
-    // Never leave a page-shaped file outside the two mode roots behind: `content/pages`
-    // holds only the two mode roots, so no run may make it look like a collection.
+    // …then remove the suite's OWN fixture site tree wholesale: `hm` exists only for this suite
+    // (no adopter authors Heard-Island pages), so a run can never leave a fixture directory behind.
+    for (const directory of [
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE),
+      path.join(root, "content", "pages", "json", SOURCES_SITE),
+      path.join(root, "content", "pages", SOURCES_SITE),
+    ]) {
+      rmSync(directory, { recursive: true, force: true });
+    }
     try {
       rmdirSync(path.join(root, "content", "pages", SOURCES_SITE, SOURCES_LOCALE));
     } catch {
@@ -151,16 +163,16 @@ describe("the page-sources composition", () => {
     }
     // The default-locale fixtures, flat and nested.
     for (const file of [
-      path.join(root, "content", "pages", "markdown", "en", "zz-fallback.md"),
-      path.join(root, "content", "pages", "markdown", "en", "offerings", "fallback-page.md"),
-      path.join(root, "content", "pages", "markdown", "en", "offerings", "shared.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "zz-fallback.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "offerings", "fallback-page.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "offerings", "shared.md"),
     ]) {
       rmSync(file, { force: true });
     }
     // Remove a directory ONLY if the fixture left it empty — never a recursive delete,
     // so a developer's own pages in that directory are safe.
     for (const directory of [
-      path.join(root, "content", "pages", "markdown", "en", "offerings"),
+      path.join(root, "content", "pages", "markdown", SOURCES_SITE, "en", "offerings"),
       path.join(root, "content", "pages", "markdown", "en"),
     ]) {
       try {
@@ -247,8 +259,11 @@ describe("the page-sources composition", () => {
 
   it("stops loudly when a JSON file is invalid or malformed, naming the file and the property", async () => {
     // Valid JSON that is not a valid DOCUMENT: the schema says which property is wrong.
+    // S1 — the message names the file INSIDE its site tree: `<mode>/<site>/<locale>/<route>`.
     await expect(sources.resolve(SOURCES_SITE, "zz-invalid", SOURCES_LOCALE)).rejects.toThrow(
-      new RegExp(`json[\\\\/]${SOURCES_LOCALE}[\\\\/]zz-invalid\\.json`),
+      new RegExp(
+        `json[\\\\/]${SOURCES_SITE}[\\\\/]${SOURCES_LOCALE}[\\\\/]zz-invalid\\.json`,
+      ),
     );
     await expect(sources.resolve(SOURCES_SITE, "zz-invalid", SOURCES_LOCALE)).rejects.toThrow(/schemaVersion/);
     // Broken JSON SYNTAX is a different, equally loud failure.

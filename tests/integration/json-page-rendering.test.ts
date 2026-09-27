@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import PageRoute from "@/app/[...segments]/page";
+import { siteConfig } from "@/config";
 import { PAGE_SECTION_TYPES } from "@/core/page-document";
 
 /**
@@ -32,9 +33,11 @@ import { PAGE_SECTION_TYPES } from "@/core/page-document";
  * without this proof following it.
  */
 const root = process.cwd();
+// S1 — the fixture lives in ONE site tree; its URL is `/<site>/<locale>/<route>`.
+const SITE = siteConfig.defaultSite.code;
 const LOCALE = "en";
 const ROUTE_PATH = "zz-vocabulary-fixture";
-const FILE = path.join(root, "content", "pages", "json", LOCALE, `${ROUTE_PATH}.json`);
+const FILE = path.join(root, "content", "pages", "json", SITE, LOCALE, `${ROUTE_PATH}.json`);
 
 const IMAGE = { src: "/assets/photo.png", alt: "A described photograph" };
 
@@ -133,13 +136,24 @@ describe("the declarative page vocabulary, through the real route", () => {
       "utf8",
     );
     html = renderToStaticMarkup(
-      await PageRoute({ params: Promise.resolve({ segments: [LOCALE, ROUTE_PATH] }) }),
+      await PageRoute({ params: Promise.resolve({ segments: [SITE, LOCALE, ROUTE_PATH] }) }),
     );
   });
 
   afterAll(() => {
-    rmSync(FILE, { force: true });
-  });
+  rmSync(FILE, { force: true });
+  // …and only the now-empty fixture directories, so a run leaves nothing behind.
+  for (const directory of [
+    path.join(root, "content", "pages", "json", SITE, LOCALE),
+    path.join(root, "content", "pages", "json", SITE),
+  ]) {
+    try {
+      rmdirSync(directory);
+    } catch {
+      /* not empty, or already gone */
+    }
+  }
+});
 
   it("exercises every declared section type", () => {
     expect(SECTIONS.map((section) => section.type).sort()).toEqual([...PAGE_SECTION_TYPES].sort());
