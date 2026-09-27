@@ -1,107 +1,87 @@
-import { isWellFormedLocale, type Locale } from "./locale";
 import { pageRoutePath, pageRoutePathSegments } from "./page-route-path";
-import { isContentSlug } from "./page-content";
 import { isRegionBoundToLocale } from "./regional-pages";
 import type { PageRegionBinding } from "./region";
+import { defaultSiteLabel, isSiteCode, normalizeSiteCode, WORLDWIDE_SITE_CODE } from "./site-code";
+import {
+  isLocalePathKey,
+  resolveSiteLocale,
+  type ResolvedSiteLocale,
+  type SiteLocaleInput,
+} from "./site-locale";
+
 /**
  * THE SITE-CONTEXT CONTRACT (FOUNDATION-S1)
- * =========================================
+ * ========================================
  *
- * Language and site identity are INDEPENDENT. A rendered page is identified by
+ * Language and site identity are INDEPENDENT, and a page is identified by
  *
- *     siteId + locale + routePath
+ *     site + locale + route
  *
- * and this module declares — as pure data and pure functions — what a site is, how a
- * request's path segments resolve to exactly ONE site, and how site+locale+route becomes
- * a public URL. It performs no filesystem access, parses nothing and renders nothing: it
- * is a `@/core` rule.
+ * A SITE is an independent page/configuration context, normally a COUNTRY (`ca`, `fr`, `ch`, `id`,
+ * `jp`) or Foundation's reserved WORLDWIDE site `ww` (`@/core/site-code`). A site owns its own
+ * authored pages (`content/pages/<mode>/<site>/<locale>/…`), its own supported locales, its own
+ * default locale and its own locale-fallback policy.
  *
- *   SITE      An independent page/configuration context: a country operation, a regional
- *             business, an independently managed office or subsidiary — anything whose
- *             PAGE TREE is authored independently. A site owns its authored pages
- *             (`content/pages/<mode>/<siteId>/<locale>/…`), its supported locale set, its
- *             default locale and its own locale-fallback policy.
- *   LOCALE    The language (or regional-language) version WITHIN one site. The same
- *             language code in two sites is two independent page trees:
- *             `canada/fr-CA/about` and `france/fr-FR/about` never answer each other.
- *   LOCATION  Physical/business-place metadata (a region) INSIDE a site, for the case
- *             where offices SHARE one page tree. A site is never equated with a physical
- *             location: one site may contain many locations.
+ *   LOCALE    the language version WITHIN one site. The same path key in two sites is two
+ *             independent page trees: `ca/fr/about` and `fr/fr/about` never answer each other.
+ *   LOCATION  physical/business-place metadata (a region) INSIDE a site, for offices that SHARE
+ *             one page tree. A site is never a physical location.
+ *
+ * THE PUBLIC URL IS THE CONTENT PATH
+ * ---------------------------------
+ * The site code is the FIRST URL segment, always — no hidden default segment, no second "path
+ * prefix" concept:
+ *
+ *     content/pages/markdown/ca/en/about.md  → /ca/en/about
+ *     content/pages/markdown/fr/fr/about.md  → /fr/fr/about
+ *
+ * `/` and a bare site path (`/ca`) belong to the redirect/negotiation layer (`src/proxy.ts`),
+ * which resolves them to `<site>/<locale>`. Keeping the mapping this literal is what lets a later
+ * HOST-based adapter choose a site without touching a single content path.
  *
  * NO CROSS-SITE FALLBACK — THE HARD RULE
- * --------------------------------------
- * Resolution may fall between locales ONLY inside the SAME site, and only when that site
- * permits it. A request carries exactly one site and the page-source resolvers are bound
- * to that site's tree, so `canada/fr/…` can never be answered by `france/fr/…` — not as a
- * fallback, not as a convenience. The request type below makes the boundary structural
- * rather than a matter of care, and `PageSourceRequest.defaultLocale` is the SITE's
- * default locale, never the deployment's.
+ * -------------------------------------
+ * Resolution may fall between locales ONLY inside the SAME site, and only when that site permits
+ * it. A request names exactly one site, the page-source providers are bound to that site's tree,
+ * and the request's default locale is the SITE's — so a cross-site answer is unrepresentable
+ * rather than merely forbidden.
  *
- * PUBLIC URL ≠ CONTENT IDENTITY
- * ----------------------------
- * Content identity is `siteId + locale + routePath`; the public URL adds the site's
- * configurable `pathPrefix`:
- *
- *     site "canada"  prefix ""        → /en-CA/about       (the DEFAULT site)
- *     site "france"  prefix "france"  → /france/fr-FR/about
- *
- * The DEFAULT SITE is the one whose prefix is empty: it answers the deployment's own
- * URLs, so a single-site adopter never sees its internal id (`main`) in a URL. Keeping
- * the mapping here — never in the authoring paths — is what lets a later hostname mapping
- * choose a site without changing a single content path.
- *
- * Framework-neutral by design: pure data + types only. No React, Next.js, filesystem or
- * configuration import.
+ * Framework-neutral: pure data + types only.
  */
 
-/** A site is named by a content slug: the id is BOTH a folder name and a URL segment. */
-export type SiteId = string;
+/** The site a deployment gets when it declares none: the Worldwide / Global site. */
+export const IMPLICIT_SITE_CODE = WORLDWIDE_SITE_CODE;
 
-/** The site id of a deployment that declares no sites — the ordinary single-site case. */
-export const IMPLICIT_SITE_ID = "main";
-
-/** True when `value` may be a site id (the ONE slug rule, shared with page content). */
-export function isSiteId(value: string): boolean {
-  return typeof value === "string" && isContentSlug(value);
-}
-
-/** True when `value` may be a site's public path prefix (`""` = the deployment root). */
-export function isSitePathPrefix(value: string): boolean {
-  return value === "" || isContentSlug(value);
-}
-
-/** One site as an adopter declares it; everything except `id` has a documented default. */
+/** One site as an adopter declares it; everything except `code` has a documented default. */
 export interface SiteInput {
-  readonly id: string;
-  /** Human label for a site selector. Absent → the id, verbatim. */
+  /** The two-letter country code (or `ww`), case-insensitive; stored lowercase. */
+  readonly code: string;
+  /** Visitor-facing name. Absent → the country code, or `Worldwide` for `ww`. */
   readonly label?: string;
-  /** Public path prefix: `""` (the default site) or one slug segment. */
-  readonly pathPrefix?: string;
-  /** The site's default locale. Absent → the deployment's default locale. */
-  readonly defaultLocale?: Locale;
-  /** The locales this site serves, in preference order. Absent → every declared locale. */
-  readonly locales?: readonly Locale[];
+  /** The locale path keys this site serves (simple or full). Absent → every declared locale. */
+  readonly locales?: readonly (string | SiteLocaleInput)[];
+  /** The site's default locale PATH KEY. Absent → the deployment's default locale path key. */
+  readonly defaultLocale?: string;
   /** Whether the site's default locale may answer its other locales. Absent → `true`. */
   readonly fallback?: boolean;
 }
 
 /** A site, fully resolved: every leaf determined, nothing left to infer. */
 export interface ResolvedSite {
-  readonly id: SiteId;
+  /** The lowercase site code: the content directory AND the first URL segment. */
+  readonly code: string;
   readonly label: string;
-  /** `""` (this site answers the deployment's own URLs) or one slug segment. */
-  readonly pathPrefix: string;
-  /** The locale this site answers with when a request names none of its locales. */
-  readonly defaultLocale: Locale;
-  /** Every locale this site serves. */
-  readonly locales: readonly Locale[];
-  /** Whether this site's default locale may stand in for its other locales. */
+  /** The locales this site serves, in configuration order, with canonical tags resolved. */
+  readonly locales: readonly ResolvedSiteLocale[];
+  /** The PATH KEY of the locale that answers when none of the site's locales is requested. */
+  readonly defaultLocale: string;
+  /** Whether the site's default locale may stand in for its other locales. */
   readonly fallback: boolean;
-  /** True for the ONE site whose prefix is empty (the deployment's own URLs). */
+  /** True for the ONE configured default site (the site `/` negotiates to). */
   readonly isDefault: boolean;
 }
 
-/** Every site of a deployment, plus the one that answers the deployment's own URLs. */
+/** Every site of a deployment, plus the one `/` resolves to. */
 export interface SiteSet {
   readonly sites: readonly ResolvedSite[];
   readonly defaultSite: ResolvedSite;
@@ -117,207 +97,191 @@ export class SiteConfigurationError extends Error {
   }
 }
 
-
 export interface ResolveSitesOptions {
-  /** The declared sites. Absent/empty → ONE implicit site (`main`) — the shipped case. */
+  /** The declared sites. Absent/empty → ONE implicit site (`ww`) — the shipped case. */
   readonly input?: readonly SiteInput[] | undefined;
-  /** The deployment's default locale (used by a site that declares none). */
-  readonly defaultLocale: Locale;
-  /** Every locale the deployment knows (the i18n registry). */
-  readonly locales: readonly Locale[];
+  /** The configured default site code. Absent → the first declared site. */
+  readonly defaultSite?: string | undefined;
+  /** The deployment's default locale PATH KEY (used by a site that declares none). */
+  readonly defaultLocale: string;
+  /** Every locale path key the deployment knows (the i18n registry). */
+  readonly locales: readonly string[];
 }
 
 /**
- * Resolves the declared sites into a complete, deterministic `SiteSet`.
+ * Resolves the declared sites into a complete, deterministic `SiteSet`. Every rule is loud: a
+ * configuration that cannot be honoured is refused, never guessed.
  *
- * Rules (all loud — a configuration that cannot be honoured is refused, never guessed):
- *
- *  - no `sites` block → exactly ONE implicit site `main`: prefix `""`, the deployment's
- *    default locale, every declared locale, fallback permitted. A single-site adopter
- *    therefore configures nothing and still gets a clean, prefix-less URL space;
- *  - a site's `locales` default to every declared locale and its `defaultLocale` to the
- *    deployment's; an explicitly named default MUST be one of that site's locales;
- *  - a site id must be a content slug (it is a folder AND a URL segment); ids and
- *    prefixes must be unique;
- *  - a path prefix must be `""` or one slug segment, must NOT be a declared locale code
- *    (the first URL segment would otherwise be ambiguous) and must not repeat;
- *  - with more than one site, EXACTLY ONE must have an empty prefix: the default site.
- *    Without one, the deployment's own URLs (`/`, `/en/about`) would name no site.
+ * Refused here (and therefore by the schema too, which calls this same function):
+ *  - a code outside the recognized set (`canada`, `main`, `europe` are not site codes);
+ *  - a duplicate site, or a locale the deployment does not declare;
+ *  - a site default locale that is not one of that site's own path keys;
+ *  - TWO locales of one site that resolve to the SAME canonical tag (`en` + `en-ca` in `ca` would
+ *    both be `en-CA`): the author must choose the simple form or the explicit one;
+ *  - a `defaultSite` that is not declared.
  */
 export function resolveSites(options: ResolveSitesOptions): SiteSet {
   const { defaultLocale, locales } = options;
   const issues: string[] = [];
 
-  if (!isWellFormedLocale(defaultLocale) || !locales.includes(defaultLocale)) {
+  if (!isLocalePathKey(defaultLocale) || !locales.includes(defaultLocale)) {
     issues.push(
-      `the deployment default locale "${defaultLocale}" must be one of the declared locales`,
+      `the deployment default locale "${defaultLocale}" must be one of the declared locale path keys`,
     );
   }
   for (const locale of locales) {
-    if (!isWellFormedLocale(locale)) issues.push(`declared locale "${locale}" is not a language tag`);
+    if (!isLocalePathKey(locale)) {
+      issues.push(
+        `declared locale "${locale}" must be a lowercase path key such as "en" or "fr-ca"`,
+      );
+    }
   }
 
   const declared: readonly SiteInput[] =
     options.input === undefined || options.input.length === 0
-      ? [{ id: IMPLICIT_SITE_ID }]
+      ? [{ code: IMPLICIT_SITE_CODE }]
       : options.input;
 
-  const seenIds = new Set<string>();
-  const sites: ResolvedSite[] = declared.map((raw) => {
-    const id = raw.id;
-    if (!isSiteId(id)) {
-      issues.push(`site id "${id}" must be a lowercase slug (letters, digits, single hyphens)`);
-    }
-    if (seenIds.has(id)) issues.push(`duplicate site id "${id}"`);
-    seenIds.add(id);
-
-    const pathPrefix = raw.pathPrefix ?? "";
-    if (!isSitePathPrefix(pathPrefix)) {
+  const seenCodes = new Set<string>();
+  const sites = declared.map((raw) => {
+    const code = normalizeSiteCode(raw.code);
+    if (!isSiteCode(code)) {
       issues.push(
-        `site "${id}": pathPrefix "${pathPrefix}" must be "" or one lowercase slug segment`,
+        `site "${raw.code}" must be a recognized two-letter country code or the reserved ` +
+          `"${WORLDWIDE_SITE_CODE}" (arbitrary names are not site codes)`,
       );
     }
+    if (seenCodes.has(code)) issues.push(`duplicate site "${code}"`);
+    seenCodes.add(code);
 
-    const siteLocales = raw.locales ?? locales;
-    if (siteLocales.length === 0) issues.push(`site "${id}" must list at least one locale`);
-    for (const locale of siteLocales) {
-      if (!isWellFormedLocale(locale)) {
-        issues.push(`site "${id}": locale "${locale}" is not a language tag`);
-      } else if (!locales.includes(locale)) {
+    const localeInputs: readonly (string | SiteLocaleInput)[] = raw.locales ?? locales;
+    if (localeInputs.length === 0) issues.push(`site "${code}" must list at least one locale`);
+
+    const resolvedLocales: ResolvedSiteLocale[] = [];
+    const seenPaths = new Set<string>();
+    const seenCanonicals = new Map<string, string>();
+
+    for (const entry of localeInputs) {
+      const path = (typeof entry === "string" ? entry : entry.path).trim().toLowerCase();
+      if (!isLocalePathKey(path)) {
+        issues.push(`site "${code}": locale "${path}" must be a lowercase path key`);
+        continue;
+      }
+      if (!locales.includes(path)) {
         issues.push(
-          `site "${id}": locale "${locale}" is not declared in i18n.locales ` +
+          `site "${code}": locale "${path}" is not declared in i18n.locales ` +
             "(add it there and give it a dictionary)",
         );
       }
+      if (seenPaths.has(path)) {
+        issues.push(`site "${code}": duplicate locale path key "${path}"`);
+        continue;
+      }
+      seenPaths.add(path);
+
+      const resolved = resolveSiteLocale(code, entry);
+      const canonicalKey = resolved.canonical.toLowerCase();
+      const previous = seenCanonicals.get(canonicalKey);
+      if (previous !== undefined) {
+        issues.push(
+          `site "${code}": locales "${previous}" and "${resolved.path}" both resolve to the ` +
+            `canonical tag "${resolved.canonical}" — choose either the simple path form or the ` +
+            "explicit one, not both",
+        );
+        continue;
+      }
+      seenCanonicals.set(canonicalKey, resolved.path);
+      resolvedLocales.push(resolved);
     }
 
-    const siteDefaultLocale = raw.defaultLocale ?? defaultLocale;
-    if (!siteLocales.includes(siteDefaultLocale)) {
-      issues.push(`site "${id}": defaultLocale "${siteDefaultLocale}" must be one of its locales`);
+    const siteDefaultLocale = (raw.defaultLocale ?? defaultLocale).trim().toLowerCase();
+    if (!seenPaths.has(siteDefaultLocale)) {
+      issues.push(
+        `site "${code}": defaultLocale "${siteDefaultLocale}" must be one of its locale path keys`,
+      );
     }
 
     return {
-      id,
-      label: raw.label ?? id,
-      pathPrefix,
+      code,
+      label: raw.label ?? defaultSiteLabel(code),
+      locales: resolvedLocales,
       defaultLocale: siteDefaultLocale,
-      locales: [...new Set(siteLocales)],
       fallback: raw.fallback ?? true,
       isDefault: false,
     };
   });
 
-  const seenPrefixes = new Set<string>();
-  for (const site of sites) {
-    if (site.pathPrefix !== "") {
-      if (locales.includes(site.pathPrefix)) {
-        issues.push(
-          `site "${site.id}": pathPrefix "${site.pathPrefix}" is also a declared locale code — ` +
-            "the first URL segment would be ambiguous",
-        );
-      }
-      if (seenPrefixes.has(site.pathPrefix)) {
-        issues.push(`duplicate site pathPrefix "${site.pathPrefix}"`);
-      }
-    }
-    seenPrefixes.add(site.pathPrefix);
+  const wantedDefault = normalizeSiteCode(options.defaultSite ?? "");
+  if (wantedDefault !== "" && !seenCodes.has(wantedDefault)) {
+    issues.push(`defaultSite "${options.defaultSite}" is not a declared site`);
   }
-
-  const rootSites = sites.filter((site) => site.pathPrefix === "");
-  if (sites.length > 1 && rootSites.length !== 1) {
-    issues.push(
-      `with ${sites.length} sites, exactly ONE must have pathPrefix "" (the default site that ` +
-        `answers the deployment's own URLs); found ${rootSites.length}`,
-    );
-  }
+  const defaultCode = wantedDefault === "" ? (sites[0]?.code as string) : wantedDefault;
+  if (sites.length === 0) issues.push("at least one site must be declared");
 
   if (issues.length > 0) throw new SiteConfigurationError(issues);
 
-  const defaultSiteId = (rootSites[0] ?? sites[0]).id;
-  const resolved = sites.map((site) => ({ ...site, isDefault: site.id === defaultSiteId }));
-  const resolvedDefault = resolved.find((site) => site.isDefault) as ResolvedSite;
-
-  return { sites: resolved, defaultSite: resolvedDefault };
+  const resolved = sites.map((site) => ({ ...site, isDefault: site.code === defaultCode }));
+  return { sites: resolved, defaultSite: resolved.find((site) => site.isDefault) as ResolvedSite };
 }
 
-/** Whether a site serves a locale. A locale outside this set is not a page request. */
-export function siteSupportsLocale(site: ResolvedSite, locale: Locale): boolean {
-  return site.locales.includes(locale);
+/** One request's site context: exactly ONE site, one locale, one route path. */
+export interface SiteRequest {
+  readonly site: ResolvedSite;
+  /** The locale PATH KEY the URL names (the content directory and URL segment). */
+  readonly localePath: string;
+  /** The canonical standards-facing tag for that path key (metadata, hreflang, `lang`). */
+  readonly locale: string;
+  /** The page's route path inside its site+locale directory (`""` = the locale root). */
+  readonly routePath: string;
+  /** The URL's first segment: the site code. */
+  readonly scope: string;
 }
 
-/** The site's public prefix as a URL fragment: `""` or `/france`. */
+/** The site with this code, or `undefined` — an undeclared site serves nothing. */
+export function siteByCode(set: SiteSet, code: string): ResolvedSite | undefined {
+  const wanted = normalizeSiteCode(code);
+  return set.sites.find((site) => site.code === wanted);
+}
+
+/** Whether a site serves a locale path key. Anything else is not a page request. */
+export function siteSupportsLocalePath(site: ResolvedSite, localePath: string): boolean {
+  return site.locales.some((locale) => locale.path === localePath);
+}
+
+/** The site's public prefix as a URL fragment: always `/<code>` (never empty). */
 export function sitePrefixPath(site: ResolvedSite): string {
-  return site.pathPrefix === "" ? "" : `/${site.pathPrefix}`;
+  return `/${site.code}`;
 }
 
-/** The URL every page of a site+locale hangs from: `/en` or `/france/fr-FR`. */
-export function siteLocalePath(site: ResolvedSite, locale: Locale): string {
-  return `${sitePrefixPath(site)}/${locale}`;
+/** The URL every page of a site+locale hangs from: `/ca/en`. */
+export function siteLocalePath(site: ResolvedSite, localePath: string): string {
+  return `${sitePrefixPath(site)}/${localePath}`;
 }
 
 /**
  * The public URL of one page: the ONE path builder for site-scoped URLs.
  *
- * `routePath` is the page's canonical route path (`""` = the locale root, i.e. the home
- * page). A malformed route path yields `null`, so a caller can never publish a URL it has
- * not validated.
+ * `routePath` is the page's canonical route path (`""` = the locale root, i.e. the home page). A
+ * malformed route path yields `null`, so a caller can never publish a URL it has not validated.
  */
-export function sitePath(site: ResolvedSite, locale: Locale, routePath = ""): string | null {
-  if (routePath === "") return siteLocalePath(site, locale);
+export function sitePath(site: ResolvedSite, localePath: string, routePath = ""): string | null {
+  if (routePath === "") return siteLocalePath(site, localePath);
   if (pageRoutePathSegments(routePath).length === 0) return null;
-  return `${siteLocalePath(site, locale)}/${routePath}`;
+  return `${siteLocalePath(site, localePath)}/${routePath}`;
 }
 
-/** A site's home URL (its default locale's root) — the deterministic fallback target. */
+/** A site's home URL (its default locale's root). */
 export function siteHomePath(site: ResolvedSite): string {
   return siteLocalePath(site, site.defaultLocale);
 }
 
 /**
- * Where a visitor lands after switching to another site.
- *
- * Preserves what the target can honour and falls back deterministically otherwise — the
- * ORDER is fixed: keep the current route path when the target serves it, in the current
- * locale when the target supports it, else in the target's own default locale; if the
- * target serves no such page, land on the target's HOME. Never a meaningless 404 merely
- * because the target's page tree differs — and never a second site's page standing in for
- * a missing one.
- */
-export function siteSwitchDestination(options: {
-  readonly target: ResolvedSite;
-  readonly locale: Locale;
-  readonly routePath: string;
-  /** Whether the target serves this route path in some locale (checked by the caller). */
-  readonly routeExists: boolean;
-}): string {
-  const { target, locale, routePath, routeExists } = options;
-  if (!routeExists) return siteHomePath(target);
-  const targetLocale = siteSupportsLocale(target, locale) ? locale : target.defaultLocale;
-  return sitePath(target, targetLocale, routePath) ?? siteHomePath(target);
-}
-
-
-/** One request's site context: exactly ONE site, one locale, one route path. */
-export interface SiteRequest {
-  readonly site: ResolvedSite;
-  readonly locale: Locale;
-  /** The page's route path inside its site+locale directory (`""` = the locale root). */
-  readonly routePath: string;
-  /** The URL's first segment: the site prefix, or the default site's locale. */
-  readonly scope: string;
-}
-
-/**
  * Resolves URL path segments to exactly ONE site context, or `null`.
  *
- * The first segment is a site prefix when it names a prefixed site; otherwise it must be
- * a locale of the DEFAULT site (a prefix can never also be a declared locale code, so the
- * two readings can never compete). A prefixed site's second segment must be one of THAT
- * site's locales. A bare prefix (`/france`) resolves to nothing — locale negotiation
- * belongs to the redirect, never to a rendered page.
- *
- * The result names one site and carries no reference to any other, which is what makes a
- * cross-site lookup unrepresentable rather than merely forbidden.
+ * The first segment MUST be a declared site code and the second one of THAT site's locale path
+ * keys: a URL never names a site implicitly, so no request can be answered from a site it did not
+ * name. A bare site path (`/ca`) resolves to nothing here — completing it is the redirect layer's
+ * job, never a rendered page's.
  */
 export function resolveSiteRequest(
   set: SiteSet,
@@ -325,62 +289,94 @@ export function resolveSiteRequest(
 ): SiteRequest | null {
   if (segments.length === 0) return null;
 
-  const first = segments[0] as string;
-  const prefixed = set.sites.find((site) => site.pathPrefix !== "" && site.pathPrefix === first);
-  const site = prefixed ?? set.defaultSite;
-  const rest = segments.slice(1);
+  const site = siteByCode(set, segments[0] as string);
+  if (site === undefined) return null;
 
-  const locale = rest[0];
+  const localePath = segments[1];
+  if (localePath === undefined) return null;
+  const locale = site.locales.find((entry) => entry.path === localePath);
   if (locale === undefined) return null;
-  if (!siteSupportsLocale(site, locale)) return null;
 
-  const routeSegments = rest.slice(1);
+  const routeSegments = segments.slice(2);
   const routePath = routeSegments.length === 0 ? "" : pageRoutePath(...routeSegments);
   if (routePath === null) return null;
 
-  return { site, locale, routePath, scope: first };
+  return { site, localePath, locale: locale.canonical, routePath, scope: site.code };
 }
 
-/** The scope values a site's URLs start with (its prefix, or its locales). */
-export function scopeSegmentsForSite(site: ResolvedSite): readonly string[] {
-  return site.pathPrefix === "" ? site.locales : [site.pathPrefix];
-}
-
-/**
- * Every (site, locale) scope the deployment serves, in configuration order — the
- * inventory the route's static parameters and the locale negotiation both use.
- */
+/** Every site code the deployment serves, in configuration order (the URL's first segments). */
 export function siteScopeSegments(set: SiteSet): readonly string[] {
-  const scopes: string[] = [];
-  for (const site of set.sites) {
-    for (const scope of scopeSegmentsForSite(site)) {
-      if (!scopes.includes(scope)) scopes.push(scope);
-    }
-  }
-  return scopes;
+  return set.sites.map((site) => site.code);
 }
 
 /** Every (site, locale) pair the deployment serves, in configuration order. */
 export function siteLocalePairs(
   set: SiteSet,
-): readonly { readonly site: ResolvedSite; readonly locale: Locale }[] {
-  return set.sites.flatMap((site) => site.locales.map((locale) => ({ site, locale })));
+): readonly {
+  readonly site: ResolvedSite;
+  readonly localePath: string;
+  readonly locale: ResolvedSiteLocale;
+}[] {
+  return set.sites.flatMap((site) =>
+    site.locales.map((locale) => ({ site, localePath: locale.path, locale })),
+  );
 }
+
+/**
+ * The locale a visitor gets in another site: the SAME path key when the target serves it, else the
+ * same language in its simple form, else any locale of that language, else the target's default.
+ * Deterministic, and never another site's locale.
+ */
+export function siteLocaleDestination(target: ResolvedSite, localePath: string): string {
+  if (siteSupportsLocalePath(target, localePath)) return localePath;
+  const [language] = localePath.split("-");
+  if (language !== undefined && language !== "") {
+    const simple = target.locales.find((locale) => locale.path === language);
+    if (simple) return simple.path;
+    const sameLanguage = target.locales.find((locale) => locale.path.split("-")[0] === language);
+    if (sameLanguage) return sameLanguage.path;
+  }
+  return target.defaultLocale;
+}
+
+/**
+ * Where a visitor lands after switching to another site: keep the current route when the target
+ * serves it (in the equivalent locale), otherwise the target's HOME in that locale — so an
+ * independent page inventory never produces a meaningless 404, and never another site's page.
+ */
+export function siteSwitchDestination(options: {
+  readonly target: ResolvedSite;
+  readonly localePath: string;
+  readonly routePath: string;
+  /** Whether the target serves this route path in some locale (checked by the caller). */
+  readonly routeExists: boolean;
+}): string {
+  const { target, localePath, routePath, routeExists } = options;
+  if (!routeExists) return siteHomePath(target);
+  const destination = siteLocaleDestination(target, localePath);
+  return sitePath(target, destination, routePath) ?? siteHomePath(target);
+}
+
+/** The `SiteSet` view of a resolved site list and its default site. */
+export function siteSetOf(sites: readonly ResolvedSite[], defaultSite: ResolvedSite): SiteSet {
+  return { sites, defaultSite };
+}
+
 
 /** One pathname's meaning, as the client components must read it (URL-authoritative). */
 export interface PathContext {
   readonly site: ResolvedSite;
-  readonly locale: Locale;
-  /** A region id bound to (locale) when the path is inside a region namespace, else null. */
+  readonly localePath: string;
+  readonly locale: string;
+  /** A region id bound to the locale when the path is inside a region namespace, else null. */
   readonly region: string | null;
   /** The page route path inside the region (`region` set) or inside the site (`""` = root). */
   readonly routePath: string;
 }
 
 /**
- * Parses a client-side pathname into its site context — and, inside a region namespace,
- * its region. The middle segment is only a region when it is actually bound to THAT
- * locale; otherwise the route is a flat content page and region is `null`.
+ * Parses a client-side pathname into its site context — and, inside a region namespace, its
+ * region. The middle segment is only a region when it is actually bound to THAT locale.
  */
 export function resolvePathContext(
   set: SiteSet,
@@ -392,9 +388,10 @@ export function resolvePathContext(
   if (request === null) return null;
 
   const region = firstRouteSegment(request.routePath);
-  if (region === undefined || !isRegionBoundToLocale(entries, request.locale, region)) {
+  if (region === undefined || !isRegionBoundToLocale(entries, request.localePath, region)) {
     return {
       site: request.site,
+      localePath: request.localePath,
       locale: request.locale,
       region: null,
       routePath: request.routePath,
@@ -402,7 +399,38 @@ export function resolvePathContext(
   }
 
   const slug = request.routePath.slice(region.length + 1);
-  return { site: request.site, locale: request.locale, region, routePath: slug };
+  return {
+    site: request.site,
+    localePath: request.localePath,
+    locale: request.locale,
+    region,
+    routePath: slug,
+  };
+}
+
+/**
+ * The pathname's site context, or the DEFAULT site at `fallbackLocalePath` when the pathname does
+ * not name a site (an unknown path). Client components use this so their links, selectors and
+ * region detection always work from the URL they are on — and never invent a site.
+ */
+export function pathContextOr(
+  set: SiteSet,
+  entries: readonly PageRegionBinding[],
+  pathname: string,
+  fallbackLocalePath: string,
+): PathContext {
+  const fallback =
+    set.defaultSite.locales.find((locale) => locale.path === fallbackLocalePath) ??
+    set.defaultSite.locales.find((locale) => locale.path === set.defaultSite.defaultLocale);
+  return (
+    resolvePathContext(set, entries, pathname) ?? {
+      site: set.defaultSite,
+      localePath: fallback?.path ?? set.defaultSite.defaultLocale,
+      locale: fallback?.canonical ?? set.defaultSite.defaultLocale,
+      region: null,
+      routePath: "",
+    }
+  );
 }
 
 function firstRouteSegment(routePath: string): string | undefined {
@@ -410,29 +438,4 @@ function firstRouteSegment(routePath: string): string | undefined {
   return first === "" ? undefined : first;
 }
 
-/** The `SiteSet` view of a resolved site list and its default site. */
-export function siteSetOf(sites: readonly ResolvedSite[], defaultSite: ResolvedSite): SiteSet {
-  return { sites, defaultSite };
-}
 
-/**
- * The pathname's site context, or the DEFAULT site at `fallbackLocale` when the pathname
- * does not name a site (an unconfigured/unknown path). Client components use this so their
- * links, selectors and region detection always work from the URL they are actually on — and
- * so they never invent a site of their own.
- */
-export function pathContextOr(
-  set: SiteSet,
-  entries: readonly PageRegionBinding[],
-  pathname: string,
-  fallbackLocale: Locale,
-): PathContext {
-  return (
-    resolvePathContext(set, entries, pathname) ?? {
-      site: set.defaultSite,
-      locale: fallbackLocale,
-      region: null,
-      routePath: "",
-    }
-  );
-}
