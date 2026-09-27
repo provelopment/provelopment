@@ -30,7 +30,7 @@ import { NavItem } from "@/components/ui/nav-item";
 
 const ROOT = process.cwd();
 const runtime = (file: string) => path.join(ROOT, "public", "assets", file);
-const source = (...segments: string[]) => path.join(ROOT, "assets", ...segments);
+const source = (...segments: string[]) => path.join(ROOT, "content", "assets", ...segments);
 const read = (...segments: string[]) => readFileSync(path.join(ROOT, ...segments), "utf8");
 const globals = read("src", "app", "globals.css");
 

@@ -11,11 +11,11 @@ import { isWellFormedLocale, type Locale } from "./locale";
  * nothing and renders nothing: it is a `@/core` rule.
  *
  *   `markdown`  the accessibility-first mode: ordinary Markdown under
- *               `config/pages-markdown/<locale>/<slug>.md`, for an author who
+ *               `content/pages/markdown/<locale>/<slug>.md`, for an author who
  *               should need nothing but a text editor. Its safety policy lives in
  *               `@/core/markdown-policy` + `@/core/safe-url`.
  *   `json`      the advanced mode: validated declarative data under
- *               `config/pages-json/<locale>/<slug>.json`, for an author who needs
+ *               `content/pages/json/<locale>/<slug>.json`, for an author who needs
  *               presentation the Markdown mode does not offer. It is schema-
  *               validated and non-executable, and the vocabulary that interprets
  *               it is a later increment; this contract declares the mode, its root
@@ -38,7 +38,7 @@ import { isWellFormedLocale, type Locale } from "./locale";
  * ------------------------------------------
  * A locale directory MAY BE EMPTY: a site may prepare a language before it has
  * anything to put in it, and an empty directory is an ordinary state rather than
- * a fault. Creating `config/pages-markdown/de/` publishes nothing, creates no
+ * a fault. Creating `content/pages/markdown/de/` publishes nothing, creates no
  * route and adds no sitemap entry — what the public site serves is decided by
  * the site's own locale configuration, never by the authoring tree.
  *
@@ -78,8 +78,8 @@ export const PAGE_AUTHORING_MODES: readonly PageAuthoringMode[] = ["json", "mark
 
 /** The authoring root each mode's pages live under, repository-relative (POSIX). */
 export const PAGE_AUTHORING_ROOTS: Readonly<Record<PageAuthoringMode, string>> = {
-  json: "config/pages-json",
-  markdown: "config/pages-markdown",
+  json: "content/pages/json",
+  markdown: "content/pages/markdown",
 };
 
 /** The file extension each mode's page files carry. */
@@ -213,7 +213,7 @@ export function pageSlugsInLocaleDirectory(
 
 /**
  * One authoring locale directory, repository-relative (POSIX) — for example
- * `config/pages-markdown/de`. Returns `null` for a malformed mode or locale, so a
+ * `content/pages/markdown/de`. Returns `null` for a malformed mode or locale, so a
  * caller can never build a path from a string it has not validated.
  */
 export function pageSourceDirectory(mode: PageAuthoringMode, locale: Locale): string | null {
@@ -223,7 +223,7 @@ export function pageSourceDirectory(mode: PageAuthoringMode, locale: Locale): st
 
 /**
  * One page source file, repository-relative (POSIX) — for example
- * `config/pages-markdown/de/ueber-uns.md`. `null` for a malformed mode, locale or
+ * `content/pages/markdown/de/ueber-uns.md`. `null` for a malformed mode, locale or
  * slug, so an arbitrary string can never address a file.
  */
 export function pageSourceFile(

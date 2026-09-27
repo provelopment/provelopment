@@ -10,13 +10,13 @@ import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors }
  * The Foundation has THREE source asset categories with distinct ownership, and
  * ONE deterministic relationship to the runtime delivery directory:
  *
- *   assets/icon-library/    reusable, NON-business-specific generic icons — ALL
+ *   content/assets/icon-library/    reusable, NON-business-specific generic icons — ALL
  *                           retained, used or not (the template's icon store)
- *   assets/placeholders/    blank/generic defaults for a fresh installation —
+ *   content/assets/placeholders/    blank/generic defaults for a fresh installation —
  *                           these ALSO serve as the template's neutral identity
  *                           (favicon / logo roles), because a generic template
  *                           ships no deployment-specific brand artwork (FS1)
- *   assets/platform-marks/  royalty-free platform/social-service marks
+ *   content/assets/platform-marks/  royalty-free platform/social-service marks
  *   public/assets/**        BYTE-IDENTICAL derivative of the above; never a
  *                           second, independently maintained authority
  *
@@ -26,7 +26,7 @@ import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors }
  */
 
 const ROOT = process.cwd();
-const dir = (...segments: string[]) => path.join(ROOT, "assets", ...segments);
+const dir = (...segments: string[]) => path.join(ROOT, "content", "assets", ...segments);
 const names = (...segments: string[]) =>
   readdirSync(dir(...segments), { withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -52,7 +52,7 @@ describe("asset taxonomy — the three source categories exist and stay distinct
     expect(marks()).toHaveLength(7);
     // FS1 — the template ships NO deployment-specific brand artwork at all: the
     // identity roles resolve to the neutral placeholders above.
-    expect(existsSync(dir("branding")), "assets/branding must not ship").toBe(false);
+    expect(existsSync(dir("branding")), "content/assets/branding must not ship").toBe(false);
   });
 
   it("ships NO deployment-specific brand artwork — the identity roles use the neutral placeholders", () => {
@@ -81,7 +81,7 @@ describe("asset taxonomy — the three source categories exist and stay distinct
     expect(names("platform-marks")).toContain("platform-marks-withheld.md");
   });
 
-  it("keeps ALL generic reusable icons in assets/icon-library/ (used or unused)", () => {
+  it("keeps ALL generic reusable icons in content/assets/icon-library/ (used or unused)", () => {
     const icons = names("icon-library", "icons").filter((name) => name.endsWith(".svg"));
     expect(icons.length).toBeGreaterThanOrEqual(80);
     expect(icons.every((name) => /^icon-[a-z0-9-]+\.svg$/.test(name))).toBe(true);
@@ -131,8 +131,8 @@ describe("runtime mirror — one deterministic source → derivative relationshi
   it("declares a source for every runtime role the template serves", () => {
     expect(MIRRORED.length).toBeGreaterThanOrEqual(9);
     expect(MIRRORED_DIRECTORIES.map((entry) => entry.from)).toEqual([
-      "assets/icon-library/icons",
-      "assets/platform-marks",
+      "content/assets/icon-library/icons",
+      "content/assets/platform-marks",
     ]);
     // Every explicitly mirrored role file carries a human explanation.
     for (const row of [...MIRRORED, ...MIRRORED_DIRECTORIES]) expect(row.note.length).toBeGreaterThan(0);
@@ -166,7 +166,7 @@ describe("runtime mirror — one deterministic source → derivative relationshi
     // FS1 — every runtime file the template still serves is mirrored from one.
     for (const role of ["favicon.svg", "logo-header.svg", "logo-footer.svg"]) {
       expect(planned.get(role), `${role} must be mirrored from a source`).toBe(
-        `assets/placeholders/${role === "logo-footer.svg" ? "logo-header.svg" : role}`,
+        `content/assets/placeholders/${role === "logo-footer.svg" ? "logo-header.svg" : role}`,
       );
     }
   });
@@ -175,14 +175,14 @@ describe("runtime mirror — one deterministic source → derivative relationshi
     const role = (to: string) => MIRRORED.find((row) => row.to === to);
     const header = role("logo-header.svg");
     const footer = role("logo-footer.svg");
-    expect(header?.from).toBe("assets/placeholders/logo-header.svg");
+    expect(header?.from).toBe("content/assets/placeholders/logo-header.svg");
     expect(footer?.from).toBe(header?.from);
     // Both runtime files really are that source, byte for byte.
     expect(readRuntime("logo-header.svg")).toBe(readRuntime("logo-footer.svg"));
     expect(readRuntime("logo-footer.svg")).toBe(readSource("placeholders", "logo-header.svg"));
     // No deployed brand lockup is mirrored: the template has no brand of its own,
     // and a clone replaces the placeholder (in place, or via `site.assets.*`).
-    expect(MIRRORED.some((row) => row.from.startsWith("assets/branding/"))).toBe(false);
+    expect(MIRRORED.some((row) => row.from.startsWith("content/assets/branding/"))).toBe(false);
   });
 
   it("mirrors the whole icon library, so every generic icon is runtime-available", () => {
@@ -193,10 +193,59 @@ describe("runtime mirror — one deterministic source → derivative relationshi
 
   it("documents the source of truth in the shipped placeholder files themselves", () => {
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
-      expect(readRuntime(role)).toContain(`assets/placeholders/${role}`);
+      expect(readRuntime(role)).toContain(`content/assets/placeholders/${role}`);
       expect(readRuntime(role)).toContain("scripts/sync-runtime-assets.mjs");
     }
     // No runtime file claims to be brand authority.
     expect(readRuntime("header-graphic.svg")).toMatch(/NOT BRAND AUTHORITY/);
+  });
+});
+
+describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
+  it("takes authored assets from content/assets, beside the rest of the content", () => {
+    // The human-facing rule: everything a normal user authors as website content has
+    // one obvious home under `content/`.
+    expect(existsSync(path.join(ROOT, "content", "assets", "placeholders"))).toBe(true);
+    expect(names("placeholders").length).toBeGreaterThan(0);
+    expect(existsSync(path.join(ROOT, "content", "assets", "README.md"))).toBe(true);
+  });
+
+  it("leaves NO second user-editable asset authority at the repository root", () => {
+    // Before A1D the sources lived in a root-level `assets/`, so "where do I change my
+    // logo?" had two plausible answers. It has exactly one now.
+    expect(existsSync(path.join(ROOT, "assets")), "a root-level assets/ tree must not exist").toBe(
+      false,
+    );
+  });
+
+  it("marks the runtime mirror as GENERATED and never hand-edited", () => {
+    const script = readFileSync(path.join(ROOT, "scripts", "sync-runtime-assets.mjs"), "utf8");
+    expect(script).toContain("NEVER edit it by hand");
+    expect(script).toContain("content/assets/**");
+    expect(script).toContain("the SOURCE OF TRUTH");
+
+    const readme = readFileSync(path.join(ROOT, "content", "assets", "README.md"), "utf8");
+    expect(readme).toContain("public/assets");
+    expect(readme).toMatch(/never edit `public\/assets\/` by hand/i);
+  });
+
+  it("mirrors every runtime file FROM content/assets (no source outside it)", () => {
+    for (const row of [...MIRRORED, ...MIRRORED_DIRECTORIES]) {
+      expect(row.from.startsWith("content/assets/"), row.from).toBe(true);
+    }
+  });
+
+  it("stores the source tree and its mirror byte-verbatim (no EOL conversion)", () => {
+    // The mirror proof hashes the two files as they exist on disk, so `.gitattributes`
+    // must keep BOTH trees out of automatic line-ending conversion. A1D moved the
+    // source tree, and a stale rule for the retired path would have silently stopped
+    // protecting the artwork, so the CURRENT paths are asserted here.
+    const attributes = readFileSync(path.join(ROOT, ".gitattributes"), "utf8");
+    for (const rule of ["content/assets/** -text", "public/assets/** -text"]) {
+      expect(attributes, rule).toContain(rule);
+    }
+    expect(attributes, "a rule for the retired assets/ tree must be gone").not.toMatch(
+      /^assets\/\*\* -text$/m,
+    );
   });
 });

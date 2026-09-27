@@ -141,11 +141,22 @@ Keep those concerns separate.
 
 Human-authored content should remain separate from application implementation.
 
+**One human-facing content area.** Everything a normal user authors as website
+content lives under `content/` — pages (`content/pages/markdown`,
+`content/pages/json`), the artwork a site owner replaces (`content/assets`), and the
+other content collections — and `content/README.md` is the map that answers "where do
+I edit my website?". Authored content is never placed under `config/`: configuration
+changes how the site *behaves*, content is what it *says*. Equally, unrelated
+technical configuration is not moved into `content/` merely to make the tree uniform.
+
 Do not embed large amounts of business copy directly into reusable components.
 
 Prefer the established content system once it exists.
 
 Content changes should generally not require changes to application logic.
+
+When a change alters what a user can author or where they author it, update the
+author-facing README in the same change, at the standard in §26.
 
 ---
 
@@ -476,3 +487,31 @@ Rules:
   `features`, consumed by its own adapter, and documented.
 - Do not duplicate configuration values in components or constants; when a
   value seems missing, extend the schema and the JSON file instead.
+
+---
+
+## 26. Documentation Standard
+
+Foundation is intended to be **practically accessible, not merely source-available**.
+Documentation must be accurate and complete enough that an interested non-expert can
+successfully perform the documented task — using the documentation alone, without
+relying on knowledge the documentation never states.
+
+In practice:
+
+- **assume willingness to learn, not prior technical knowledge.** Never omit a
+  required step merely because an experienced developer would consider it obvious:
+  "edit the file and push it" is incomplete if the reader does not already know that
+  saving is not publishing, so the commit and push steps are shown explicitly;
+- **be concise, but operationally complete.** A reader should be able to finish the
+  documented task from the page they are reading, with the commands and file paths
+  spelled out;
+- **document what exists.** Never describe an imaginary component, feature or path,
+  and never promise a capability that is not implemented;
+- **lead with the reader's goal**, then the mechanism: "where do I edit my website?"
+  is answered by a map, not by an architecture description;
+- **keep the human-facing entry points honest**: `content/README.md` is the map for
+  authored content, and each authoring root explains its own mode in plain language.
+
+When a change adds or alters a user-facing capability, update the documentation in the
+same change and keep it at this standard.

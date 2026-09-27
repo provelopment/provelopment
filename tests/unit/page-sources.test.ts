@@ -20,8 +20,8 @@ const root = process.cwd();
 const SOURCES_LOCALE = "zz-sources";
 const EMPTY_LOCALE_NAME = "zz-sources-empty";
 const createdDirectories = [
-  path.join(root, "config", "pages-markdown", SOURCES_LOCALE),
-  path.join(root, "config", "pages-json", SOURCES_LOCALE),
+  path.join(root, "content", "pages", "markdown", SOURCES_LOCALE),
+  path.join(root, "content", "pages", "json", SOURCES_LOCALE),
   path.join(root, "content", "pages", SOURCES_LOCALE),
 ];
 
@@ -39,24 +39,24 @@ describe("the page-sources composition", () => {
   beforeAll(() => {
     // Markdown (first-class) fixtures.
     write(
-      path.join(root, "config", "pages-markdown", SOURCES_LOCALE, "about.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_LOCALE, "about.md"),
       "# About\n\nA safe Markdown page.\n",
     );
     write(
-      path.join(root, "config", "pages-markdown", SOURCES_LOCALE, "both.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_LOCALE, "both.md"),
       "# Markdown version\n",
     );
     write(
-      path.join(root, "config", "pages-markdown", SOURCES_LOCALE, "README.md"),
+      path.join(root, "content", "pages", "markdown", SOURCES_LOCALE, "README.md"),
       "# Documentation\n",
     );
     write(
-      path.join(root, "config", "pages-markdown", "en", "zz-fallback.md"),
+      path.join(root, "content", "pages", "markdown", "en", "zz-fallback.md"),
       "# Fallback page\n\nAnswered by the default locale.\n",
     );
     // JSON (first-class) fixtures: one shadowing the Markdown page, one alone.
-    write(path.join(root, "config", "pages-json", SOURCES_LOCALE, "both.json"), "{}\n");
-    write(path.join(root, "config", "pages-json", SOURCES_LOCALE, "json-only.json"), "{}\n");
+    write(path.join(root, "content", "pages", "json", SOURCES_LOCALE, "both.json"), "{}\n");
+    write(path.join(root, "content", "pages", "json", SOURCES_LOCALE, "json-only.json"), "{}\n");
     // NOT page sources: files planted under `content/pages`, one with a slug that also
     // exists as a real page (it must not shadow it) and one with a slug that exists
     // nowhere else (it must publish nothing at all).
@@ -69,7 +69,7 @@ describe("the page-sources composition", () => {
       "---\ntitle: Collection-path only\n---\n\nThis must never be served.\n",
     );
     // An EMPTY locale directory must publish nothing.
-    write(path.join(root, "config", "pages-markdown", EMPTY_LOCALE_NAME, ".gitkeep"), "");
+    write(path.join(root, "content", "pages", "markdown", EMPTY_LOCALE_NAME, ".gitkeep"), "");
   });
 
   afterAll(() => {
@@ -77,7 +77,7 @@ describe("the page-sources composition", () => {
       rmSync(directory, { recursive: true, force: true });
     }
     // The EMPTY locale directory is a fixture too.
-    rmSync(path.join(root, "config", "pages-markdown", EMPTY_LOCALE_NAME), {
+    rmSync(path.join(root, "content", "pages", "markdown", EMPTY_LOCALE_NAME), {
       recursive: true,
       force: true,
     });
@@ -88,7 +88,7 @@ describe("the page-sources composition", () => {
     } catch {
       /* not empty, or already gone: leave it exactly as it is */
     }
-    const fallbackFile = path.join(root, "config", "pages-markdown", "en", "zz-fallback.md");
+    const fallbackFile = path.join(root, "content", "pages", "markdown", "en", "zz-fallback.md");
     rmSync(fallbackFile, { force: true });
     // Remove the locale directory ONLY if the fixture left it empty — never a
     // recursive delete, so a developer's own pages in that directory are safe.
@@ -130,7 +130,7 @@ describe("the page-sources composition", () => {
   it("stops loudly when a JSON source would be served, naming the file", async () => {
     // JSON beats Markdown within a locale, so this slug has a JSON winner.
     await expect(sources.resolve("both", SOURCES_LOCALE)).rejects.toThrow(
-      new RegExp(`config[\\\\/]pages-json[\\\\/]${SOURCES_LOCALE}[\\\\/]both\\.json`),
+      new RegExp(`content[\\\\/]pages[\\\\/]json[\\\\/]${SOURCES_LOCALE}[\\\\/]both\\.json`),
     );
     await expect(sources.resolve("both", SOURCES_LOCALE)).rejects.toThrow(/not yet interpreted/);
     // A JSON-only slug behaves the same way: never silently ignored.

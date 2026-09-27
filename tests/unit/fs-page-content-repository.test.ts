@@ -68,7 +68,7 @@ describe("parsePageFile", () => {
 /**
  * The content-collection repository (`content/<collection>/<locale>/<slug>.md`).
  *
- * This is NOT the page mechanism: pages are authored under `config/pages-*` and
+ * This is NOT the page mechanism: pages are authored under `content/pages/**` and
  * resolved by the page-source composition. The repository serves the platform's other
  * collections — here `legal`, which shares the basic title + body contract — and its
  * `collection` is always named explicitly, so no default can point at a directory that

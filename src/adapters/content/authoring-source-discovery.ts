@@ -10,8 +10,8 @@
  *
  * WHAT IS A PAGE SOURCE
  * ---------------------
- * Only `config/pages-<mode>/<locale>/<slug>.<ext>` is a source. So:
- *   · a file directly under a root — `config/pages-markdown/README.md` — is NOT a
+ * Only `content/pages/<mode>/<locale>/<slug>.<ext>` is a source. So:
+ *   · a file directly under a root — `content/pages/markdown/README.md` — is NOT a
  *     source (no locale segment), which is what keeps an authoring root's
  *     documentation intrinsically non-routable;
  *   · a directory whose name is not a well-formed language tag is ignored, never
@@ -53,22 +53,22 @@ import { isContentSlug } from "@/core/page-content";
  */
 function authoringRootDirectory(mode: PageAuthoringMode): string {
   return mode === "markdown"
-    ? path.join(process.cwd(), "config", "pages-markdown")
-    : path.join(process.cwd(), "config", "pages-json");
+    ? path.join(process.cwd(), "content", "pages", "markdown")
+    : path.join(process.cwd(), "content", "pages", "json");
 }
 
 /** The absolute directory of one mode's locale directory. */
 function authoringLocaleDirectory(mode: PageAuthoringMode, locale: string): string {
   return mode === "markdown"
-    ? path.join(process.cwd(), "config", "pages-markdown", locale)
-    : path.join(process.cwd(), "config", "pages-json", locale);
+    ? path.join(process.cwd(), "content", "pages", "markdown", locale)
+    : path.join(process.cwd(), "content", "pages", "json", locale);
 }
 
 /** The absolute file of one page source. */
 function authoringPageFile(mode: PageAuthoringMode, locale: string, slug: string): string {
   return mode === "markdown"
-    ? path.join(process.cwd(), "config", "pages-markdown", locale, `${slug}.md`)
-    : path.join(process.cwd(), "config", "pages-json", locale, `${slug}.json`);
+    ? path.join(process.cwd(), "content", "pages", "markdown", locale, `${slug}.md`)
+    : path.join(process.cwd(), "content", "pages", "json", locale, `${slug}.json`);
 }
 
 /** A directory listing, or nothing when the directory does not exist. */

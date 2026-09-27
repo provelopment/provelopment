@@ -32,7 +32,7 @@ deleted first.
 
 Before production, **replace the placeholder values**: `site.url`, `site.name`,
 `site.tagline` and `site.description` in `site.config.json`, the starter copy in
-`config/i18n/en.json`, and the graphics in `assets/placeholders/`.
+`config/i18n/en.json`, and the graphics in `content/assets/placeholders/`.
 
 ## Repository structure
 
@@ -44,14 +44,71 @@ src/application # Use-case ports and services
 src/adapters    # Concrete integrations (filesystem content, analytics, booking, maps)
 src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (one shipped locale: en)
-config/pages-markdown # Safe Markdown pages — config/pages-markdown/<locale>/<slug>.md  (see its README)
-config/pages-json     # Declarative JSON pages — config/pages-json/<locale>/<slug>.json  (see its README)
-content         # NON-PAGE content collections — Markdown, EMPTY by default (legal, offerings, posts, testimonials, portfolio)
-assets          # SOURCE asset tree: placeholders/ (neutral defaults) · icon-library/ · platform-marks/  (edit here)
-public/assets   # RUNTIME mirror of assets/** — written by scripts/sync-runtime-assets.mjs
+content         # EVERYTHING you author lives here — start at content/README.md
+  pages/markdown #   Safe Markdown pages — content/pages/markdown/<locale>/<slug>.md  (see its README)
+  pages/json     #   Declarative JSON pages — content/pages/json/<locale>/<slug>.json  (see its README)
+  assets         #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
+  legal · offerings · posts · testimonials · portfolio   # the other content collections (empty by default)
+public/assets   # GENERATED mirror of content/assets/** — never edit by hand (scripts/sync-runtime-assets.mjs)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
 tests           # Architecture-boundary, unit, integration and CDP browser-matrix tests
 ```
+
+## Where your content lives
+
+**One folder holds everything you write or upload:** [`content/`](content/README.md).
+Pages, your logo and images, legal documents, services, reviews — all of it.
+
+```text
+content/
+├── README.md            ← the map: "where do I edit my website?"
+├── pages/
+│   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<locale>/<slug>.md)
+│   └── json/            ← advanced pages      (content/pages/json/<locale>/<slug>.json)
+├── assets/              ← logos, favicons, icons, graphics  (you edit here)
+├── legal/ · offerings/ · posts/ · testimonials/ · portfolio/
+```
+
+Everything else is **configuration**, not content: `site.config.json` and `config/`
+change how the site *behaves* (business name, contact details, languages, menu
+entries, feature switches). You change your words and images under `content/`; you
+change settings in `site.config.json`.
+
+**Two ways to author a page**, and you almost certainly want the first one:
+
+| Mode | Who it is for | Where |
+| --- | --- | --- |
+| **Simple, safe Markdown** | anyone who can edit a text file — no programming needed | `content/pages/markdown/<locale>/<slug>.md` |
+| **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express (its vocabulary is still to come) | `content/pages/json/<locale>/<slug>.json` |
+
+Both are documented for the person doing the authoring:
+[`content/pages/markdown/README.md`](content/pages/markdown/README.md) explains what
+Markdown is, where the file goes, exactly what you can write and how to link to a
+section of your own page;
+[`content/pages/json/README.md`](content/pages/json/README.md) explains the advanced
+mode's role and its current status. Your artwork lives in
+[`content/assets/`](content/assets/README.md).
+
+## Publishing your changes
+
+Editing a file is not publishing it. A change reaches the website when it is
+**committed and pushed** to this repository:
+
+```bash
+git status                                  # see what you changed
+git add content/pages/markdown/en/about.md  # stage the file(s) you edited
+git commit -m "Update About page"           # record the change
+git push                                    # send it; automated checks then build the site
+```
+
+A saved-but-uncommitted file cannot be pushed, and an unpushed commit cannot reach
+the site — those four commands are the whole workflow, and it is the same for every
+file under `content/`.
+
+> **Reference deployment — planned, not live yet.** A public, fully configured
+> reference site will be published at **`foundation-template.provelopment.com`**.
+> It does not exist yet; this repository is the product, and the reference
+> deployment will be announced here once it is available.
 
 The Foundation ships **one authored page** (the configuration-driven landing page)
 and **no page files**: the two authoring roots hold their documentation only, and
@@ -68,46 +125,41 @@ routes (`/sitemap.xml`, `/robots.txt`) and generated metadata are not content pa
    `config/i18n/en.json`; the single theme accent is one value in
    `src/app/globals.css` (`--ui-foundation-accent`). Change it and the whole site
    re-colours; keep it dark enough to meet the WCAG AA contrast gate.
-3. **Graphics** — replace the neutral files in `assets/placeholders/`
+3. **Graphics** — replace the neutral files in `content/assets/placeholders/`
    (`logo-header.svg` serves the header **and** footer logo role, `favicon.svg`,
    `header-graphic.svg`, `footer-graphic.svg`, `sidebar-*.svg`), then run
    `pnpm assets:sync`. You may equally point `site.assets.*` at your own absolute
    URLs. [`BRAND_ASSETS.md`](BRAND_ASSETS.md) is the complete role contract
    (filename, format, dimensions, config key, replacement and disable procedure).
 
-The template ships **no** `assets/branding/` tree and no example artwork: identity
+The template ships **no** `content/assets/branding/` tree and no example artwork: identity
 is yours to supply. Artwork-only roles (page banners, page background, status
 graphic, social-preview image) ship nothing and stay off until configured.
 
 ## Add a page
 
-Pages are authored in **exactly two ways**:
-
-| Mode | Where |
-| --- | --- |
-| **Simple, safe Markdown** — for anyone who can write a text file | `config/pages-markdown/<locale>/<slug>.md` |
-| **Advanced declarative JSON** — for developers; its component vocabulary is still to come | `config/pages-json/<locale>/<slug>.json` |
-
-Author a page by creating one file:
+Create one file under the human-facing content area (see
+[Where your content lives](#where-your-content-lives) for the two modes):
 
 ```text
-config/pages-markdown/<locale>/<slug>.md
+content/pages/markdown/<locale>/<slug>.md
 ```
 
 Ordinary Markdown is enough — frontmatter is optional, and a file that is nothing
 but prose is a complete page (the title comes from frontmatter, then the first
 `# heading`, then the filename). The page is served at `/<locale>/<slug>` and
 listed in the sitemap as soon as the file exists for a configured language; no
-configuration change is needed to publish the route.
+configuration change is needed to publish the route — only committing and pushing it
+(see [Publishing your changes](#publishing-your-changes)).
 
 It is **safe by design**: raw HTML you type is shown as text, unsafe link
 destinations are dropped, and the rendered page is checked against a fixed
-element/attribute allowlist. See
-[`config/pages-markdown/README.md`](config/pages-markdown/README.md) for the
-author-facing guide, and
-[`config/pages-json/README.md`](config/pages-json/README.md) for the advanced mode
-(a JSON page file currently stops the build with an error naming the file rather
-than being ignored, because nothing yet interprets it).
+element/attribute allowlist. `## Opening hours` also gains the predictable fragment
+`#opening-hours`, so an author can link to their own sections. The author-facing
+guide is [`content/pages/markdown/README.md`](content/pages/markdown/README.md); the
+advanced mode is [`content/pages/json/README.md`](content/pages/json/README.md) (a
+JSON page file currently stops the build with an error naming the file rather than
+being ignored, because nothing yet interprets it).
 
 ## Add content (collections)
 
@@ -126,8 +178,8 @@ the two page-authoring modes above.
 ### Author your home page (optional)
 
 The locale root is configuration-driven by default. To author it as **content**
-instead, add `config/pages-markdown/<locale>/home.md` (or
-`config/pages-json/<locale>/home.json`) — the locale-root route then renders it
+instead, add `content/pages/markdown/<locale>/home.md` (or
+`content/pages/json/<locale>/home.json`) — the locale-root route then renders it
 through the same page-source composition as every other page (same precedence, same
 per-locale fallback). A site that authors no `home.md` keeps the generic starter
 homepage, so this is purely additive.
@@ -224,14 +276,14 @@ trademark/brand policy is planned and is **not** part of this repository.
 Apache-2.0 covers the Foundation's own material. Bundled third-party work keeps its own
 licence and attribution, exactly as it was:
 
-- **Tabler Icons** (MIT) — the icon library under `assets/icon-library/`. The upstream
+- **Tabler Icons** (MIT) — the icon library under `content/assets/icon-library/`. The upstream
   MIT notice is bundled at
-  [`assets/icon-library/licensing/TABLER-ICONS-MIT.txt`](assets/icon-library/licensing/TABLER-ICONS-MIT.txt),
+  [`content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt`](content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt),
   with per-icon provenance in
-  [`icon-provenance.json`](assets/icon-library/licensing/icon-provenance.json).
+  [`icon-provenance.json`](content/assets/icon-library/licensing/icon-provenance.json).
 - **Third-party platform marks** (WhatsApp, Telegram, Facebook, Messenger, Instagram,
   LinkedIn, GitHub) — brand-owner assets governed by each owner's own brand rules, held
-  under `assets/platform-marks/` alongside their provenance records.
+  under `content/assets/platform-marks/` alongside their provenance records.
 
 No `NOTICE` file is included, because the work ships no upstream `NOTICE` text to
 reproduce — Apache-2.0 §4(d) only applies when the distributed work already contains one.

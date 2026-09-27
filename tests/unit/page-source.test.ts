@@ -22,8 +22,8 @@ import {
 describe("exactly two first-class authoring modes", () => {
   it("declares the two modes, JSON first", () => {
     expect(PAGE_AUTHORING_MODES).toEqual(["json", "markdown"]);
-    expect(PAGE_AUTHORING_ROOTS.markdown).toBe("config/pages-markdown");
-    expect(PAGE_AUTHORING_ROOTS.json).toBe("config/pages-json");
+    expect(PAGE_AUTHORING_ROOTS.markdown).toBe("content/pages/markdown");
+    expect(PAGE_AUTHORING_ROOTS.json).toBe("content/pages/json");
     expect(PAGE_AUTHORING_EXTENSIONS).toEqual({ json: "json", markdown: "md" });
     expect(Object.keys(PAGE_AUTHORING_ROOTS).sort()).toEqual(["json", "markdown"]);
   });
@@ -158,9 +158,9 @@ describe("the discovery primitives", () => {
       // segment and therefore can never be a page.
       expect(belowRoot.split("/")).toHaveLength(2);
     }
-    expect(pageSourceFile("markdown", "en", "about")).toBe("config/pages-markdown/en/about.md");
-    expect(pageSourceFile("json", "de", "about")).toBe("config/pages-json/de/about.json");
-    expect(pageSourceDirectory("markdown", "en")).toBe("config/pages-markdown/en");
+    expect(pageSourceFile("markdown", "en", "about")).toBe("content/pages/markdown/en/about.md");
+    expect(pageSourceFile("json", "de", "about")).toBe("content/pages/json/de/about.json");
+    expect(pageSourceDirectory("markdown", "en")).toBe("content/pages/markdown/en");
   });
 
   it("never builds a path from a value it has not validated", () => {

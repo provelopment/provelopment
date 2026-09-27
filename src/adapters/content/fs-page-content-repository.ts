@@ -19,8 +19,8 @@ export type ContentParser<T extends PageContent = PageContent> = (
  * The content COLLECTIONS the filesystem repository serves.
  *
  * There is deliberately no `pages` member. A page is authored in one of the two
- * first-class modes (`@/core/page-source` → `config/pages-markdown`,
- * `config/pages-json`) and resolved by the page-source composition; `content/pages`
+ * first-class modes (`@/core/page-source` → `content/pages/markdown`,
+ * `content/pages/json`) and resolved by the page-source composition; `content/pages`
  * is not a collection, is never read, and a file left there can never name, answer
  * or shadow a page. That is enforced here at the type level, not by convention.
  */
@@ -68,7 +68,7 @@ function resolveParser(collection: ContentCollection): ContentParser {
  * `content/<collection>/<locale>/<slug>.md`, falling back to the default locale
  * when the requested locale has no translation.
  *
- * Pages are NOT served here: they are authored under `config/pages-*` and resolved
+ * Pages are NOT served here: they are authored under `content/pages/**` and resolved
  * by the page-source composition, and `pages` is deliberately absent from
  * `ContentCollection`.
  */

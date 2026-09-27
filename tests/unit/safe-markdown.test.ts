@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { renderSafeMarkdown } from "@/adapters/markdown/safe-markdown";
+import { isHeadingAnchor } from "@/core/heading-anchor";
 import {
   MARKDOWN_ALLOWED_TAGS,
   MARKDOWN_FORBIDDEN_ATTRIBUTES,
@@ -69,7 +70,7 @@ describe("the safe Markdown renderer", () => {
   it("renders ordinary Markdown as ordinary Markdown", () => {
     const html = renderSafeMarkdown(RICH_MARKDOWN);
 
-    expect(html).toContain("<h1>Title</h1>");
+    expect(html).toContain('<h1 id="title">Title</h1>');
     expect(html).toContain("<strong>strong</strong>");
     expect(html).toContain("<em>emphasis</em>");
     expect(html).toContain("<code>code</code>");
@@ -110,7 +111,9 @@ describe("the safe Markdown renderer", () => {
       expect(MARKDOWN_FORBIDDEN_ATTRIBUTES, `forbidden attribute ${attribute}=`).not.toContain(attribute);
     }
     // Every attribute that DOES appear is one the policy allows.
-    expect(new Set(attributes)).toEqual(new Set(["href", "title", "src", "alt", "class"].filter((name) => attributes.includes(name))));
+    expect(new Set(attributes)).toEqual(
+      new Set(["href", "title", "src", "alt", "class", "id"].filter((name) => attributes.includes(name))),
+    );
   });
 
   it("drops an unsafe destination but keeps the author's words", () => {
@@ -139,7 +142,125 @@ describe("the safe Markdown renderer", () => {
     expect(renderSafeMarkdown('```"><script>alert(1)</script>\nx\n```\n')).not.toMatch(/<script/i);
   });
 
+/**
+ * THE DOCUMENTED CAPABILITY MATRIX (FOUNDATION-PAGES-A1D).
+ *
+ * The author-facing guide promises a specific set of Markdown features. Each is
+ * asserted against the REAL renderer here, so the documentation cannot drift from
+ * behaviour — a feature the parser does not support is never documented, and a
+ * feature that stops rendering fails this suite.
+ */
+describe("the documented Markdown capability matrix", () => {
+  const cases: readonly [string, string, string][] = [
+    ["headings", "# One\n\n## Two\n", "<h2"],
+    ["paragraphs", "A paragraph.\n", "<p>A paragraph.</p>"],
+    ["bold", "**bold**\n", "<strong>bold</strong>"],
+    ["italic", "*italic*\n", "<em>italic</em>"],
+    ["strikethrough", "~~gone~~\n", "<del>gone</del>"],
+    ["unordered lists", "- one\n- two\n", "<ul>"],
+    ["ordered lists", "1. one\n2. two\n", "<ol>"],
+    ["nested lists", "- one\n  - nested\n", "<ul>\n<li>one<ul>"],
+    ["blockquotes", "> quoted\n", "<blockquote>"],
+    ["links", "[label](/about)\n", '<a href="/about">label</a>'],
+    ["images", "![alt](/photo.png)\n", '<img src="/photo.png" alt="alt"'],
+    ["inline code", "`code`\n", "<code>code</code>"],
+    ["fenced code blocks", "```js\nconst x = 1;\n```\n", '<code class="language-js">'],
+    ["horizontal rules", "a\n\n---\n", "<hr"],
+    ["autolinks", "Visit https://example.com today\n", '<a href="https://example.com"'],
+    ["tables", "| a | b |\n| - | - |\n| 1 | 2 |\n", "<table>"],
+  ];
+
+  for (const [name, markdown, expected] of cases) {
+    it(`renders ${name}`, () => {
+      expect(renderSafeMarkdown(markdown)).toContain(expected);
+    });
+  }
+
+  it("renders a table with real table semantics, and only allowlisted cells", () => {
+    const html = renderSafeMarkdown("| Header A | Header B |\n| --- | --- |\n| Cell 1 | Cell 2 |\n");
+
+    expect(html).toContain("<table>");
+    expect(html).toContain("<thead>");
+    expect(html).toContain("<th>Header A</th>");
+    expect(html).toContain("<tbody>");
+    expect(html).toContain("<td>Cell 1</td>");
+    for (const tag of tagsIn(html)) {
+      expect(MARKDOWN_ALLOWED_TAGS, `unexpected element <${tag}>`).toContain(tag);
+    }
+  });
+
+  it("keeps a table's cells inert even when they contain markup and destinations", () => {
+    const html = renderSafeMarkdown(
+      "| a | b |\n| - | - |\n| <script>alert(1)</script> | [x](javascript:alert(1)) |\n",
+    );
+
+    expect(html).toContain("<td>");
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toContain("javascript:");
+    expect(html).toContain("x");
+  });
+});
+
+describe("heading fragments", () => {
+  it("gives a heading a deterministic id an author's fragment link can reach", () => {
+    const html = renderSafeMarkdown("See [hours](#opening-hours) below.\n\n## Opening Hours\n");
+
+    expect(html).toContain('<h2 id="opening-hours">Opening Hours</h2>');
+    expect(html).toContain('<a href="#opening-hours">hours</a>');
+  });
+
+  it("derives the id from the heading's own words, whatever markup they carry", () => {
+    expect(renderSafeMarkdown("## **Bold** and `code`\n")).toContain('<h2 id="bold-and-code">');
+    expect(renderSafeMarkdown("## Café Hours\n")).toContain('<h2 id="cafe-hours">');
+    expect(renderSafeMarkdown("## !!!\n")).toContain('<h2 id="section">');
+  });
+
+  it("disambiguates repeated headings within one document", () => {
+    const ids = [
+      ...renderSafeMarkdown("## Notes\n\n## Notes\n\n## Notes\n").matchAll(
+        /<[a-zA-Z][^>]*\sid="([^"]*)"/g,
+      ),
+    ].map((match) => match[1]);
+
+    expect(ids).toEqual(["notes", "notes-2", "notes-3"]);
+  });
+
+  it("keeps ids unique per DOCUMENT: one page's anchors never leak into another", () => {
+    expect(renderSafeMarkdown("## Notes\n")).toContain('id="notes"');
+    expect(renderSafeMarkdown("## Notes\n")).toContain('id="notes"');
+  });
+
+  it("never lets an author set an id: a typed attribute stays inert text", () => {
+    const html = renderSafeMarkdown('## <span id="mine">Heading</span>\n');
+
+    // The author's characters are visible as TEXT (inert): only `<`, `>` and `&` are
+    // entity-escaped, so the words the author typed — including the attribute — are
+    // readable and carry no meaning.
+    expect(html).toContain('&lt;span id="mine"&gt;Heading&lt;/span&gt;');
+    expect(html).not.toContain("<span");
+    // …and the only id any ELEMENT carries is the generated one, which the author
+    // cannot influence beyond the words of the heading itself.
+    const elementIds = [...html.matchAll(/<[a-zA-Z][^>]*\sid="([^"]*)"/g)].map((match) => match[1]);
+    expect(elementIds).toHaveLength(1);
+    expect(elementIds[0]).not.toBe("mine");
+    expect(isHeadingAnchor(elementIds[0] ?? ""), elementIds[0]).toBe(true);
+  });
+
+  it("emits only ids that match the declared pattern, for hostile headings", () => {
+    const html = renderSafeMarkdown(
+      ['## "><script>alert(1)</script>', "", "## onclick=steal()", "", "## <img src=x onerror=alert(1)>", ""].join("\n"),
+    );
+
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/<img src=x/i);
+    const ids = [...html.matchAll(/<[a-zA-Z][^>]*\sid="([^"]*)"/g)].map((match) => match[1]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) expect(isHeadingAnchor(id), id).toBe(true);
+  });
+});
+
+describe("the safe Markdown renderer — an empty document", () => {
   it("renders an empty document as an empty string", () => {
     expect(renderSafeMarkdown("")).toBe("");
   });
-});
+});});

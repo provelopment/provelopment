@@ -15,7 +15,7 @@ interface MarkdownContentProps {
  * component.
  *
  * PAGE bodies are deliberately NOT rendered here: a page comes from one of the two
- * first-class authoring modes (`config/pages-markdown`, `config/pages-json`) and is
+ * first-class authoring modes (`content/pages/markdown`, `content/pages/json`) and is
  * rendered under an explicit safety policy by `SafeMarkdownContent`. A page never
  * reaches this component, so trusted raw HTML is not a page-authoring capability.
  *

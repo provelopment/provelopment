@@ -16,8 +16,8 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 /**
  * THE PAGE-SOURCE COMPOSITION for this route's page. `/contact` owns its URL, but its
  * SOURCE is authored like every other page: safe Markdown under
- * `config/pages-markdown/<locale>/contact.md`, or declarative JSON under
- * `config/pages-json/<locale>/contact.json`.
+ * `content/pages/markdown/<locale>/contact.md`, or declarative JSON under
+ * `content/pages/json/<locale>/contact.json`.
  */
 const pages = createPageSources({
   defaultLocale: siteConfig.defaultLocale,
@@ -72,7 +72,7 @@ export async function generateMetadata({ params }: ContactPageProps): Promise<Me
 
 /**
  * `/contact` (Phase B). Content-driven like other pages — the intro body is an
- * ordinary page source (`config/pages-markdown/<locale>/contact.md` or its JSON
+ * ordinary page source (`content/pages/markdown/<locale>/contact.md` or its JSON
  * counterpart, so the sitemap picks the route up automatically) — and the form is
  * config-driven via `features.contact`.
  */

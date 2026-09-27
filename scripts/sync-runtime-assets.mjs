@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * RUNTIME ASSET MIRROR — the ONE deterministic relationship between the
- * authoritative SOURCE asset tree (`assets/**`) and the runtime delivery
+ * authoritative SOURCE asset tree (`content/assets/**`) and the runtime delivery
  * directory (`public/assets/**`).
  *
  * WHY THIS EXISTS
@@ -11,19 +11,24 @@
  * therefore ships the artwork TWICE by necessity — but never as two independent
  * authorities:
  *
- *   assets/**            →  the SOURCE OF TRUTH (the file a human edits/reviews)
- *   public/assets/**     →  a byte-identical DERIVATIVE (what the browser fetches)
+ *   content/assets/**    →  the SOURCE OF TRUTH: the ONE place a human adds or
+ *                           replaces authored site artwork, beside the rest of the
+ *                           site's content
+ *   public/assets/**     →  a GENERATED, byte-identical DERIVATIVE (what the browser
+ *                           fetches). NEVER edit it by hand: an edit there is
+ *                           overwritten by the next `assets:sync`, and `assets:check`
+ *                           fails in the meantime.
  *
  * This script is the only sanctioned writer of those derivatives. It is
  * idempotent, it reports every create/update, and `--check` fails (exit 1) when
- * the two trees drift — which is what `tests/unit/asset-mirror-parity.test.ts`
+ * the two trees drift — which is what `tests/unit/asset-taxonomy-mirror.test.ts`
  * and the `assets:check` script both assert.
  *
  * OWNERSHIP MODEL (see BRAND_ASSETS.md "Source assets vs runtime assets"):
- *   assets/branding/        deployment/business-specific artwork
- *   assets/icon-library/    reusable, non-business-specific generic icons
- *   assets/placeholders/    blank/generic defaults for a fresh installation
- *   assets/platform-marks/  royalty-free platform/social-service marks
+ *   content/assets/branding/        deployment/business-specific artwork
+ *   content/assets/icon-library/    reusable, non-business-specific generic icons
+ *   content/assets/placeholders/    blank/generic defaults for a fresh installation
+ *   content/assets/platform-marks/  royalty-free platform/social-service marks
  *
  * USAGE
  *   node scripts/sync-runtime-assets.mjs           # write the runtime mirror
@@ -44,30 +49,30 @@ const RUNTIME_DIR = "public/assets";
 export const MIRRORED = [
   // ── Identity roles: NEUTRAL placeholders are the template's shipped default ─
   // The generic template ships no brand of its own: the identity roles resolve to
-  // `assets/placeholders/**`, so a fresh clone renders a neutral, un-branded site
-  // that an adopter replaces. Replace these files in place, or point the role at
-  // your own absolute URL in `site.assets` (see BRAND_ASSETS.md).
+  // `content/assets/placeholders/**`, so a fresh clone renders a neutral, un-branded
+  // site that an adopter replaces. Replace these files in place, or point the role
+  // at your own absolute URL in `site.assets` (see BRAND_ASSETS.md).
   //
   // The header and footer logo ROLES share ONE source: both runtime basenames must
   // exist because the roles are addressed by basename (`site.assets.logo` /
   // `site.assets.logoFooter`).
-  { from: "assets/placeholders/favicon.svg", to: "favicon.svg", note: "favicon role — neutral default" },
-  { from: "assets/placeholders/logo-header.svg", to: "logo-header.svg", note: "header logo role — neutral default" },
-  { from: "assets/placeholders/logo-header.svg", to: "logo-footer.svg", note: "footer logo role — same source as the header" },
+  { from: "content/assets/placeholders/favicon.svg", to: "favicon.svg", note: "favicon role — neutral default" },
+  { from: "content/assets/placeholders/logo-header.svg", to: "logo-header.svg", note: "header logo role — neutral default" },
+  { from: "content/assets/placeholders/logo-header.svg", to: "logo-footer.svg", note: "footer logo role — same source as the header" },
 
   // ── Placeholders: the BLANK/GENERIC defaults a fresh install renders ─────
-  { from: "assets/placeholders/header-graphic.svg", to: "header-graphic.svg", note: "decorative header band — blank default" },
-  { from: "assets/placeholders/footer-graphic.svg", to: "footer-graphic.svg", note: "decorative footer layer — blank default" },
-  { from: "assets/placeholders/sidebar-open.svg", to: "sidebar-open.svg", note: "sidebar show control icon" },
-  { from: "assets/placeholders/sidebar-close.svg", to: "sidebar-close.svg", note: "sidebar hide control icon" },
-  { from: "assets/placeholders/sidebar-default-icon-open.svg", to: "sidebar-default-icon-open.svg", note: "nav-item icon fallback (expanded)" },
-  { from: "assets/placeholders/sidebar-default-icon-closed.svg", to: "sidebar-default-icon-closed.svg", note: "nav-item icon fallback (collapsed)" },
+  { from: "content/assets/placeholders/header-graphic.svg", to: "header-graphic.svg", note: "decorative header band — blank default" },
+  { from: "content/assets/placeholders/footer-graphic.svg", to: "footer-graphic.svg", note: "decorative footer layer — blank default" },
+  { from: "content/assets/placeholders/sidebar-open.svg", to: "sidebar-open.svg", note: "sidebar show control icon" },
+  { from: "content/assets/placeholders/sidebar-close.svg", to: "sidebar-close.svg", note: "sidebar hide control icon" },
+  { from: "content/assets/placeholders/sidebar-default-icon-open.svg", to: "sidebar-default-icon-open.svg", note: "nav-item icon fallback (expanded)" },
+  { from: "content/assets/placeholders/sidebar-default-icon-closed.svg", to: "sidebar-default-icon-closed.svg", note: "nav-item icon fallback (collapsed)" },
 ];
 
 /** Whole directory → directory mirrors (source basename preserved). */
 export const MIRRORED_DIRECTORIES = [
-  { from: "assets/icon-library/icons", to: RUNTIME_DIR, note: "generic icon library" },
-  { from: "assets/platform-marks", to: RUNTIME_DIR, note: "platform/social marks" },
+  { from: "content/assets/icon-library/icons", to: RUNTIME_DIR, note: "generic icon library" },
+  { from: "content/assets/platform-marks", to: RUNTIME_DIR, note: "platform/social marks" },
 ];
 
 /**
@@ -78,10 +83,10 @@ export const MIRRORED_DIRECTORIES = [
  *
  * EMPTY BY DESIGN (2026-09 closure pass): the ten `banner-*.png` files used to be
  * the only entries here. Persistent branded artwork must have an authoritative
- * source beneath `assets/`, so the banner family now lives in
- * `assets/branding/banners/` and is mirrored deterministically like every other
- * runtime graphic. A genuinely runtime-ONLY (generated, source-less) asset may
- * still be declared here with its reason — but nothing is kept here merely
+ * source beneath `content/assets/`, so the banner family now lives in
+ * `content/assets/branding/banners/` and is mirrored deterministically like every
+ * other runtime graphic. A genuinely runtime-ONLY (generated, source-less) asset
+ * may still be declared here with its reason — but nothing is kept here merely
  * because it already was.
  */
 export const RUNTIME_ONLY = [];

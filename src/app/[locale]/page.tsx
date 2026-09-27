@@ -29,8 +29,8 @@ const pages = createPageSources({
  * The home page is CONTENT-FIRST and OPTIONAL.
  *
  * A site may author its home page as ordinary content — safe Markdown at
- * `config/pages-markdown/<locale>/home.md`, or declarative JSON at
- * `config/pages-json/<locale>/home.json` — and this route renders it through the
+ * `content/pages/markdown/<locale>/home.md`, or declarative JSON at
+ * `content/pages/json/<locale>/home.json` — and this route renders it through the
  * SAME page-source composition every other page uses (same precedence, same
  * per-locale fallback, same safe Markdown policy). A site that authors no home page
  * keeps the generic configuration-driven starter homepage below, unchanged.

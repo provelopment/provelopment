@@ -7,12 +7,12 @@
  * winner. It is the composition boundary the routes and the sitemap consume, so no
  * route reimplements the precedence or the file layout.
  *
- *   `json`      `config/pages-json/<locale>/<slug>.json` — discovered and ordered,
+ *   `json`      `content/pages/json/<locale>/<slug>.json` — discovered and ordered,
  *               NOT yet interpreted. A JSON source that wins the resolution FAILS
  *               LOUDLY, naming its file: the vocabulary that renders declarative
  *               JSON belongs to a later increment, and silently falling through to
  *               another source would ignore the file the author wrote.
- *   `markdown`  `config/pages-markdown/<locale>/<slug>.md` — read through the
+ *   `markdown`  `content/pages/markdown/<locale>/<slug>.md` — read through the
  *               authoring reader (`./authoring-page`) and rendered under the safe
  *               Markdown policy.
  *

@@ -20,8 +20,8 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 /**
  * THE PAGE-SOURCE COMPOSITION for this route's page. `/connect` owns its URL, but its
  * SOURCE is authored like every other page: safe Markdown under
- * `config/pages-markdown/<locale>/connect.md`, or declarative JSON under
- * `config/pages-json/<locale>/connect.json`.
+ * `content/pages/markdown/<locale>/connect.md`, or declarative JSON under
+ * `content/pages/json/<locale>/connect.json`.
  */
 const pages = createPageSources({
   defaultLocale: siteConfig.defaultLocale,
@@ -76,7 +76,7 @@ export async function generateMetadata({ params }: ConnectPageProps): Promise<Me
 
 /**
  * The Connect page (Phase M) — the first-class communication/connection hub.
- * Its body is an ordinary page source (`config/pages-markdown/<locale>/connect.md`
+ * Its body is an ordinary page source (`content/pages/markdown/<locale>/connect.md`
  * or its JSON counterpart); for each configured connection method a card is
  * rendered with the method's label and target. Methods marked `demoOnly` carry a
  * visible demo badge, and the page always displays the demo notice: a visitor can

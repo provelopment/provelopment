@@ -12,7 +12,7 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 /**
  * The OPTIONAL content-authored home page.
  *
- * A site may author `config/pages-markdown/<locale>/home.md` (or its JSON
+ * A site may author `content/pages/markdown/<locale>/home.md` (or its JSON
  * counterpart) and have the locale-root route render it through the NORMAL
  * page-source composition. A site that authors no home page keeps the generic
  * configuration-driven starter homepage — so this capability is purely additive.
