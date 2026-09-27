@@ -43,8 +43,8 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
     for (const doc of configuredLegalDocs(siteConfig.legal)) {
         // Canonical existence (the site's default locale) — the same rule as before, so a
         // document that only exists in a translation is not advertised everywhere.
-        const site = siteConfig.sites.find((entry) => entry.id === siteId) ?? siteConfig.defaultSite;
-        const page = await pages.resolve(site.id, legalPageRoutePath(doc.slug), site.defaultLocale);
+        const site = siteConfig.sites.find((entry) => entry.code === siteId) ?? siteConfig.defaultSite;
+        const page = await pages.resolve(site.code, legalPageRoutePath(doc.slug), site.defaultLocale);
         if (page) legalLinks.push(doc);
     }
 

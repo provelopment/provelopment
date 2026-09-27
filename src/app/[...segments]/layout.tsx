@@ -142,7 +142,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       // hreflang link can never point at another site's tree.
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: [...request.site.locales],
+        locales: request.site.locales.map((entry) => entry.path),
         defaultLocale: request.site.defaultLocale,
         sitePrefix: sitePrefixPath(request.site),
       }),
@@ -167,9 +167,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     siteConfig.defaultSite.defaultLocale,
   );
   const site = request.site;
-  const locale = request.locale;
+  // The chrome works in the locale PATH KEY: it names the content directory (`ca/fr`), the
+  // dictionary entry and every URL this layout builds.
+  const locale = request.localePath;
   // The page source this site+locale's navigation/status surfaces belong to.
-  const localeCodesForSite = [...site.locales];
+  const localeCodesForSite = site.locales.map((entry) => entry.path);
   const dictionary = getDictionary(locale);
   const navLinks = getSiteNavLinks(locale);
   // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
@@ -323,7 +325,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
               <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>
             </ErrorMessagesProvider>
           }
-          footer={<SiteFooter locale={locale} siteId={site.id} directionLinkResolver={directionLinkResolver} />}
+          footer={<SiteFooter locale={locale} siteId={site.code} directionLinkResolver={directionLinkResolver} />}
           mainId="main"
           mainClassName="flex-1"
           navigationLabel={dictionary.navigation.primaryLabel}

@@ -47,7 +47,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     locales: localeCodes,
   });
 
-  const pageBindings = toPageBindings(json.business?.pages, defaultSite.id);
+  const pageBindings = toPageBindings(json.business?.pages, defaultSite.code);
 
   // Phase K — cross-reference validation (page→region, duplicate bindings,
   // locale membership, address-presentation invariants). Loud at build time so

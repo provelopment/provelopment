@@ -101,7 +101,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
     const pages = createPageSources({ sites: siteConfig.sites });
     // The template ships NO page files, so the very lookup the home route performs
     // resolves to nothing — which is what makes the fallback the live path here.
-    expect(await pages.resolve(siteConfig.defaultSite.id, HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
+    expect(await pages.resolve(siteConfig.defaultSite.code, HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
   });
 
   it("renders the generic configuration-driven homepage at the locale root", async () => {

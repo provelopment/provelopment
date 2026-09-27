@@ -1,6 +1,7 @@
 import { isPageRoutePath } from "./page-route-path";
-import { isWellFormedLocale, type Locale } from "./locale";
-import { isSiteId, type SiteId } from "./site";
+import type { Locale } from "./locale";
+import { isCanonicalSiteCode, isSiteCode, type SiteCode } from "./site-code";
+import { isLocalePathKey } from "./site-locale";
 
 /**
  * THE PAGE-SOURCE CONTRACT — TWO FIRST-CLASS AUTHORING MODES
@@ -12,11 +13,11 @@ import { isSiteId, type SiteId } from "./site";
  * nothing and renders nothing: it is a `@/core` rule.
  *
  *   `markdown`  the accessibility-first mode: ordinary Markdown under
- *               `content/pages/markdown/<siteId>/<locale>/<route-path>.md`, for an author
+ *               `content/pages/markdown/<site>/<locale>/<route-path>.md`, for an author
  *               who should need nothing but a text editor. Its safety policy lives in
  *               `@/core/markdown-policy` + `@/core/safe-url`.
  *   `json`      the advanced mode: validated declarative data under
- *               `content/pages/json/<siteId>/<locale>/<route-path>.json`, for an author
+ *               `content/pages/json/<site>/<locale>/<route-path>.json`, for an author
  *               who needs presentation the Markdown mode does not offer. It is
  *               schema-validated and non-executable.
  *
@@ -27,16 +28,17 @@ import { isSiteId, type SiteId } from "./site";
  *
  * THE SITE IS PART OF THE ADDRESS (FOUNDATION-S1)
  * ----------------------------------------------
- * A page's identity is `siteId + locale + routePath`. The SITE segment comes first, so two
- * sites may serve the SAME language at the SAME route path and never collide:
+ * A page's identity is `site + locale + routePath`, and the SITE segment comes first: its CODE
+ * is a recognized two-letter country code or the reserved `ww` (`@/core/site-code`). Two sites
+ * may therefore serve the SAME language at the SAME route path and never collide:
  *
- *     content/pages/markdown/main/en/about.md        → site main,   en,    about
- *     content/pages/markdown/canada/fr-CA/about.md   → site canada, fr-CA, about
- *     content/pages/markdown/france/fr-FR/about.md   → site france, fr-FR, about
+ *     content/pages/markdown/ca/en/about.md      → site ca, en,    about
+ *     content/pages/markdown/ca/fr/about.md      → site ca, fr,    about
+ *     content/pages/markdown/fr/fr/about.md      → site fr, fr,    about
  *
  * There is ONE shape — always site-scoped — with no site-less alternative and no
- * compatibility alias, so an author has exactly one predictable filesystem model. The
- * ordinary single-site deployment names its site `main`.
+ * compatibility alias, so an author has exactly one predictable filesystem model: the URL of a
+ * page is its path under `content/`, with the site code first.
  *
  * A MODE ROOT HOLDS DOCUMENTATION BESIDE ITS SITE DIRECTORIES
  * ----------------------------------------------------------
@@ -131,16 +133,16 @@ export const PAGE_RESOLUTION_ORDER: readonly PageSourceStep[] = [
 /** A resolution request: what is being asked for, and whether fallback is permitted. */
 export interface PageSourceRequest {
   /**
-   * The site whose tree may answer. A page's identity is `siteId + locale + routePath`, so
-   * a request always names ONE site — which is what makes a cross-site lookup
-   * unrepresentable rather than merely forbidden.
+   * The CODE of the site whose tree may answer (`ca`, `fr`, `ww`). A page's identity is
+   * `site + locale + routePath`, so a request always names ONE site — which is what makes a
+   * cross-site lookup unrepresentable rather than merely forbidden.
    */
-  readonly siteId: SiteId;
+  readonly siteId: SiteCode;
   /** The page's route path: one segment (`about`) or several (`offerings/website-design`). */
   readonly routePath: string;
-  /** The locale the visitor asked for. */
+  /** The LOCALE PATH KEY the visitor asked for (`en`, `fr-ca`) — the content directory. */
   readonly locale: Locale;
-  /** THE SITE'S default locale — the only locale a fallback may come from. */
+  /** THE SITE'S default LOCALE PATH KEY — the only locale a fallback may come from. */
   readonly defaultLocale: Locale;
   /** Whether the site's default locale may answer for the requested one. Defaults to true. */
   readonly fallback?: boolean;
@@ -179,10 +181,10 @@ export function pageResolutionCandidates(
 ): readonly PageResolutionCandidate[] {
   const { siteId, routePath, locale, defaultLocale, fallback = true } = request;
   if (
-    !isSiteId(siteId) ||
+    !isSiteCode(siteId) ||
     !isPageRoutePath(routePath) ||
-    !isWellFormedLocale(locale) ||
-    !isWellFormedLocale(defaultLocale)
+    !isLocalePathKey(locale) ||
+    !isLocalePathKey(defaultLocale)
   ) {
     return [];
   }
@@ -208,42 +210,42 @@ export interface AuthoringRootEntry {
 /**
  * The SITE directories of an authoring root, from its listing.
  *
- * A directory must be a well-formed SITE id (a content slug) to count. Anything else — the
- * root's README, a stray file, a directory whose name is not a slug — is ignored, and
+ * A directory must be a recognized LOWERCASE site code (or `ww`) to count. Anything else — the
+ * root's README, a stray file, a directory whose name is not a site code — is ignored, and
  * ignoring it is never an error. A site directory MAY BE EMPTY: discovery reports what
  * exists, never what is published.
  */
 export function authoringSiteDirectories(entries: readonly AuthoringRootEntry[]): readonly string[] {
   const sites = entries
-    .filter((entry) => entry.directory && isSiteId(entry.name))
+    .filter((entry) => entry.directory && isCanonicalSiteCode(entry.name))
     .map((entry) => entry.name);
   return [...new Set(sites)].sort();
 }
 
 /**
  * The locale directories of ONE SITE inside an authoring root, from that site directory's
- * listing. A directory must be a WELL-FORMED LANGUAGE TAG to count.
+ * listing. A directory must be a LOCALE PATH KEY (lowercase: `en`, `fr`, `fr-ca`) to count.
  */
 export function authoringLocaleDirectories(
   entries: readonly AuthoringRootEntry[],
 ): readonly string[] {
   const locales = entries
-    .filter((entry) => entry.directory && isWellFormedLocale(entry.name))
+    .filter((entry) => entry.directory && isLocalePathKey(entry.name))
     .map((entry) => entry.name);
   return [...new Set(locales)].sort();
 }
 
 /**
  * One site's locale directory, repository-relative (POSIX) — for example
- * `content/pages/markdown/main/de`. Returns `null` for a malformed mode, site or locale, so
+ * `content/pages/markdown/ca/en`. Returns `null` for a malformed mode, site or locale, so
  * a caller can never build a path from a string it has not validated.
  */
 export function pageSourceDirectory(
   mode: PageAuthoringMode,
-  siteId: SiteId,
+  siteId: SiteCode,
   locale: Locale,
 ): string | null {
-  if (!PAGE_AUTHORING_MODES.includes(mode) || !isSiteId(siteId) || !isWellFormedLocale(locale)) {
+  if (!PAGE_AUTHORING_MODES.includes(mode) || !isSiteCode(siteId) || !isLocalePathKey(locale)) {
     return null;
   }
   return `${PAGE_AUTHORING_ROOTS[mode]}/${siteId}/${locale}`;
@@ -251,14 +253,14 @@ export function pageSourceDirectory(
 
 /**
  * One page source file, repository-relative (POSIX) — for example
- * `content/pages/markdown/main/de/ueber-uns.md`, or
- * `content/pages/markdown/canada/fr-CA/offerings/web-design.md` for a nested page in
- * another site. `null` for a malformed mode, site, locale or route path, so an arbitrary
+ * `content/pages/markdown/ca/en/ueber-uns.md`, or
+ * `content/pages/json/fr/fr/offerings/web-design.json` for a nested page in another site.
+ * `null` for a malformed mode, site, locale or route path, so an arbitrary
  * string can never address a file — and a traversal attempt can never leave the root.
  */
 export function pageSourceFile(
   mode: PageAuthoringMode,
-  siteId: SiteId,
+  siteId: SiteCode,
   locale: Locale,
   routePath: string,
 ): string | null {

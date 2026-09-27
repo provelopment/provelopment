@@ -20,9 +20,11 @@ const root = process.cwd();
 // sharing one fixture locale would overwrite each other's fixtures.
 const SOURCES_LOCALE = "zz-sources";
 // S1 — the SITE segment comes first: `content/pages/<mode>/<siteId>/<locale>/…`.
-const SOURCES_SITE = "zz-sources-site";
+const SOURCES_SITE = "ww";
 const SOURCES_SITES = resolveSites({
-  input: [{ id: SOURCES_SITE }],
+  input: [{ code: SOURCES_SITE }],
+  defaultLocale: "en",
+  locales: ["en", SOURCES_LOCALE],
 }).sites;
 const EMPTY_LOCALE_NAME = "zz-sources-empty";
 const createdDirectories = [
@@ -33,8 +35,6 @@ const createdDirectories = [
 
 const sources = createPageSources({
   sites: SOURCES_SITES,
-  defaultLocale: "en",
-  locales: ["en", SOURCES_LOCALE, EMPTY_LOCALE_NAME],
 });
 
 function write(file: string, contents: string): void {
@@ -281,9 +281,9 @@ describe("the page-sources composition", () => {
   });
 
   it("publishes NOTHING for a locale the site does not configure", async () => {
-    const configuredOnly = createPageSources({ defaultLocale: "en", locales: ["en"] });
-    expect(await configuredOnly.resolve("about", SOURCES_LOCALE)).toBeNull();
-    expect(await configuredOnly.listRoutes(SOURCES_LOCALE)).toEqual([]);
+    const configuredOnly = createPageSources({ sites: [] });
+    expect(await configuredOnly.resolve(SOURCES_SITE, "about", SOURCES_LOCALE)).toBeNull();
+    expect(await configuredOnly.listRoutes(SOURCES_SITE, SOURCES_LOCALE)).toEqual([]);
   });
 
   it("returns null for a page that exists nowhere, and for an unusable route", async () => {

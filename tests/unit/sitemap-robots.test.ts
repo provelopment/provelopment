@@ -93,7 +93,7 @@ describe("Phase T — trust/publishing sitemap contract (derived inventory)", ()
     const expected = new Set<string>([siteConfig.url]);
     for (const { code } of siteConfig.locales) {
       expected.add(`${siteConfig.url}/${code}`);
-      for (const routePath of await pages.listRoutes(siteConfig.defaultSite.id, code)) {
+      for (const routePath of await pages.listRoutes(siteConfig.defaultSite.code, code)) {
         // The home page's real URL is the locale root, never `/{locale}/home`.
         if (routePath === HOME_CONTENT_SLUG) continue;
         expected.add(`${siteConfig.url}/${code}/${routePath}`);

@@ -64,7 +64,7 @@ export function LocationSwitcher({
   // destinations come from THIS site's bindings (a binding declared for another site can
   // never answer here, even when the two sites share a locale).
   const sitePrefix = sitePrefixPath(parsed.site);
-  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.id);
+  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.code);
   const availableRegions = [...configuredRegionIds(siteConfig.regions)].sort((a, b) => {
     const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
     const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;

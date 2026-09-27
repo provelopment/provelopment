@@ -5,9 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { siteConfig } from "@/config";
 import { displayNameWithEnglish } from "@/core/display-labels";
 import { bindingsForSite, regionalPath, resolveLocaleDestination } from "@/core/regional-pages";
-import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSetOf } from "@/core/site";
+import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSetOf, siteSupportsLocalePath } from "@/core/site";
 
 interface LanguageSwitcherProps {
+  /**
+   * The current document's locale PATH KEY (`en`, `fr-ca`) — the value the URL names and the
+   * key the dictionary is looked up by.
+   */
   readonly locale: string;
   /** Accessible label, localized via the active locale's dictionary. */
   readonly label: string;
@@ -48,15 +52,18 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   const context = pathContextOr(
     siteSetOf(siteConfig.sites, siteConfig.defaultSite),
     siteConfig.pageBindings,
-    pathname ?? `/${locale}`,
+    pathname ?? "/",
     locale,
   );
   const site = context.site;
   const sitePrefix = sitePrefixPath(site);
-  const entries = bindingsForSite(siteConfig.pageBindings, site.id);
+  const entries = bindingsForSite(siteConfig.pageBindings, site.code);
+  const current = context.localePath;
 
   function handleChange(nextLocale: string) {
-    if (nextLocale === locale || !site.locales.includes(nextLocale)) {
+    // A language switch stays INSIDE this site: a locale the site does not serve is never
+    // offered, and a stale DOM value cannot reach it either.
+    if (nextLocale === current || !siteSupportsLocalePath(site, nextLocale)) {
       return;
     }
 
@@ -82,32 +89,30 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   }
 
   const defaultLocale = site.defaultLocale;
+  /** The deployment's display label for a locale PATH KEY (`en`, `fr-ca`). */
+  const registryLabel = (localePath: string): string => {
+    const entry = siteConfig.locales.find((candidate) => candidate.code === localePath);
+    return displayNameWithEnglish(entry?.label ?? localePath, entry?.englishLabel);
+  };
   const sortedLocales = [...site.locales].sort((a, b) => {
-    if (a === defaultLocale) return -1;
-    if (b === defaultLocale) return 1;
-    const entryA = siteConfig.locales.find((entry) => entry.code === a);
-    const entryB = siteConfig.locales.find((entry) => entry.code === b);
-    const nameA = entryA?.englishLabel ?? entryA?.label ?? a;
-    const nameB = entryB?.englishLabel ?? entryB?.label ?? b;
-    return nameA.localeCompare(nameB, "en", { sensitivity: "base" });
+    if (a.path === defaultLocale) return -1;
+    if (b.path === defaultLocale) return 1;
+    return registryLabel(a.path).localeCompare(registryLabel(b.path), "en", { sensitivity: "base" });
   });
 
   return (
     <select
       aria-label={label}
       data-selector="language"
-      value={locale}
+      value={current}
       onChange={(event) => handleChange(event.target.value)}
       className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
-      {sortedLocales.map((code) => {
-        const entry = siteConfig.locales.find((localeEntry) => localeEntry.code === code);
-        return (
-          <option key={code} value={code}>
-            {displayNameWithEnglish(entry?.label ?? code, entry?.englishLabel)}
-          </option>
-        );
-      })}
+      {sortedLocales.map(({ path: localePath, label: siteLabel }) => (
+        <option key={localePath} value={localePath}>
+          {siteLabel === undefined ? registryLabel(localePath) : displayNameWithEnglish(siteLabel)}
+        </option>
+      ))}
     </select>
   );
 }

@@ -155,8 +155,8 @@ describe("the resolution order", () => {
       ).toEqual([]);
     }
     for (const request of [
-      { routePath: "about", locale: "../etc", defaultLocale: "en" },
-      { routePath: "about", locale: "en", defaultLocale: "not a locale" },
+      { siteId: "ca", routePath: "about", locale: "../etc", defaultLocale: "en" },
+      { siteId: "ca", routePath: "about", locale: "en", defaultLocale: "not a locale" },
     ]) {
       expect(pageResolutionCandidates(request), JSON.stringify(request)).toEqual([]);
     }

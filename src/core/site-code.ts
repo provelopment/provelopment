@@ -24,6 +24,15 @@
 export const WORLDWIDE_SITE_CODE = "ww";
 
 /**
+ * A SITE CODE — a recognized two-letter country code (`ca`, `fr`) or the reserved `ww`.
+ *
+ * The alias exists so the site-scoped contracts (`@/core/page-source`, the page composition)
+ * can name their site dimension in the SAME vocabulary as this authority, instead of spelling
+ * an anonymous `string` that could hold anything.
+ */
+export type SiteCode = string;
+
+/**
  * The recognized ISO 3166-1 alpha-2 country codes (lowercase), Foundation's maintained reference
  * list. A code that is not here is refused: typos and invented codes fail loudly at build time
  * rather than publishing a site nobody can find.

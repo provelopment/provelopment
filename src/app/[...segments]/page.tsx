@@ -36,12 +36,12 @@ import { ConnectPageContent, ContactPageContent, StarterHome } from "./dedicated
  * THE ONE PAGE ROUTE (FOUNDATION-PAGES-A1E, SITE-SCOPED BY S1)
  * ==========================================================
  *
- * A page's identity is `siteId + locale + routePath`, and its PUBLIC URL adds the site's
- * configurable prefix:
+ * A page's identity is `site + locale + routePath`, and its PUBLIC URL is the content path
+ * itself — the site CODE first, then the locale path key:
  *
- *   content/pages/markdown/main/en/about.md        → /en/about
- *   content/pages/markdown/canada/fr-CA/about.md   → /fr-CA/about        (default site)
- *   content/pages/markdown/france/fr-FR/about.md   → /france/fr-FR/about
+ *   content/pages/markdown/ca/en/about.md  → /ca/en/about
+ *   content/pages/markdown/ca/fr/about.md  → /ca/fr/about
+ *   content/pages/markdown/fr/fr/about.md  → /fr/fr/about
  *
  * ONE route serves every page of every site: the URL is resolved to exactly ONE site context
  * (`@/core/site`) and the page composition is then asked for that site alone. There is no route
@@ -85,7 +85,7 @@ function regionContextOf(
   locale: string,
   routePath: string,
 ): { readonly region: string; readonly slug: string | null } | null {
-  const bindings = bindingsForSite(siteConfig.pageBindings, site.id);
+  const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
   const segments = pageRoutePathSegments(routePath);
   const first = segments[0];
   if (first === undefined || !regionsForLocale(bindings, locale).includes(first)) return null;
@@ -99,7 +99,7 @@ function regionContextOf(
 
 /** Whether the route path ENTERS a region namespace (which must then resolve completely). */
 function entersRegionNamespace(site: ResolvedSite, locale: string, routePath: string): boolean {
-  const bindings = bindingsForSite(siteConfig.pageBindings, site.id);
+  const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
   const first = pageRoutePathSegments(routePath)[0];
   return first !== undefined && regionsForLocale(bindings, locale).includes(first);
 }
@@ -120,16 +120,17 @@ export async function generateStaticParams(): Promise<{ segments: string[] }[]> 
   };
 
   for (const site of siteConfig.sites) {
-    const scope = site.pathPrefix === "" ? [] : [site.pathPrefix];
-    const bindings = bindingsForSite(siteConfig.pageBindings, site.id);
+    // The site CODE is the URL's first segment, always — there is no hidden default site.
+    const scope = [site.code];
+    const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
 
-    for (const locale of site.locales) {
+    for (const locale of site.locales.map((entry) => entry.path)) {
       // The locale root is always generated: a site either authored its home page or keeps the
       // generic starter homepage, so that URL exists either way.
       add([...scope, locale]);
 
       const regionalLandings = regionsForLocale(bindings, locale);
-      for (const routePath of await routes.listRoutes(site.id, locale)) {
+      for (const routePath of await routes.listRoutes(site.code, locale)) {
         const segments = pageRoutePathSegments(routePath);
         if (segments.length === 0) continue;
         const first = segments[0] as string;
@@ -156,7 +157,7 @@ export async function generateStaticParams(): Promise<{ segments: string[] }[]> 
 function siteAlternates(site: ResolvedSite, path = ""): Record<string, string> {
   return buildLanguageAlternates({
     baseUrl: siteConfig.url,
-    locales: [...site.locales],
+    locales: site.locales.map((entry) => entry.path),
     defaultLocale: site.defaultLocale,
     path,
     sitePrefix: sitePrefixPath(site),
@@ -167,9 +168,12 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   const request = requestOf((await params).segments);
   if (request === null) return {};
 
-  const { site, locale, routePath } = request;
+  const { site, localePath: locale, routePath } = request;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
-  const alternateLocales = site.locales.filter((code) => code !== locale);
+  // The OG alternate locales are STANDARDS tags (`fr-CA`), unlike the URL segment.
+  const alternateLocales = site.locales
+    .filter((entry) => entry.path !== locale)
+    .map((entry) => entry.canonical);
 
   // The locale root: the site's own name and description, whatever answers the page itself.
   if (routePath === "") {
@@ -196,7 +200,7 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   }
 
   // A page: its OWN title and (optional) summary decide the metadata.
-  const page = await routes.resolve(site.id, routePath, locale);
+  const page = await routes.resolve(site.code, routePath, locale);
   if (!page) return {};
 
   const regional = regionContextOf(site, locale, routePath);
@@ -206,9 +210,9 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   const alternates = regional
     ? buildRegionalLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: [...site.locales],
+        locales: site.locales.map((entry) => entry.path),
         defaultLocale: site.defaultLocale,
-        entries: bindingsForSite(siteConfig.pageBindings, site.id),
+        entries: bindingsForSite(siteConfig.pageBindings, site.code),
         region: regional.region,
         slug: regional.slug,
         sitePrefix: sitePrefixPath(site),
@@ -266,7 +270,7 @@ export default async function PageRoute({ params }: PageRouteProps) {
   // resolver answers `null`, so the request becomes a 404 — never a guess, never another site.
   if (request === null) notFound();
 
-  const { site, locale, routePath } = request;
+  const { site, localePath: locale, routePath } = request;
 
   // A URL inside a region's namespace is either the landing or a configured regional page:
   // anything else must not render a page without its region's identity.
@@ -275,7 +279,7 @@ export default async function PageRoute({ params }: PageRouteProps) {
 
   // The locale root: an authored home page (either mode) or the generic starter homepage.
   if (routePath === "") {
-    const authoredHome = await routes.resolve(site.id, HOME_CONTENT_SLUG, locale);
+    const authoredHome = await routes.resolve(site.code, HOME_CONTENT_SLUG, locale);
     return authoredHome ? (
       <Section as="article">{authoredContent(authoredHome, locale)}</Section>
     ) : (
@@ -283,7 +287,7 @@ export default async function PageRoute({ params }: PageRouteProps) {
     );
   }
 
-  const page = await routes.resolve(site.id, routePath, locale);
+  const page = await routes.resolve(site.code, routePath, locale);
   if (!page) notFound();
 
   // The two URLs with specialised chrome; their SOURCE is an ordinary page.

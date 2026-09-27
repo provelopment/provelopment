@@ -13,10 +13,9 @@ import { sitePath, sitePrefixPath } from "@/core/site";
  * site, per locale and per configured regional (location) page — never from navigation config.
  * Each URL is built through the ONE site path builder, so:
  *
- *  - a page in `canada/fr-CA/services.md` publishes `/fr-CA/services` and NOTHING for the
- *    France site, whose own tree has its own inventory;
- *  - the default site's URLs carry no prefix, while another site's URLs carry its configured
- *    `pathPrefix` (`/france/fr-FR/…`);
+ *  - a page in `ca/fr/about.md` publishes `/ca/fr/about` and NOTHING for the `fr` site, whose
+ *    own tree has its own inventory — the same locale path key in two sites is two pages;
+ *  - every URL carries the site code first, because the site code IS the site's URL segment;
  *  - the inventory is the page composition itself
  *    (`@/adapters/content/page-sources`), the SAME one every page route resolves through, so a
  *    newly authored file at ANY depth becomes a route and a sitemap entry in the same step.
@@ -33,14 +32,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // One site boundary per loop: nothing inside the body can see another site's tree.
   for (const site of siteConfig.sites) {
-    const bindings = bindingsForSite(siteConfig.pageBindings, site.id);
+    const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
     const prefix = sitePrefixPath(site);
 
-    for (const locale of site.locales) {
+    for (const siteLocale of site.locales) {
+      const locale = siteLocale.path;
       // Content route paths that are regional landings for this locale are emitted by the
       // regional loop below, not as flat `/{locale}/{route}` routes.
       const regional = regionsForLocale(bindings, locale);
-      const routePaths = (await routes.listRoutes(site.id, locale)).filter(
+      const routePaths = (await routes.listRoutes(site.code, locale)).filter(
         (routePath) => !regional.includes(routePath),
       );
 

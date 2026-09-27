@@ -10,7 +10,7 @@
  * A PAGE'S ROUTE IS ITS PATH, SO DISCOVERY RECURSES
  * -------------------------------------------------
  * A page may live in FOLDERS, because its URL is built from them
- * (`content/pages/markdown/en/offerings/website-design.md` → `/en/offerings/website-design`).
+ * (`content/pages/markdown/ca/en/offerings/website-design.md` → `/ca/en/offerings/website-design`).
  * So discovery walks the locale directory and every usable folder beneath it, and
  * reports each page it finds as a ROUTE PATH (`offerings/website-design`). The
  * segment, depth and length rules are the core ones (`@/core/page-route-path`), so
@@ -26,6 +26,9 @@
  *   · a nested README beside nested pages (`content/pages/markdown/en/blog/README.md`)
  *     is NOT a source either, for the same reason (`README` is not a slug);
  *   · a directory whose name is not a well-formed slug is ignored, never an error;
+ *   · a SITE directory whose name is not a recognized lowercase site code, and an
+ *     LOCALE directory whose name is not a lowercase locale path key, is ignored (so `CA`
+ *     and `fr-CA` are not spelled the way content paths are).
  *   · a file whose name is not a well-formed slug (`.gitkeep`, `Not A Slug.md`) is
  *     ignored;
  *   · a folder that would take a page past the documented depth or length cap is
@@ -56,8 +59,8 @@ import {
   PAGE_AUTHORING_EXTENSIONS,
   type PageAuthoringMode,
 } from "@/core/page-source";
-import { isWellFormedLocale } from "@/core/locale";
-import { isSiteId } from "@/core/site";
+import { isLocalePathKey } from "@/core/site-locale";
+import { isCanonicalSiteCode } from "@/core/site-code";
 
 /**
  * The absolute authoring roots, built from LITERALS only.
@@ -145,7 +148,7 @@ export async function authoringPageRoutesFor(
   siteId: string,
   locale: string,
 ): Promise<readonly string[]> {
-  if (!isSiteId(siteId) || !isWellFormedLocale(locale)) return [];
+  if (!isCanonicalSiteCode(siteId) || !isLocalePathKey(locale)) return [];
   const routes = await collectRoutes(mode, siteId, locale, "");
   return [...new Set(routes)].sort();
 }
@@ -184,7 +187,7 @@ export async function authoringLocaleDirectoriesOf(
   mode: PageAuthoringMode,
   siteId: string,
 ): Promise<readonly string[]> {
-  if (!isSiteId(siteId)) return [];
+  if (!isCanonicalSiteCode(siteId)) return [];
   return authoringLocaleDirectories(await entriesOf(mode, siteId, "", ""));
 }
 
@@ -203,8 +206,8 @@ export async function readAuthoringPageFile(
   locale: string,
   routePath: string,
 ): Promise<string | null> {
-  if (!isSiteId(siteId)) return null;
-  if (!isWellFormedLocale(locale)) return null;
+  if (!isCanonicalSiteCode(siteId)) return null;
+  if (!isLocalePathKey(locale)) return null;
   if (pageRoutePathSegments(routePath).length === 0) return null;
   // The path and the read stay in ONE expression, so the tracer can resolve the root and
   // see exactly which subtree is being read (see `MARKDOWN_ROOT` above).
