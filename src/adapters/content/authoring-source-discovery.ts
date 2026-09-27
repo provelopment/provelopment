@@ -58,42 +58,34 @@ import {
 import { isWellFormedLocale } from "@/core/locale";
 
 /**
- * The absolute directory of one mode's locale directory, with a page's route path
- * appended when it is nested.
+ * The absolute authoring roots, built from LITERALS only.
  *
- * WHY EVERY PATH BELOW IS SPELLED IN ONE JOIN WITH LITERAL SEGMENTS: a path the
- * build's file tracer cannot resolve statically makes the whole project traced into
- * the server bundle ("Dynamic filesystem access causes tracing of the whole
- * project" — the Turbopack build warns about exactly this). `process.cwd()` plus
- * literal segments plus ONE opaque runtime value is resolvable; a path assembled by
- * spreading a computed segment list, or by nesting one path-returning function inside
- * another, is not. So each target is spelled once, here, from literals plus the
- * already-validated route path.
+ * The build traces filesystem access statically, and a path it cannot resolve makes it
+ * trace the WHOLE project into the server bundle ("Dynamic filesystem access causes
+ * tracing of the whole project"). These two constants are fully static, so every path
+ * below is `path.join(<static root>, <opaque locale>, <opaque route path>)` — the shape
+ * the tracer resolves. Nothing here returns a path from a function, and no path is built
+ * by concatenating a computed path with an extension: both defeat the analysis and
+ * silently inflate every deployment.
  */
-function authoringDirectory(mode: PageAuthoringMode, locale: string, routePath: string): string {
-  const base =
-    mode === "markdown"
-      ? path.join(process.cwd(), "content", "pages", "markdown", locale)
-      : path.join(process.cwd(), "content", "pages", "json", locale);
-  return routePath.length === 0 ? base : path.join(base, routePath);
-}
+const MARKDOWN_ROOT = path.join(process.cwd(), "content", "pages", "markdown");
+const JSON_ROOT = path.join(process.cwd(), "content", "pages", "json");
 
-/** The absolute file of one page source, or `null` when the route path is not usable. */
-function authoringPageFile(
-  mode: PageAuthoringMode,
-  locale: string,
-  routePath: string,
-): string | null {
-  if (pageRoutePathSegments(routePath).length === 0) return null;
-  return `${authoringDirectory(mode, locale, routePath)}.${PAGE_AUTHORING_EXTENSIONS[mode]}`;
+/** The one of those two roots a mode reads from. */
+function authoringRoot(mode: PageAuthoringMode): string {
+  return mode === "markdown" ? MARKDOWN_ROOT : JSON_ROOT;
 }
 
 /** A directory listing in the shape the core route-path primitives consume. */
 async function entriesOf(
-  directory: string,
+  mode: PageAuthoringMode,
+  locale: string,
+  routePath: string,
 ): Promise<readonly { name: string; directory: boolean }[]> {
   try {
-    const entries = await readdir(directory, { withFileTypes: true });
+    const entries = await readdir(path.join(authoringRoot(mode), locale, routePath), {
+      withFileTypes: true,
+    });
     return entries.map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
   } catch {
     // A directory that does not exist yet is not a fault: it simply holds nothing.
@@ -116,7 +108,7 @@ async function collectRoutes(
 ): Promise<readonly string[]> {
   if (routePath.length > 0 && pageRoutePathSegments(routePath).length === 0) return [];
 
-  const entries = await entriesOf(authoringDirectory(mode, locale, routePath));
+  const entries = await entriesOf(mode, locale, routePath);
   const extension = PAGE_AUTHORING_EXTENSIONS[mode];
   const routes: string[] = [];
 
@@ -162,7 +154,7 @@ export async function authoringPageRoutesFor(
 export async function authoringLocaleDirectoriesOf(
   mode: PageAuthoringMode,
 ): Promise<readonly string[]> {
-  return authoringLocaleDirectories(await entriesOf(authoringDirectory(mode, "", "")));
+  return authoringLocaleDirectories(await entriesOf(mode, "", ""));
 }
 
 /**
@@ -180,10 +172,13 @@ export async function readAuthoringPageFile(
   routePath: string,
 ): Promise<string | null> {
   if (!isWellFormedLocale(locale)) return null;
-  const file = authoringPageFile(mode, locale, routePath);
-  if (file === null) return null;
+  if (pageRoutePathSegments(routePath).length === 0) return null;
+  // The path and the read stay in ONE expression, so the tracer can resolve the root and
+  // see exactly which subtree is being read (see `MARKDOWN_ROOT` above).
   try {
-    return await readFile(file, "utf8");
+    return mode === "markdown"
+      ? await readFile(path.join(MARKDOWN_ROOT, locale, `${routePath}.md`), "utf8")
+      : await readFile(path.join(JSON_ROOT, locale, `${routePath}.json`), "utf8");
   } catch {
     return null;
   }

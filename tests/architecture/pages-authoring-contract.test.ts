@@ -13,6 +13,7 @@ import {
   MARKDOWN_HEADING_TAGS,
 } from "@/core/markdown-policy";
 import { PAGE_AUTHORING_MODES, PAGE_AUTHORING_ROOTS } from "@/core/page-source";
+import { PAGE_SECTION_TYPES } from "@/core/page-document";
 
 /**
  * THE PAGE-AUTHORING ARCHITECTURE CONTRACT (FOUNDATION-PAGES-A1/A1C).
@@ -98,9 +99,14 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     // spelling from the ONE core contract — it names no path literal itself, so the
     // retired `config/pages-*` spelling cannot come back through it.
     const composition = read("adapters/content/page-sources.ts");
-    expect(composition).toContain("PAGE_AUTHORING_ROOTS");
+    // The composition spells no path and does no filesystem work of its own: the roots and
+    // the file layout come from the ONE core contract, consumed by the discovery adapter.
+    expect(composition).not.toContain("path.join");
+    expect(composition).not.toContain("node:fs");
     expect(composition).not.toContain("config/pages");
     expect(composition).not.toContain("fs-page-content-repository");
+    expect(read("core/page-source.ts")).toContain("PAGE_AUTHORING_ROOTS");
+    expect(read("adapters/content/authoring-source-discovery.ts")).toContain("PAGE_AUTHORING_EXTENSIONS");
   });
 
   it("is the ONLY page authority: no collection repository and no collection root remains", () => {
@@ -298,13 +304,53 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     expect(isHeadingAnchor("opening hours")).toBe(false);
   });
 
-  it("never pretends a JSON page can render, and keeps that boundary in ONE place", () => {
-    // A JSON source that would be served stops the build with the file named, from
-    // the composition alone — no route knows about it.
-    expect(read("adapters/content/page-sources.ts")).toContain("not yet interpreted");
-    for (const route of ["core/page-source.ts", "application/page-source-resolution.ts"]) {
-      expect(read(route), route).not.toContain("not yet interpreted");
+  it("renders a JSON page through ONE composer, and keeps that boundary in ONE place", () => {
+    // A2: a JSON source is now INTERPRETED. The reader validates it, the composition
+    // resolves it, and exactly ONE component maps the validated vocabulary to
+    // presentation — so no route switches on a section type, and no second renderer or
+    // second schema can appear.
+    expect(read("adapters/content/page-sources.ts")).toContain("parseJsonPageFile");
+    expect(read("adapters/content/page-sources.ts")).not.toContain("not yet interpreted");
+    for (const route of [
+      "app/[locale]/page.tsx",
+      "app/[locale]/[...path]/page.tsx",
+      "app/[locale]/connect/page.tsx",
+      "app/[locale]/contact/page.tsx",
+    ]) {
+      const source = read(route);
+      expect(source, route).toContain("PageDocumentContent");
+      // The route branches on the MODE, never on a section type.
+      for (const type of PAGE_SECTION_TYPES) {
+        expect(source, `${route} must not switch on "${type}"`).not.toContain(`case "${type}"`);
+      }
     }
+
+    // ONE document schema, ONE declarative composer, ONE safe Markdown renderer.
+    const schemaOwners = sourceFiles
+      .filter((file) => readFileSync(file, "utf8").includes("pageDocumentSchema"))
+      .map(relative)
+      .sort();
+    expect(schemaOwners).toEqual(["adapters/content/json-page.ts", "core/page-document.ts"]);
+
+    const composers = sourceFiles
+      .filter((file) => readFileSync(file, "utf8").includes("from \"@/components/site/page-document-content\""))
+      .map(relative)
+      .sort();
+    expect(composers).toEqual([
+      "app/[locale]/[...path]/page.tsx",
+      "app/[locale]/connect/page.tsx",
+      "app/[locale]/contact/page.tsx",
+      "app/[locale]/page.tsx",
+    ]);
+
+    // The composer is site-neutral and configuration-independent: it may compose the
+    // section renderers and the shared primitives, and nothing else.
+    const composer = read("components/site/page-document-content.tsx");
+    for (const forbidden of ["@/config", "@/adapters", "siteConfig", "dangerouslySetInnerHTML"]) {
+      expect(composer, forbidden).not.toContain(forbidden);
+    }
+    // The Markdown renderer is the SAME one the Markdown mode uses.
+    expect(read("components/site/page-sections/section-support.tsx")).toContain("SafeMarkdownContent");
   });
 });
 

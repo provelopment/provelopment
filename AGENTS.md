@@ -153,9 +153,17 @@ content is what it *says*. Equally, unrelated technical configuration is not mov
 collections: offerings, portfolio items, articles, testimonials, policy documents and
 "About" pages are all pages, authored in the same two modes and served by the same ONE
 route. Content that only ever appears inside another page (quotes, cards, statistics,
-FAQ rows) is authored *in* that page — never as a separate filesystem collection. A
-page's route path mirrors the folders it is authored in, and the rule for it is declared
-once (`@/core/page-route-path`); adding one is not a reason to add a route file.
+FAQ rows) is authored *in* that page — as Markdown, or as declared sections in the JSON
+mode — never as a separate filesystem collection. A page's route path mirrors the folders
+it is authored in, and the rule for it is declared once (`@/core/page-route-path`); adding
+one is not a reason to add a route file.
+
+**The JSON mode is a declarative vocabulary, and the vocabulary is the extension point.**
+A section type, a property or a presentation option exists only if `@/core/page-document`
+declares it; a document that names anything else is refused. Extending the mode means
+extending that ONE module (schema, types and documented vocabulary) and mapping the new
+type in the ONE composer (`@/components/site/page-document-content.tsx`) — never adding a
+route, a second renderer or a second Markdown policy.
 
 Do not embed large amounts of business copy directly into reusable components.
 

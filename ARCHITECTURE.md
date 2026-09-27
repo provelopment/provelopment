@@ -271,6 +271,78 @@ allowlist is the boundary this project accepts. `sanitize-html` (MIT, built on
 htmlparser2) is server-side only, imported by exactly ONE module
 (`src/adapters/markdown/safe-markdown.ts`), and replaceable behind
 `renderSafeMarkdown` — an architecture test asserts the single-importer rule.
+#### Declarative JSON page authoring — the second mode's vocabulary (A2)
+
+The Markdown mode is for an ordinary author; the JSON mode is for an advanced one who
+needs page composition instead of prose. A JSON page is **data, never code**: an explicit
+envelope and an ordered list of sections, every one of them declared here — the
+vocabulary IS the schema.
+
+```text
+content/pages/json/<locale>/<route-path>.json
+{
+  "schemaVersion": 1,
+  "title": "…",            // required: page identity, metadata title and the ONLY h1
+  "description": "…",      // optional: the page's summary
+  "sections": [ … ]        // required, ordered, bounded (40)
+}
+```
+
+- **ONE document contract** — `src/core/page-document.ts` holds the envelope, the sixteen
+  section types (`hero`, `prose`, `media`, `gallery`, `actions`, `callout`, `cards`,
+  `features`, `columns`, `steps`, `stats`, `quote`, `table`, `faq`, `list`, `divider`),
+  the finite presentation vocabularies (`surface`, `align`, `columns`, `position`,
+  `ratio`, `ordered`, `variant`, `tone`), the structural bounds, the list of
+  Markdown-bearing fields and the heading outline (`page: 1, section: 2, item: 3`) as
+  DATA, plus the ONE Zod schema the types are inferred from (`@/core/contact-inquiry` is
+  the precedent for Zod in core). It is framework-free: no filesystem, no React, no
+  configuration.
+- **STRICT validation.** Every object in the schema is strict, so an undeclared property
+  is refused rather than ignored: a typo fails the build and names the file and the
+  property (`sections[2].items[0].title`), never silently producing a page with something
+  missing. The section union is discriminated on `type`, which is what makes those paths
+  precise.
+- **Accessibility is structural, not remembered.** An image either carries `alt` or
+  declares `decorative: true` — mutually exclusive, so an unnamed content image cannot be
+  published. Actions require a label (an accessible name). A table requires column
+  headings, and a row must fill them exactly. FAQ answers are required. No document can
+  choose a heading level, so the outline cannot be chaotic.
+- **Interpretation is ONE reader** — `src/adapters/content/json-page.ts` parses JSON
+  syntax (distinguishing malformed JSON from schema-invalid data), refuses an unsupported
+  `schemaVersion`, names an unknown section type by VALUE, and validates against the
+  schema. It renders nothing.
+- **The safe Markdown renderer is reused, never re-implemented.** Every Markdown-bearing
+  field goes through the SAME `renderSafeMarkdown` path as the Markdown authoring mode
+  (via `SafeMarkdownContent`), so raw HTML in a JSON page is inert and unsafe destinations
+  fail closed by the same policy. Paths are validated with `@/core/page-route-path`, and
+  destinations with `@/core/safe-url` — the same authorities the Markdown mode uses.
+- **ONE presentation boundary** — `src/components/site/page-document-content.tsx` is the
+  only place that maps a section type to a presentation, through
+  `src/components/site/page-sections/*`, which compose the existing primitives (`Heading`,
+  `Grid`, `NavItem`, `SafeMarkdownContent`) rather than new collection-shaped components.
+  The switch is exhaustive over the section union (a `never` assignment), so a new type
+  cannot be added without a presentation. The composer is site-neutral and
+  configuration-independent; the four page routes branch on the MODE, never on a section
+  type, and an architecture test asserts both.
+- **Assets are the site's normal assets.** An image references a same-site path
+  (`/assets/<file>`, mirrored from `content/assets/**`) or an absolute `http(s)` URL.
+  There is no second asset subsystem, no source import, and no `next/image` requirement
+  (plain `<img>`, like the banner and icon paths).
+- **No second route, no second store.** JSON pages use the SAME discovery, resolution,
+  precedence (`@/core/page-source`), route, static-param generation and sitemap as
+  Markdown pages: a valid JSON page is served, JSON wins over Markdown for the same
+  locale+route, nested JSON routes work, and fallback is unchanged. The A1 placeholder
+  that refused to serve JSON is gone.
+
+**Deliberately NOT part of the vocabulary.** No executable or author-supplied behaviour
+(no JavaScript, expressions, imports, JSX, component names, `eval`, handlers), no raw HTML
+or Markdown escape hatch, no styling (no classes, CSS, pixels or `style`), no unbounded
+nesting (a section has items; no sections inside sections), and no publishing metadata
+beyond title/summary — article dates, feeds and draft states belong to a publishing
+capability that does not exist yet and would need its own increment.
+
+### `public`
+
 
 ### `public`
 
@@ -859,8 +931,9 @@ What that means in practice:
   details, empty-state and card-image primitives, and their dictionary sections, went
   with the collections.
 - **Testimonial quotes, feature cards, statistics and FAQ rows are EMBEDDED content**:
-  they live inside the page that shows them (Markdown today; declarative JSON sections
-  when the A2 vocabulary lands). They never needed a filesystem collection.
+  they live inside the page that shows them — as Markdown today, or as declared sections
+  (`cards`, `quote`, `stats`, `faq`, `features`) in the declarative JSON mode A2 added.
+  They never needed a filesystem collection.
 - **The booking CTA survives.** `features.booking` still composes the booking action
   seam the home page renders; it was never collection-specific.
 - **Legal documents survive as configured links to pages.** `legal[]` still decides

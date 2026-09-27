@@ -30,8 +30,10 @@ are no other places to author website content, and nothing else to learn.
 - **Markdown** — ordinary text files. If you can write an email, you can write a
   page. This is what almost everyone should use, and it is safe by design.
 - **JSON** — structured data for an experienced author who needs page composition
-  Markdown cannot express. Its vocabulary is still being completed, so it is not
-  usable yet; that folder's README says exactly what is and is not available.
+  Markdown cannot express: a title, a summary and an ordered list of sections from a
+  fixed vocabulary (hero, prose, images, cards, features, steps, table, FAQ, and more).
+  It is data, never code, and everything it may say is documented in that folder's
+  README.
 
 A page becomes a real web address as soon as its file exists in a language folder —
 you never have to "register" a page anywhere.

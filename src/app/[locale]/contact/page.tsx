@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createPageSources } from "@/adapters/content/page-sources";
 import { ContactForm } from "@/components/site/contact-form";
+import { PageDocumentContent } from "@/components/site/page-document-content";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
@@ -98,7 +99,14 @@ export default async function ContactPage({ params }: ContactPageProps) {
       ) : null}
 
       <div className="mt-6">
-        <SafeMarkdownContent markdown={page.body} />
+        {page.kind === "markdown" ? (
+          <SafeMarkdownContent markdown={page.body} />
+        ) : (
+          // A JSON page authored for `/contact` supplies its sections; this route keeps
+          // its own page heading from the interface dictionary, so the document's title
+          // is metadata rather than a second page-level heading.
+          <PageDocumentContent document={page.document} locale={locale} withTitle={false} />
+        )}
       </div>
       <div className="mt-8">
         <ContactForm

@@ -35,6 +35,17 @@ function write(file: string, contents: string): void {
   writeFileSync(file, contents, "utf8");
 }
 
+/** A minimal VALID declarative document, as an author would write it. */
+function jsonDocument(title: string, sections: readonly unknown[]): string {
+  return `${JSON.stringify({ schemaVersion: 1, title, sections }, null, 2)}\n`;
+}
+
+/** A resolved page's Markdown body — the union is narrowed here, once. */
+function bodyOf(page: Awaited<ReturnType<typeof sources.resolve>>): string {
+  if (page === null || page.kind !== "markdown") throw new Error(`expected a Markdown page`);
+  return page.body;
+}
+
 describe("the page-sources composition", () => {
   beforeAll(() => {
     // Markdown (first-class) fixtures, flat AND nested.
@@ -80,13 +91,25 @@ describe("the page-sources composition", () => {
       path.join(root, "content", "pages", "markdown", "en", "offerings", "shared.md"),
       "# Shared (default locale)\n\nOnly in the default locale.\n",
     );
-    // JSON (first-class) fixtures: one shadowing the Markdown page, one alone, and one
-    // NESTED — the precedence applies to the complete route path.
-    write(path.join(root, "content", "pages", "json", SOURCES_LOCALE, "both.json"), "{}\n");
-    write(path.join(root, "content", "pages", "json", SOURCES_LOCALE, "json-only.json"), "{}\n");
+    // JSON (first-class) fixtures: one shadowing the Markdown page, one alone, one
+    // NESTED, one schema-invalid and one syntactically broken. The precedence applies to
+    // the complete route path, and every broken file fails loudly naming itself.
+    write(
+      path.join(root, "content", "pages", "json", SOURCES_LOCALE, "both.json"),
+      jsonDocument("JSON version", [{ type: "prose", body: "The declarative page wins." }]),
+    );
+    write(
+      path.join(root, "content", "pages", "json", SOURCES_LOCALE, "json-only.json"),
+      jsonDocument("JSON only", []),
+    );
     write(
       path.join(root, "content", "pages", "json", SOURCES_LOCALE, "offerings", "json-only.json"),
-      "{}\n",
+      jsonDocument("Nested JSON only", [{ type: "divider" }]),
+    );
+    write(path.join(root, "content", "pages", "json", SOURCES_LOCALE, "zz-invalid.json"), "{}\n");
+    write(
+      path.join(root, "content", "pages", "json", SOURCES_LOCALE, "zz-broken.json"),
+      '{ "schemaVersion": 1, "title": "Broken",\n',
     );
     // NOT page sources: files planted OUTSIDE the two mode roots, one with a route that
     // also exists as a real page (it must not shadow it) and one with a route that
@@ -149,7 +172,7 @@ describe("the page-sources composition", () => {
       locale: SOURCES_LOCALE,
       fallback: false,
     });
-    expect(page?.body).toContain("A safe Markdown page.");
+    expect(bodyOf(page)).toContain("A safe Markdown page.");
   });
 
   it("resolves a NESTED page through the same composition", async () => {
@@ -161,7 +184,7 @@ describe("the page-sources composition", () => {
       locale: SOURCES_LOCALE,
       fallback: false,
     });
-    expect(page?.body).toContain("A nested page.");
+    expect(bodyOf(page)).toContain("A nested page.");
   });
 
   it("publishes NOTHING from an obsolete collection-shaped path, and lets it shadow no page", async () => {
@@ -169,8 +192,8 @@ describe("the page-sources composition", () => {
     // still wins, and a path that is not one of the two mode roots is never consulted.
     const page = await sources.resolve("about", SOURCES_LOCALE);
     expect(page?.title).toBe("About");
-    expect(page?.body).toContain("A safe Markdown page.");
-    expect(page?.body).not.toContain("This must never be served.");
+    expect(bodyOf(page)).toContain("A safe Markdown page.");
+    expect(bodyOf(page)).not.toContain("This must never be served.");
 
     // A route that exists ONLY there is not a page at all.
     expect(await sources.resolve("zz-shadow", SOURCES_LOCALE)).toBeNull();
@@ -195,26 +218,41 @@ describe("the page-sources composition", () => {
     // so that locale's page answers even though the default locale has one too.
     const page = await sources.resolve("offerings/shared", SOURCES_LOCALE);
     expect(page).toMatchObject({ locale: SOURCES_LOCALE, fallback: false });
-    expect(page?.body).toContain("Only in the requested locale.");
+    expect(bodyOf(page)).toContain("Only in the requested locale.");
   });
 
-  it("stops loudly when a JSON source would be served, naming the file", async () => {
-    // JSON beats Markdown within a locale, so this route has a JSON winner.
-    await expect(sources.resolve("both", SOURCES_LOCALE)).rejects.toThrow(
-      new RegExp(`content[\\\\/]pages[\\\\/]json[\\\\/]${SOURCES_LOCALE}[\\\\/]both\\.json`),
+  it("lets a JSON page win over Markdown and serve its validated document", async () => {
+    // JSON beats Markdown within a locale, so this route has a JSON winner: the body the
+    // Markdown file declares is never served.
+    const page = await sources.resolve("both", SOURCES_LOCALE);
+    expect(page).toMatchObject({ kind: "json", locale: SOURCES_LOCALE, fallback: false });
+    if (page === null || page.kind !== "json") throw new Error("expected the JSON page");
+    expect(page.title).toBe("JSON version");
+    expect(page.document.sections).toHaveLength(1);
+    expect(page.document.sections[0]).toMatchObject({ type: "prose", body: "The declarative page wins." });
+
+    // A JSON-only route resolves the same way, as does a NESTED one: the rule is about
+    // the route, not its depth.
+    expect((await sources.resolve("json-only", SOURCES_LOCALE))?.kind).toBe("json");
+    const nested = await sources.resolve("offerings/json-only", SOURCES_LOCALE);
+    expect(nested).toMatchObject({ kind: "json", routePath: "offerings/json-only" });
+  });
+
+  it("stops loudly when a JSON file is invalid or malformed, naming the file and the property", async () => {
+    // Valid JSON that is not a valid DOCUMENT: the schema says which property is wrong.
+    await expect(sources.resolve("zz-invalid", SOURCES_LOCALE)).rejects.toThrow(
+      new RegExp(`json[\\\\/]${SOURCES_LOCALE}[\\\\/]zz-invalid\\.json`),
     );
-    await expect(sources.resolve("both", SOURCES_LOCALE)).rejects.toThrow(/not yet interpreted/);
-    // A JSON-only route behaves the same way: never silently ignored.
-    await expect(sources.resolve("json-only", SOURCES_LOCALE)).rejects.toThrow(/json-only\.json/);
-    // …and so does a NESTED JSON route: the rule is about the route, not its depth.
-    await expect(sources.resolve("offerings/json-only", SOURCES_LOCALE)).rejects.toThrow(
-      /offerings[\\\\/]json-only\.json/,
-    );
+    await expect(sources.resolve("zz-invalid", SOURCES_LOCALE)).rejects.toThrow(/schemaVersion/);
+    // Broken JSON SYNTAX is a different, equally loud failure.
+    await expect(sources.resolve("zz-broken", SOURCES_LOCALE)).rejects.toThrow(/Invalid JSON in page/);
   });
 
   it("lists every publishable route for a configured locale, nested paths included", async () => {
     // The inventory is PER LOCALE: a default-locale page (`offerings/fallback-page`,
     // which this locale resolves through fallback) is not listed as this locale's own.
+    // Discovery reports what the TREE holds, so a file whose contents are invalid is
+    // still a route — validity is decided when it is read, not when it is found.
     expect(await sources.listRoutes(SOURCES_LOCALE)).toEqual([
       "about",
       "both",
@@ -223,6 +261,8 @@ describe("the page-sources composition", () => {
       "offerings/json-only",
       "offerings/shared",
       "offerings/website-design",
+      "zz-broken",
+      "zz-invalid",
     ]);
     // A README (at ANY level), a `.gitkeep`-only directory and an obsolete
     // collection-shaped path are never listed.
