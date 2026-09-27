@@ -738,7 +738,7 @@ A page is authored in one of **two first-class modes**:
 | Where | What it is |
 | --- | --- |
 | `content/pages/markdown/<locale>/<route>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
-| `content/pages/json/<locale>/<route>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
+| `content/pages/json/<locale>/<route>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data composed from a fixed vocabulary of sections (hero, prose, media, gallery, actions, callout, cards, features, columns, steps, stats, quote, table, FAQ, list, divider). Anything the vocabulary does not declare is refused, naming the file and the property. |
 
 `<route>` is the page's path inside its locale folder — one name (`about`) or a folder
 path (`services/web-design`), because a page's URL is built from the folders it is
@@ -858,8 +858,8 @@ page inside that folder.
   Markdown list of links is the listing. Nothing generates it for you, and nothing
   needs to.
 - **Quotes, cards, statistics and FAQ rows are embedded**: they have no URL, so they
-  are written in the page that shows them. (Structured page sections for those are the
-  declarative JSON mode's job, once its vocabulary lands in `A2`.)
+  are written in the page that shows them — as Markdown, or as declared `cards`, `quote`,
+  `stats` and `faq` sections in the declarative JSON mode.
 - **There is no content feature flag.** A page exists because a file exists; a
   deployment hides a page by not linking to it.
 

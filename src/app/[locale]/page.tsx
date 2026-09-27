@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createBookingActionResolver } from "@/adapters/booking";
 import { BookingAction } from "@/components/site/booking-action";
+import { PageDocumentContent } from "@/components/site/page-document-content";
 import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Heading } from "@/components/ui/heading";
 import { Section } from "@/components/ui/section";
@@ -100,12 +101,20 @@ export default async function HomePage({
   if (authoredHome) {
     return (
       <Section as="article">
-        <Heading level={1} tone="title">
-          {authoredHome.title}
-        </Heading>
-        <div className="mt-6">
-          <SafeMarkdownContent markdown={authoredHome.body} />
-        </div>
+        {authoredHome.kind === "markdown" ? (
+          <>
+            <Heading level={1} tone="title">
+              {authoredHome.title}
+            </Heading>
+            <div className="mt-6">
+              <SafeMarkdownContent markdown={authoredHome.body} />
+            </div>
+          </>
+        ) : (
+          // A JSON home page renders through the same ONE composer as any other JSON
+          // page: the locale root is a route, not a second authoring model.
+          <PageDocumentContent document={authoredHome.document} locale={locale} />
+        )}
       </Section>
     );
   }

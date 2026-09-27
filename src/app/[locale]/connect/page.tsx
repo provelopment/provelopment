@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createPageSources } from "@/adapters/content/page-sources";
+import { PageDocumentContent } from "@/components/site/page-document-content";
 import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { AssetIcon } from "@/components/ui/asset-icon";
 import { Section } from "@/components/ui/section";
@@ -100,7 +101,14 @@ export default async function ConnectPage({ params }: ConnectPageProps) {
     <Section as="article">
       <Heading level={1} tone="title">{dictionary.connect.heading}</Heading>
       <div className="mt-6">
-        <SafeMarkdownContent markdown={page.body} />
+        {page.kind === "markdown" ? (
+          <SafeMarkdownContent markdown={page.body} />
+        ) : (
+          // A JSON page authored for `/connect` supplies its sections; this route keeps
+          // its own page heading (the interface dictionary owns the h1 here), so the
+          // document's title is metadata rather than a second page-level heading.
+          <PageDocumentContent document={page.document} locale={locale} withTitle={false} />
+        )}
       </div>
 
       <Grid columns="sm:grid-cols-2" gap="gap-4" className="mt-8">

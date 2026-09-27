@@ -74,6 +74,12 @@ tree stays clean.
   → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is
   measured on a target the author created; a raw-HTML anchor attempt in the same
   fixture must stay inert, and the scenario asserts both.
+- **advanced JSON** (`advanced-json` scenario): a declarative document authored under
+  `content/pages/json/en/` is discovered, validated and served by the real application —
+  exactly one `<h1>` (the document title), a Markdown field rendered (`**bold**`), a table
+  with real column headings, a FAQ disclosure whose question is a heading, an action whose
+  `route` resolved to `/en/services`, no element carrying an event handler, and the
+  author's raw HTML present as TEXT but never executed.
 - **nested pages** (`nested-pages` scenario): a page authored in a FOLDER
   (`content/pages/markdown/en/zz-nested/web-design.md`) is served at its nested URL
   (`/en/zz-nested/web-design`) through the ONE page route, with its authored title, its

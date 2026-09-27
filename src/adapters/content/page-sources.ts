@@ -7,11 +7,11 @@
  * winner. It is the composition boundary the routes and the sitemap consume, so no
  * route reimplements the precedence or the file layout.
  *
- *   `json`      `content/pages/json/<locale>/<route-path>.json` — discovered and
- *               ordered, NOT yet interpreted. A JSON source that wins the resolution
- *               FAILS LOUDLY, naming its file: the vocabulary that renders
- *               declarative JSON belongs to a later increment, and silently falling
- *               through to another source would ignore the file the author wrote.
+ *   `json`      `content/pages/json/<locale>/<route-path>.json` — read through the
+ *               declarative reader (`./json-page`) and validated against the ONE
+ *               document schema (`@/core/page-document`). The validated document is
+ *               rendered by the declarative page composer, and an invalid document
+ *               stops the build naming the file and the property.
  *   `markdown`  `content/pages/markdown/<locale>/<route-path>.md` — read through the
  *               authoring reader (`./authoring-page`) and rendered under the safe
  *               Markdown policy.
@@ -33,17 +33,17 @@
  */
 import { authoringPageRoutesFor, readAuthoringPageFile } from "./authoring-source-discovery";
 import { parseAuthoringPageFile } from "./authoring-page";
+import { parseJsonPageFile } from "./json-page";
 import { resolvePageSource } from "@/application/page-source-resolution";
-import { PAGE_AUTHORING_ROOTS, pageSourceFile } from "@/core/page-source";
+import type { PageDocument } from "@/core/page-document";
 import type { Locale } from "@/core/locale";
 
-/** One page ready to render. */
-export interface ResolvedPage {
-  /**
-   * The mode that answered. Only the Markdown mode is interpretable today, so a
-   * resolved page is always `markdown`; the JSON mode is discovered and ordered but
-   * refuses to be served (see `resolve`).
-   */
+/**
+ * One page ready to render — the winner of the declared precedence, in the shape its
+ * mode produces. The two modes are the ONLY shapes: a page is safe Markdown with a body,
+ * or a validated declarative document.
+ */
+export interface ResolvedMarkdownPage {
   readonly kind: "markdown";
   /** The page's route path inside its locale directory, e.g. `offerings/website-design`. */
   readonly routePath: string;
@@ -57,6 +57,19 @@ export interface ResolvedPage {
   readonly description?: string;
 }
 
+export interface ResolvedJsonPage {
+  readonly kind: "json";
+  readonly routePath: string;
+  readonly locale: Locale;
+  readonly fallback: boolean;
+  readonly title: string;
+  /** The validated declarative document, in authoring order. */
+  readonly document: PageDocument;
+  readonly description?: string;
+}
+
+export type ResolvedPage = ResolvedMarkdownPage | ResolvedJsonPage;
+
 export interface PageSourcesOptions {
   readonly defaultLocale: Locale;
   /** The site's configured locales. Only these can publish anything. */
@@ -67,16 +80,14 @@ export interface PageSources {
   /**
    * The page that answers `routePath` for `locale`, or `null` when no source does.
    *
-   * Throws when a JSON source wins: it is discovered and ordered, but not yet
-   * interpretable — the author must be told, not silently ignored.
+   * Throws when a source EXISTS but cannot be interpreted — a malformed JSON file, a
+   * document the schema refuses, unsupported Markdown metadata. The author must be told
+   * rather than served something else.
    */
   resolve(routePath: string, locale: Locale): Promise<ResolvedPage | null>;
   /** The publishable page route paths for one configured locale (both modes, sorted). */
   listRoutes(locale: Locale): Promise<readonly string[]>;
 }
-
-/** The authoring roots, for diagnostics — the core contract owns their names. */
-const AUTHORING_ROOTS_HINT = Object.values(PAGE_AUTHORING_ROOTS).join(" or ");
 
 export function createPageSources(options: PageSourcesOptions): PageSources {
   const { defaultLocale, locales } = options;
@@ -100,12 +111,16 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
       if (resolved === null) return null;
 
       if (resolved.kind === "json") {
-        const file = pageSourceFile("json", resolved.locale, routePath) ?? routePath;
-        throw new Error(
-          `JSON page authoring is declared but not yet interpreted: "${file}" would be served in ` +
-            "place of any Markdown source, so this build stops instead of ignoring it. " +
-            `Remove the file, or author the page in ${AUTHORING_ROOTS_HINT}.`,
-        );
+        const page = parseJsonPageFile(resolved.source, routePath, resolved.locale);
+        return {
+          kind: "json",
+          routePath,
+          locale: resolved.locale,
+          fallback: resolved.fallback,
+          title: page.title,
+          document: page.document,
+          ...(page.description === undefined ? {} : { description: page.description }),
+        };
       }
 
       const page = parseAuthoringPageFile(resolved.source, routePath, resolved.locale);

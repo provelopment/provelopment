@@ -3259,6 +3259,149 @@ async function runNestedPageScenario(chrome) {
   return rows;
 }
 
+/**
+ * ADVANCED JSON PAGES, IN A REAL BROWSER (FOUNDATION-PAGES-A2).
+ *
+ * The declarative authoring mode's acceptance: a JSON document authored under
+ * `content/pages/json/<locale>/…` is discovered, validated, served and rendered by the
+ * real application — one page-level heading, real semantic structure (a table with
+ * column headings, a disclosure group), working actions, the image alt contract, and
+ * Markdown fields whose raw HTML stays inert. ONE bounded scenario, not one per section.
+ */
+const JSON_ROUTE_PATH = "zz-json-page";
+const JSON_HEADING_ID_NEEDLE = "What we build";
+
+const JSON_PAGE_FIXTURE = JSON.stringify(
+  {
+    schemaVersion: 1,
+    title: "Declarative fixture page",
+    description: "Authored as JSON.",
+    sections: [
+      { type: "hero", eyebrow: "Declarative", lede: "Written as **data**, rendered as a page." },
+      {
+        type: "features",
+        heading: "What we build",
+        items: [
+          { title: "Websites", body: "Ordinary websites." },
+          { title: "Applications", body: "Ordinary applications." },
+        ],
+      },
+      { type: "prose", body: "<script>window.__jsonPageScript = true;</script>\n\nInert **prose**." },
+      {
+        type: "table",
+        heading: "Plans",
+        columns: ["Plan", "From"],
+        rows: [["Starter", "500"]],
+      },
+      {
+        type: "faq",
+        heading: "Questions",
+        items: [{ question: "Is it data?", answer: "Yes — and never code." }],
+      },
+      { type: "actions", actions: [{ label: "Go to services", route: "services" }] },
+    ],
+  },
+  null,
+  2,
+);
+
+async function runAdvancedJsonScenario(chrome) {
+  const port = BASE_PORT + 271;
+  BASE_URL = `http://localhost:${port}`;
+  const directory = join(ROOT, "content", "pages", "json", "en");
+  const pagePath = join(directory, `${JSON_ROUTE_PATH}.json`);
+  const url = `${BASE_URL}/en/${JSON_ROUTE_PATH}`;
+  const rows = [];
+  await mkdir(directory, { recursive: true });
+  await writeFile(pagePath, `${JSON_PAGE_FIXTURE}\n`, "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(`${BASE_URL}/en`);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    const page = await cdp.evaluate(`(() => {
+      const text = document.body.textContent || '';
+      const tags = Array.from(document.querySelectorAll('*'));
+      return {
+        h1Count: document.querySelectorAll('h1').length,
+        h1: (document.querySelector('h1') || {}).textContent || '',
+        strong: tags.filter((el) => el.tagName === 'STRONG').length,
+        tableHeaders: document.querySelectorAll('main table th[scope="col"]').length,
+        details: document.querySelectorAll('main details').length,
+        summaryHeading: (document.querySelector('main details summary h3') || {}).textContent || '',
+        actionHref: (() => {
+          const link = Array.from(document.querySelectorAll('main a')).find((a) => (a.textContent || '').includes('Go to services'));
+          return link ? link.getAttribute('href') : null;
+        })(),
+        scriptNodes: document.querySelectorAll('script:not([src])').length,
+        scriptCarriesAuthorText: Array.from(document.querySelectorAll('script')).some((s) =>
+          (s.textContent || '').includes('__jsonPageScript'),
+        ),
+        injected: typeof window.__jsonPageScript !== 'undefined',
+        inertText: text.includes('window.__jsonPageScript'),
+        handlerAttributes: tags.filter((el) => Array.from(el.attributes || []).some((a) => /^on/i.test(a.name))).length,
+      };
+    })()`);
+
+    check(rows, "json.page.served", !!page && page.h1Count === 1, `h1Count=${page && page.h1Count}`);
+    check(
+      rows,
+      "json.title.isTheOnlyH1",
+      !!page && page.h1 === "Declarative fixture page",
+      page && page.h1,
+    );
+    check(rows, "json.markdown.fieldRendered", !!page && page.strong >= 1, `strong=${page && page.strong}`);
+    check(rows, "json.table.columnHeadings", !!page && page.tableHeaders === 2, `th=${page && page.tableHeaders}`);
+    check(rows, "json.faq.disclosure", !!page && page.details === 1, `details=${page && page.details}`);
+    check(
+      rows,
+      "json.faq.questionIsAHeading",
+      !!page && page.summaryHeading === "Is it data?",
+      page && page.summaryHeading,
+    );
+    check(
+      rows,
+      "json.action.resolvedRoute",
+      !!page && page.actionHref === "/en/services",
+      page && page.actionHref,
+    );
+    check(rows, "json.rawHtml.inert", !!page && !page.injected && page.inertText, `injected=${page && page.injected}`);
+    check(
+      rows,
+      "json.noHandlersOrInjectedScripts",
+      // The framework's own hydration scripts are expected (and they legitimately carry
+      // the page TEXT as data). What must be impossible is EXECUTION: no element may
+      // carry a handler, and the author's script text never runs.
+      !!page && page.handlerAttributes === 0 && page.injected === false,
+      `handlers=${page && page.handlerAttributes} executed=${page && page.injected}`,
+    );
+
+    // The heading is a real in-page target, exactly as an authored Markdown heading is.
+    const headingId = await cdp.evaluate(`(() => {
+      const heading = Array.from(document.querySelectorAll('main h2')).find((el) => (el.textContent || '').includes(${JSON.stringify(JSON_HEADING_ID_NEEDLE)}));
+      return heading ? heading.id : null;
+    })()`);
+    check(rows, "json.section.headingPresent", headingId !== null, `id=${headingId}`);
+  } catch (error) {
+    check(rows, "advanced-json.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
+    await rm(pagePath, { force: true });
+    try {
+      await rmdir(directory);
+    } catch {
+      /* not empty (or already gone): leave it exactly as it is */
+    }
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -3301,6 +3444,12 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(nestedRows.map((r) => ({ presentation: "nested-pages", ...r })));
     const nestedFails = nestedRows.filter((r) => !r.ok).length;
     console.log(`[matrix] nested-pages: ${nestedRows.length - nestedFails}/${nestedRows.length} checks passed${nestedFails ? ` FAIL=${nestedFails}` : ""}`);
+    // FOUNDATION-PAGES-A2 — ADVANCED JSON: a declarative document is served and rendered
+    // by the real application (own server + fixture, both restored).
+    const jsonRows = await runAdvancedJsonScenario(chrome);
+    allRows = allRows.concat(jsonRows.map((r) => ({ presentation: "advanced-json", ...r })));
+    const jsonFails = jsonRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] advanced-json: ${jsonRows.length - jsonFails}/${jsonRows.length} checks passed${jsonFails ? ` FAIL=${jsonFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

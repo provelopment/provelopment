@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createDirectionLinkResolver } from "@/adapters/maps";
+import { PageDocumentContent } from "@/components/site/page-document-content";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
@@ -240,12 +241,21 @@ export default async function PageRoute({ params }: PageRouteProps) {
 
   return (
     <Section as="article">
-      <Heading level={1} tone="title">
-        {page.title}
-      </Heading>
-      <div className="mt-6">
-        <SafeMarkdownContent markdown={page.body} />
-      </div>
+      {page.kind === "markdown" ? (
+        <>
+          <Heading level={1} tone="title">
+            {page.title}
+          </Heading>
+          <div className="mt-6">
+            <SafeMarkdownContent markdown={page.body} />
+          </div>
+        </>
+      ) : (
+        // The JSON authoring mode's ONE render entry: a validated declarative document
+        // becomes a page through the composer, which owns the h1 and the section
+        // vocabulary. The route never switches on a section type itself.
+        <PageDocumentContent document={page.document} locale={locale} />
+      )}
 
       {context.region ? (
         <>

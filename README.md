@@ -90,7 +90,7 @@ change settings in `site.config.json`.
 | Mode | Who it is for | Where |
 | --- | --- | --- |
 | **Simple, safe Markdown** | anyone who can edit a text file — no programming needed | `content/pages/markdown/<locale>/<slug>.md` |
-| **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express (its vocabulary is still to come) | `content/pages/json/<locale>/<slug>.json` |
+| **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express | `content/pages/json/<locale>/<route>.json` |
 
 Both are documented for the person doing the authoring:
 [`content/pages/markdown/README.md`](content/pages/markdown/README.md) explains what
@@ -210,7 +210,8 @@ content/pages/markdown/en/blog/choosing-a-domain.md    ← one article
 
 Quotes, cards, statistics and FAQ rows are **embedded**: you write them in the page
 that shows them, because they have no URL of their own. (The declarative JSON mode is
-where structured page sections for those will live, once its vocabulary lands in A2.)
+where structured page sections live — the declarative JSON mode, documented in
+[`content/pages/json/README.md`](content/pages/json/README.md).)
 
 Navigation entries are configuration (`navigation[]`), their labels come from
 `config/i18n/en.json` → `navigation.items`, and a policy document is surfaced in the

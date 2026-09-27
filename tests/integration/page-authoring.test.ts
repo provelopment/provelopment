@@ -73,6 +73,7 @@ const createdPaths = [
   path.join(MARKDOWN_LOCALE_DIRECTORY, `${MARKDOWN_SLUG}.md`),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_SLUG}.md`),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, "README.md"),
+  path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_JSON_SLUG}.md`),
   path.join(root, "content", "pages", "json", "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
   path.join(root, "content", "pages", "en", `${OUTSIDE_ROOT_SLUG}.md`),
 ];
@@ -80,6 +81,11 @@ const createdPaths = [
 function write(file: string, contents: string): void {
   mkdirSync(path.dirname(file), { recursive: true });
   writeFileSync(file, contents, "utf8");
+}
+
+/** A minimal VALID declarative document, exactly as an author would write one. */
+function jsonDocument(title: string, sections: readonly unknown[]): string {
+  return `${JSON.stringify({ schemaVersion: 1, title, sections }, null, 2)}\n`;
 }
 
 /**
@@ -153,10 +159,18 @@ describe("the one page model, through the real application", () => {
     );
     // Documentation beside nested pages is inert, not content.
     write(path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, "README.md"), "# Not a page\n");
-    // A NESTED JSON page: ordered above Markdown, and not yet interpretable.
+    // A NESTED JSON page: a valid document, so it wins over the Markdown file with the
+    // same route and is served by the declarative composer.
     write(
       path.join(root, "content", "pages", "json", "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
-      "{}\n",
+      jsonDocument("Nested JSON fixture page", [
+        { type: "prose", body: "The declarative page wins." },
+      ]),
+    );
+    // A Markdown file at the SAME nested route: never served while the JSON wins.
+    write(
+      path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_JSON_SLUG}.md`),
+      "# Markdown version\n\nThe Markdown file must not be served.\n",
     );
     // A page-shaped file OUTSIDE the two mode roots: never a page source.
     write(
@@ -236,13 +250,26 @@ describe("the one page model, through the real application", () => {
     expect(html).toContain('<a href="#nested-details">the section</a>');
   });
 
-  it("orders JSON above Markdown at a NESTED route, and stops the build naming the file", async () => {
-    await expect(PageRoute(params(NESTED_SECTION, NESTED_JSON_SLUG))).rejects.toThrow(
-      /not yet interpreted/,
+  it("orders JSON above Markdown at a NESTED route, and serves the JSON document", async () => {
+    // The JSON fixture is a valid document, so it WINS and renders: the Markdown file at
+    // the same nested route is never served.
+    const html = renderToStaticMarkup(await PageRoute(params(NESTED_SECTION, NESTED_JSON_SLUG)));
+    expect(html).toContain("Nested JSON fixture page");
+    expect(html).toContain("The declarative page wins.");
+    expect(html).not.toContain("The Markdown file must not be served.");
+  });
+
+  it("stops the build when a JSON document is invalid, naming the file and the property", async () => {
+    write(
+      path.join(root, "content", "pages", "json", "en", "zz-invalid.json"),
+      `${JSON.stringify({ schemaVersion: 2, title: "Wrong version", sections: [] }, null, 2)}\n`,
     );
-    await expect(PageRoute(params(NESTED_SECTION, NESTED_JSON_SLUG))).rejects.toThrow(
-      new RegExp(`${NESTED_SECTION}[\\\\/]${NESTED_JSON_SLUG}\\.json`),
-    );
+    try {
+      await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/zz-invalid\.json/);
+      await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/schemaVersion/);
+    } finally {
+      cleanUp(path.join(root, "content", "pages", "json", "en", "zz-invalid.json"));
+    }
   });
 
   it("never publishes a README, in any shape, and never serves an unknown path", async () => {
@@ -308,6 +335,28 @@ describe("the one page model, through the real application", () => {
       expect(html).not.toContain("home-hero");
     } finally {
       cleanUp(path.join(MARKDOWN_LOCALE_DIRECTORY, "home.md"));
+    }
+  });
+
+  it("lets a JSON document author the home page through the SAME composer", async () => {
+    // The locale root is a route, not a second authoring model: `home.json` renders at
+    // `/{locale}` with no special case anywhere.
+    write(
+      path.join(root, "content", "pages", "json", "en", "home.json"),
+      jsonDocument("JSON home page", [{ type: "prose", body: "Authored with JSON." }]),
+    );
+    try {
+      const html = renderToStaticMarkup(
+        await HomePage({ params: Promise.resolve({ locale: "en" }) }),
+      );
+      expect(html).toContain("JSON home page");
+      expect(html).toContain("Authored with JSON.");
+      expect(html).not.toContain("home-hero");
+      // …and never as `/{locale}/home`.
+      const paths = (await generateStaticParams()).map((route) => route.path.join("/"));
+      expect(paths).not.toContain("home");
+    } finally {
+      cleanUp(path.join(root, "content", "pages", "json", "en", "home.json"));
     }
   });
 });
