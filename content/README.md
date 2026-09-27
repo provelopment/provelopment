@@ -23,6 +23,13 @@ are no other places to author website content, and nothing else to learn.
 | --- | --- | --- |
 | Add or edit a **page** in plain Markdown (the usual choice) | `pages/markdown/<language>/<page>.md` | [`pages/markdown/README.md`](pages/markdown/README.md) |
 | Build an **advanced page** from structured data | `pages/json/<language>/<page>.json` | [`pages/json/README.md`](pages/json/README.md) |
+
+Both modes give a page exactly **one** top-level heading — its **page title**. A heading you
+write inside a page sits below that title automatically (`# Services` becomes the first level
+under it, `## …` the second), so you write headings naturally and never set a level yourself.
+
+> **Where do I edit my website?** — the page files above, and your pictures in
+> [`assets/`](assets/README.md). Everything else is configuration, not content.
 | Add a **logo, favicon, icon or image** | `assets/` | [`assets/README.md`](assets/README.md) |
 
 ## Pages: two ways to author, one obvious choice

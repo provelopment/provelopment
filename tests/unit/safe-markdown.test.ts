@@ -6,6 +6,9 @@ import {
   MARKDOWN_ALLOWED_TAGS,
   MARKDOWN_FORBIDDEN_ATTRIBUTES,
   MARKDOWN_FORBIDDEN_ELEMENTS,
+  MARKDOWN_HEADING_LEVEL_OFFSET,
+  MARKDOWN_HEADING_TAGS,
+  MARKDOWN_MAX_HEADING_LEVEL,
 } from "@/core/markdown-policy";
 
 /**
@@ -70,7 +73,7 @@ describe("the safe Markdown renderer", () => {
   it("renders ordinary Markdown as ordinary Markdown", () => {
     const html = renderSafeMarkdown(RICH_MARKDOWN);
 
-    expect(html).toContain('<h1 id="title">Title</h1>');
+    expect(html).toContain('<h2 id="title">Title</h2>');
     expect(html).toContain("<strong>strong</strong>");
     expect(html).toContain("<em>emphasis</em>");
     expect(html).toContain("<code>code</code>");
@@ -152,7 +155,7 @@ describe("the safe Markdown renderer", () => {
  */
 describe("the documented Markdown capability matrix", () => {
   const cases: readonly [string, string, string][] = [
-    ["headings", "# One\n\n## Two\n", "<h2"],
+    ["headings", "# One\n\n## Two\n", '<h2 id="one">One</h2>'],
     ["paragraphs", "A paragraph.\n", "<p>A paragraph.</p>"],
     ["bold", "**bold**\n", "<strong>bold</strong>"],
     ["italic", "*italic*\n", "<em>italic</em>"],
@@ -201,18 +204,85 @@ describe("the documented Markdown capability matrix", () => {
   });
 });
 
+/**
+ * THE PAGE TITLE IS THE ONLY H1 (FOUNDATION-PAGES-H1).
+ *
+ * A rendered authored page has exactly one level-1 heading — its page title — so a heading
+ * written INSIDE a Markdown body is rendered RELATIVE to it, one level below the level the
+ * author typed. Ordinary authoring therefore stays ordinary: `# Services` is still how you
+ * write a section, and nobody has to remember to start at `##` or to delete a heading.
+ *
+ * These assertions are the written contract `content/pages/markdown/README.md` gives authors,
+ * so the guide cannot drift from the renderer.
+ */
+describe("authored headings are relative to the page title", () => {
+  /** The documented mapping, as data: authored depth → rendered level. */
+  const renderedLevelFor = (authoredDepth: number) =>
+    Math.min(authoredDepth + MARKDOWN_HEADING_LEVEL_OFFSET, MARKDOWN_MAX_HEADING_LEVEL);
+
+  it.each([1, 2, 3, 4, 5, 6])("renders an authored level %i heading one level lower", (depth) => {
+    const html = renderSafeMarkdown(`${"#".repeat(depth)} Opening hours\n`);
+
+    expect(html).toContain(`<h${renderedLevelFor(depth)} id="opening-hours">Opening hours</h${renderedLevelFor(depth)}>`);
+    // …and never the level the author typed: `#` must not stay level 1.
+    if (depth === 1) expect(html).not.toContain("<h1");
+  });
+
+  it("caps at the deepest level HTML has: `#####` and `######` both render h6", () => {
+    expect(renderSafeMarkdown("##### Fine print\n")).toContain('<h6 id="fine-print">');
+    expect(renderSafeMarkdown("###### Footnotes\n")).toContain('<h6 id="footnotes">');
+    // No `h7` (or any other invented element) can be produced.
+    expect(renderSafeMarkdown("####### Seven\n")).not.toMatch(/<h7/);
+    expect(tagsIn(renderSafeMarkdown("####### Seven\n")).every((tag) => MARKDOWN_ALLOWED_TAGS.includes(tag))).toBe(true);
+  });
+
+  it("produces NO authored h1 anywhere in a real page's Markdown", () => {
+    const html = renderSafeMarkdown(`${RICH_MARKDOWN}\n${HOSTILE_MARKDOWN}`);
+    const allLevels = Array.from({ length: 6 }, (_, index) => `${"#".repeat(index + 1)} Level ${index + 1}`).join("\n\n");
+
+    // Neither the ordinary fixture (which opens with `# Title`) nor a document that uses
+    // every level may emit a level-1 heading: that belongs to the page title alone.
+    expect(html).not.toMatch(/<h1[\s>]/i);
+    expect(renderSafeMarkdown(allLevels)).not.toMatch(/<h1[\s>]/i);
+    // The element the page CANNOT produce is also absent from the allowlist, so layer 2
+    // would drop it even if layer 1 were wrong.
+    expect(MARKDOWN_ALLOWED_TAGS).not.toContain("h1");
+    expect(MARKDOWN_HEADING_TAGS).toEqual(["h2", "h3", "h4", "h5", "h6"]);
+  });
+
+  it("keeps the author's fragment target working after the shift", () => {
+    const html = renderSafeMarkdown("See [jump](#opening-hours) below.\n\n# Opening Hours\n");
+
+    expect(html).toContain('<h2 id="opening-hours">Opening Hours</h2>');
+    expect(html).toContain('<a href="#opening-hours">jump</a>');
+    // The id comes from the heading's WORDS, so the level shift does not change it: a page
+    // written with `## Opening Hours` before the shift keeps resolving the same fragment.
+    expect(renderSafeMarkdown("## Opening Hours\n")).toContain('id="opening-hours"');
+  });
+
+  it("allocates duplicate ids deterministically across shifted levels", () => {
+    const ids = [
+      ...renderSafeMarkdown("# Notes\n\n## Notes\n\n###### Notes\n").matchAll(
+        /<[a-zA-Z][^>]*\sid="([^"]*)"/g,
+      ),
+    ].map((match) => match[1]);
+
+    expect(ids).toEqual(["notes", "notes-2", "notes-3"]);
+  });
+});
+
 describe("heading fragments", () => {
   it("gives a heading a deterministic id an author's fragment link can reach", () => {
     const html = renderSafeMarkdown("See [hours](#opening-hours) below.\n\n## Opening Hours\n");
 
-    expect(html).toContain('<h2 id="opening-hours">Opening Hours</h2>');
+    expect(html).toContain('<h3 id="opening-hours">Opening Hours</h3>');
     expect(html).toContain('<a href="#opening-hours">hours</a>');
   });
 
   it("derives the id from the heading's own words, whatever markup they carry", () => {
-    expect(renderSafeMarkdown("## **Bold** and `code`\n")).toContain('<h2 id="bold-and-code">');
-    expect(renderSafeMarkdown("## Café Hours\n")).toContain('<h2 id="cafe-hours">');
-    expect(renderSafeMarkdown("## !!!\n")).toContain('<h2 id="section">');
+    expect(renderSafeMarkdown("## **Bold** and `code`\n")).toContain('<h3 id="bold-and-code">');
+    expect(renderSafeMarkdown("## Café Hours\n")).toContain('<h3 id="cafe-hours">');
+    expect(renderSafeMarkdown("## !!!\n")).toContain('<h3 id="section">');
   });
 
   it("disambiguates repeated headings within one document", () => {

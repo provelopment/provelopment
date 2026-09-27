@@ -36,11 +36,25 @@
  * needs a target — and they cannot write one, because raw HTML is inert here and no
  * attribute is author-settable. So the renderer GENERATES a heading id from the
  * heading text, by the ONE documented rule in `@/core/heading-anchor`
- * (`## Opening Hours` → `#opening-hours`, repeats disambiguated `-2`, `-3`, …). It
+ * (`# Opening Hours` → `#opening-hours`, repeats disambiguated `-2`, `-3`, …). It
  * is the only attribute produced outside `href`/`title`/`src`/`alt`/`class`, the
  * allowlist grants `id` to headings only, and layer 2 re-checks the SHAPE of every
  * id (`isHeadingAnchor`) — so a mistake in layer 1 cannot put an arbitrary attribute
  * value into a page.
+ *
+ * The id comes from the heading's WORDS, so it does not change with the heading's
+ * rendered level: shifting `# Opening hours` down to `<h2>` still yields
+ * `id="opening-hours"`, and every existing fragment link keeps working.
+ *
+ * HEADING LEVELS ARE RELATIVE TO THE PAGE TITLE
+ * ---------------------------------------------
+ * A page's title is its ONE level-1 heading, so a heading written in the body is
+ * rendered one level BELOW the level the author typed
+ * (`MARKDOWN_HEADING_LEVEL_OFFSET`), capped at the deepest level HTML has
+ * (`# Services` → `<h2>`, `## Website design` → `<h3>`, `###### …` → `<h6>`).
+ * Ordinary Markdown authoring therefore stays ordinary — nobody has to remember to
+ * start at `##` — and this path can never emit an authored `h1` (`h1` is not in the
+ * allowlist either, so layer 2 would drop one).
  *
  * WHY A LIBRARY RATHER THAN A CLEAN-UP REGEX (dependency justification)
  * -------------------------------------------------------------------
@@ -70,7 +84,9 @@ import {
   MARKDOWN_ALLOWED_TAGS,
   MARKDOWN_CODE_LANGUAGE_CLASS_PREFIX,
   MARKDOWN_CODE_LANGUAGE_PATTERN,
+  MARKDOWN_HEADING_LEVEL_OFFSET,
   MARKDOWN_HEADING_TAGS,
+  MARKDOWN_MAX_HEADING_LEVEL,
 } from "@/core/markdown-policy";
 import { classifyAuthorUrl } from "@/core/safe-url";
 
@@ -204,13 +220,21 @@ function createAuthoringRenderer(nextHeadingAnchor: HeadingAnchorAllocator) {
 
     /**
      * A heading keeps its ordinary semantics and gains a DETERMINISTIC fragment id:
-     * `## Opening Hours` becomes `<h2 id="opening-hours">Opening Hours</h2>`, so the
-     * author's `[hours](#opening-hours)` has a real target. Levels are clamped to
-     * 1–6 so the emitted element is always one the allowlist names, and the id is
-     * escaped here as well as shape-checked by layer 2.
+     * `# Opening hours` becomes `<h2 id="opening-hours">Opening hours</h2>`, so the
+     * author's `[hours](#opening-hours)` has a real target.
+     *
+     * The level is RELATIVE to the page title: the title is the document's one `h1`,
+     * so an authored heading is rendered one level below the level the author typed
+     * (`#` → `h2`, `##` → `h3`, …) and the depth CAPS at the deepest level HTML has —
+     * `#####` and `######` both render `h6`, so no `h7` can be created. The id is
+     * derived from the heading's words and therefore does not depend on the level, and
+     * it is escaped here as well as shape-checked by layer 2.
      */
     heading(this: Renderer, token: Tokens.Heading): string {
-      const depth = Math.min(Math.max(token.depth, 1), 6);
+      const depth = Math.min(
+        Math.max(token.depth, 1) + MARKDOWN_HEADING_LEVEL_OFFSET,
+        MARKDOWN_MAX_HEADING_LEVEL,
+      );
       const id = nextHeadingAnchor(headingPlainText(token.tokens));
       const body = this.parser.parseInline(token.tokens) as string;
       return `<h${depth} id="${escapeAuthorText(id)}">${body}</h${depth}>`;

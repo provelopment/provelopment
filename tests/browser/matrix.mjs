@@ -2469,7 +2469,7 @@ async function authoredAnchorTarget(cdp) {
       rawHtmlInert: authoredHtmlAnchor === null,
       rawHtmlAsText: text.includes('zz-nav-anchor'),
       // The AUTHORED heading did produce the documented fragment target.
-      headingIsTarget: !!heading && heading.tagName === 'H2',
+      headingIsTarget: !!heading && heading.tagName === 'H3',
     };
   })()`);
 }
@@ -3054,6 +3054,19 @@ async function runSafeMarkdownScenario(chrome) {
           return link ? link.getAttribute('href') : null;
         })(),
         authorIdInert: document.getElementById('author-made-id') === null,
+        // FOUNDATION-PAGES-H1 — the document has EXACTLY ONE level-1 heading (the page
+        // title), and an authored heading is rendered one level BELOW what the author wrote.
+        h1Count: document.querySelectorAll('h1').length,
+        h1Text: (document.querySelector('h1') || {}).textContent || '',
+        // The page title (the document's one h1) and the authored prose share the <main>
+        // region, so the headings in THAT region, in document order, are the whole heading
+        // ladder a visitor receives: title first, then the author's own headings.
+        contentHeadings: [...document.querySelectorAll('main h1, main h2, main h3, main h4, main h5, main h6')].map((element) => element.tagName),
+        authoredHashLevel: (() => {
+          const heading = [...document.querySelectorAll('main h2, main h3, main h4, main h5, main h6')]
+            .find((element) => (element.textContent || '').trim() === 'Safe Markdown fixture');
+          return heading ? heading.tagName : null;
+        })(),
         nestedList: !!document.querySelector('main ul ul'),
         quote: !!document.querySelector('main blockquote'),
         strike: !!document.querySelector('main del'),
@@ -3082,9 +3095,21 @@ async function runSafeMarkdownScenario(chrome) {
     check(rows, "safeMarkdown.capability.quote", !!page && page.quote);
     check(rows, "safeMarkdown.capability.strikethrough", !!page && page.strike);
 
+    // ── FOUNDATION-PAGES-H1: the page title is the ONLY h1 ────────────────────
+    check(rows, "safeMarkdown.h1.exactlyOne", !!page && page.h1Count === 1, `count=${page && page.h1Count}`);
+    check(rows, "safeMarkdown.h1.isThePageTitle", !!page && page.h1Text === "Safe Markdown fixture", page && page.h1Text);
+    // The served page's whole heading ladder, in document order: the page title is the ONE
+    // h1, the author's `# Safe Markdown fixture` is the h2 beneath it, and the author's two
+    // `## Fixture Section` headings are h3s. Nothing the author wrote landed at level 1.
+    check(rows, "safeMarkdown.heading.exactlyOneH1ThenAuthoredLevels", !!page && page.contentHeadings.join(",") === "H1,H2,H3,H3", page && page.contentHeadings.join(","));
+    // The author wrote `# Safe Markdown fixture` and `## Fixture Section`. The first renders as
+    // an h2 (below the title) and the second as an h3 (below the first) — while the ids the
+    // author's fragment link depends on stay exactly where they were.
+    check(rows, "safeMarkdown.heading.authoredHashIsH2", !!page && page.authoredHashLevel === "H2", page && page.authoredHashLevel);
+
     // ── A1D: authored heading fragments, and the shell's clearance for them ───
-    check(rows, "safeMarkdown.fragment.headingId", !!page && page.sectionId === "H2", `tag=${page && page.sectionId}`);
-    check(rows, "safeMarkdown.fragment.duplicateDisambiguated", !!page && page.duplicateId === "H2", `tag=${page && page.duplicateId}`);
+    check(rows, "safeMarkdown.fragment.headingId", !!page && page.sectionId === "H3", `tag=${page && page.sectionId}`);
+    check(rows, "safeMarkdown.fragment.duplicateDisambiguated", !!page && page.duplicateId === "H3", `tag=${page && page.duplicateId}`);
     check(rows, "safeMarkdown.fragment.linkPointsAtIt", !!page && page.fragmentHref === `#${SAFE_MARKDOWN_HEADING_ID}`, page && page.fragmentHref);
     // An author-supplied id in raw HTML stays inert: no element carries it.
     check(rows, "safeMarkdown.fragment.authorIdInert", !!page && page.authorIdInert);
@@ -3217,7 +3242,7 @@ async function runNestedPageScenario(chrome) {
     check(rows, "nested.route.served", !!page && page.body, `body=${page && page.body}`);
     check(rows, "nested.title.authored", !!page && page.heading === "Nested fixture page", page && page.heading);
     check(rows, "nested.capability.table", !!page && page.tableCells === 4, `cells=${page && page.tableCells}`);
-    check(rows, "nested.fragment.headingId", !!page && page.target === "H2", `tag=${page && page.target}`);
+    check(rows, "nested.fragment.headingId", !!page && page.target === "H3", `tag=${page && page.target}`);
     check(
       rows,
       "nested.fragment.linkPointsAtIt",

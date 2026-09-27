@@ -105,13 +105,32 @@ We are open Monday to Friday, 9am to 5pm.
 misspelled setting is reported as an error when the site is built, so a typo can never
 be silently ignored.
 
+## Headings, and the page's own title
+
+The page's title is the page's **biggest heading**. Everything you write inside the page
+sits underneath it, so you never have to think about heading levels — the site places
+them for you:
+
+| You write | The page shows |
+| --- | --- |
+| the page title (from `title:`, or your first `#` line) | the page's one top-level heading |
+| `# Services` | a heading one level down |
+| `## Website design` | a heading two levels down |
+| `### Card layouts` | a heading three levels down |
+| `##### Fine print` | the smallest heading there is |
+
+So `#` is still how you write your main sections and `##` the parts inside them — exactly
+as you would anywhere else. Nothing is removed and nothing is rejected: `# Services`
+simply appears one step below the page title, which is why a page can never end up with
+two equally important top-level headings.
+
 ## What you can write
 
 Everything below is supported and tested. Nothing in this list is aspirational.
 
 | To write… | Type this |
 | --- | --- |
-| A heading | `# Heading` (`##`, `###` … for smaller ones) |
+| A heading | `# Heading` (`##`, `###` … for smaller ones). See *Headings, and the page's own title* above — your headings sit under the page title automatically |
 | A paragraph | Just write, with a blank line between paragraphs |
 | **Bold** | `**bold**` |
 | *Italic* | `*italic*` |

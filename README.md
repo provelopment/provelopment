@@ -119,6 +119,11 @@ section of your own page;
 mode's role and its current status. Your artwork lives in
 [`content/assets/`](content/assets/README.md).
 
+Whichever mode you choose, **the page title is the page's only top-level heading**.
+Headings you write inside a page are placed below it automatically, so `#` is still how
+you write a section and `##` the parts inside it — you never have to start at `##` or
+delete a heading to keep the page valid.
+
 ## Publishing your changes
 
 Editing a file is not publishing it. A change reaches the website when it is
@@ -156,11 +161,6 @@ file under `content/`.
 >    CUSTOMIZING.md), and the reference deployment will ship with it enabled. The
 >    capability itself is generic platform behaviour; the reference site's own choice to
 >    enable it is reference configuration and lands with the reference content.
-> 3. **A recorded Markdown detail (required before the reference content).** A Markdown
->    page's authored `# Heading` can still produce a second level-1 heading beside the
->    page title the renderer supplies. The JSON authoring mode has no such gap; the
->    Markdown mode gets a small bounded page-authoring closure increment (after N2, before
->    the reference content) so the one-H1 contract holds in both modes.
 
 The Foundation ships **one authored page** (the configuration-driven landing page)
 and **no page files**: the two authoring roots hold their documentation only, so a

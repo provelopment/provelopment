@@ -239,7 +239,7 @@ describe("the one page model, through the real application", () => {
     expect(html).toContain("<th>Day</th>");
     expect(html).toContain("<td>Monday</td>");
     // …and a heading the author's own `[details](#details-heading)` can reach.
-    expect(html).toContain('<h2 id="details-heading">Details heading</h2>');
+    expect(html).toContain('<h3 id="details-heading">Details heading</h3>');
     expect(html).toContain('<a href="#details-heading">details</a>');
   });
 
@@ -250,7 +250,7 @@ describe("the one page model, through the real application", () => {
     expect(html).toContain("Served at a nested route, with its own fragment target.");
     // Nesting must not weaken the authoring capability: the generated heading id and
     // the author's fragment link work exactly as they do on a top-level page.
-    expect(html).toContain('<h2 id="nested-details">Nested details</h2>');
+    expect(html).toContain('<h3 id="nested-details">Nested details</h3>');
     expect(html).toContain('<a href="#nested-details">the section</a>');
   });
 

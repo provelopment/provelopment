@@ -165,6 +165,13 @@ extending that ONE module (schema, types and documented vocabulary) and mapping 
 type in the ONE composer (`@/components/site/page-document-content.tsx`) — never adding a
 route, a second renderer or a second Markdown policy.
 
+**The page title is a page's only level-1 heading, in both modes.** A heading authored
+inside a body is rendered RELATIVE to that title (`# Services` → `<h2 id="services">`, up to
+`<h6>`), so authored Markdown stays ordinary — `#` is still how a section is written, no
+page is refused and no heading is removed — while no path can emit an authored `h1`. The
+mapping is declared once in `@/core/markdown-policy` and enforced twice: the renderer shifts
+the level and `h1` is absent from the allowlist.
+
 Do not embed large amounts of business copy directly into reusable components.
 
 Prefer the established content system once it exists.
