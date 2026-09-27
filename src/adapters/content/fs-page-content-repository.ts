@@ -3,13 +3,12 @@ import path from "node:path";
 
 import type { PageContentRepository } from "@/application/page-content-repository";
 import { isWellFormedLocale, type Locale } from "@/core/locale";
-import type { PageContent } from "@/core/page-content";
+import { isContentSlug, type PageContent } from "@/core/page-content";
 import { parseOfferingsFile, parsePageFile, parsePortfolioFile, parsePostFile, parseTestimonialsFile } from "./frontmatter";
 
-/** Slugs are restricted to safe filename characters. */
-const validSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
-/** Parser used for the repository's collection. */
+/**
+ * Parser used for the repository's collection.
+ */
 export type ContentParser<T extends PageContent = PageContent> = (
   raw: string,
   slug: string,
@@ -82,7 +81,7 @@ export function createFileSystemPageContentRepository<
 
   return {
     async findBySlug(slug, locale): Promise<T | null> {
-      if (!validSlugPattern.test(slug) || !isWellFormedLocale(locale)) {
+      if (!isContentSlug(slug) || !isWellFormedLocale(locale)) {
         return null;
       }
 
@@ -115,7 +114,10 @@ export function createFileSystemPageContentRepository<
       return entries
         .filter((file) => file.endsWith(".md"))
         .map((file) => file.slice(0, -3))
-        .filter((slug) => validSlugPattern.test(slug))
+        // The slug rule is the ONE core authority (`@/core/page-content`), so the
+        // legacy repository can never disagree with the authoring modes about what
+        // a page may be called.
+        .filter((slug) => isContentSlug(slug))
         .sort();
     },
   };

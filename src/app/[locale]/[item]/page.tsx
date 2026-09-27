@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { createDirectionLinkResolver } from "@/adapters/maps";
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
-import { MarkdownContent } from "@/components/site/markdown-content";
+import { createPageSources } from "@/adapters/content/page-sources";
+import { PageBody } from "@/components/site/page-body";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
@@ -15,15 +15,24 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { regionsForLocale, regionalPath, buildRegionalLanguageAlternates } from "@/core/regional-pages";
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
-const pageContentRepository = createFileSystemPageContentRepository({
+/** The configured locales — the only locales that can publish anything. */
+const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/**
+ * THE ONE PAGE-SOURCE COMPOSITION this route consults: the two first-class
+ * authoring modes (`config/pages-markdown`, `config/pages-json`) plus the legacy
+ * `content/pages` compatibility mechanism, in the declared precedence order
+ * (`@/core/page-source`). The route never decides where a page comes from — it
+ * asks, and renders what answered.
+ */
+const pages = createPageSources({
   defaultLocale: siteConfig.defaultLocale,
+  locales: localeCodes,
 });
 
 // Composition boundary (identical pattern to the app factories): the maps
 // factory selects the directions adapter from validated configuration.
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
-
-const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
 /**
  * Content slugs served by their own static routes and therefore never
@@ -76,7 +85,7 @@ export async function generateStaticParams(): Promise<{ locale: string; item: st
   const params: { locale: string; item: string }[] = [];
   for (const locale of siteConfig.locales) {
     // Flat non-regional content pages (Phase K behavior).
-    const slugs = await pageContentRepository.listSlugs(locale.code);
+    const slugs = await pages.listSlugs(locale.code);
     for (const slug of slugs) {
       if (STATIC_ROUTE_SLUGS.has(slug)) continue;
       if (regionsForLocale(siteConfig.pageBindings, locale.code).includes(slug)) continue;
@@ -97,10 +106,13 @@ function isRegionalLanding(locale: string, item: string): boolean {
 
 export async function generateMetadata({ params }: ItemPageProps): Promise<Metadata> {
   const { locale, item } = await params;
-  const content = await pageContentRepository.findBySlug(item, locale);
-  if (!content) return {};
+  const page = await pages.resolve(item, locale);
+  if (!page) return {};
 
-  const title = content.title;
+  const title = page.title;
+  // An authored page may carry its own summary; a page without one keeps the
+  // site's configured description, exactly as every page did before.
+  const description = page.description ?? siteConfig.description;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
   if (isRegionalLanding(locale, item)) {
@@ -115,7 +127,7 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
     const canonical = `${siteConfig.url}${regionalPath(locale, item, null)}`;
     return {
       title,
-      description: siteConfig.description,
+      description,
       alternates: {
         canonical,
         languages: Object.keys(alternates).length > 0 ? alternates : undefined,
@@ -143,7 +155,7 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
   const canonical = `${siteConfig.url}/${locale}/${item}`;
   return {
     title,
-    description: siteConfig.description,
+    description,
     alternates: {
       canonical,
       languages: buildLanguageAlternates({
@@ -173,8 +185,8 @@ export async function generateMetadata({ params }: ItemPageProps): Promise<Metad
 
 export default async function ItemPage({ params }: ItemPageProps) {
   const { locale, item } = await params;
-  const content = await pageContentRepository.findBySlug(item, locale);
-  if (!content) notFound();
+  const page = await pages.resolve(item, locale);
+  if (!page) notFound();
 
   const regionId = isRegionalLanding(locale, item) ? item : null;
   const context = resolveRegionalPageContext(
@@ -186,9 +198,11 @@ export default async function ItemPage({ params }: ItemPageProps) {
 
   return (
     <Section as="article">
-      <Heading level={1} tone="title">{content.title}</Heading>
+      <Heading level={1} tone="title">{page.title}</Heading>
       <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
+        {/* The shared body selector: a safe-Markdown page and a legacy content page
+            render through their own trust regime, chosen in ONE place. */}
+        <PageBody kind={page.kind} markdown={page.body} />
       </div>
 
       {context.region ? (

@@ -70,3 +70,9 @@ tree stays clean.
   persistent), the bottom-bar More disclosure keeps its focus/inert/Escape/scroll
   behaviour while scrolled, the primary CTA stays in normal flow, and the
   configured destinations are unchanged.
+- **safe Markdown** (`safe-markdown` scenario): an authored page under
+  `config/pages-markdown/en/` is served through the normal route with its authored
+  title, its ordinary Markdown rendered, and no active markup anywhere — no author
+  script, no event-handler attribute, no unsafe `href`, no forbidden element inside
+  the content — while the author's raw HTML remains readable as inert text and the
+  page raises no runtime error.

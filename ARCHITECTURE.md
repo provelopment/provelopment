@@ -123,8 +123,9 @@ Content should remain separate from application implementation.
 
 #### Content system
 
-Page content lives as Markdown files under
-`content/pages/<locale>/<slug>.md` (one directory per locale). Offerings and
+Legacy page content lives as Markdown files under
+`content/pages/<locale>/<slug>.md` (one directory per locale); the first-class
+authoring modes described below are resolved BEFORE it. Offerings and
 legal documents use the same repository under `content/offerings/` and
 `content/legal/` respectively.
 
@@ -164,6 +165,64 @@ Detail collections are **statically generated**: `offerings/[slug]` and
 the same content/config seams the sitemap uses) with `dynamicParams = false`,
 so every canonical localized detail page is prerendered at build time and any
 other slug returns a 404 — no on-demand server rendering, no ISR.
+
+#### Page authoring — two first-class modes, and legacy compatibility
+
+A page is authored in exactly ONE of two first-class modes:
+
+| Mode | Root | What it is |
+| --- | --- | --- |
+| **safe Markdown** | `config/pages-markdown/<locale>/<slug>.md` | ordinary Markdown for a non-technical author; the recommended mode |
+| **safe declarative JSON** | `config/pages-json/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (its vocabulary is delivered by a later increment) |
+
+Both modes are CONTENT and DATA, never executable code. The Markdown mode's policy
+is enforced in TWO independent layers: the renderer
+(`src/adapters/markdown/safe-markdown.ts`) turns author raw HTML into inert text,
+escapes code, and asks `src/core/safe-url.ts` about every destination (which fails
+closed and refuses executable/unknown schemes); the generated HTML is then
+re-parsed against the allowlist in `src/core/markdown-policy.ts` by
+`sanitize-html`, so a mistake in the renderer cannot produce active markup either.
+
+`content/pages/**` is **legacy page-content compatibility**, not a third mode:
+existing adopters keep it, its trusted-raw-HTML behaviour is preserved exactly,
+and new sites are expected to use the two `config/pages-*` roots. It sits last in
+every locale.
+
+**Resolution order** (`src/core/page-source.ts` → `PAGE_RESOLUTION_ORDER`), applied
+by the ONE resolver (`src/application/page-source-resolution.ts`) through the ONE
+composition the routes and the sitemap consume
+(`src/adapters/content/page-sources.ts`):
+
+```text
+requested-locale JSON  →  requested-locale Markdown  →  requested-locale legacy content
+default-locale JSON    →  default-locale Markdown    →  default-locale legacy content
+```
+
+The default-locale steps apply only when fallback is permitted. **JSON wins over
+Markdown within one locale**, and **an exact-locale page always beats a
+fallback-locale page**, whatever the format. A JSON source that would be served
+currently fails the build loudly, naming its file, rather than being silently
+ignored — its interpreter does not exist yet.
+
+Rules that hold for both roots:
+
+- only `<root>/<locale>/<slug>.<ext>` is a page source, so a root-level
+  `README.md` can never become a page and `.gitkeep` is ignored;
+- a locale directory MAY BE EMPTY — **a directory's existence is not
+  publication** — and an unconfigured locale publishes nothing, because both the
+  route generation and the sitemap iterate the site's configured locales;
+- the slug rule has ONE authority (`src/core/page-content.ts`), consumed by the
+  page-source contract, both authoring adapters, the legacy repository and the
+  configuration schema;
+- discovery (`src/adapters/content/authoring-source-discovery.ts`) reports what
+  the tree holds and nothing else: it decides no precedence and parses nothing.
+
+**Dependency note (why `sanitize-html`).** The allowlist guarantee cannot be made
+honestly with a hand-written regular expression; a real HTML parser applying an
+allowlist is the boundary this project accepts. `sanitize-html` (MIT, built on
+htmlparser2) is server-side only, imported by exactly ONE module
+(`src/adapters/markdown/safe-markdown.ts`), and replaceable behind
+`renderSafeMarkdown` — an architecture test asserts the single-importer rule.
 
 ### `public`
 

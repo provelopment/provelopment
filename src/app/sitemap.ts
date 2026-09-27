@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 
 import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { resolveLegalDocs } from "@/core/legal";
@@ -9,8 +10,13 @@ import type { PostContent } from "@/core/posts";
 import { regionsForLocale, regionalPath } from "@/core/regional-pages";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const pagesRepository = createFileSystemPageContentRepository({
+  // The page inventory is the UNION of both first-class authoring modes and the
+  // legacy content mechanism, per configured locale — the SAME composition every
+  // page route resolves through, so a newly authored file becomes a route and a
+  // sitemap entry in the same step.
+  const pages = createPageSources({
     defaultLocale: siteConfig.defaultLocale,
+    locales: siteConfig.locales.map((locale) => locale.code),
   });
   const offeringsRepository = createFileSystemPageContentRepository({
     defaultLocale: siteConfig.defaultLocale,
@@ -65,12 +71,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Content slugs that are regional landings for this locale are emitted by
     // the regional loop below, not as flat `/locale/slug` routes.
     const regional = regionsForLocale(siteConfig.pageBindings, code);
-    const pages = (await pagesRepository.listSlugs(code)).filter(
+    const pageSlugs = (await pages.listSlugs(code)).filter(
       (slug) => !regional.includes(slug),
     );
     const routes = buildSitemapRoutes({
       offeringsEnabled: siteConfig.offeringsFeature === true,
-      pages,
+      pages: pageSlugs,
       canonicalOfferings,
       legalSlugs,
       testimonialsEnabled: siteConfig.testimonialsFeature === true,

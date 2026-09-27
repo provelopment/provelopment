@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { isCalendarDate } from "@/core/region";
 import { isIanaTimeZone } from "@/core/business-hours";
+// The ONE content-slug rule. A `pageBindings` slug and a legal-document slug must
+// both name a real content file, so they consume the same authority the page-source
+// contract and the content repository use — never a restated copy of the regex.
+import { CONTENT_SLUG_PATTERN } from "@/core/page-content";
 import {
   CONTENT_WIDTHS,
   CTA_ACTIONS,
@@ -447,7 +451,7 @@ const pageRegionBindingSchema = z.object({
   region: z.string().min(1, "must not be empty"),
   slug: z
     .string()
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "must be a lowercase slug")
+    .regex(CONTENT_SLUG_PATTERN, "must be a lowercase slug")
     .optional(),
 });
 
@@ -628,8 +632,13 @@ export const connectConfigSchema = z
     },
   );
 
-/** Safe slug for a legal document (must match a `content/legal/` file). */
-const legalSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/**
+ * Safe slug for a legal document (must match a `content/legal/` file).
+ *
+ * A legal slug IS a content slug — it names a file exactly as a page slug does —
+ * so the rule is the ONE core authority, aliased here for the local concept name.
+ */
+const legalSlugPattern = CONTENT_SLUG_PATTERN;
 
 export const legalEntrySchema = z.object({
   slug: z
