@@ -799,6 +799,15 @@ html[data-ui-hero="showcase"] .home-hero {
    * The CONTROL is the icon INSIDE this button; the rail's own inline padding
    * and the shared edge inset frame it (see `.ui-shell-sidebar .ui-sidebar-toggle`). */
   --ui-sidebar-control-icon-size: 1.5rem;
+  /* R1A (owner ruling, 2026-09) the CONTROL's own inline CONTENT inset — how far
+   * the disclosed CONTROL's icon (and its label) sit INSIDE the control's box.
+   * The control's BOX keeps the one shared `--ui-shell-control-inset` from the
+   * rail's inline edge (the shell CTA lines up on that same edge); this token
+   * insets the control's CONTENT, so the 24px icon never sits flush against the
+   * control's own left edge — where it read as clipped, because the icon's own
+   * 2px-stroked frame starts ~2px inside its box. Padding, never a transform:
+   * the box, the shared inset and the icon size contract are all unchanged. */
+  --ui-sidebar-control-inset: 0.75rem;
   /* The rail's inline-end border width — a token so the collapsed-state
      centring below can compensate for the border box exactly. */
   --ui-sidebar-rail-border: 1px;
@@ -853,12 +862,19 @@ html[data-ui-hero="showcase"] .home-hero {
 }
 
 /* Owner ruling (2026-09) — the EXPANDED sidebar CONTROL keeps its existing
- * appearance: LEFT-ALIGNED with the one shared shell-control inset (≈5px) from
- * the rail's inline edge (the same inset the shell-top CTA uses, so the action
- * and the control line up on one edge). The rail's own inline padding frames the
- * navigation LIST, so the control cancels that padding and re-anchors by exactly
+ * appearance: the shared shell-control inset (≈5px) from the rail's inline edge
+ * (the same inset the shell CTA uses, so the action and the control line up on
+ * one edge). The rail's own inline padding frames the navigation LIST, so the
+ * control cancels that padding and re-anchors by exactly
  * `inset - rail padding`, taking back the freed inline width so its trailing
- * edge stays flush with the rail's content box. */
+ * edge stays flush with the rail's content box.
+ *
+ * R1A (owner ruling, 2026-09) — the control's CONTENT is inset by
+ * `--ui-sidebar-control-inset` on BOTH sides (`padding-inline`), so its 24px
+ * icon no longer sits flush against the control's own left edge (the owner
+ * reported the icon reading as clipped there). The BOX geometry above is
+ * deliberately untouched: the control still lines up with the shell CTA on the
+ * one shared inset, and the icon keeps its 24px contract. */
 .ui-shell-sidebar .ui-sidebar-toggle {
   margin-inline-start: calc(
     var(--ui-shell-control-inset) - var(--ui-sidebar-rail-inline)
@@ -866,7 +882,7 @@ html[data-ui-hero="showcase"] .home-hero {
   width: calc(
     100% + var(--ui-sidebar-rail-inline) - var(--ui-shell-control-inset)
   );
-  padding-inline-start: var(--ui-shell-control-inset);
+  padding-inline: var(--ui-sidebar-control-inset);
   justify-content: flex-start;
 }
 
@@ -893,6 +909,30 @@ html[data-ui-hero="showcase"] .home-hero {
   width: 100%;
   padding-inline: 0;
   justify-content: center;
+  /* R1A (owner ruling, 2026-09) — the COLLAPSED control shows the open-rail icon
+   * on the rail's own background: NO pill, NO card, NO border in its normal
+   * state. The owner likes the disclosed control's surface but not a block
+   * around a collapsed rail's single icon, whose container treatment competed
+   * with the icon itself.
+   *
+   * What is deliberately UNCHANGED: the control's BOX (100% of the collapsed
+   * rail's content width and its `padding-block` from `.ui-sidebar-toggle`), so
+   * the hit target stays the full 24px-wide, ~40px-tall control — this is a
+   * background/border contract, never a smaller target; `cursor: pointer`,
+   * hover/press feedback and the ONE global `:focus-visible` ring all remain,
+   * and the accessible name is still the localized label (sr-only here). */
+  background-color: transparent;
+  border-color: transparent;
+}
+
+/* The collapsed control's affordance, kept EXPLICIT so the transparent normal
+ * state above does not also silence hover/press feedback (it has the higher
+ * specificity): hover tints the control's own box, exactly as the disclosed
+ * control does, and the border stays transparent so hovering can never paint a
+ * pill around a collapsed rail's icon. Press keeps the shared `:active` tint. */
+.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:hover {
+  background-color: var(--muted);
+  border-color: transparent;
 }
 
 .ui-sidebar-rail[data-collapsed="true"] li > a,

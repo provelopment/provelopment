@@ -108,6 +108,14 @@ tree stays clean.
   `[jump](#fixture-section)` link reaches it, and the sticky header's clearance
   keeps the target visible — measured on a target the AUTHOR created. An id typed
   in raw HTML stays inert.
+- **the reference deployment's own content** (`reference-content` scenario, R1A): runs against
+  the **shipped configuration, unmodified** — the JSON Home page (advanced mode) and the Markdown
+  About page at their real URLs, each with exactly one `<h1>`; the Home → About destination; Home +
+  About in the site-aware navigation; the visitor Layout control (its exact vocabulary, the sidebar
+  default, switching, browser-local persistence and reload survival); the sidebar disclosure's two
+  visual states (OPEN keeps its surface with the 24px icon inset INSIDE the control; CLOSED is
+  transparent with no pill while keeping its hit target, its accessible name and its focus ring);
+  and canonical / Open Graph / sitemap / robots all serving the reference origin.
 - **multisite / multilingual** (`multisite` scenario, FOUNDATION-S1): one temporary deployment
   with TWO independent country sites (`ca` with French + English, `fr` with French) whose pages,
   chrome, languages and locations genuinely differ. It proves, through the four visitor dimensions:

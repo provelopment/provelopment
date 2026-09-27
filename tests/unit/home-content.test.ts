@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import PageRoute from "@/app/[...segments]/page";
+import { StarterHome } from "@/app/[...segments]/dedicated-pages";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
@@ -103,15 +105,24 @@ describe("/home is never a route and never a sitemap entry", () => {
   });
 });
 
-describe("a site that authors no home page keeps the generic starter homepage", () => {
-  it("finds no authored home page in the shipped template", async () => {
+describe("an authored home page wins; a site without one keeps the starter homepage", () => {
+  it("resolves the reference deployment's authored home page (the shipped JSON page)", async () => {
     const pages = createPageSources({ sites: siteConfig.sites });
-    // The template ships NO page files, so the very lookup the home route performs
-    // resolves to nothing — which is what makes the fallback the live path here.
-    expect(await pages.resolve(siteConfig.defaultSite.code, HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
+    // R1A — the repository now authors its own reference Home page in the JSON mode,
+    // so the very lookup the home route performs resolves to a real page. The
+    // fallback below remains the contract for a site that authors none.
+    const home = await pages.resolve(siteConfig.defaultSite.code, HOME_CONTENT_SLUG, siteConfig.defaultLocale);
+    expect(home?.kind).toBe("json");
   });
 
-  it("renders the generic configuration-driven homepage at the locale root", async () => {
+  it("still resolves to nothing when a site authors no such page", async () => {
+    const pages = createPageSources({ sites: siteConfig.sites });
+    expect(
+      await pages.resolve(siteConfig.defaultSite.code, "zz-not-authored", siteConfig.defaultLocale),
+    ).toBeNull();
+  });
+
+  it("renders the authored home page at the locale root, not the generic starter", async () => {
     const html = renderToStaticMarkup(
       await PageRoute({
         params: Promise.resolve({
@@ -120,11 +131,20 @@ describe("a site that authors no home page keeps the generic starter homepage", 
       }),
     );
 
-    // The generic starter homepage's own markers, exactly as before.
+    expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
+    expect(html).not.toContain("home-hero");
+  });
+
+  it("keeps the starter homepage as the fallback presentation (asserted on the component)", () => {
+    // The route's content-first ordering is asserted below; this pins the
+    // presentation the fallback renders, which the shipped deployment's authored
+    // page would otherwise hide from an end-to-end assertion.
+    const html = renderToStaticMarkup(
+      createElement(StarterHome, { locale: siteConfig.defaultLocale, siteId: siteConfig.defaultSite.code }),
+    );
     expect(html).toContain("home-hero");
     expect(html).toContain("home-hero-copy");
     expect(html).toContain("home-card");
-    // …driven by the dictionary/configuration, not by authored content.
     expect(html).toContain(siteConfig.name);
   });
 
@@ -134,7 +154,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
         await PageRoute({ params: Promise.resolve({ segments: homeSegments(locale.code) }) }),
       );
       expect(html.length, locale.code).toBeGreaterThan(0);
-      expect(html, locale.code).toContain("home-hero");
+      expect(html.match(/<h1\b/g) ?? [], locale.code).toHaveLength(1);
     }
   });
 

@@ -18,7 +18,10 @@ import PageRoute, {
   generateStaticParams,
 } from "@/app/[...segments]/page";
 import sitemap from "@/app/sitemap";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
+import { HOME_CONTENT_SLUG } from "@/core/page-content";
+import { resolveSites } from "@/core/site";
 
 /**
  * THE ONE PAGE MODEL, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1/A1E).
@@ -39,8 +42,9 @@ import { siteConfig } from "@/config";
  *     one;
  *   · the locale root still renders the authored home page content-first.
  *
- * Every file here is a run fixture, created in `beforeAll` and removed afterwards:
- * the template still ships no authored pages.
+ * Every fixture here is created and removed by THIS suite, and the repository's own
+ * authored reference pages are left exactly as they are: a run fixture may add a file
+ * beside them, but never overwrites or deletes shipped content.
  */
 const root = process.cwd();
 // S1 - these fixtures live in ONE site tree: the deployment default site.
@@ -296,9 +300,11 @@ describe("the one page model, through the real application", () => {
     // An unknown path, a traversal attempt and the reserved home segment are all 404s.
     await expect(PageRoute(params("does-not-exist"))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(PageRoute(params("README"))).rejects.toThrow("NEXT_NOT_FOUND");
-    await expect(PageRoute(params("home"))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(PageRoute(params(".."))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(PageRoute(params(NESTED_SECTION, "not a slug"))).rejects.toThrow("NEXT_NOT_FOUND");
+    // `/{site}/{locale}/home` is not one of them: it is EXCLUDED from the generated
+    // route set (asserted above and in the sitemap test), so with `dynamicParams =
+    // false` the deployment never serves it — the home page's URL is the locale root.
   });
 
   it("publishes no phantom page from an empty or unconfigured locale directory", async () => {
@@ -326,41 +332,68 @@ describe("the one page model, through the real application", () => {
     expect(urls.some((url) => url.endsWith("/home"))).toBe(false);
   });
 
-  it("lets a safe Markdown file author the home page (content-first, unchanged order)", async () => {
-    write(
-      path.join(MARKDOWN_LOCALE_DIRECTORY, "home.md"),
-      `# ${HOME_FIXTURE}\n\nA safe Markdown home page.\n`,
+  it("serves the repository's authored JSON home page at the locale root (content-first, never the starter)", async () => {
+    // R1A — the repository now authors its own reference Home page in the JSON mode,
+    // so the locale root IS the content-first path here, and the generic starter
+    // homepage must not render beside it.
+    const html = renderToStaticMarkup(
+      await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
     );
+    expect(html).not.toContain("home-hero");
+    // A section only the DECLARATIVE vocabulary can produce (the starter has none).
+    expect(html).toContain("Two ways to write a page");
+    // …and the reserved home slug never becomes its own URL.
+    const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
+    expect(paths).not.toContain(`${SITE}/en/${HOME_CONTENT_SLUG}`);
+  });
+
+  it("never lets a Markdown file at the home slug displace the JSON home page", async () => {
+    // The declared precedence applies at the home slug exactly as everywhere else: a
+    // Markdown `home.md` beside the JSON home page is NOT served, and the page it
+    // would replace stays intact (this fixture is an extra file, removed below —
+    // never a destructive rewrite of the shipped page).
+    const fixture = path.join(MARKDOWN_LOCALE_DIRECTORY, `${HOME_CONTENT_SLUG}.md`);
+    write(fixture, `# Markdown home fixture\n\nThis must not displace the JSON home page.\n`);
     try {
       const html = renderToStaticMarkup(
         await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
       );
-      expect(html).toContain(HOME_FIXTURE);
+      expect(html).not.toContain("Markdown home fixture");
       expect(html).not.toContain("home-hero");
+      expect(html).toContain("Two ways to write a page");
     } finally {
-      cleanUp(path.join(MARKDOWN_LOCALE_DIRECTORY, "home.md"));
+      cleanUp(fixture);
     }
   });
 
-  it("lets a JSON document author the home page through the SAME composer", async () => {
-    // The locale root is a route, not a second authoring model: `home.json` renders at
-    // `/{locale}` with no special case anywhere.
-    write(
-      path.join(root, "content", "pages", "json", SITE, "en", "home.json"),
-      jsonDocument("JSON home page", [{ type: "prose", body: "Authored with JSON." }]),
+  it("lets a Markdown file author the home page when a site authors no JSON home (composition)", async () => {
+    // The Markdown-home capability, proved on the SAME composition the locale root
+    // uses, with a fixture site (a recognized country code no other suite uses) whose
+    // tree holds only `home.md`: the reserved slug resolves to that Markdown page.
+    const fixtureSite = "gs";
+    const fixtureLocale = "zz-home";
+    const file = path.join(
+      root,
+      "content",
+      "pages",
+      "markdown",
+      fixtureSite,
+      fixtureLocale,
+      `${HOME_CONTENT_SLUG}.md`,
     );
+    write(file, `# ${HOME_FIXTURE}\n\nA safe Markdown home page.\n`);
     try {
-      const html = renderToStaticMarkup(
-        await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
-      );
-      expect(html).toContain("JSON home page");
-      expect(html).toContain("Authored with JSON.");
-      expect(html).not.toContain("home-hero");
-      // …and never as `/{locale}/home`.
-      const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
-      expect(paths).not.toContain("home");
+      const sites = resolveSites({
+        input: [{ code: fixtureSite }],
+        defaultLocale: "en",
+        locales: ["en", fixtureLocale],
+      }).sites;
+      const pages = createPageSources({ sites });
+      const home = await pages.resolve(fixtureSite, HOME_CONTENT_SLUG, fixtureLocale);
+      expect(home?.kind).toBe("markdown");
+      expect(home?.title).toBe(HOME_FIXTURE);
     } finally {
-      cleanUp(path.join(root, "content", "pages", "json", SITE, "en", "home.json"));
+      cleanUp(file);
     }
   });
 });

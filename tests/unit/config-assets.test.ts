@@ -135,14 +135,16 @@ describe("P6-2D — assetPathFromUrl", () => {
     expect(assetPathFromUrl("not a url")).toBe("not a url");
   });
 
-  it("the shipped template configures no asset URLs — every identity role defaults to its runtime file", () => {
-    // FS1: the generic template ships `assets: {}`. Each role resolves to the
-    // shipped placeholder under `public/assets/`, so there is nothing to rewrite
-    // here and a fresh clone renders a complete, un-branded site. The URL→path
-    // contract itself is exercised by the cases above.
+  it("configures exactly the identity roles the reference deployment owns assets for", () => {
+    // FS1: a generic template ships `assets: {}` and every role resolves to its
+    // shipped default. R1A: the public repository is ITS OWN reference deployment
+    // (live at foundation-template.provelopment.com), so it configures the ONE role
+    // it owns an asset for — the favicon — which is what makes a browser's implicit
+    // `/favicon.ico` probe resolve instead of 404ing. Every other role stays
+    // unconfigured, and the configured URL still projects to its runtime path.
+    expect(assetPathFromUrl(siteConfig.assets?.favicon)).toBe("/assets/favicon.svg");
     expect(siteConfig.assets?.logo).toBeUndefined();
     expect(siteConfig.assets?.logoFooter).toBeUndefined();
-    expect(siteConfig.assets?.favicon).toBeUndefined();
     expect(siteConfig.assets?.ogImage).toBeUndefined();
     expect(siteConfig.assets?.banners).toBeUndefined();
   });
