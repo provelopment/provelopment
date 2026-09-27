@@ -91,8 +91,9 @@ Run against the live domain:
       single-Site, single-Language configuration that is `/ww/en`.
 - [ ] `/ww/en` returns HTTP 200 (the landing page). Every page you author is served
       by the same route at `/ww/en/<slug>`, and a configured location at
-      `/ww/en/<location>/<slug>`; the template itself ships **no page files**, so
-      `/ww/en` is the only page URL until you add content.
+      `/ww/en/<location>/<slug>`. This repository's own reference deployment ships two
+      example pages (`/ww/en` Home, `/ww/en/about` About); a clone that authors none
+      serves the starter landing page, and `/ww/en` is then the only page URL.
 - [ ] An unknown path such as `/ww/en/does-not-exist` returns HTTP **404**. Next.js
       answers with its own 404 page: only build-discovered routes are served
       (`dynamicParams = false`), so an unknown path never matches the page route.

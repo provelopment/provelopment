@@ -1,10 +1,12 @@
 {
   "site": {
-    "url": "https://www.example.com",
-    "name": "Your Site Name",
-    "tagline": "Replace this tagline in site.config.json",
-    "description": "This is a starter site built with the Provelopment Foundation template. Replace the site name, tagline and this description in site.config.json with your own, add your pages under content/, and swap the placeholder graphics in assets/placeholders/.",
-    "assets": {}
+    "url": "https://foundation-template.provelopment.com",
+    "name": "Provelopment Foundation",
+    "tagline": "An open-source website template you can own",
+    "description": "This website is a working deployment of the Provelopment Foundation template: the same public code, downloadable and deployable by anyone. It is the template's own reference site, not a client website.",
+    "assets": {
+      "favicon": "https://foundation-template.provelopment.com/assets/favicon.svg"
+    }
   },
   "i18n": {
     "defaultLocale": "en",
@@ -31,6 +33,12 @@
       "href": "/",
       "iconOpen": "icon-home.svg",
       "iconClosed": "icon-home.svg"
+    },
+    {
+      "label": "About",
+      "href": "/about",
+      "iconOpen": "icon-about.svg",
+      "iconClosed": "icon-about.svg"
     }
   ],
   "features": {
@@ -55,6 +63,10 @@
     "theme": {
       "mode": "system",
       "radius": "medium"
+    },
+    "layoutSwitcher": {
+      "enabled": true,
+      "default": "sidebar"
     }
   }
 }

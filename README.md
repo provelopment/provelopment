@@ -146,12 +146,12 @@ file under `content/`.
 > merged to `main` updates that same live site. Nothing is added to make it work —
 > the public repository is the deployment.
 >
-> What is live today is this template **unconfigured**: the placeholder name,
-> tagline, `site.url` and starter landing page it ships with, and no reference
-> pages. The **fully configured reference site** — real content, the link back to
-> `https://foundation.provelopment.com/`, the layout switcher enabled — is the
-> next body of work and has **not** landed yet; this note changes when it does
-> rather than describing it in advance.
+> What is live today is the **first reference increment**: the deployment has its own
+> name, description and origin (`site.url`), a Home page authored in the JSON mode, an
+> About page authored in Markdown, and the visitor Layout control enabled. The rest of
+> the reference site — further pages, more languages, Locations, and the link back to
+> `https://foundation.provelopment.com/` — is the next body of work and has **not**
+> landed yet; this note changes when it does rather than describing it in advance.
 >
 > Two things are already decided for that reference site and are recorded here so no
 > increment invents its own answer:
@@ -166,14 +166,17 @@ file under `content/`.
 >    dropdown, without changing the page, the locale or the content: same content
 >    authority, same current route, presentation only. It is **off by default**, an
 >    adopter enables it with one configuration block (`ui.layoutSwitcher` — see
->    CUSTOMIZING.md), and the reference deployment will ship with it enabled. The
->    capability itself is generic platform behaviour; the reference site's own choice to
->    enable it is reference configuration and lands with the reference content.
+>    CUSTOMIZING.md), and the reference deployment **ships with it enabled** — the header
+>    control is live on this site today. The capability itself is generic platform
+>    behaviour; the reference site's own choice to enable it is reference configuration.
 
-The Foundation ships **one authored page** (the configuration-driven landing page)
-and **no page files**: the two authoring roots hold their documentation only, so a
-fresh clone has no authored content to delete. Technical routes (`/sitemap.xml`,
-`/robots.txt`) and generated metadata are not content pages.
+The repository also authors its own **two reference pages** — Home
+(`content/pages/json/ww/en/home.json`, the advanced JSON mode) and About
+(`content/pages/markdown/ww/en/about.md`, the simple Markdown mode) — so both authoring
+modes are demonstrated by the live site. A site that authors no home page still gets the
+configuration-driven starter landing page, and the two authoring roots' own documentation
+is never content. Technical routes (`/sitemap.xml`, `/robots.txt`) and generated metadata
+are not content pages.
 
 ## Customize identity
 

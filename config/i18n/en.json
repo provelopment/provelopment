@@ -16,7 +16,8 @@
     "showSidebar": "Show navigation",
     "hideSidebar": "Hide navigation",
     "items": {
-      "/": "Home"
+      "/": "Home",
+      "/about": "About"
     }
   },
   "notFound": {

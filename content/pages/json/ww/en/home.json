@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "title": "Build a website you can own.",
+  "description": "The Provelopment Foundation template's own reference site: what it is, the two ways to write a page, and how to make it yours.",
+  "sections": [
+    {
+      "type": "hero",
+      "lede": "Foundation is an open-source website template designed to be understandable, editable and deployable — without locking the owner into Provelopment.",
+      "actions": [
+        { "label": "See how this site works", "route": "about" },
+        {
+          "label": "View the Foundation project",
+          "href": "https://foundation.provelopment.com/",
+          "variant": "secondary"
+        }
+      ]
+    },
+    {
+      "type": "columns",
+      "heading": "Two ways to write a page",
+      "ratio": "equal",
+      "items": [
+        {
+          "title": "Markdown",
+          "body": "For straightforward pages: plain text, with a few simple marks for headings, lists and links. The **About** page of this site is written this way."
+        },
+        {
+          "title": "JSON",
+          "body": "For structured pages: you declare the sections — a hero, columns, cards, a table, questions — in a small documented vocabulary. **This page** is written this way."
+        }
+      ]
+    },
+    {
+      "type": "callout",
+      "heading": "You own your website",
+      "body": "Staying with Provelopment is a service choice, not a technical hostage situation. The site, its content and its code are yours.",
+      "surface": "muted"
+    },
+    {
+      "type": "cards",
+      "heading": "About this website",
+      "items": [
+        {
+          "title": "What this site is",
+          "body": "This is the Foundation template's own reference deployment — the public code, running live, with two example pages written in the two authoring modes.",
+          "action": { "label": "Read about this site", "route": "about" }
+        }
+      ]
+    },
+    {
+      "type": "prose",
+      "heading": "Built to adapt",
+      "body": "The **Layout** control in the header switches between the Sidebar and the Menu-bar presentation: the page, its address and its content stay exactly the same. A Foundation site can also serve several languages, several physical Locations and several countries — when a site configures them, their controls appear in that same row. This deployment configures one language and no Locations, so Layout is the only one offered here."
+    },
+    {
+      "type": "prose",
+      "heading": "Everything here is in the public repository",
+      "body": "This page is data, not a mock-up. It is one file — `home.json` — in the [Provelopment Foundation repository](https://github.com/provelopment/provelopment-foundation), which is also where the About page, the styling and the settings live. Change a file, commit it, push it: the site rebuilds itself. The code is yours to take with you."
+    }
+  ]
+}

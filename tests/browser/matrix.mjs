@@ -163,7 +163,19 @@ const THEME_PROBE = `(() => {
  */
 const CANONICAL = {
   name: "canonical",
-  ui: { cta: { ...CTR, style: "standard" } },
+  ui: {
+    cta: { ...CTR, style: "standard" },
+    // R1A — the CANONICAL presentation is ONE composition, so this scenario pins
+    // it explicitly: the REFERENCE deployment now enables `ui.layoutSwitcher`
+    // (Sidebar ⇄ Menu bar) for visitors, and every assertion of this scenario
+    // measures the single shipped composition. `enabled: false` with no
+    // `navigation.desktop/tablet` resolves to exactly the Foundation defaults
+    // (`sidebar` / `collapsed-sidebar`) — the presentation this scenario has
+    // always tested. The reference deployment's OWN switcher is proved by the
+    // `reference-content` scenario, which runs against the shipped configuration
+    // unmodified.
+    layoutSwitcher: { enabled: false },
+  },
 };
 
 function check(rows, name, ok, detail = "") {
@@ -919,6 +931,11 @@ async function runDuplicateNavScenario(chrome) {
     BASE_URL = `http://localhost:${port}`;
     const config = JSON.parse(original);
     config.navigation = DUP_NAV;
+    // R1A — this scenario measures ONE deterministic composition (its duplicate
+    // destinations in the header nav AND the aside rail). The reference
+    // deployment now offers the visitor a layout choice, so the composition under
+    // test is pinned here; the visitor choice itself is proved elsewhere.
+    config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: false } };
     await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
     const server = startDevServer(port);
     let cdp = null;
@@ -2097,6 +2114,11 @@ async function runConnectivityIconScenario(chrome) {
   const url = `http://localhost:${port}/ww/en`;
   BASE_URL = `http://localhost:${port}`;
   const config = JSON.parse(original);
+  // R1A — one deterministic composition (the reference deployment's visitor
+  // layout choice is proved by the `reference-content` scenario), so the
+  // connectivity seam is measured without a second, CSS-hidden navigation
+  // structure in the document.
+  config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: false } };
   config.socialLinks = [
     { platform: "fixture-with-icon", label: "Icon Platform", href: "https://example.com/icon", icon: ICON },
     { platform: "fixture-missing-icon", label: "Missing Artwork Platform", href: "https://example.com/missing", icon: MISSING },
@@ -2517,10 +2539,12 @@ async function runPersistentNavigationScenario(chrome) {
   const configuredPaths = NAV_FIXTURE.map((item) => `/ww/en${item.href}`);
 
   const config = JSON.parse(original);
-  // The shipped one-canonical composition is untouched (a collapsible rail at md+
-  // and the bottom bar below md); only the CTA destination is added, so the
-  // "actions do not persist" contract has something to observe.
-  config.ui = { ...config.ui, cta: { ...CTR, style: "standard" } };
+  // R1A — the reference deployment enables the visitor layout switcher, so this
+  // scenario pins the ONE composition it measures ("exactly one persistent region
+  // at each breakpoint" is a single-composition contract); only the CTA
+  // destination is added, so the "actions do not persist" contract has something
+  // to observe.
+  config.ui = { ...config.ui, layoutSwitcher: { enabled: false }, cta: { ...CTR, style: "standard" } };
   config.navigation = NAV_FIXTURE;
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
 
@@ -3779,6 +3803,19 @@ async function runMultisiteScenario(chrome) {
     await readFile(join(ROOT, "config", "i18n", "en.json"), "utf8"),
     "utf8",
   );
+  // R1A — the SHARED dictionary is the wording authority for a configured navigation
+  // href, and the reference deployment's dictionary now carries a `/about` label. A site
+  // that wants its OWN wording therefore uses a SITE dictionary overlay
+  // (`config/i18n/sites/<site>/<locale>.json`) — the documented mechanism this fixture now
+  // exercises for its France site, so site-scoped chrome is proved without depending on a
+  // gap in the shared dictionary.
+  const overlayPath = join(ROOT, "config", "i18n", "sites", "fr", "fr.json");
+  await mkdir(dirname(overlayPath), { recursive: true });
+  await writeFile(
+    overlayPath,
+    `${JSON.stringify({ navigation: { items: { "/": "Accueil FR", "/about": "À propos FR" } } }, null, 2)}\n`,
+    "utf8",
+  );
 
   const config = JSON.parse(original);
   const ui = { ...(config.ui ?? {}) };
@@ -3940,6 +3977,19 @@ async function runMultisiteScenario(chrome) {
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(dictionaryPath, { force: true });
+    // The site overlay is a fixture too: remove it, then only the directories this run
+    // created while they are empty.
+    await rm(overlayPath, { force: true });
+    for (const directory of [
+      join(ROOT, "config", "i18n", "sites", "fr"),
+      join(ROOT, "config", "i18n", "sites"),
+    ]) {
+      try {
+        await rmdir(directory);
+      } catch {
+        /* not empty (or already gone): leave it exactly as it is */
+      }
+    }
     if (cdp) await cdp.close();
     stopServer(server);
     for (const file of written) await rm(file, { force: true });
@@ -3968,6 +4018,386 @@ async function runMultisiteScenario(chrome) {
         }
       }
     }
+  }
+  return rows;
+}
+
+/**
+ * R1A — THE REFERENCE DEPLOYMENT'S OWN CONTENT + SHARED-UI CONTRACT.
+ *
+ * This scenario runs against the SHIPPED reference configuration, UNMODIFIED (it
+ * never writes `site.config.json`): it proves that what the public repository
+ * ships is what the owner reviews live — the first intentional reference Home
+ * page (JSON mode), a real About page (Markdown mode), the visitor Layout
+ * control, the reference origin, and the sidebar disclosure's two visual states.
+ *
+ * The disclosure contract is a GEOMETRY + SURFACE contract, measured on the real
+ * control: OPEN keeps its background/border with its 24px icon inset INSIDE its
+ * own box (never flush against the edge it read as clipped by); CLOSED is
+ * transparent with no border (no pill) while keeping its hit target, its
+ * accessible name and the shared keyboard focus ring.
+ */
+const REFERENCE_HOME_TITLE = "Build a website you can own.";
+const REFERENCE_ABOUT_TITLE = "About this Foundation website";
+const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
+
+const DISCLOSURE_PROBE = `(() => {
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return { l: r2(r.left), r: r2(r.right), w: r2(r.width), h: r2(r.height) }; };
+  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')]
+    .find((el) => el && el.getBoundingClientRect().width > 0) || null;
+  const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
+  const icon = toggle ? rail.querySelector('.ui-sidebar-toggle-icon') : null;
+  const label = toggle ? toggle.querySelector('span') : null;
+  const cs = toggle ? getComputedStyle(toggle) : null;
+  return JSON.stringify({
+    collapsed: rail ? rail.getAttribute('data-collapsed') : null,
+    rail: box(rail),
+    toggle: box(toggle),
+    icon: box(icon),
+    labelVisible: label ? label.getBoundingClientRect().width > 0 : null,
+    background: cs ? cs.backgroundColor : null,
+    borderColor: cs ? cs.borderTopColor : null,
+    accessibleName: toggle ? (toggle.getAttribute('aria-label') || (toggle.textContent || '').trim()) : null,
+    iconInsetFromControlLeft: toggle && icon ? r2(icon.getBoundingClientRect().left - toggle.getBoundingClientRect().left) : null,
+    fullyInsideRail: !!(rail && toggle) &&
+      toggle.getBoundingClientRect().left >= rail.getBoundingClientRect().left - 0.5 &&
+      toggle.getBoundingClientRect().right <= rail.getBoundingClientRect().right + 0.5,
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  });
+})()`;
+
+const LAYOUT_STATE_PROBE = `(() => {
+  const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')].find(shown) || null;
+  const topNav = [...document.querySelectorAll('nav[data-ui-shell-part="top-nav"]')].find(shown) || null;
+  const control = document.querySelector('[data-ui-layout-switcher]');
+  return JSON.stringify({
+    attribute: document.documentElement.getAttribute('data-ui-shell-layout'),
+    stored: window.localStorage.getItem('foundation.layout'),
+    railVisible: !!rail,
+    topNavVisible: !!topNav,
+    controlValue: control ? control.value : null,
+    controlOptions: control ? [...control.options].map((option) => option.textContent.trim()) : null,
+    controlLabel: control ? control.getAttribute('aria-label') : null,
+    controlVisible: shown(control),
+  });
+})()`;
+
+/** Any fully-transparent colour spelling the browser may serialise. */
+const isTransparent = (value) =>
+  typeof value === "string" &&
+  (value === "transparent" || /^rgba?\(0, 0, 0, 0\)$/.test(value) || /,\s*0\)$/.test(value));
+
+/** One authored page's rendered facts: outline, copy, links, metadata, nav. */
+const REFERENCE_PROBE = `(() => {
+  const main = document.querySelector('main');
+  const text = main ? (main.textContent || '').replace(/\\s+/g, ' ').trim() : '';
+  return JSON.stringify({
+    path: location.pathname,
+    h1s: [...document.querySelectorAll('h1')].map((h) => (h.textContent || '').trim()),
+    headings: [...document.querySelectorAll('main h2, main h3')].map((h) => (h.textContent || '').trim()),
+    text,
+    aboutAnchors: [...document.querySelectorAll('main a[href*="about"]')].map((a) => (a.getAttribute('href') || '') + ' :: ' + a.textContent.trim()),
+    projectLink: !!document.querySelector('main a[href*="foundation.provelopment.com"]'),
+    canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
+    ogUrl: (document.querySelector('meta[property="og:url"]') || {}).content || null,
+    visibleNav: [...document.querySelectorAll('nav a')]
+      .filter((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+      .map((a) => (a.getAttribute('href') || '') + '|' + (a.getAttribute('aria-current') || '')),
+  });
+})()`;
+
+async function runReferenceContentScenario(chrome) {
+  const rows = [];
+  const port = BASE_PORT + 410;
+  const url = `http://localhost:${port}/ww/en`;
+  BASE_URL = `http://localhost:${port}`;
+  // The SHIPPED configuration, READ ONLY: writing it here would prove a
+  // configuration the repository does not ship.
+  const reference = JSON.parse(await readFile(CONFIG_PATH, "utf8"));
+  check(rows, "reference.config.siteUrl", reference.site?.url === REFERENCE_ORIGIN, String(reference.site?.url));
+  check(
+    rows,
+    "reference.config.layoutSwitcherEnabled",
+    reference.ui?.layoutSwitcher?.enabled === true && reference.ui?.layoutSwitcher?.default === "sidebar",
+    JSON.stringify(reference.ui?.layoutSwitcher ?? null),
+  );
+  check(
+    rows,
+    "reference.config.faviconOnReferenceOrigin",
+    typeof reference.site?.assets?.favicon === "string" &&
+      reference.site.assets.favicon.startsWith(`${REFERENCE_ORIGIN}/`),
+    String(reference.site?.assets?.favicon),
+  );
+  check(
+    rows,
+    "reference.config.navigationHomeAndAbout",
+    JSON.stringify((reference.navigation ?? []).map((item) => item.href)) === JSON.stringify(["/", "/about"]),
+    JSON.stringify((reference.navigation ?? []).map((item) => item.href)),
+  );
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(url);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.evaluate("window.localStorage.clear(); true").catch(() => undefined);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    // ── The visitor Layout control, from the shipped configuration ───────────
+    const initial = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(rows, "reference.layout.controlVisible", initial.controlVisible === true, JSON.stringify(initial));
+    check(rows, "reference.layout.controlLabelled", initial.controlLabel === "Layout", String(initial.controlLabel));
+    check(
+      rows,
+      "reference.layout.exactVocabulary",
+      (initial.controlOptions ?? []).join(" | ") === "Sidebar | Menu bar",
+      String(initial.controlOptions),
+    );
+    check(
+      rows,
+      "reference.layout.defaultSidebar",
+      initial.attribute === "sidebar" && initial.controlValue === "sidebar" && initial.railVisible && !initial.topNavVisible,
+      JSON.stringify(initial),
+    );
+    check(rows, "reference.layout.switchApplies", await cdp.evalBool(chooseLayout("menu-bar")));
+    await waitReady(cdp);
+    const switched = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(
+      rows,
+      "reference.layout.menuBarExposed",
+      switched.attribute === "menu-bar" && switched.topNavVisible && !switched.railVisible,
+      JSON.stringify(switched),
+    );
+    check(rows, "reference.layout.persistedToBrowserStorage", switched.stored === "menu-bar", String(switched.stored));
+    await cdp.reload();
+    await waitReady(cdp);
+    const reloaded = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(
+      rows,
+      "reference.layout.survivesReload",
+      reloaded.attribute === "menu-bar" && reloaded.controlValue === "menu-bar",
+      JSON.stringify(reloaded),
+    );
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await waitReady(cdp);
+
+    // ── The sidebar disclosure's two visual states (desktop, expanded rail) ──
+    const openState = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.openState",
+      openState.collapsed === "false" && openState.labelVisible === true,
+      JSON.stringify(openState),
+    );
+    check(
+      rows,
+      "reference.disclosure.openKeepsSurface",
+      !isTransparent(openState.background) && !isTransparent(openState.borderColor),
+      `background=${openState.background} border=${openState.borderColor}`,
+    );
+    check(
+      rows,
+      "reference.disclosure.openIconInsideControl",
+      openState.fullyInsideRail === true && (openState.iconInsetFromControlLeft ?? 0) >= 8 && openState.icon?.w === 24,
+      `insideRail=${openState.fullyInsideRail} iconInset=${openState.iconInsetFromControlLeft} icon=${openState.icon?.w}x${openState.icon?.h}`,
+    );
+    await cdp.clickCenter(".ui-sidebar-toggle");
+    await sleep(600);
+    const closedState = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(rows, "reference.disclosure.collapses", closedState.collapsed === "true", JSON.stringify(closedState));
+    check(
+      rows,
+      "reference.disclosure.closedIsTransparent",
+      isTransparent(closedState.background) && isTransparent(closedState.borderColor),
+      `background=${closedState.background} border=${closedState.borderColor}`,
+    );
+    check(
+      rows,
+      "reference.disclosure.closedKeepsHitTarget",
+      (closedState.toggle?.w ?? 0) >= 24 && (closedState.toggle?.h ?? 0) >= 24 && !!closedState.accessibleName,
+      `box=${closedState.toggle?.w}x${closedState.toggle?.h} name="${closedState.accessibleName}"`,
+    );
+    check(
+      rows,
+      "reference.disclosure.closedNotClipped",
+      closedState.fullyInsideRail === true && closedState.icon?.w === 24,
+      `insideRail=${closedState.fullyInsideRail} icon=${closedState.icon?.w}x${closedState.icon?.h}`,
+    );
+    // Keyboard: the collapsed control keeps the shared focus ring. The sweep starts
+    // from the SKIP LINK — a deterministic sequential-focus origin — because the click
+    // above left focus ON the control, so the next Tab would step PAST it.
+    await cdp.evaluate(
+      `(() => { const skip = document.querySelector('a[href="#main"]'); if (skip) skip.focus(); return !!skip; })()`,
+    );
+    let ring = null;
+    for (let step = 0; step < 4 && ring === null; step += 1) {
+      await cdp.pressKey("Tab");
+      ring = await cdp.evaluate(`(() => {
+        const el = document.activeElement;
+        if (!el || !el.classList || !el.classList.contains('ui-sidebar-toggle')) return null;
+        const cs = getComputedStyle(el);
+        return { outlineStyle: cs.outlineStyle, outlineWidth: cs.outlineWidth };
+      })()`);
+    }
+    check(
+      rows,
+      "reference.disclosure.closedKeepsFocusRing",
+      !!ring && ring.outlineStyle !== "none" && ring.outlineWidth !== "0px",
+      JSON.stringify(ring),
+    );
+    check(
+      rows,
+      "reference.disclosure.noHorizontalOverflow",
+      closedState.scrollWidth <= closedState.clientWidth + 1,
+      `scrollW=${closedState.scrollWidth} clientW=${closedState.clientWidth}`,
+    );
+    await cdp.clickCenter(".ui-sidebar-toggle");
+    await sleep(400);
+
+    // ── HOME: the authored JSON document, served at the locale root ─────────
+    const home = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    check(rows, "reference.home.isLocaleRoot", home.path === "/ww/en", home.path);
+    check(
+      rows,
+      "reference.home.oneH1AuthoredTitle",
+      home.h1s.length === 1 && home.h1s[0] === REFERENCE_HOME_TITLE,
+      JSON.stringify(home.h1s),
+    );
+    check(
+      rows,
+      "reference.home.jsonSectionsRender",
+      [
+        "Two ways to write a page",
+        "You own your website",
+        "About this website",
+        "Built to adapt",
+        "Everything here is in the public repository",
+      ].every((heading) => home.headings.includes(heading)),
+      JSON.stringify(home.headings),
+    );
+    check(
+      rows,
+      "reference.home.ownershipPrinciple",
+      home.text.includes("not a technical hostage situation"),
+      "the portability statement is delivered on Home",
+    );
+    check(rows, "reference.home.linksTheProject", home.projectLink === true, "Home links the Foundation project");
+    check(
+      rows,
+      "reference.home.aboutTeaserLinksToAbout",
+      home.aboutAnchors.length > 0 &&
+        home.aboutAnchors.every((anchor) => anchor.includes("/about")),
+      JSON.stringify(home.aboutAnchors),
+    );
+    check(
+      rows,
+      "reference.nav.siteAwareHomeAndAbout",
+      home.visibleNav.some((entry) => entry.startsWith("/ww/en|")) &&
+        home.visibleNav.some((entry) => entry.startsWith("/ww/en/about")),
+      JSON.stringify(home.visibleNav),
+    );
+    check(
+      rows,
+      "reference.nav.activeEntryMarksCurrentPage",
+      home.visibleNav.some((entry) => entry.endsWith("|page")),
+      JSON.stringify(home.visibleNav),
+    );
+    check(
+      rows,
+      "reference.metadata.canonicalOnReferenceOrigin",
+      home.canonical === `${REFERENCE_ORIGIN}/ww/en`,
+      String(home.canonical),
+    );
+    check(
+      rows,
+      "reference.metadata.openGraphUrlOnReferenceOrigin",
+      home.ogUrl === `${REFERENCE_ORIGIN}/ww/en`,
+      String(home.ogUrl),
+    );
+
+    // ── HOME → ABOUT: the teaser really reaches the authored page ───────────
+    const homeAction = home.aboutAnchors[0].split(" :: ")[0];
+    await cdp.navigate(`${BASE_URL}${homeAction}`);
+    await waitReady(cdp);
+    await sleep(300);
+    const followed = await cdp.evaluate("location.pathname");
+    check(rows, "reference.home.aboutTeaserReachesAbout", followed === "/ww/en/about", `landed ${followed}`);
+
+    // ── ABOUT: the authored Markdown page, in the other authoring mode ──────
+    const about = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    check(
+      rows,
+      "reference.about.oneH1AuthoredTitle",
+      about.h1s.length === 1 && about.h1s[0] === REFERENCE_ABOUT_TITLE,
+      JSON.stringify(about.h1s),
+    );
+    check(
+      rows,
+      "reference.about.markdownSectionsRender",
+      ["A website you control", "Two ways to create pages", "Open source first", "Learn more", "Designed to grow with the site"].every(
+        (heading) => about.headings.includes(heading),
+      ),
+      JSON.stringify(about.headings),
+    );
+    check(
+      rows,
+      "reference.about.deliversThePrinciples",
+      about.text.includes("Free and open source") && about.text.includes("Provelopment's help is optional"),
+      "the open-source and optional-services statements are delivered",
+    );
+    check(rows, "reference.about.linksTheProject", about.projectLink === true, "About links the Foundation project");
+    check(
+      rows,
+      "reference.nav.aboutMarksCurrentPage",
+      about.visibleNav.some((entry) => entry.startsWith("/ww/en/about") && entry.endsWith("|page")),
+      JSON.stringify(about.visibleNav),
+    );
+    check(
+      rows,
+      "reference.metadata.aboutCanonicalOnReferenceOrigin",
+      about.canonical === `${REFERENCE_ORIGIN}/ww/en/about`,
+      String(about.canonical),
+    );
+
+    // ── The reference origin reaches the technical routes too ───────────────
+    const technical = await cdp.evaluate(`(async () => {
+      const sitemap = await (await fetch('/sitemap.xml')).text();
+      const robots = await (await fetch('/robots.txt')).text();
+      const locs = sitemap.split('<loc>').slice(1).map((part) => part.split('</loc>')[0]);
+      return JSON.stringify({ locs, robots });
+    })()`);
+    const parsed = JSON.parse(technical);
+    check(
+      rows,
+      "reference.sitemap.everyUrlOnReferenceOrigin",
+      // The FIRST entry is the deployment's own origin (the locale-root home page),
+      // so both the bare origin and its sub-paths are correct here.
+      parsed.locs.length >= 2 &&
+        parsed.locs.every((loc) => loc === REFERENCE_ORIGIN || loc.startsWith(`${REFERENCE_ORIGIN}/`)),
+      JSON.stringify(parsed.locs),
+    );
+    check(
+      rows,
+      "reference.sitemap.publishesAuthoredAboutPage",
+      parsed.locs.includes(`${REFERENCE_ORIGIN}/ww/en/about`),
+      JSON.stringify(parsed.locs),
+    );
+    check(
+      rows,
+      "reference.robots.referencesSitemapOnReferenceOrigin",
+      parsed.robots.includes(`${REFERENCE_ORIGIN}/sitemap.xml`),
+      parsed.robots.replace(/\s+/g, " ").trim(),
+    );
+  } catch (error) {
+    check(rows, "reference-content.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
   }
   return rows;
 }
@@ -4050,6 +4480,14 @@ const multisiteChoose = (name, value) => `(() => {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
   try {
+    // R1A — THE REFERENCE DEPLOYMENT'S OWN CONTENT + SHARED-UI CONTRACT. This runs
+    // FIRST, against `site.config.json` exactly as the repository ships it (it never
+    // writes the file): every scenario below mutates the configuration, so the
+    // reference values must be observed before any of them does.
+    const referenceRows = await runReferenceContentScenario(chrome);
+    allRows = allRows.concat(referenceRows.map((r) => ({ presentation: "reference-content", ...r })));
+    const referenceFails = referenceRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] reference-content: ${referenceRows.length - referenceFails}/${referenceRows.length} checks passed${referenceFails ? ` FAIL=${referenceFails}` : ""}`);
     // ONE canonical presentation (the retired feature's five-preset loop is gone).
     const config = JSON.parse(original);
     config.ui = { ...config.ui, ...CANONICAL.ui };
