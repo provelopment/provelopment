@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-let mockPath = "/en";
+let mockPath = "/ww/en";
 vi.mock("next/navigation", () => ({ usePathname: () => mockPath }));
 
 import { ContextNavLinks, type ContextNavLink } from "@/components/site/context-nav-links";
@@ -27,21 +27,21 @@ function render() {
  */
 describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
     it("marks the active internal page with aria-current and nothing else", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const html = render();
         expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
-        // Home ("/") resolves to "/en" and is current (either attribute order):
+        // Home ("/") resolves to "/ww/en" and is current (either attribute order):
         expect(html).toMatch(
-            /href="\/en"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/en"/,
+            /href="\/ww\/en"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/ww\/en"/,
         );
     });
 
     it("marks a deep internal page and NEVER an external link", () => {
-        mockPath = "/en/about";
+        mockPath = "/ww/en/about";
         const html = render();
         expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(1);
         expect(html).toMatch(
-            /href="\/en\/about"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/en\/about"/,
+            /href="\/ww\/en\/about"[^>]*aria-current="page"|aria-current="page"[^>]*href="\/ww\/en\/about"/,
         );
         // The external link is present, opens a new tab, but carries no aria-current:
         expect(html).toContain("https://example.com");
@@ -50,7 +50,7 @@ describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
     });
 
     it("marks no link current when the pathname matches nothing", () => {
-        mockPath = "/en/unknown";
+        mockPath = "/ww/en/unknown";
         const html = render();
         expect(html.match(/aria-current="page"/g) ?? []).toHaveLength(0);
     });
@@ -71,7 +71,7 @@ describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
  */
 describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabled / region)", () => {
     it("renders a configured item icon as the replaceable /assets asset", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const html = renderToStaticMarkup(
             ContextNavLinks({
                 locale: "en",
@@ -85,7 +85,7 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
     });
 
     it("renders a disabled item as aria-disabled, NOT navigable, but still in the DOM", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const html = renderToStaticMarkup(
             ContextNavLinks({
                 locale: "en",
@@ -99,7 +99,7 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
     });
 
     it("orders by region top → middle → bottom deterministically when sortByRegion is set", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const shuffled: readonly ContextNavLink[] = [
             { href: "/bottom1", label: "B1", position: "bottom" },
             { href: "/top2", label: "T2", position: "top" },
@@ -127,7 +127,7 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
 
 describe("ContextNavLinks — P0-5 shared link path", () => {
     it("renders the demo badge through the shared nav-item-badge chip (not a second badge implementation)", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const html = renderToStaticMarkup(
             ContextNavLinks({
                 locale: "en",
@@ -142,15 +142,15 @@ describe("ContextNavLinks — P0-5 shared link path", () => {
     });
 
     it("the active internal item's li carries the shared aria-current-page marker (NavItem path)", () => {
-        mockPath = "/en/about";
+        mockPath = "/ww/en/about";
         const html = render();
         // Only NavItem emits the `aria-current-page` marker on the item wrapper.
         expect(html.match(/<li class="aria-current-page">/g) ?? []).toHaveLength(1);
-        expect(html).toContain('href="/en/about"');
+        expect(html).toContain('href="/ww/en/about"');
     });
 
     it("every rendered item is an li>a pair via NavItem (no direct a/Link in the consumer)", () => {
-        mockPath = "/en";
+        mockPath = "/ww/en";
         const html = render();
         // Three configured links → three <li> wrappers, each containing exactly one anchor.
         expect(html.match(/<li/g) ?? []).toHaveLength(3);
@@ -167,7 +167,7 @@ describe("ContextNavLinks — P0-5 shared link path", () => {
  */
 describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
   it("renders every same-href entry with its own label", () => {
-    mockPath = "/en";
+    mockPath = "/ww/en";
     const html = renderToStaticMarkup(
       ContextNavLinks({
         locale: "en",
@@ -179,11 +179,11 @@ describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
     );
     expect(html).toContain(">Alpha</span>");
     expect(html).toContain(">Beta</span>");
-    expect(html.match(/href="\/en\/pricing"/g) ?? []).toHaveLength(2);
+    expect(html.match(/href="\/ww\/en\/pricing"/g) ?? []).toHaveLength(2);
   });
 
   it("keeps each same-href entry's own icon, disabled state and region under sort", () => {
-    mockPath = "/en";
+    mockPath = "/ww/en";
     const html = renderToStaticMarkup(
       ContextNavLinks({
         locale: "en",
@@ -201,7 +201,7 @@ describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
     expect(html.indexOf('src="/assets/beta.svg"')).toBeGreaterThan(betaSpan);
     expect(html.slice(betaSpan).includes("Beta")).toBe(true);
     // Region sort: Alpha(top) → Mid(middle) → Beta(bottom); both duplicates present.
-    const alphaLink = html.indexOf('href="/en/pricing"');
+    const alphaLink = html.indexOf('href="/ww/en/pricing"');
     const midText = html.indexOf(">Mid</span>");
     const betaText = html.indexOf(">Beta</span>");
     expect(alphaLink).toBeGreaterThan(-1);

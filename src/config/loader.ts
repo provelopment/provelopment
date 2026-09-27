@@ -6,7 +6,8 @@ import type { Business, BusinessContact } from "@/core/business";
 import { assertValidAddressPresentation } from "@/core/business";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import { assertRegionsValid } from "@/core/region";
-import type { SiteConfig } from "./site-config";
+import { resolveSites } from "@/core/site";
+import type { SiteConfig, SitePageOverrides } from "./site-config";
 
 /** The validated shape of `site.config.json`. */
 export type SiteConfigFile = z.infer<typeof siteConfigFileSchema>;
@@ -36,16 +37,39 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
 
   const business = toNormalizedBusiness(json);
   const regions = toRegions(json);
-  const pageBindings = toPageBindings(json.business?.pages);
+
+  // S1 — the deployment's sites, resolved ONCE by the core resolver (the schema already
+  // validated coherence through the same function, so this cannot fail here).
+  const localeCodes = json.i18n.locales.map((locale) => locale.code);
+  const { sites, defaultSite } = resolveSites({
+    input: json.sites,
+    defaultLocale: json.i18n.defaultLocale,
+    locales: localeCodes,
+  });
+
+  const pageBindings = toPageBindings(json.business?.pages, defaultSite.code);
+
+  // S1E2 — the page-facing concerns a site OVERRIDES (navigation, footer navigation, legal, the
+  // Connect inventory). An override travels ON its own site's entry, so it can never name a site
+  // that does not exist, and a leaf that is absent stays shared. Keyed by site CODE.
+  const sitePageOverrides: Record<string, SitePageOverrides> = {};
+  for (const entry of json.sites ?? []) {
+    const overrides: SitePageOverrides = {
+      ...(entry.navigation === undefined ? {} : { navigation: entry.navigation }),
+      ...(entry.footerNavigation === undefined
+        ? {}
+        : { footerNavigation: entry.footerNavigation }),
+      ...(entry.legal === undefined ? {} : { legal: entry.legal }),
+      ...(entry.connect === undefined ? {} : { connect: entry.connect }),
+      ...(entry.ctaHref === undefined ? {} : { ctaHref: entry.ctaHref }),
+    };
+    if (Object.keys(overrides).length > 0) sitePageOverrides[entry.code] = overrides;
+  }
 
   // Phase K — cross-reference validation (page→region, duplicate bindings,
   // locale membership, address-presentation invariants). Loud at build time so
   // a regional page never silently falls back to a global/other identity.
-  assertRegionsValid(
-    regions,
-    pageBindings,
-    json.i18n.locales.map((locale) => locale.code),
-  );
+  assertRegionsValid(regions, pageBindings, localeCodes);
 
   return {
     url: json.site.url,
@@ -54,6 +78,9 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     description: json.site.description,
     logo: json.site.logo,
     assets: json.site.assets,
+    sites,
+    defaultSite,
+    sitePageOverrides,
     defaultLocale: json.i18n.defaultLocale,
     locales: json.i18n.locales,
     contact: json.contact,
@@ -168,22 +195,28 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
 
 /**
  * Normalizes the raw `business.pages` entries to canonical
- * `{ locale, region, slug: string | null }`:
+ * `{ site, locale, region, slug: string | null }`:
  *
  *  - `{ locale, region }`                      → landing (slug null);
  *  - `{ locale, region, slug }`                → regional page;
  *  - Phase K `{ locale, slug, region }` where `slug === region` → landing
  *    (back-compat: Phase K regional landing pages used their region id as the
- *    content slug).
+ *    content slug);
+ *  - S1 `{ site, ... }`                        → the site whose tree carries it; absent →
+ *    the DEFAULT site, so a single-site deployment keeps its configuration as it was.
  */
 function toPageBindings(
-  raw: readonly { locale: string; region: string; slug?: string }[] | undefined,
+  raw:
+    | readonly { site?: string; locale: string; region: string; slug?: string }[]
+    | undefined,
+  defaultSiteId: string,
 ): readonly PageRegionBinding[] {
   return (raw ?? []).map((entry) => {
+    const site = entry.site ?? defaultSiteId;
     if (entry.slug === undefined || entry.slug === entry.region) {
-      return { locale: entry.locale, region: entry.region, slug: null };
+      return { site, locale: entry.locale, region: entry.region, slug: null };
     }
-    return { locale: entry.locale, region: entry.region, slug: entry.slug };
+    return { site, locale: entry.locale, region: entry.region, slug: entry.slug };
   });
 }
 

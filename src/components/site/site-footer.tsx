@@ -3,8 +3,10 @@ import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
 import { assetPathFromUrl, availableFooterGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
+import { effectiveSitePageConfig } from "@/config/site-page-config";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { configuredLegalDocs, legalLabel, legalPageRoutePath } from "@/core/legal";
+import { siteHref } from "@/core/site";
 import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
 import { connectivityIcon, socialConnectivityLinks } from "./connectivity-links";
@@ -16,37 +18,51 @@ import { navItemKey } from "./nav-links";
 
 interface SiteFooterProps {
     readonly locale: string;
+    /**
+     * S1 — the site whose page tree this footer belongs to. Legal-document existence and
+     * every internal link are resolved INSIDE this site, so a footer can never advertise a
+     * page (or a URL) belonging to another site.
+     */
+    readonly siteId: string;
     /** Provider-resolved direction link resolver (composed at the app boundary). */
     readonly directionLinkResolver: DirectionLinkResolver;
 }
 
-export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterProps) {
-    const dictionary = getDictionary(locale);
+export async function SiteFooter({ locale, siteId, directionLinkResolver }: SiteFooterProps) {
+    // S1E2 — the footer speaks for ONE site: its EFFECTIVE page-facing configuration (the legal
+    // documents, primary list, footer group and connection inventory that this site serves) and
+    // that site's own dictionary. Nothing here reads the shared values directly, so a site
+    // override can never be half-applied.
+    const pageConfig = effectiveSitePageConfig(siteConfig, siteId);
+    const dictionary = getDictionary(locale, pageConfig.site.code);
     // Phase K: the legacy global footer NAP is suppressed when operating
     // regions are configured — regional pages expose their own region's
     // identity, and the global block must never leak into them.
     const hasRegions = Object.keys(siteConfig.regions).length > 0;
 
     // Legal documents: surfaced only where a document is BOTH listed in the
-    // `legal[]` config block AND authored as a page (`content/pages/.../legal/<slug>.md`
-    // or its JSON counterpart). Existence is decided by the SAME page-source
-    // composition every page route resolves through — never a second content store.
-    const pages = createPageSources({
-        defaultLocale: siteConfig.defaultLocale,
-        locales: siteConfig.locales.map((entry) => entry.code),
-    });
+    // `legal[]` config block AND authored as a page
+    // (`content/pages/<siteId>/<locale>/legal/<slug>.md` or its JSON counterpart).
+    // Existence is decided by the SAME page-source composition every page route resolves
+    // through — never a second content store, and never another site's tree.
+    const pages = createPageSources({ sites: siteConfig.sites });
     const legalLinks: { slug: string; label: string }[] = [];
-    for (const doc of configuredLegalDocs(siteConfig.legal)) {
-        // Canonical existence (the default locale) — the same rule as before, so a
-        // document that only exists in a translation is not advertised everywhere.
-        const page = await pages.resolve(legalPageRoutePath(doc.slug), siteConfig.defaultLocale);
+    for (const doc of configuredLegalDocs(pageConfig.legal)) {
+        // Canonical existence (THIS site's default locale) — the same rule as before, so a
+        // document that only exists in a translation is not advertised everywhere. The site comes
+        // from the effective configuration, so another site's tree is never consulted.
+        const page = await pages.resolve(
+            pageConfig.site.code,
+            legalPageRoutePath(doc.slug),
+            pageConfig.site.defaultLocale,
+        );
         if (page) legalLinks.push(doc);
     }
 
     // P5-6 — the footer nav list uses the same position-derived identity as the
     // header/aside/disclosure so duplicate destinations keep distinct React
     // identity everywhere (`href` is a destination, not an identity).
-    const navLinks: readonly ContextNavLink[] = siteConfig.navigation.map((item, index) => ({
+    const navLinks: readonly ContextNavLink[] = pageConfig.navigation.map((item, index) => ({
         href: item.href,
         key: navItemKey(index),
         label: dictionary.navigation.items[item.href] ?? item.label,
@@ -61,7 +77,7 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     // `NavItem` decorative-icon contract; `disabled` semantics pass through too.
     // The sidebar-only leaves (`position`, `iconOpen`, `iconClosed`) have no
     // meaning in a footer group and are deliberately ignored here.
-    const footerNavGroup = siteConfig.footerNavigation;
+    const footerNavGroup = pageConfig.footerNavigation;
     const footerNavLinks: readonly ContextNavLink[] = (footerNavGroup?.items ?? []).map(
         (item, index) => ({
             href: item.href,
@@ -82,7 +98,7 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     //  - methods are region-aware: an internal one (`/contact`) is only shown
     //    where the (locale, region) context actually has it; external deep
     //    links (mailto/tel/https/viber) never reset locale or location.
-    const methodLinks: readonly ContextNavLink[] = (siteConfig.connect?.methods ?? []).map(
+    const methodLinks: readonly ContextNavLink[] = (pageConfig.connect?.methods ?? []).map(
         (method) => ({
             href: method.href,
             label: connectMethodLabel(dictionary, method),
@@ -143,7 +159,11 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                 spans the full width as a coherent single line on desktop. */}
             <div className="mx-auto grid max-w-page break-words gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 {hasRegions ? null : (
-                    <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
+                    <BusinessInfo
+                        locale={locale}
+                        siteId={pageConfig.site.code}
+                        directionLinkResolver={directionLinkResolver}
+                    />
                 )}
 
                 {hasConnectivity ? (
@@ -234,7 +254,11 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
                             {legalLinks.map((doc) => (
                                 <li key={doc.slug}>
                                     <Link
-                                        href={`/${locale}/legal/${doc.slug}`}
+                                        href={siteHref(
+                                            pageConfig.site,
+                                            locale,
+                                            `/${legalPageRoutePath(doc.slug)}`,
+                                        )}
                                         className={FOOTER_LINK_CLASS}
                                     >
                                         {legalLabel(dictionary.legal.labels, doc)}

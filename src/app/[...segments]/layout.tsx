@@ -1,5 +1,7 @@
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createAnalyticsProvider } from "@/adapters/analytics";
+import { createPageAvailability } from "@/adapters/content/page-availability";
+import { siteSwitchOptions } from "@/application/site-switch";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StatusGraphicProvider } from "@/components/site/status-graphic-context";
 import { StructuredData } from "@/components/site/structured-data";
@@ -18,6 +20,7 @@ import {
   readImageDimensions,
 } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
+import { effectiveSitePageConfig } from "@/config/site-page-config";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
   layoutDataAttributes,
@@ -26,6 +29,7 @@ import {
   resolveShellPattern,
   resolveUiConfig,
 } from "@/core/ui";
+import { pathContextOr, siteHref, sitePrefixPath, siteSetOf } from "@/core/site";
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
@@ -49,7 +53,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const localeCodes = siteConfig.locales.map((locale) => locale.code);
+const siteSet = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
 
 // UI-04/UI-05/UI-06: the single resolved UI configuration (UI-02) drives the
 // shell. The values come from the Foundation canonical presentation defaults
@@ -78,11 +82,17 @@ const hasRegions = Object.keys(siteConfig.regions).length > 0;
 const analytics = createAnalyticsProvider(siteConfig.analytics);
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
 
-export function generateStaticParams() {
-  return siteConfig.locales.map((locale) => ({ locale: locale.code }));
-}
-
-/** Unknown locales render the 404 instead of being rendered on demand. */
+/**
+ * S1 — the ROOT layout of a SITE-SCOPED URL space: `/{locale}/...` for the default site and
+ * `/{sitePrefix}/{locale}/...` for every other site. The layout resolves the request's site
+ * and locale from the whole path (the same ONE resolver the page uses), so the document's
+ * `lang`, the dictionary, the navigation, the footer and every internal URL belong to ONE
+ * site. The path belongs to the page below: an unknown path resolves here to the default
+ * site (deterministic, never a guess about another site) and the page decides the 404.
+ *
+ * Unknown SITES and LOCALES are not rendered on demand: only the (site, locale) combinations
+ * the configuration declares are generated, which is what `dynamicParams = false` enforces.
+ */
 export const dynamicParams = false;
 
 /**
@@ -97,7 +107,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
+  const { segments } = await params;
+  const request = pathContextOr(
+    siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+
   return {
     metadataBase: new URL(siteConfig.url),
     title: {
@@ -122,10 +140,13 @@ export async function generateMetadata(): Promise<Metadata> {
       icon: assetPathFromUrl(siteConfig.assets?.favicon),
     },
     alternates: {
+      // S1 — alternates cover THIS site's locales, under the site's own public prefix, so an
+      // hreflang link can never point at another site's tree.
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: localeCodes,
-        defaultLocale: siteConfig.defaultLocale,
+        locales: request.site.locales,
+        defaultLocale: request.site.defaultLocale,
+        sitePrefix: sitePrefixPath(request.site),
       }),
     },
   };
@@ -133,16 +154,57 @@ export async function generateMetadata(): Promise<Metadata> {
 
 interface LocaleLayoutProps {
   readonly children: React.ReactNode;
-  readonly params: Promise<{ readonly locale: string }>;
+  readonly params: Promise<{ readonly segments?: string[] }>;
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: LocaleLayoutProps) {
-  const { locale } = await params;
-  const dictionary = getDictionary(locale);
-  const navLinks = getSiteNavLinks(locale);
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
+  const { segments } = await params;
+  // The URL decides the site and the locale; an unknown path falls back to the DEFAULT site
+  // deterministically (the page below turns it into a 404, so the status page still renders
+  // inside the site chrome).
+  const request = pathContextOr(
+    siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+  const site = request.site;
+  // The chrome works in the locale PATH KEY: it names the content directory (`ca/fr`), the
+  // dictionary entry and every URL this layout builds.
+  const locale = request.localePath;
+  // S1E3 — the shell CTA's DESTINATION belongs to the active site's page tree (a site may point it
+  // at its own page), while its presentation stays shared `ui.cta` configuration. An internal
+  // destination resolves inside the site+locale exactly like any other navigation href, so a
+  // shared `/contact` can never link into another site or 404 on its own site.
+  const pageConfig = effectiveSitePageConfig(siteConfig, site.code);
+  const ctaHrefSource = pageConfig.ctaHref;
+  const ctaHref = ctaHrefSource === undefined ? undefined : siteHref(site, locale, ctaHrefSource);
+
+  // S1E2 — the STANDARDS-FACING tag for the same locale (`fr-CA` for `/ca/fr`): the document's
+  // `lang` and every hreflang alternate identify the language, while the URL stays lowercase.
+  const localeTag = request.locale;
+  const dictionary = getDictionary(locale, site.code);
+  const navLinks = getSiteNavLinks(locale, site.code);
+
+  // S1E2 — the Site selector's destinations, resolved ONCE per request by the application rule
+  // (same route when the target serves it, else the target's home). A deployment with a single
+  // site renders no selector and pays nothing.
+  const siteSwitch =
+    siteConfig.sites.length > 1
+      ? await siteSwitchOptions(
+          {
+            site,
+            localePath: request.localePath,
+            // The FULL route path: a region's namespace stays part of the page's path.
+            routePath: [request.region, request.routePath].filter(Boolean).join("/"),
+          },
+          {
+            sites: siteConfig.sites,
+            bindings: siteConfig.pageBindings,
+            availability: createPageAvailability({ sites: siteConfig.sites }),
+          },
+        )
+      : undefined;
   // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
   // is not composed (the responsive disclosure/`Show navigation` control remains
   // the way navigation is reached). Distinct from `compact` (rail present,
@@ -272,7 +334,7 @@ export default async function LocaleLayout({
 
   return (
     <html
-      lang={locale}
+      lang={localeTag}
       className={`${brandSans.variable} ${geistMono.variable} h-full antialiased`}
       style={htmlStyle}
       {...htmlPresentationAttrs}
@@ -288,13 +350,13 @@ export default async function LocaleLayout({
         <PageBanner banners={bannerMap} regionIds={regionIds} />
         <ShellEngine
           resolved={resolvedUi}
-          header={<SiteHeader locale={locale} resolved={resolvedUi} />}
+          header={<SiteHeader locale={locale} resolved={resolvedUi} siteId={site.code} siteSwitch={siteSwitch} />}
           main={
             <ErrorMessagesProvider messages={dictionary.error}>
               <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>
             </ErrorMessagesProvider>
           }
-          footer={<SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />}
+          footer={<SiteFooter locale={locale} siteId={site.code} directionLinkResolver={directionLinkResolver} />}
           mainId="main"
           mainClassName="flex-1"
           navigationLabel={dictionary.navigation.primaryLabel}
@@ -318,8 +380,9 @@ export default async function LocaleLayout({
           bottomNav={bottomNav}
           locale={locale}
           pageBindings={siteConfig.pageBindings}
+          siteSet={siteSet}
           ctaLabel={resolvedUi.cta.label}
-          ctaHref={resolvedUi.cta.href}
+          ctaHref={ctaHref}
         />
         {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}

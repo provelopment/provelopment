@@ -18,16 +18,30 @@ Every example below is complete and copyable.
 ## Where a page goes
 
 ```text
-content/pages/json/<language>/<page-name>.json
+## Which folder does my page go in?
+
+```
+content/pages/json/<site>/<language>/<page-name>.json
+```
+
+- **`<site>`** — a recognized lowercase country code (`ca`, `fr`, `ch`…), or `ww` for a
+  worldwide/global site. The complete list is
+  [`content/COUNTRY-CODES.md`](../../COUNTRY-CODES.md). A folder that is not one of those
+  codes defines no site, and pages inside it are never published.
+- **`<language>`** — `en`, `fr`, `fr-ca`… (lowercase).
+- **`<page-name>`** — one name (`services`) or a folder plus a name
+  (`services/web-design`).
+
+
 ```
 
 For example:
 
 ```text
-content/pages/json/en/services.json                →   /en/services
-content/pages/json/en/services/web-design.json     →   /en/services/web-design
-content/pages/json/en/legal/privacy.json           →   /en/legal/privacy
-content/pages/json/en/home.json                    →   /en   (the home page)
+content/pages/json/ww/en/services.json                →   /ww/en/services
+content/pages/json/ww/en/services/web-design.json     →   /ww/en/services/web-design
+content/pages/json/ww/en/legal/privacy.json           →   /ww/en/legal/privacy
+content/pages/json/ww/en/home.json                    →   /en   (the home page)
 ```
 
 - `<language>` is a language your site is configured to serve (`en`, `de`, …).
@@ -35,7 +49,7 @@ content/pages/json/en/home.json                    →   /en   (the home page)
 - **Folders become part of the address** (up to four deep), and each folder name follows
   the same rule as a file name.
 - **Another language mirrors the same structure** —
-  `content/pages/json/de/services/web-design.json` serves `/de/services/web-design` — and
+  `content/pages/json/ww/de/services/web-design.json` serves `/ww/de/services/web-design` — and
   a page with no translation in the visitor's language falls back to the default
   language's page.
 - **A `README.md` is never a page** (here, or in any folder). Only files whose names are
@@ -266,7 +280,7 @@ An action is a label plus **exactly one** destination:
   fragment (`#what-we-do`), `https:`/`http:`, `mailto:` and `tel:`. Anything else is
   refused when the page is read.
 - **`route`** names another **page of this site** by its route path, without a language
-  prefix: `route: "services"` becomes `/en/services`, and `/de/services` for a German
+  prefix: `route: "services"` becomes `/ww/en/services`, and `/ww/de/services` for a German
   visitor. Use it to link between your own pages — it can never point at the wrong
   language, and it is validated, so a typo cannot produce a dead link.
 - **`variant`** is `"primary"` (default), `"secondary"` or `"link"`.
@@ -298,9 +312,9 @@ code to use it on a JSON page:
 Folders become address segments, so a section with its own pages is a folder:
 
 ```text
-content/pages/json/en/services.json                    →   /en/services
-content/pages/json/en/services/web-design.json         →   /en/services/web-design
-content/pages/json/en/blog/choosing-a-domain.json      →   /en/blog/choosing-a-domain
+content/pages/json/ww/en/services.json                    →   /ww/en/services
+content/pages/json/ww/en/services/web-design.json         →   /ww/en/services/web-design
+content/pages/json/ww/en/blog/choosing-a-domain.json      →   /ww/en/blog/choosing-a-domain
 ```
 
 Nothing else is needed: there is no index to register and no route to declare. A listing
@@ -337,7 +351,7 @@ edit the file
 → check it is valid JSON (the build will also tell you, by name and property)
 → save it
 → review what changed   (git status)
-→ stage it              (git add content/pages/json/en/services.json)
+→ stage it              (git add content/pages/json/ww/en/services.json)
 → commit it             (git commit -m "Add the services page")
 → push it               (git push)
 → automated checks build and publish the site

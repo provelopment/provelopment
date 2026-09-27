@@ -1,3 +1,8 @@
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -115,7 +120,7 @@ function classicHeader() {
 
 const allIds = (html: string) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 
-const base = { locale: "en", pageBindings: [] };
+const base = { locale: "en", pageBindings: [], siteSet: SITE_SET };
 
 describe("ShellEngine — Top-bar decision trajectories (no aside, no bottom bar)", () => {
   it("resolveShellPattern(classic) = header/header/drawer with no aside/bottom", () => {

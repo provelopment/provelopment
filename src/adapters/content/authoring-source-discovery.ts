@@ -10,7 +10,7 @@
  * A PAGE'S ROUTE IS ITS PATH, SO DISCOVERY RECURSES
  * -------------------------------------------------
  * A page may live in FOLDERS, because its URL is built from them
- * (`content/pages/markdown/en/offerings/website-design.md` → `/en/offerings/website-design`).
+ * (`content/pages/markdown/ca/en/offerings/website-design.md` → `/ca/en/offerings/website-design`).
  * So discovery walks the locale directory and every usable folder beneath it, and
  * reports each page it finds as a ROUTE PATH (`offerings/website-design`). The
  * segment, depth and length rules are the core ones (`@/core/page-route-path`), so
@@ -26,6 +26,9 @@
  *   · a nested README beside nested pages (`content/pages/markdown/en/blog/README.md`)
  *     is NOT a source either, for the same reason (`README` is not a slug);
  *   · a directory whose name is not a well-formed slug is ignored, never an error;
+ *   · a SITE directory whose name is not a recognized lowercase site code, and an
+ *     LOCALE directory whose name is not a lowercase locale path key, is ignored (so `CA`
+ *     and `fr-CA` are not spelled the way content paths are).
  *   · a file whose name is not a well-formed slug (`.gitkeep`, `Not A Slug.md`) is
  *     ignored;
  *   · a folder that would take a page past the documented depth or length cap is
@@ -52,10 +55,12 @@ import {
 } from "@/core/page-route-path";
 import {
   authoringLocaleDirectories,
+  authoringSiteDirectories,
   PAGE_AUTHORING_EXTENSIONS,
   type PageAuthoringMode,
 } from "@/core/page-source";
-import { isWellFormedLocale } from "@/core/locale";
+import { isLocalePathKey } from "@/core/site-locale";
+import { isCanonicalSiteCode } from "@/core/site-code";
 
 /**
  * The absolute authoring roots, built from LITERALS only.
@@ -79,11 +84,12 @@ function authoringRoot(mode: PageAuthoringMode): string {
 /** A directory listing in the shape the core route-path primitives consume. */
 async function entriesOf(
   mode: PageAuthoringMode,
+  siteId: string,
   locale: string,
   routePath: string,
 ): Promise<readonly { name: string; directory: boolean }[]> {
   try {
-    const entries = await readdir(path.join(authoringRoot(mode), locale, routePath), {
+    const entries = await readdir(path.join(authoringRoot(mode), siteId, locale, routePath), {
       withFileTypes: true,
     });
     return entries.map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
@@ -103,12 +109,13 @@ async function entriesOf(
  */
 async function collectRoutes(
   mode: PageAuthoringMode,
+  siteId: string,
   locale: string,
   routePath: string,
 ): Promise<readonly string[]> {
   if (routePath.length > 0 && pageRoutePathSegments(routePath).length === 0) return [];
 
-  const entries = await entriesOf(mode, locale, routePath);
+  const entries = await entriesOf(mode, siteId, locale, routePath);
   const extension = PAGE_AUTHORING_EXTENSIONS[mode];
   const routes: string[] = [];
 
@@ -119,76 +126,106 @@ async function collectRoutes(
   }
 
   for (const child of pageRouteChildDirectories(routePath, entries)) {
-    routes.push(...(await collectRoutes(mode, locale, child)));
+    routes.push(...(await collectRoutes(mode, siteId, locale, child)));
   }
 
   return routes;
 }
 
 /**
- * One mode's page route paths for ONE locale, sorted — the primitive route discovery
+ * One mode's page route paths for ONE site+locale, sorted — the primitive route discovery
  * and the sitemap use, so a newly authored file (at any depth) becomes a route and a
  * sitemap entry in the SAME step.
  *
- * A malformed locale resolves to nothing (it can never name a directory), and a
+ * A malformed site or locale resolves to nothing (it can never name a directory), and a
  * locale with no directory — or an empty one — resolves to no routes.
  *
- * It reports what the AUTHORING TREE holds. Whether a locale is served is decided
- * by the site's configuration, in the composition layer that consumes this.
+ * It reports what the AUTHORING TREE holds. Whether a site or locale is served is decided
+ * by the site configuration, in the composition layer that consumes this.
  */
 export async function authoringPageRoutesFor(
   mode: PageAuthoringMode,
+  siteId: string,
   locale: string,
 ): Promise<readonly string[]> {
-  if (!isWellFormedLocale(locale)) return [];
-  const routes = await collectRoutes(mode, locale, "");
+  if (!isCanonicalSiteCode(siteId) || !isLocalePathKey(locale)) return [];
+  const routes = await collectRoutes(mode, siteId, locale, "");
   return [...new Set(routes)].sort();
 }
 
 /**
- * One mode's locale directories that exist, sorted.
+ * The SITE directories that exist in one mode's root, sorted.
  *
- * Discovery only: a prepared-but-empty locale directory appears here and still
- * publishes nothing.
+ * Discovery only: a prepared-but-empty site directory appears here and still publishes
+ * nothing.
+ */
+export async function authoringSiteDirectoriesOf(
+  mode: PageAuthoringMode,
+): Promise<readonly string[]> {
+  return authoringSiteDirectories(await entriesOfRoot(mode));
+}
+
+/** The mode root's own listing. */
+async function entriesOfRoot(
+  mode: PageAuthoringMode,
+): Promise<readonly { name: string; directory: boolean }[]> {
+  try {
+    const entries = await readdir(authoringRoot(mode), { withFileTypes: true });
+    return entries.map((entry) => ({ name: entry.name, directory: entry.isDirectory() }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * One mode's locale directories inside ONE SITE, sorted.
+ *
+ * Discovery only: a prepared-but-empty locale directory appears here and still publishes
+ * nothing.
  */
 export async function authoringLocaleDirectoriesOf(
   mode: PageAuthoringMode,
+  siteId: string,
 ): Promise<readonly string[]> {
-  return authoringLocaleDirectories(await entriesOf(mode, "", ""));
+  if (!isCanonicalSiteCode(siteId)) return [];
+  return authoringLocaleDirectories(await entriesOf(mode, siteId, "", ""));
 }
 
 /**
  * One authored file's RAW text, or `null` when it does not exist.
  *
- * Reading is separated from parsing on purpose: the caller owns interpretation
- * (the Markdown mode parses through the authoring reader, which fails loudly
- * naming the file). A malformed locale or route path — including a traversal
- * attempt — is refused BEFORE any path is built, so an arbitrary string can never
- * address a file.
+ * Reading is separated from parsing on purpose: the caller owns interpretation (the
+ * Markdown mode parses through the authoring reader, which fails loudly naming the file).
+ * A malformed site, locale or route path — including a traversal attempt — is refused
+ * BEFORE any path is built, so an arbitrary string can never address a file, and a site id
+ * can never escape its own subtree.
  */
 export async function readAuthoringPageFile(
   mode: PageAuthoringMode,
+  siteId: string,
   locale: string,
   routePath: string,
 ): Promise<string | null> {
-  if (!isWellFormedLocale(locale)) return null;
+  if (!isCanonicalSiteCode(siteId)) return null;
+  if (!isLocalePathKey(locale)) return null;
   if (pageRoutePathSegments(routePath).length === 0) return null;
   // The path and the read stay in ONE expression, so the tracer can resolve the root and
   // see exactly which subtree is being read (see `MARKDOWN_ROOT` above).
   try {
     return mode === "markdown"
-      ? await readFile(path.join(MARKDOWN_ROOT, locale, `${routePath}.md`), "utf8")
-      : await readFile(path.join(JSON_ROOT, locale, `${routePath}.json`), "utf8");
+      ? await readFile(path.join(MARKDOWN_ROOT, siteId, locale, `${routePath}.md`), "utf8")
+      : await readFile(path.join(JSON_ROOT, siteId, locale, `${routePath}.json`), "utf8");
   } catch {
     return null;
   }
 }
 
-/** True when a page source exists for this mode, locale and route path. */
+/** True when a page source exists for this mode, site, locale and route path. */
 export async function hasAuthoringSource(
   mode: PageAuthoringMode,
+  siteId: string,
   locale: string,
   routePath: string,
 ): Promise<boolean> {
-  return (await readAuthoringPageFile(mode, locale, routePath)) !== null;
+  return (await readAuthoringPageFile(mode, siteId, locale, routePath)) !== null;
 }

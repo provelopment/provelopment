@@ -1,4 +1,6 @@
 export { parseSiteConfig, siteConfig } from "./loader";
+export { effectiveSitePageConfig, mergeSitePageConfig } from "./site-page-config";
+export type { PageFacingConfig, SitePageConfig } from "./site-page-config";
 export type { SiteConfigFile } from "./loader";
 export type {
   AnalyticsConfig,
@@ -10,6 +12,8 @@ export type {
   MapsConfig,
   NavigationItem,
   SiteConfig,
+  SiteConfigEntry,
+  SitePageOverrides,
   SocialLink,
   UiConfig,
   UiContentConfig,

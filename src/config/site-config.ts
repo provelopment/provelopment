@@ -2,6 +2,7 @@ import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
+import type { ResolvedSite } from "@/core/site";
 import type {
   ContentWidth,
   CtaAction,
@@ -166,6 +167,26 @@ export interface UiConfig {
   readonly layoutSwitcher?: UiLayoutSwitcherConfig;
 }
 
+/**
+ * S1 — one declared SITE (`sites[]`). Optional block: a deployment that declares none has
+ * exactly ONE site (`main`) at its own URLs, using the deployment's default locale and
+ * every declared locale.
+ */
+export interface SiteConfigEntry {
+  /** The site id: the folder name under each authoring root, and never a URL by itself. */
+  readonly id: string;
+  /** Human label for a site selector. Absent → the id. */
+  readonly label?: string;
+  /** Public path prefix: `""` (the default site) or one lowercase slug segment. */
+  readonly pathPrefix?: string;
+  /** The site's default locale. Absent → the deployment's default locale. */
+  readonly defaultLocale?: string;
+  /** The locales this site serves, in order. Absent → every declared locale. */
+  readonly locales?: readonly string[];
+  /** Whether this site's default locale may answer its other locales. Absent → `true`. */
+  readonly fallback?: boolean;
+}
+
 /** N2 — the shell layout presentation switcher (`ui.layoutSwitcher`). */
 export interface UiLayoutSwitcherConfig {
   /** Whether a visitor may switch layouts (`false`/absent → one fixed composition). */
@@ -303,10 +324,49 @@ export interface SiteAssetsConfig {
   readonly statusGraphic?: string;
 }
 
+/**
+ * S1E2 — THE PAGE-FACING CONCERNS ONE SITE MAY OVERRIDE.
+ *
+ * Each leaf points INTO a page tree (navigation destinations, footer group, legal documents, the
+ * Connect page's connection inventory), so it is the part of the configuration that legitimately
+ * varies per site — while theme, assets, identity, contact details and feature flags stay shared.
+ * An absent leaf inherits the deployment's shared value; a present leaf REPLACES it wholesale
+ * (there is no per-item merge: an independent page inventory differs as a whole, and a merge would
+ * make removing a shared entry impossible).
+ */
+export interface SitePageOverrides {
+  readonly navigation?: readonly NavigationItem[] | undefined;
+  readonly footerNavigation?: FooterNavGroup | undefined;
+  readonly legal?: readonly LegalConfigEntry[] | undefined;
+  readonly connect?: ConnectConfig | undefined;
+  /**
+   * S1E3 — the shell CTA's page destination for THIS site. Presentation stays shared (`ui.cta`);
+   * only the destination — a page in this site's own tree — may differ.
+   */
+  readonly ctaHref?: string | undefined;
+}
+
 export interface SiteConfig {
   /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
   readonly url: string;
-  /** Default locale code; must appear in `locales`. */
+  /**
+   * S1 — the deployment's RESOLVED sites, in configuration order, and the default site (the one
+   * `/` negotiates to). A deployment with no `sites` block resolves to exactly ONE site: the
+   * Worldwide site `ww`.
+   */
+  readonly sites: readonly ResolvedSite[];
+  readonly defaultSite: ResolvedSite;
+  /**
+   * S1E2 — page-facing overrides per site CODE (`navigation`, `footerNavigation`, `legal`,
+   * `connect`). A code that is absent serves the SHARED values below; a leaf that is absent on a
+   * present entry is inherited. Read through `effectiveSitePageConfig` (see
+   * `@/config/site-page-config`), never by hand.
+   */
+  readonly sitePageOverrides: Readonly<Record<string, SitePageOverrides>>;
+  /**
+   * The deployment's default locale — the dictionary fallback and the locale the deployment
+   * root negotiates to. Each SITE has its own default locale (`sites[].defaultLocale`).
+   */
   readonly defaultLocale: string;
   /** Supported locales, in preferred order. */
   readonly locales: readonly LocaleConfig[];
@@ -343,7 +403,7 @@ export interface SiteConfig {
    * global business defaults.
    */
   readonly regions: Readonly<Record<string, OperationalRegion>>;
-  /** Page inventory entries `(locale, region, slug?)`; empty when none. */
+  /** Page inventory entries `(site, locale, region, slug?)`; empty when none. */
   readonly pageBindings: readonly PageRegionBinding[];
   /** Optional functionality flags; each is consumed by its own adapter. */
   readonly analytics?: AnalyticsConfig;

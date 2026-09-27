@@ -66,7 +66,7 @@ describe("the resolution order", () => {
 
   it("expands to the requested locale first and the default locale second, marking the fallback", () => {
     expect(
-      pageResolutionCandidates({ routePath: "about", locale: "de", defaultLocale: "en" }),
+      pageResolutionCandidates({ siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" }),
     ).toEqual([
       { kind: "json", locale: "de", fallback: false },
       { kind: "markdown", locale: "de", fallback: false },
@@ -80,6 +80,7 @@ describe("the resolution order", () => {
     // request, and the order does not know how deep it is.
     expect(
       pageResolutionCandidates({
+      siteId: "ww",
         routePath: "offerings/website-design",
         locale: "de",
         defaultLocale: "en",
@@ -94,6 +95,7 @@ describe("the resolution order", () => {
 
   it("omits the fallback steps when fallback is not permitted", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "ww",
       routePath: "about",
       locale: "de",
       defaultLocale: "en",
@@ -105,6 +107,7 @@ describe("the resolution order", () => {
 
   it("omits them when the requested locale IS the default locale", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "ww",
       routePath: "about",
       locale: "en",
       defaultLocale: "en",
@@ -114,7 +117,7 @@ describe("the resolution order", () => {
   });
 
   it("JSON wins over Markdown within one locale", () => {
-    const exact = pageResolutionCandidates({ routePath: "about", locale: "de", defaultLocale: "en" })
+    const exact = pageResolutionCandidates({ siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" })
       .filter((candidate) => !candidate.fallback)
       .map((candidate) => candidate.kind);
     expect(exact).toEqual(["json", "markdown"]);
@@ -122,6 +125,7 @@ describe("the resolution order", () => {
 
   it("makes an exact-locale page beat a default-locale one, whatever the format", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "ww",
       routePath: "about",
       locale: "de",
       defaultLocale: "en",
@@ -146,13 +150,13 @@ describe("the resolution order", () => {
       "a/b/c/d/e",
     ]) {
       expect(
-        pageResolutionCandidates({ routePath, locale: "en", defaultLocale: "en" }),
+        pageResolutionCandidates({ siteId: "ww", routePath, locale: "en", defaultLocale: "en" }),
         routePath,
       ).toEqual([]);
     }
     for (const request of [
-      { routePath: "about", locale: "../etc", defaultLocale: "en" },
-      { routePath: "about", locale: "en", defaultLocale: "not a locale" },
+      { siteId: "ca", routePath: "about", locale: "../etc", defaultLocale: "en" },
+      { siteId: "ca", routePath: "about", locale: "en", defaultLocale: "not a locale" },
     ]) {
       expect(pageResolutionCandidates(request), JSON.stringify(request)).toEqual([]);
     }
@@ -173,34 +177,35 @@ describe("the discovery primitives", () => {
   });
 
   it("builds the source file of a page route path, nested paths included", () => {
-    expect(pageSourceFile("markdown", "en", "about")).toBe("content/pages/markdown/en/about.md");
-    expect(pageSourceFile("json", "de", "about")).toBe("content/pages/json/de/about.json");
-    expect(pageSourceFile("markdown", "en", "offerings/website-design")).toBe(
-      "content/pages/markdown/en/offerings/website-design.md",
+    expect(pageSourceFile("markdown", "ww", "en", "about")).toBe("content/pages/markdown/ww/en/about.md");
+    expect(pageSourceFile("json", "ww", "de", "about")).toBe("content/pages/json/ww/de/about.json");
+    expect(pageSourceFile("markdown", "ww", "en", "offerings/website-design")).toBe(
+      "content/pages/markdown/ww/en/offerings/website-design.md",
     );
-    expect(pageSourceFile("json", "en", "blog/2026/choosing-a-domain")).toBe(
-      "content/pages/json/en/blog/2026/choosing-a-domain.json",
+    expect(pageSourceFile("json", "ww", "en", "blog/2026/choosing-a-domain")).toBe(
+      "content/pages/json/ww/en/blog/2026/choosing-a-domain.json",
     );
-    expect(pageSourceDirectory("markdown", "en")).toBe("content/pages/markdown/en");
+    expect(pageSourceDirectory("markdown", "ww", "en")).toBe("content/pages/markdown/ww/en");
   });
 
   it("keeps every source file UNDER a locale directory, at every depth", () => {
     for (const mode of PAGE_AUTHORING_MODES) {
-      const file = pageSourceFile(mode, "en", "blog/post") ?? "";
+      const file = pageSourceFile(mode, "ww", "en", "blog/post") ?? "";
       const belowRoot = file.slice(`${PAGE_AUTHORING_ROOTS[mode]}/`.length);
-      // `<locale>/…/<slug>.<ext>` — the first segment is always the locale, so a file
-      // directly under a root (its README) can never be a page.
-      expect(belowRoot.split("/")[0]).toBe("en");
+      // `<site>/<locale>/…/<slug>.<ext>` — S1: the first two segments are the SITE and the
+      // locale, so a file directly under a root (its README) can never be a page.
+      expect(belowRoot.split("/")[0]).toBe("ww");
+      expect(belowRoot.split("/")[1]).toBe("en");
       expect(belowRoot.endsWith(`.${PAGE_AUTHORING_EXTENSIONS[mode]}`)).toBe(true);
     }
   });
 
   it("never builds a path from a value it has not validated", () => {
-    expect(pageSourceDirectory("markdown", "../etc")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "README")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "../escape")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "blog/../../escape")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "blog\\post")).toBeNull();
-    expect(pageSourceFile("markdown", "not a locale", "about")).toBeNull();
+    expect(pageSourceDirectory("markdown", "ww", "../etc")).toBeNull();
+    expect(pageSourceFile("markdown", "ww", "en", "README")).toBeNull();
+    expect(pageSourceFile("markdown", "ww", "en", "../escape")).toBeNull();
+    expect(pageSourceFile("markdown", "ww", "en", "blog/../../escape")).toBeNull();
+    expect(pageSourceFile("markdown", "ww", "en", "blog\\post")).toBeNull();
+    expect(pageSourceFile("markdown", "ww", "not a locale", "about")).toBeNull();
   });
 });

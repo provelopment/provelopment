@@ -108,3 +108,18 @@ tree stays clean.
   `[jump](#fixture-section)` link reaches it, and the sticky header's clearance
   keeps the target visible — measured on a target the AUTHOR created. An id typed
   in raw HTML stays inert.
+- **multisite / multilingual** (`multisite` scenario, FOUNDATION-S1): one temporary deployment
+  with TWO independent country sites (`ca` with French + English, `fr` with French) whose pages,
+  chrome, languages and locations genuinely differ. It proves, through the four visitor dimensions:
+  the Site selector appears (and lists both sites) while a one-site deployment offers none; the
+  Language selector offers only the ACTIVE site's languages; Site and Location are distinct,
+  labelled controls; `/ca/fr/about` and `/fr/fr/about` render their OWN bodies (and not each
+  other's); switching Language stays inside the site; switching Site preserves the route when the
+  target site serves it and lands on the target's HOME when it does not (never a 404); the target
+  site's own navigation appears; the Location belongs to its site only and never leaks across; the
+  chosen Layout survives BOTH a site and a language switch; the layout control's keyboard
+  reachability survives switching; exactly one navigation structure stays exposed; and no band
+  shows horizontal overflow. The configuration and every fixture page are restored/removed in
+  `finally`, so the shipped template still ships one site and no pages.
+
+

@@ -1,3 +1,9 @@
+import { siteConfig } from "@/config";
+import { siteSetOf } from "@/core/site";
+
+// S1E3A - the shell engine receives config-derived context via props (it imports no config):
+const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement, type ReactNode } from "react";
@@ -81,6 +87,7 @@ const render = (overrides: Record<string, unknown>) =>
       mainId: "main",
       locale: "en",
       pageBindings,
+      siteSet: SITE_SET,
       ...overrides,
     } as Parameters<typeof ShellEngine>[0]),
   );

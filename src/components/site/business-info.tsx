@@ -50,12 +50,13 @@ function describeExceptional(exception: ExceptionalHours, closedLabel: string): 
 interface LocationBlockProps {
   readonly location: BusinessLocation;
   readonly locale: string;
+  readonly siteId?: string;
   /** The provider-resolved directions action for this (already localized) location. */
   readonly direction: DirectionsAction;
 }
 
-function LocationBlock({ location, locale, direction }: LocationBlockProps) {
-  const dictionary = getDictionary(locale);
+function LocationBlock({ location, locale, direction, siteId }: LocationBlockProps) {
+  const dictionary = getDictionary(locale, siteId);
   const addressText = formatAddress(location.address);
   const internationalText =
     location.addressMode === "local-international" && location.addressInternational
@@ -148,12 +149,13 @@ function LocationBlock({ location, locale, direction }: LocationBlockProps) {
 
 interface BusinessInfoProps {
   readonly locale: string;
+  readonly siteId?: string;
   /** A provider-resolved direction link resolver (composed at the app boundary). */
   readonly directionLinkResolver: DirectionLinkResolver;
 }
 
-export function BusinessInfo({ locale, directionLinkResolver }: BusinessInfoProps) {
-  const dictionary = getDictionary(locale);
+export function BusinessInfo({ locale, siteId, directionLinkResolver }: BusinessInfoProps) {
+  const dictionary = getDictionary(locale, siteId);
   // Resolve the business profile (customer-facing contact + every location) for
   // this locale so the visible footer shows locale-appropriate contact and
   // address data, never a silently global fixed number/address.

@@ -4,14 +4,14 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { siteConfig } from "@/config";
 import { displayNameWithEnglish } from "@/core/display-labels";
-import { replaceLocaleSegment } from "@/core/locale";
-import {
-  parseRegionalPath,
-  regionalPath,
-  resolveLocaleDestination,
-} from "@/core/regional-pages";
+import { bindingsForSite, regionalPath, resolveLocaleDestination } from "@/core/regional-pages";
+import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSetOf, siteSupportsLocalePath } from "@/core/site";
 
 interface LanguageSwitcherProps {
+  /**
+   * The current document's locale PATH KEY (`en`, `fr-ca`) — the value the URL names and the
+   * key the dictionary is looked up by.
+   */
   readonly locale: string;
   /** Accessible label, localized via the active locale's dictionary. */
   readonly label: string;
@@ -28,78 +28,89 @@ function writeLocaleCookie(nextLocale: string): void {
 /**
  * Language dropdown shown in the header.
  *
- * Locale and location are independent dimensions:
- *  - on a REGIONAL page, switching language preserves the current region; if
- *    the target locale lacks the exact (page) combination, the deterministic
- *    fallback is used (landing → first configured page); locales with no
- *    destination for the current region are simply not offered (never a dead
- *    link, never a silent region change);
- *  - on a non-regional page, every locale is offered and the current sub-path
- *    is preserved.
+ * S1 — A LANGUAGE SWITCH STAYS INSIDE THE CURRENT SITE. The site is read from the URL
+ * (authoritative, exactly like the region), so:
  *
- * The choice is recorded in a cookie so bare-`/` requests negotiate to it.
+ *  - the options are THAT site's locales, never every locale of the deployment: a visitor of
+ *    the Canada site is offered English (Canada) and French (Canada), not France French;
+ *  - the destination keeps the site, replaces the locale and preserves the page — the URL is
+ *    built from the site's own locale path, so a language switch can never leave its site;
+ *  - a locale the site does not serve is not offered (never a dead link, never a silent site
+ *    change);
+ *  - in a REGIONAL context the same region is preserved when the target locale is bound to
+ *    it, and the deterministic regional fallback is used otherwise (landing → first
+ *    configured page) — still inside the same site.
+ *
+ * The site's own fallback policy decides what answers when the target locale has no copy of
+ * the page: that is a locale fallback WITHIN the site, which the page-source contract
+ * permits. A cross-site lookup is never performed to satisfy a language request.
  */
 export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
-  const currentRegion = parsed.region;
+  const context = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteConfig.pageBindings,
+    pathname ?? "/",
+    locale,
+  );
+  const site = context.site;
+  const sitePrefix = sitePrefixPath(site);
+  const entries = bindingsForSite(siteConfig.pageBindings, site.code);
+  const current = context.localePath;
 
   function handleChange(nextLocale: string) {
-    if (nextLocale === locale) {
+    // A language switch stays INSIDE this site: a locale the site does not serve is never
+    // offered, and a stale DOM value cannot reach it either.
+    if (nextLocale === current || !siteSupportsLocalePath(site, nextLocale)) {
       return;
     }
 
     writeLocaleCookie(nextLocale);
 
-    if (currentRegion) {
+    if (context.region) {
       const destination = resolveLocaleDestination(
-        siteConfig.pageBindings,
+        entries,
         nextLocale,
-        currentRegion,
-        parsed.slug,
+        context.region,
+        context.routePath === "" ? null : context.routePath,
       );
       if (destination) {
-        router.push(regionalPath(nextLocale, destination.region, destination.slug));
+        router.push(
+          regionalPath(nextLocale, destination.region, destination.slug, sitePrefix),
+        );
       }
       return;
     }
 
-    router.push(replaceLocaleSegment(pathname ?? `/${locale}`, nextLocale));
+    // Same route path, same site, new locale — any fallback happens INSIDE this site.
+    router.push(sitePath(site, nextLocale, context.routePath) ?? siteLocalePath(site, nextLocale));
   }
 
-  const offeredLocales = currentRegion
-    ? siteConfig.locales.filter((entry) =>
-        resolveLocaleDestination(
-          siteConfig.pageBindings,
-          entry.code,
-          currentRegion,
-          parsed.slug,
-        ) !== null,
-      )
-    : siteConfig.locales;
-
-  const defaultLocale = siteConfig.defaultLocale;
-  const sortedLocales = [...offeredLocales].sort((a, b) => {
-    if (a.code === defaultLocale) return -1;
-    if (b.code === defaultLocale) return 1;
-    const nameA = a.englishLabel ?? a.label;
-    const nameB = b.englishLabel ?? b.label;
-    return nameA.localeCompare(nameB, "en", { sensitivity: "base" });
+  const defaultLocale = site.defaultLocale;
+  /** The deployment's display label for a locale PATH KEY (`en`, `fr-ca`). */
+  const registryLabel = (localePath: string): string => {
+    const entry = siteConfig.locales.find((candidate) => candidate.code === localePath);
+    return displayNameWithEnglish(entry?.label ?? localePath, entry?.englishLabel);
+  };
+  const sortedLocales = [...site.locales].sort((a, b) => {
+    if (a.path === defaultLocale) return -1;
+    if (b.path === defaultLocale) return 1;
+    return registryLabel(a.path).localeCompare(registryLabel(b.path), "en", { sensitivity: "base" });
   });
 
   return (
     <select
       aria-label={label}
       data-selector="language"
-      value={locale}
+      value={current}
       onChange={(event) => handleChange(event.target.value)}
       className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
-      {sortedLocales.map((entry) => (
-        <option key={entry.code} value={entry.code}>
-          {displayNameWithEnglish(entry.label, entry.englishLabel)}
+      {sortedLocales.map(({ path: localePath, label: siteLabel }) => (
+        <option key={localePath} value={localePath}>
+          {siteLabel === undefined ? registryLabel(localePath) : displayNameWithEnglish(siteLabel)}
         </option>
       ))}
     </select>

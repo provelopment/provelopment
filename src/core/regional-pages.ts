@@ -25,6 +25,7 @@
  */
 
 import type { OperationalRegion, PageRegionBinding } from "./region";
+import { languageAlternate, type LanguageAlternateLocale } from "./locale";
 
 /** Whether the exact (locale, region, slug) combination is configured. */
 export function hasPageEntry(
@@ -91,9 +92,41 @@ export function localesForRegion(
   return ordered;
 }
 
+/**
+ * S1 — the page-inventory entries that belong to ONE site.
+ *
+ * Regional (location) logic always runs INSIDE one site's tree: the region selector picks a
+ * location within the current site, and a regional page resolves from that site's bindings.
+ * Filtering here — once — is what keeps a binding declared for another site from ever
+ * answering this one, even when both share a locale.
+ */
+export function bindingsForSite(
+  entries: readonly PageRegionBinding[],
+  siteId: string,
+): readonly PageRegionBinding[] {
+  return entries.filter((entry) => (entry.site ?? siteId) === siteId);
+}
+
 /** Whether an href is a site-internal route (starts with `/`). */
 export function isInternalHref(href: string): boolean {
   return href.startsWith("/");
+}
+
+/**
+ * S1 — whether a region id is actually part of THIS locale's page inventory. The ONE
+ * rule behind "the second URL segment is a region here, and a content page elsewhere",
+ * shared by the server route and the URL-authoritative client components.
+ */
+export function isRegionBoundToLocale(
+  entries: readonly PageRegionBinding[],
+  locale: string,
+  region: string | undefined,
+): boolean {
+  return (
+    region !== undefined &&
+    region !== "" &&
+    entries.some((entry) => entry.locale === locale && entry.region === region)
+  );
 }
 
 /**
@@ -200,18 +233,20 @@ export function resolveNavHref(
   locale: string,
   region: string | null,
   href: string,
+  /** S1 — the current site's public prefix (`""` for the default site). */
+  sitePrefix = "",
 ): string | null {
   if (!isInternalHref(href)) return href;
 
   if (region === null) {
-    return `/${locale}${href === "/" ? "" : href}`;
+    return `${sitePrefix}/${locale}${href === "/" ? "" : href}`;
   }
   if (href === "/") {
-    return regionalPath(locale, region, null);
+    return regionalPath(locale, region, null, sitePrefix);
   }
   const slug = href.replace(/^\//, "");
   if (slug && hasPageEntry(entries, locale, region, slug)) {
-    return regionalPath(locale, region, slug);
+    return regionalPath(locale, region, slug, sitePrefix);
   }
   return null;
 }
@@ -223,8 +258,13 @@ export function resolveNavHref(
  * flat `/{locale}/{slug}` (its existence is guaranteed by the content model —
  * regional pages reuse the locale's flat content file).
  */
-export function unspecifiedDestination(locale: string, slug: string | null): string {
-  return slug ? `/${locale}/${slug}` : `/${locale}`;
+export function unspecifiedDestination(
+  locale: string,
+  slug: string | null,
+  /** S1 — the current site's public prefix (`""` for the default site). */
+  sitePrefix = "",
+): string {
+  return slug ? `${sitePrefix}/${locale}/${slug}` : `${sitePrefix}/${locale}`;
 }
 
 /**
@@ -254,30 +294,40 @@ export function resolveLocaleDestination(
   return firstPage ? { region, slug: firstPage.slug } : null;
 }
 
-/** `/{locale}` (no slug) | `/{locale}/{region}` | `/{locale}/{region}/{slug}`. */
+/**
+ * The regional URL: `/{locale}/{region}` or `/{locale}/{region}/{slug}`, with the site's
+ * public prefix in front when the page belongs to a site that is not the default one
+ * (`/france/fr-FR/geneva`). One builder, so a regional link can never lose its site.
+ */
 export function regionalPath(
   locale: string,
   region: string,
   slug: string | null,
+  /** S1 — the current site's public prefix (`""` for the default site). */
+  sitePrefix = "",
 ): string {
-  return slug ? `/${locale}/${region}/${slug}` : `/${locale}/${region}`;
+  return slug ? `${sitePrefix}/${locale}/${region}/${slug}` : `${sitePrefix}/${locale}/${region}`;
 }
 
 /**
- * Parses a client-side pathname into its (locale, region, slug) context. The
- * middle segment is only a region when it is actually bound to that locale;
- * otherwise the route is a flat (non-regional) content page and region is null.
+ * Parses a client-side pathname into its (locale, region, slug) context. The middle
+ * segment is only a region when it is actually bound to that locale; otherwise the route
+ * is a flat (non-regional) content page and region is null.
+ *
+ * S1 — the SITE-AWARE parse lives in `@/core/site` (`resolvePathContext`), which reads the
+ * path through the deployment's declared sites first and then applies THIS rule. A caller
+ * that already knows its site and locale (the server route) can use it directly.
  */
 export function parseRegionalPath(
   entries: readonly PageRegionBinding[],
+  locale: string,
   pathname: string,
 ): { readonly locale: string; readonly region: string | null; readonly slug: string | null } {
   const segments = pathname.split("/").filter(Boolean);
-  const locale = segments[0] ?? "";
-  const second = segments[1] ?? null;
-  const third = segments[2] ?? null;
+  const second = segments[0] ?? null;
+  const third = segments[1] ?? null;
 
-  if (second && entries.some((entry) => entry.locale === locale && entry.region === second)) {
+  if (isRegionBoundToLocale(entries, locale, second ?? undefined)) {
     return { locale, region: second, slug: third };
   }
   return { locale, region: null, slug: second };
@@ -285,13 +335,20 @@ export function parseRegionalPath(
 
 export interface RegionalLanguageAlternatesOptions {
   readonly baseUrl: string;
-  readonly locales: readonly string[];
+  /**
+   * S1E2 — the alternate locales of THIS site: a plain locale PATH KEY, or an entry carrying its
+   * canonical tag (`{ path: "fr", canonical: "fr-CA" }`), so the advertised `hreflang` is the
+   * standards-facing tag while the URL stays lowercase.
+   */
+  readonly locales: readonly (string | LanguageAlternateLocale)[];
   readonly defaultLocale?: string;
   readonly entries: readonly PageRegionBinding[];
   /** The current page's region (same region is preserved across locales). */
   readonly region: string;
   /** Current page slug; `null` for a regional landing. */
   readonly slug: string | null;
+  /** S1 — the current site's public prefix (`/<site>` in the site-scoped URL model). */
+  readonly sitePrefix?: string;
 }
 
 /**
@@ -303,13 +360,15 @@ export interface RegionalLanguageAlternatesOptions {
 export function buildRegionalLanguageAlternates(
   options: RegionalLanguageAlternatesOptions,
 ): Record<string, string> {
-  const { baseUrl, locales, defaultLocale, entries, region, slug } = options;
+  const { baseUrl, locales, defaultLocale, entries, region, slug, sitePrefix = "" } = options;
   const alternates: Record<string, string> = {};
 
-  for (const locale of locales) {
+  for (const entry of locales) {
+    const { path: locale, tag } = languageAlternate(entry);
     const destination = resolveLocaleDestination(entries, locale, region, slug);
     if (destination) {
-      alternates[locale] = `${baseUrl}${regionalPath(locale, destination.region, destination.slug)}`;
+      alternates[tag] =
+        `${baseUrl}${regionalPath(locale, destination.region, destination.slug, sitePrefix)}`;
     }
   }
 
@@ -317,7 +376,7 @@ export function buildRegionalLanguageAlternates(
     const destination = resolveLocaleDestination(entries, defaultLocale, region, slug);
     if (destination) {
       alternates["x-default"] =
-        `${baseUrl}${regionalPath(defaultLocale, destination.region, destination.slug)}`;
+        `${baseUrl}${regionalPath(defaultLocale, destination.region, destination.slug, sitePrefix)}`;
     }
   }
 

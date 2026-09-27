@@ -38,6 +38,7 @@ function formatISODate(locale: string, iso: string): string {
 interface RegionBlockProps {
   readonly region: OperationalRegion;
   readonly locale: string;
+  readonly siteId?: string;
   /** Provider-resolved directions action (maps seam, composed at app boundary). */
   readonly direction: DirectionsAction;
 }
@@ -50,8 +51,8 @@ interface RegionBlockProps {
  * config's timezone. A regional page's address/phone/email/timezone/hours/
  * holidays/status all come from THIS region only.
  */
-export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
-  const dictionary = getDictionary(locale);
+export function RegionBlock({ region, locale, direction, siteId }: RegionBlockProps) {
+  const dictionary = getDictionary(locale, siteId);
   const dayNames = localizeWeekdays(locale);
   const addressText = formatAddress(region.address);
   const internationalText =
@@ -162,6 +163,7 @@ export function RegionBlock({ region, locale, direction }: RegionBlockProps) {
 interface ResolvedRegionBlockProps {
   readonly region: OperationalRegion;
   readonly locale: string;
+  readonly siteId?: string;
   readonly directionLinkResolver: DirectionLinkResolver;
 }
 
@@ -173,8 +175,9 @@ interface ResolvedRegionBlockProps {
 export function ResolvedRegionBlock({
   region,
   locale,
+  siteId,
   directionLinkResolver,
 }: ResolvedRegionBlockProps) {
   const direction = directionLinkResolver.resolve(regionToLocation(region));
-  return <RegionBlock region={region} locale={locale} direction={direction} />;
+  return <RegionBlock region={region} locale={locale} direction={direction} siteId={siteId} />;
 }

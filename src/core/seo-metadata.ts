@@ -85,16 +85,21 @@ export interface TwitterDataOptions {
 /**
  * FS-4 — resolve a page's social-preview image URL. When the canonical asset
  * configuration supplies `site.assets.ogImage`, that shared adopter-owned
- * asset is used; otherwise the per-locale generated OpenGraph route is the
- * default. Pure + config-arg driven (the caller passes both resolved values),
- * so it stays framework-free and unit-testable.
+ * asset is used; otherwise the generated OpenGraph route is the default.
+ *
+ * S1E3 — the generated route is SITE-SCOPED like every other URL
+ * (`/<site>/<locale>/opengraph-image`), so the caller passes the path it built
+ * with the ONE site path helper (`@/core/site`) and this function never
+ * concatenates a locale-only shape of its own. Pure + config-arg driven, so it
+ * stays framework-free and unit-testable.
  */
 export function resolveOgImageUrl(
   configOgImage: string | undefined,
   baseUrl: string,
-  locale: string,
+  /** S1E3 — the site-aware public path of the generated OG route (`/ww/en/opengraph-image`). */
+  ogImagePath: string,
 ): string {
-  return configOgImage ?? `${baseUrl}/${locale}/opengraph-image`;
+  return configOgImage ?? `${baseUrl}${ogImagePath}`;
 }
 
 export interface TwitterData {

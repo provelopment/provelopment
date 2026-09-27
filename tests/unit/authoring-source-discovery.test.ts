@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -27,10 +27,14 @@ const jsonRoot = path.join(root, "content", "pages", "json");
 // suites sharing one fixture directory would overwrite each other's fixtures.
 // (Subtags must be 2–8 characters for a name to be a well-formed language tag.)
 const DISCOVERY_LOCALE = "zz-disc";
-const EMPTY_LOCALE_NAME = "zz-disc-empty";
-const MARKDOWN_FIXTURE = path.join(markdownRoot, DISCOVERY_LOCALE);
-const EMPTY_LOCALE = path.join(markdownRoot, EMPTY_LOCALE_NAME);
-const JSON_FIXTURE = path.join(jsonRoot, DISCOVERY_LOCALE);
+const EMPTY_LOCALE_NAME = "zz-disc-ez";
+// S1 — the SITE segment comes first: `content/pages/<mode>/<siteId>/<locale>/…`. The fixtures
+// use a site id unique to this suite for the same parallel-safety reason the locale is.
+const DISCOVERY_SITE = "aq"; // S1: the site folder must be a RECOGNIZED two-letter country code
+// (the site code must be a recognized country code — see DISCOVERY_SITE above)
+const MARKDOWN_FIXTURE = path.join(markdownRoot, DISCOVERY_SITE, DISCOVERY_LOCALE);
+const EMPTY_LOCALE = path.join(markdownRoot, DISCOVERY_SITE, EMPTY_LOCALE_NAME);
+const JSON_FIXTURE = path.join(jsonRoot, DISCOVERY_SITE, DISCOVERY_LOCALE);
 const ABOUT_MD = "---\ntitle: About\n---\n\nHello\n";
 
 /** Every file this suite plants, so cleanup is exact rather than assumed. */
@@ -74,27 +78,38 @@ describe("authoring-source discovery (recursive)", () => {
   });
 
   afterAll(() => {
-    rmSync(MARKDOWN_FIXTURE, { recursive: true, force: true });
-    rmSync(EMPTY_LOCALE, { recursive: true, force: true });
-    rmSync(JSON_FIXTURE, { recursive: true, force: true });
-  });
+  rmSync(MARKDOWN_FIXTURE, { recursive: true, force: true });
+  rmSync(EMPTY_LOCALE, { recursive: true, force: true });
+  rmSync(JSON_FIXTURE, { recursive: true, force: true });
+  // …and only the now-empty SITE directories, so a run leaves no fixture tree behind.
+  for (const directory of [
+    path.join(markdownRoot, DISCOVERY_SITE),
+    path.join(jsonRoot, DISCOVERY_SITE),
+  ]) {
+    try {
+      rmdirSync(directory);
+    } catch {
+      /* not empty, or already gone */
+    }
+  }
+});
 
   it("finds nested pages, per mode, and reports their route paths", async () => {
-    expect(await authoringPageRoutesFor("markdown", DISCOVERY_LOCALE)).toEqual([
+    expect(await authoringPageRoutesFor("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE)).toEqual([
       "about",
       "blog/2026/archive/old",
       "blog/2026/new-year",
       "blog/choosing-a-domain",
     ]);
     // The same tree shape works for the advanced mode.
-    expect(await authoringPageRoutesFor("json", DISCOVERY_LOCALE)).toEqual([
+    expect(await authoringPageRoutesFor("json", DISCOVERY_SITE, DISCOVERY_LOCALE)).toEqual([
       "about",
       "blog/choosing-a-domain",
     ]);
   });
 
   it("keeps README, placeholders, other modes and unusable names inert at EVERY level", async () => {
-    const routes = await authoringPageRoutesFor("markdown", DISCOVERY_LOCALE);
+    const routes = await authoringPageRoutesFor("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE);
 
     for (const inert of [
       "README",
@@ -108,24 +123,24 @@ describe("authoring-source discovery (recursive)", () => {
     }
     // A README beside nested pages is refused for the same reason a root README is:
     // `README` is not a slug. It can never be read as a page either.
-    expect(await readAuthoringPageFile("markdown", DISCOVERY_LOCALE, "blog/README")).toBeNull();
-    expect(await hasAuthoringSource("markdown", DISCOVERY_LOCALE, "blog/README")).toBe(false);
+    expect(await readAuthoringPageFile("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, "blog/README")).toBeNull();
+    expect(await hasAuthoringSource("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, "blog/README")).toBe(false);
   });
 
   it("treats an empty locale directory, and an empty folder, as ordinary states", async () => {
-    expect(await authoringPageRoutesFor("markdown", EMPTY_LOCALE_NAME)).toEqual([]);
-    expect(await authoringPageRoutesFor("markdown", "zz-nonexistent")).toEqual([]);
-    expect(await authoringPageRoutesFor("markdown", "not a locale")).toEqual([]);
+    expect(await authoringPageRoutesFor("markdown", DISCOVERY_SITE, EMPTY_LOCALE_NAME)).toEqual([]);
+    expect(await authoringPageRoutesFor("markdown", DISCOVERY_SITE, "zz-nonexistent")).toEqual([]);
+    expect(await authoringPageRoutesFor("markdown", DISCOVERY_SITE, "not a locale")).toEqual([]);
     // Discovery still REPORTS a prepared-but-empty locale directory.
-    expect(await authoringLocaleDirectoriesOf("markdown")).toContain(EMPTY_LOCALE_NAME);
+    expect(await authoringLocaleDirectoriesOf("markdown", DISCOVERY_SITE)).toContain(EMPTY_LOCALE_NAME);
   });
 
   it("reads one page's raw text at any depth, and refuses a path it has not validated", async () => {
-    expect(await readAuthoringPageFile("markdown", DISCOVERY_LOCALE, "about")).toBe(ABOUT_MD);
+    expect(await readAuthoringPageFile("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, "about")).toBe(ABOUT_MD);
     expect(
-      await readAuthoringPageFile("markdown", DISCOVERY_LOCALE, "blog/2026/new-year"),
+      await readAuthoringPageFile("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, "blog/2026/new-year"),
     ).toContain("Fixture");
-    expect(await hasAuthoringSource("markdown", DISCOVERY_LOCALE, "blog/choosing-a-domain")).toBe(
+    expect(await hasAuthoringSource("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, "blog/choosing-a-domain")).toBe(
       true,
     );
 
@@ -141,13 +156,13 @@ describe("authoring-source discovery (recursive)", () => {
       "%2e%2e/escape",
       "README",
     ]) {
-      expect(await readAuthoringPageFile("markdown", DISCOVERY_LOCALE, attempt), attempt).toBeNull();
+      expect(await readAuthoringPageFile("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE, attempt), attempt).toBeNull();
     }
   });
 
   it("reports the same route for the same file on every call (deterministic)", async () => {
-    const first = await authoringPageRoutesFor("markdown", DISCOVERY_LOCALE);
-    const second = await authoringPageRoutesFor("markdown", DISCOVERY_LOCALE);
+    const first = await authoringPageRoutesFor("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE);
+    const second = await authoringPageRoutesFor("markdown", DISCOVERY_SITE, DISCOVERY_LOCALE);
     expect(second).toEqual(first);
   });
 });

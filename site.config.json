@@ -16,6 +16,11 @@
       }
     ]
   },
+  "sites": [
+    {
+      "code": "ww"
+    }
+  ],
   "contact": {
     "email": "hello@example.com"
   },

@@ -59,6 +59,13 @@ export const dictionarySchema = z.object({
     label: z.string(),
   }),
   /**
+   * S1E2 — accessible label for the SITE selector. A site is a page/configuration context
+   * (`Canada`, `France`, `Worldwide`), never a language and never a physical location.
+   */
+  site: z.object({
+    label: z.string(),
+  }),
+  /**
    * N2 — the shell layout presentation control (Sidebar / Menu bar). The labels name
    * the two layouts; the group label is the control's accessible name.
    */
@@ -155,3 +162,139 @@ export const dictionarySchema = z.object({
 
 export type Dictionary = z.infer<typeof dictionarySchema>;
 export type DictionaryType = typeof dictionarySchema;
+
+/**
+ * S1E2 — THE SITE+LOCALE OVERRIDE SCHEMA
+ * =====================================
+ *
+ * A site may speak differently from the shared dictionary without forking it:
+ *
+ *     config/i18n/<locale>.json                    the shared baseline (authoritative base)
+ *     config/i18n/sites/<site>/<locale>.json       an OPTIONAL partial override for THAT site
+ *
+ * The override file mirrors the dictionary's sections, with every leaf optional and every object
+ * `strict`, so:
+ *
+ *  - a key the dictionary does not define is REFUSED (loud, naming the file) instead of being
+ *    silently dropped — an override that has drifted from the dictionary is a build error;
+ *  - a section the override omits keeps the shared value, and the merged result is re-validated
+ *    against the COMPLETE `dictionarySchema`, so an override can never produce a partial
+ *    dictionary;
+ *  - only that site sees the override: no lookup ever consults another site's file.
+ *
+ * A record-valued leaf (`navigation.items`, `legal.labels`, `connect.methods`) is replaced
+ * wholesale, which is what makes "this site names these slugs differently" expressible without a
+ * second merging rule. `FOUNDATION-S1E2` test `i18n-site-overlay.test.ts` asserts this schema stays
+ * aligned with `dictionarySchema`, so adding a dictionary key cannot silently miss an override slot.
+ */
+function optionalLeaves<T extends z.ZodRawShape>(shape: T) {
+  return z.object(shape).partial().strict();
+}
+
+/** A record-valued leaf: labels keyed by href/slug/method id. */
+const overrideRecord = z.record(z.string(), z.string());
+
+export const dictionaryOverrideSchema = z
+  .object({
+    home: optionalLeaves({ tagline: z.string(), description: z.string() }).optional(),
+    sections: optionalLeaves({
+      about: z.string(),
+      contact: z.string(),
+      connect: z.string(),
+      navigate: z.string(),
+    }).optional(),
+    navigation: optionalLeaves({
+      primaryLabel: z.string(),
+      footerLabel: z.string(),
+      items: overrideRecord,
+      moreMenu: z.string(),
+      showSidebar: z.string(),
+      hideSidebar: z.string(),
+    }).optional(),
+    notFound: optionalLeaves({
+      title: z.string(),
+      message: z.string(),
+      returnHome: z.string(),
+    }).optional(),
+    error: optionalLeaves({
+      title: z.string(),
+      message: z.string(),
+      tryAgain: z.string(),
+      returnHome: z.string(),
+    }).optional(),
+    language: optionalLeaves({ label: z.string() }).optional(),
+    site: optionalLeaves({ label: z.string() }).optional(),
+    layout: optionalLeaves({
+      label: z.string(),
+      sidebar: z.string(),
+      menuBar: z.string(),
+    }).optional(),
+    location: optionalLeaves({ label: z.string(), unspecified: z.string() }).optional(),
+    connect: optionalLeaves({
+      heading: z.string(),
+      demoNotice: z.string(),
+      demoBadge: z.string(),
+      methods: overrideRecord,
+    }).optional(),
+    business: optionalLeaves({
+      open: z.string(),
+      closed: z.string(),
+      noHours: z.string(),
+      hoursLabel: z.string(),
+      hoursTimeZoneLabel: z.string(),
+    }).optional(),
+    a11y: optionalLeaves({ skipToContent: z.string() }).optional(),
+    contact: optionalLeaves({
+      heading: z.string(),
+      nameLabel: z.string(),
+      emailLabel: z.string(),
+      subjectLabel: z.string(),
+      messageLabel: z.string(),
+      submit: z.string(),
+      sending: z.string(),
+      honeypotLabel: z.string(),
+      success: z.string(),
+      demoNotice: z.string(),
+      unconfigured: z.string(),
+      configError: z.string(),
+      sendError: z.string(),
+      errors: optionalLeaves({
+        name: z.string(),
+        email: z.string(),
+        subject: z.string(),
+        message: z.string(),
+      }),
+    }).optional(),
+    booking: optionalLeaves({ book: z.string() }).optional(),
+    legal: optionalLeaves({ heading: z.string(), labels: overrideRecord }).optional(),
+  })
+  .strict();
+
+export type DictionaryOverride = z.infer<typeof dictionaryOverrideSchema>;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Deep merge: an object merges key by key, anything else is replaced by the override. */
+function mergeValue(base: unknown, override: unknown): unknown {
+  if (override === undefined) return base;
+  if (!isPlainObject(base) || !isPlainObject(override)) return override;
+
+  const merged: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(override)) {
+    merged[key] = mergeValue(base[key], value);
+  }
+  return merged;
+}
+
+/**
+ * The EFFECTIVE dictionary of one (site, locale): the shared base with the site's override applied.
+ * The result is re-validated by the registry against the complete `dictionarySchema`.
+ */
+export function mergeDictionaryOverride(
+  base: Dictionary,
+  override: DictionaryOverride,
+): Dictionary {
+  return mergeValue(base, override) as Dictionary;
+}

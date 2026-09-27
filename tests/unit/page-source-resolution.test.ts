@@ -36,11 +36,11 @@ describe("the page-source resolver", () => {
   it("returns the first source any provider can supply, in the declared order", async () => {
     const { providers } = providersOf({ json: ["de"], markdown: ["de"] });
     const resolved = await resolvePageSource(
-      { routePath: "about", locale: "de", defaultLocale: "en" },
+      { siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" },
       providers,
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toEqual({ siteId: "ww",
       kind: "json",
       routePath: "about",
       locale: "de",
@@ -51,7 +51,7 @@ describe("the page-source resolver", () => {
 
   it("prefers JSON over Markdown within the requested locale", async () => {
     const markdownOnly = await resolvePageSource(
-      { routePath: "about", locale: "de", defaultLocale: "en" },
+      { siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" },
       providersOf({ markdown: ["de"] }).providers,
     );
     expect(markdownOnly?.kind).toBe("markdown");
@@ -60,7 +60,7 @@ describe("the page-source resolver", () => {
 
   it("consults ONLY the two modes, in the declared order", async () => {
     const { providers, asked } = providersOf({});
-    await resolvePageSource({ routePath: "about", locale: "de", defaultLocale: "en" }, providers);
+    await resolvePageSource({ siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" }, providers);
 
     expect(asked).toEqual(["json:de", "markdown:de", "json:en", "markdown:en"]);
     // There is no third source: every consultation names one of the two modes.
@@ -70,7 +70,7 @@ describe("the page-source resolver", () => {
   it("prefers an exact-locale page over a default-locale one, whatever the format", async () => {
     const { providers, asked } = providersOf({ json: ["en"], markdown: ["de"] });
     const resolved = await resolvePageSource(
-      { routePath: "about", locale: "de", defaultLocale: "en" },
+      { siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" },
       providers,
     );
 
@@ -83,11 +83,11 @@ describe("the page-source resolver", () => {
   it("falls back to the default locale last, and says so", async () => {
     const { providers, asked } = providersOf({ markdown: ["en"] });
     const resolved = await resolvePageSource(
-      { routePath: "about", locale: "de", defaultLocale: "en" },
+      { siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" },
       providers,
     );
 
-    expect(resolved).toEqual({
+    expect(resolved).toEqual({ siteId: "ww",
       kind: "markdown",
       routePath: "about",
       locale: "en",
@@ -105,14 +105,14 @@ describe("the page-source resolver", () => {
   it("returns null when no source exists anywhere — never an invented page", async () => {
     const { providers } = providersOf({});
     expect(
-      await resolvePageSource({ routePath: "about", locale: "de", defaultLocale: "en" }, providers),
+      await resolvePageSource({ siteId: "ww", routePath: "about", locale: "de", defaultLocale: "en" }, providers),
     ).toBeNull();
   });
 
   it("asks NOTHING when the request itself is malformed", async () => {
     const { providers, asked } = providersOf({ markdown: ["en"] });
     expect(
-      await resolvePageSource({ routePath: "README", locale: "en", defaultLocale: "en" }, providers),
+      await resolvePageSource({ siteId: "ww", routePath: "README", locale: "en", defaultLocale: "en" }, providers),
     ).toBeNull();
     expect(asked).toEqual([]);
   });
@@ -126,7 +126,7 @@ describe("the page-source resolver", () => {
     };
 
     await expect(
-      resolvePageSource({ routePath: "about", locale: "en", defaultLocale: "en" }, providers),
+      resolvePageSource({ siteId: "ww", routePath: "about", locale: "en", defaultLocale: "en" }, providers),
     ).rejects.toThrow(/Invalid metadata in authored page "about"/);
   });
 });

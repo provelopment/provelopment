@@ -18,13 +18,26 @@ import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { LanguageSwitcher } from "./language-switcher";
 import { LayoutSwitcher } from "./layout-switcher";
 import { LocationSwitcher } from "./location-switcher";
+import { SiteSelector, type SiteSelectorOption } from "./site-selector";
 import { getSiteNavLinks } from "./nav-links";
 import { headerGraphicBandProps } from "./header-graphic";
 
 interface SiteHeaderProps {
+    /** The locale PATH KEY of the current URL (`en`, `fr-ca`) — the dictionary's key too. */
     readonly locale: string;
     /** The resolved UI configuration (UI-02), computed once by the layout. */
     readonly resolved: ResolvedUiConfig;
+    /**
+     * S1E2 — the site whose page tree this header belongs to: it selects the site's dictionary and
+     * the site's effective navigation. Absent → the deployment's default site (the single-site case).
+     */
+    readonly siteId?: string;
+    /**
+     * S1E2 — the Site selector's options, resolved server-side by `@/application/site-switch`.
+     * Fewer than two options (or absent) → NO selector renders, so a single-site deployment's
+     * header is byte-identical to before.
+     */
+    readonly siteSwitch?: readonly SiteSelectorOption[];
 }
 
 /**
@@ -62,8 +75,8 @@ export const TOUCH_TARGET_BOX_CLASS = "inline-flex min-h-11 min-w-11 items-cente
  */
 export const HEADER_NAV_LINK_CLASS = `${TOUCH_TARGET_BOX_CLASS} text-sm text-muted-foreground transition-colors hover:text-foreground`;
 
-export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
-    const dictionary = getDictionary(locale);
+export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderProps) {
+    const dictionary = getDictionary(locale, siteId);
     const decision = resolveShellPattern(resolved);
     const mobilePattern = decision.mobile.primitiveKind;
     const desktopSlot = decision.desktop.slot;
@@ -110,7 +123,7 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
         ]),
     );
 
-    const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale);
+    const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale, siteId);
     // P6-3B — the header's left brand slot renders the configured header logo
     // (the `site.assets.logo` role), replacing the former text label.
     // `assetPathFromUrl` keeps it same-origin; intrinsic aspect ratio is
@@ -215,6 +228,17 @@ export function SiteHeader({ locale, resolved }: SiteHeaderProps) {
                     ) : null}
 
                     <Stack direction="row" gap="gap-x-3 gap-y-2" items="items-center">
+                        {/* S1E2 — the SITE selector comes first: it changes the whole context
+                            (page tree + labels + navigation), which every other selector then
+                            acts INSIDE. Rendered only when the deployment serves more than one
+                            site, so a single-site deployment is unchanged. */}
+                        {siteSwitch !== undefined && siteSwitch.length > 1 ? (
+                            <SiteSelector
+                                current={siteId ?? siteConfig.defaultSite.code}
+                                label={dictionary.site.label}
+                                options={siteSwitch}
+                            />
+                        ) : null}
                         {hasLocations ? (
                             <LocationSwitcher
                                 locale={locale}

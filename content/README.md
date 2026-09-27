@@ -43,10 +43,39 @@ you never have to "register" a page anywhere.
 Any page **inside** your site gets its address from where you put the file:
 
 ```text
-content/pages/markdown/en/about.md                    →  /en/about
-content/pages/markdown/en/services.md                 →  /en/services
-content/pages/markdown/en/services/web-design.md      →  /en/services/web-design
-content/pages/markdown/en/blog/choosing-a-domain.md   →  /en/blog/choosing-a-domain
+## How an address is built: mode → site → language → page
+
+**Choose your site, choose its language, then create the page.** The folders are the
+address — nothing else needs configuring.
+
+```
+content/pages/markdown/ca/en/about.md   →   /ca/en/about
+content/pages/markdown/ca/fr/about.md   →   /ca/fr/about
+content/pages/markdown/fr/fr/about.md   →   /fr/fr/about
+```
+
+- **mode** — which authoring mode the page is written in: `markdown/` (simple, safe) or
+  `json/` (advanced). You choose one per page.
+- **site** — which website the page belongs to: a recognized two-letter country code
+  (`ca`, `fr`, `ch`…) or `ww` for a worldwide/global site. See
+  [`COUNTRY-CODES.md`](COUNTRY-CODES.md) for the complete list.
+- **language** — the language, written as a lowercase path key (`en`, `fr`, `fr-ca`).
+- **page** — the page's own path: one name (`about`) or a folder plus a name
+  (`services/web-design`).
+
+A language you did not name is simply not offered on that site, and pages of one site are
+never served by another — each site is an independent website inside this one repository.
+
+Sites can also use an **explicit** language when the exact dialect matters:
+
+```
+content/pages/markdown/ca/fr-fr/about.md   →   /ca/fr-fr/about
+```
+
+
+content/pages/markdown/ww/en/services.md                 →  /ww/en/services
+content/pages/markdown/ww/en/services/web-design.md      →  /ww/en/services/web-design
+content/pages/markdown/ww/en/blog/choosing-a-domain.md   →  /ww/en/blog/choosing-a-domain
 ```
 
 So a section with its own pages is just a folder. Nothing needs configuring, and the
@@ -59,11 +88,11 @@ Pages are organised by language: the folder name is a language code such as `en`
 (English) or `de` (German). Another language mirrors the same structure exactly:
 
 ```text
-content/pages/markdown/en/services.md                  →  /en/services
-content/pages/markdown/en/services/web-design.md       →  /en/services/web-design
+content/pages/markdown/ww/en/services.md                  →  /ww/en/services
+content/pages/markdown/ww/en/services/web-design.md       →  /ww/en/services/web-design
 
-content/pages/markdown/de/services.md                  →  /de/services
-content/pages/markdown/de/services/web-design.md       →  /de/services/web-design
+content/pages/markdown/ww/de/services.md                  →  /ww/de/services
+content/pages/markdown/ww/de/services/web-design.md       →  /ww/de/services/web-design
 ```
 
 The languages your site serves are configured in `site.config.json`; a language

@@ -119,7 +119,11 @@ async function renderFooter(overrides: Record<string, unknown>): Promise<string>
   );
 
   return renderToStaticMarkup(
-    await SiteFooter({ locale: siteConfig.defaultLocale, directionLinkResolver: resolver }),
+    await SiteFooter({
+      locale: siteConfig.defaultLocale,
+      siteId: siteConfig.defaultSite.code,
+      directionLinkResolver: resolver,
+    }),
   );
 }
 
@@ -151,8 +155,8 @@ describe("the rendered footer — secondary navigation group", () => {
     const html = await renderFooter({ footerNavigation: GROUP });
 
     // Internal: locale-prefixed public routes ("/" resolves to the locale root).
-    expect(html).toContain(`href="/${siteConfig.defaultLocale}"`);
-    expect(html).toContain(`href="/${siteConfig.defaultLocale}/help"`);
+    expect(html).toContain(`href="/${siteConfig.defaultSite.code}/${siteConfig.defaultLocale}"`);
+    expect(html).toContain(`href="/${siteConfig.defaultSite.code}/${siteConfig.defaultLocale}/help"`);
 
     // Attribute order in the emitted anchor is not part of the contract, so the
     // link semantics are asserted on the anchor itself.
@@ -166,7 +170,7 @@ describe("the rendered footer — secondary navigation group", () => {
 
     // …and the internal links are plain internal links: no new-tab, no rel.
     const internal = anchors.filter((anchor) =>
-      anchor.includes(`href="/${siteConfig.defaultLocale}"`),
+      anchor.includes(`href="/${siteConfig.defaultSite.code}/${siteConfig.defaultLocale}"`),
     );
     expect(internal.length).toBeGreaterThan(0);
     for (const anchor of internal) {
@@ -184,7 +188,7 @@ describe("the rendered footer — secondary navigation group", () => {
     expect(primary).not.toContain("/help");
     expect(primary).not.toContain("Project");
     // The shipped primary item is still there: the menu/sidebar source is unchanged.
-    expect(primary).toContain(`href="/${siteConfig.defaultLocale}"`);
+    expect(primary).toContain(`href="/${siteConfig.defaultSite.code}/${siteConfig.defaultLocale}"`);
   });
 });
 

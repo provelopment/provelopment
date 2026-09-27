@@ -6,7 +6,8 @@ import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import { NavItem } from "@/components/ui/nav-item";
 import type { NavItemModel } from "@/components/ui/nav-item";
 import type { PageRegionBinding } from "@/core/region";
-import { isInternalHref, parseRegionalPath, resolveNavHref } from "@/core/regional-pages";
+import { isInternalHref, resolveNavHref } from "@/core/regional-pages";
+import { pathContextOr, sitePrefixPath, type SiteSet } from "@/core/site";
 import { menuModeClass, splitBottomNavItems, type MenuMode } from "@/core/ui";
 
 import { ShellMobileNav } from "./shell-mobile-nav";
@@ -52,6 +53,12 @@ export interface ShellBottomBarProps {
   readonly locale: string;
   /** Configured region page bindings (content layer passes its site config). */
   readonly pageBindings: readonly PageRegionBinding[];
+  /**
+   * S1E3A — the deployment's resolved SITES, passed in like every other config-derived value.
+   * The engine layer never imports `@/config`: it receives the site set and resolves the current
+   * site/locale/region context from the URL with the ONE core helper.
+   */
+  readonly siteSet: SiteSet;
   /** Localized demo badge label (for `demoOnly` items). */
   readonly demoBadgeLabel?: string;
   /** P6-1 — label for the explicit "Hide navigation" control in the More drawer
@@ -69,6 +76,7 @@ export function ShellBottomBar({
   links,
   locale,
   pageBindings,
+  siteSet,
   demoBadgeLabel,
   closeLabel,
   mode,
@@ -78,11 +86,18 @@ export function ShellBottomBar({
   // P5-5 — "closed" means the menu is not composed at all (adopter choice;
   // Escape/backdrop/focus machinery is untouched when present).
   if (mode === "closed") return null;
-  const parsed = parseRegionalPath(pageBindings, pathname ?? `/${locale}`);
+  const parsed = pathContextOr(
+    siteSet,
+    pageBindings,
+    pathname ?? `/${locale}`,
+    locale,
+  );
   const region = parsed.region;
+  // S1 — links stay inside the CURRENT site: the site's own prefix is part of every href.
+  const sitePrefix = sitePrefixPath(parsed.site);
 
   const resolved: NavItemModel[] = links.flatMap((link) => {
-    const href = resolveNavHref(pageBindings, locale, region, link.href);
+    const href = resolveNavHref(pageBindings, locale, region, link.href, sitePrefix);
     if (href === null) return [];
     return [
       {

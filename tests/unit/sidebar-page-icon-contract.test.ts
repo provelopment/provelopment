@@ -241,7 +241,7 @@ describe("sidebar page icons — expanded vs collapsed behaviour", () => {
     // that use `getSiteNavLinks` directly (header top-nav, bottom bar, mobile)
     // stay icon-free: `withSidebarNavIcons` is applied ONLY to the aside slot.
     for (const item of siteConfig.navigation) expect(item.icon).toBeUndefined();
-    const layout = read("src", "app", "[locale]", "layout.tsx");
+    const layout = read("src", "app", "[...segments]", "layout.tsx");
     expect(layout).toContain("links={withSidebarNavIcons(navLinks)}");
     expect((layout.match(/withSidebarNavIcons\(/g) ?? []).length).toBe(1);
     // Mobile navigation renders its own control icons and never the page pair.

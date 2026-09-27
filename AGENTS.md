@@ -464,7 +464,7 @@ the project independently.
 
 ## 24. Internationalization
 
-All user-facing routes live under the `[locale]` dynamic segment. Requests
+Every public URL is `/<site>/<locale>/<route>`: the site code is the first segment and the locale the second, served by the ONE catch-all route. Requests
 without a locale prefix are redirected by `src/proxy.ts` based on the
 `NEXT_LOCALE` cookie, the `Accept-Language` header, and finally the
 configured default locale.
@@ -474,8 +474,11 @@ Rules:
 - Never hard-code user-facing copy in components. Interface strings belong
   in `config/i18n/<locale>.json` and must validate against the Zod dictionary
   schema.
-- New routes must be added under `src/app/[locale]`.
-- Markdown content belongs under `content/pages/<locale>/<slug>.md`. When a
+- New routes must be added under `src/app/[...segments]` (the ONE catch-all route); a
+  static metadata segment may NOT sit under a catch-all (Next.js requires the catch-all to be
+  last), which is why the generated social image lives at `src/app/[site]/[locale]/`.
+- Markdown content belongs under `content/pages/markdown/<site>/<locale>/<slug>.md` (the
+  declarative mode under `content/pages/json/<site>/<locale>/<slug>.json`). When a
   translation is missing, the default locale's content is served instead.
 - Locale negotiation and related pure logic belong in `src/core` and must be
   unit-tested.

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import HomePage from "@/app/[locale]/page";
+import PageRoute from "@/app/[...segments]/page";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
@@ -12,23 +12,30 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 /**
  * The OPTIONAL content-authored home page.
  *
- * A site may author `content/pages/markdown/<locale>/home.md` (or its JSON
+ * A site may author `content/pages/markdown/<site>/<locale>/home.md` (or its JSON
  * counterpart) and have the locale-root route render it through the NORMAL
  * page-source composition. A site that authors no home page keeps the generic
  * configuration-driven starter homepage — so this capability is purely additive.
  *
+ * S1 — the home page is site-scoped like every other page: one catch-all route
+ * serves `/<site>/<locale>` and `/<site>/<locale>/<route>` alike, so the "home
+ * route" and the "page route" are the SAME file and are read once below.
+ *
  * The capability's three coupled consequences must agree, which is why the slug is
  * declared ONCE (`@/core/page-content`) and imported rather than re-typed: the
- * home route looks it up, `/{locale}/home` is never generated, and it never enters
- * the sitemap.
+ * home route looks it up, `/<site>/<locale>/home` is never generated, and it never
+ * enters the sitemap.
  */
 
 const root = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
 
-const homeRouteSource = read("src", "app", "[locale]", "page.tsx");
-const pageRouteSource = read("src", "app", "[locale]", "[...path]", "page.tsx");
+const homeRouteSource = read("src", "app", "[...segments]", "page.tsx");
+const pageRouteSource = homeRouteSource;
 const sitemapSource = read("src", "app", "sitemap.ts");
+
+/** The segments of a home request: the SITE code first, then the locale path key. */
+const homeSegments = (locale: string) => [siteConfig.defaultSite.code, locale];
 
 describe("the reserved home slug has ONE authority", () => {
   it("is declared once, in the content model", () => {
@@ -86,7 +93,7 @@ describe("/home is never a route and never a sitemap entry", () => {
   });
 
   it("reserves the slug on the page route so it can never double-route", () => {
-    expect(pageRouteSource).toMatch(/RESERVED_FIRST_SEGMENTS[\s\S]*HOME_CONTENT_SLUG/);
+    expect(pageRouteSource).toMatch(/segments\.length === 1[\s\S]*HOME_CONTENT_SLUG/);
   });
 
   it("is not filtered ad hoc in the sitemap route itself", () => {
@@ -98,18 +105,19 @@ describe("/home is never a route and never a sitemap entry", () => {
 
 describe("a site that authors no home page keeps the generic starter homepage", () => {
   it("finds no authored home page in the shipped template", async () => {
-    const pages = createPageSources({
-      defaultLocale: siteConfig.defaultLocale,
-      locales: siteConfig.locales.map((locale) => locale.code),
-    });
+    const pages = createPageSources({ sites: siteConfig.sites });
     // The template ships NO page files, so the very lookup the home route performs
     // resolves to nothing — which is what makes the fallback the live path here.
-    expect(await pages.resolve(HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
+    expect(await pages.resolve(siteConfig.defaultSite.code, HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
   });
 
   it("renders the generic configuration-driven homepage at the locale root", async () => {
     const html = renderToStaticMarkup(
-      await HomePage({ params: Promise.resolve({ locale: siteConfig.defaultLocale }) }),
+      await PageRoute({
+        params: Promise.resolve({
+          segments: homeSegments(siteConfig.defaultSite.defaultLocale),
+        }),
+      }),
     );
 
     // The generic starter homepage's own markers, exactly as before.
@@ -123,7 +131,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
   it("renders a homepage for every configured locale", async () => {
     for (const locale of siteConfig.locales) {
       const html = renderToStaticMarkup(
-        await HomePage({ params: Promise.resolve({ locale: locale.code }) }),
+        await PageRoute({ params: Promise.resolve({ segments: homeSegments(locale.code) }) }),
       );
       expect(html.length, locale.code).toBeGreaterThan(0);
       expect(html, locale.code).toContain("home-hero");
@@ -133,8 +141,8 @@ describe("a site that authors no home page keeps the generic starter homepage", 
   it("is CONTENT-FIRST: the authored lookup precedes the generic starter render", () => {
     // If the generic return came first, an authored home page would be silently
     // ignored — the exact failure this ordering guards.
-    const lookupAt = homeRouteSource.indexOf("pages.resolve(HOME_CONTENT_SLUG");
-    const starterAt = homeRouteSource.indexOf("home-hero");
+    const lookupAt = homeRouteSource.indexOf("routes.resolve(site.code, HOME_CONTENT_SLUG");
+    const starterAt = homeRouteSource.indexOf("<StarterHome");
     expect(lookupAt).toBeGreaterThan(-1);
     expect(starterAt).toBeGreaterThan(lookupAt);
     // …and it renders through the SAFE page renderer, the same one every other page

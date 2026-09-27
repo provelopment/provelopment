@@ -46,12 +46,13 @@ import {
  * honestly.
  */
 export interface ResolvedPageSource<TSource> {
+  readonly siteId: string;
   readonly kind: PageAuthoringMode;
-  /** The page's route path inside its locale directory, e.g. `offerings/website-design`. */
+  /** The page's route path inside its site+locale directory, e.g. `offerings/website-design`. */
   readonly routePath: string;
   /** The locale the winning source came from. */
   readonly locale: string;
-  /** True when the winning source is the default locale answering for another locale. */
+  /** True when the winning source is the SITE's default locale answering for another locale. */
   readonly fallback: boolean;
   readonly source: TSource;
 }
@@ -88,6 +89,7 @@ export async function resolvePageSource<TSource>(
     const source = await provider(candidate.locale);
     if (source !== null && source !== undefined) {
       return {
+        siteId: request.siteId,
         kind: candidate.kind,
         routePath: request.routePath,
         locale: candidate.locale,

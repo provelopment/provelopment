@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+import { siteConfig } from "@/config";
+import { pathContextOr, sitePath, siteSetOf } from "@/core/site";
+
 import { useErrorMessages } from "@/components/site/error-messages-context";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { Button } from "@/components/ui/button";
@@ -28,9 +31,16 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const params = useParams<{ locale?: string }>();
+  // S1 — the status frame is SITE-SCOPED: the params name the site scope, so "return home"
+  // goes to the CURRENT site's home rather than negotiating from the deployment root.
+  const params = useParams<{ segments?: string[] }>();
   const messages = useErrorMessages();
-  const locale = params?.locale;
+  const request = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteConfig.pageBindings,
+    `/${(params?.segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
 
   return (
     <Section className="py-24 text-center">
@@ -46,7 +56,7 @@ export default function Error({
           {messages.tryAgain}
         </Button>
         <Link
-          href={`/${locale ?? ""}`}
+          href={sitePath(request.site, request.localePath) as string}
           className="font-medium text-primary hover:underline"
         >
           {messages.returnHome}

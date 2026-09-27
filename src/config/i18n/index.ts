@@ -9,6 +9,11 @@ import { loadDictionaryRegistry } from "./registry";
 
 const dictionaryDirectory = path.join(process.cwd(), "config", "i18n");
 
+// S1E2 — the OPTIONAL site+locale overrides live in a `sites/` folder BESIDE the shared
+// dictionaries, one `config/i18n/sites/<site>/<locale>.json` per (site, locale) that speaks
+// differently. Absent → every site is exactly the shared dictionary (the ordinary deployment).
+const dictionaryOverrideDirectory = path.join(dictionaryDirectory, "sites");
+
 // Built once at module load (build time). Discovery is data-driven: the set of
 // available dictionaries comes from the `config/i18n/` directory (validated
 // against the Zod dictionary schema and against the locales enabled in
@@ -16,25 +21,45 @@ const dictionaryDirectory = path.join(process.cwd(), "config", "i18n");
 // to `src/` registration code.
 const registry = loadDictionaryRegistry({
   directory: dictionaryDirectory,
+  overrideDirectory: dictionaryOverrideDirectory,
   declaredLocales: siteConfig.locales.map((locale) => locale.code),
   defaultLocale: siteConfig.defaultLocale,
+  sites: siteConfig.sites.map((site) => ({
+    code: site.code,
+    locales: site.locales.map((locale) => locale.path),
+  })),
 });
 
 // F1 invariant: an enabled booking CTA must never silently disappear because a
-// locale is missing its localized label. Runs at module load (build time).
+// locale — or a SITE's override of it — is missing its localized label. Runs at
+// module load (build time) over every EFFECTIVE (site, locale) dictionary, so a
+// site override cannot un-satisfy the lock either.
+const effectiveDictionaries = new Map<string, Dictionary>();
+for (const site of siteConfig.sites) {
+  for (const locale of site.locales) {
+    effectiveDictionaries.set(`${site.code}/${locale.path}`, registry.get(locale.path, site.code));
+  }
+}
+
 assertBookingLabelPresent(
-  registry.all(),
+  effectiveDictionaries,
   siteConfig.bookingFeature,
-  siteConfig.locales.map((locale) => locale.code),
+  [...effectiveDictionaries.keys()],
 );
 
 /**
- * Returns the dictionary for a locale, falling back to the default locale's
- * dictionary only when the requested locale is not configured. Every configured
- * locale is guaranteed (at registry load) to have a validated dictionary.
+ * Returns the EFFECTIVE dictionary for a locale and, when given, the ACTIVE SITE: the shared
+ * dictionary for that locale with that site's override applied (`@/config/i18n/registry`).
+ *
+ * S1E2 — the site is the second argument because only the caller knows which site's page tree it
+ * is speaking for. A caller that passes no site gets the SHARED dictionary, which is the correct
+ * answer for a site-less surface — and never another site's wording.
+ *
+ * Falls back to the default locale's dictionary only when the requested locale is not configured.
+ * Every configured locale is guaranteed (at registry load) to have a validated dictionary.
  */
-export function getDictionary(locale: Locale): Dictionary {
-  return registry.get(locale);
+export function getDictionary(locale: Locale, siteCode?: string): Dictionary {
+  return registry.get(locale, siteCode);
 }
 
 /**
