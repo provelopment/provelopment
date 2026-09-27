@@ -1,7 +1,7 @@
 import { pageRoutePath, pageRoutePathSegments } from "./page-route-path";
 import { isRegionBoundToLocale } from "./regional-pages";
 import type { PageRegionBinding } from "./region";
-import { defaultSiteLabel, isSiteCode, normalizeSiteCode, WORLDWIDE_SITE_CODE } from "./site-code";
+import { defaultSiteLabel, normalizeSiteCode, siteCodeIssue, WORLDWIDE_SITE_CODE } from "./site-code";
 import {
   isLocalePathKey,
   resolveSiteLocale,
@@ -144,13 +144,9 @@ export function resolveSites(options: ResolveSitesOptions): SiteSet {
 
   const seenCodes = new Set<string>();
   const sites = declared.map((raw) => {
+    const codeIssue = siteCodeIssue(raw.code);
+    if (codeIssue !== null) issues.push(codeIssue);
     const code = normalizeSiteCode(raw.code);
-    if (!isSiteCode(code)) {
-      issues.push(
-        `site "${raw.code}" must be a recognized two-letter country code or the reserved ` +
-          `"${WORLDWIDE_SITE_CODE}" (arbitrary names are not site codes)`,
-      );
-    }
     if (seenCodes.has(code)) issues.push(`duplicate site "${code}"`);
     seenCodes.add(code);
 
@@ -184,9 +180,8 @@ export function resolveSites(options: ResolveSitesOptions): SiteSet {
       const previous = seenCanonicals.get(canonicalKey);
       if (previous !== undefined) {
         issues.push(
-          `site "${code}": locales "${previous}" and "${resolved.path}" both resolve to the ` +
-            `canonical tag "${resolved.canonical}" — choose either the simple path form or the ` +
-            "explicit one, not both",
+          `Site "${code}" maps both "${previous}" and "${resolved.path}" to canonical locale ` +
+            `"${resolved.canonical}". Keep one locale path and remove the other.`,
         );
         continue;
       }

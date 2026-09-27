@@ -31,31 +31,51 @@
  */
 import { isWorldwideSiteCode, normalizeSiteCode } from "./site-code";
 
-/** A locale's lowercase path key: `en`, `fr`, `fr-ca`, `en-ca`, `zh-hans`. */
-export const LOCALE_PATH_KEY_PATTERN = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/;
+/**
+ * A locale PATH KEY: `en`, `fr`, `fr-ca`, `en-ca`, `zh-hans`, `zh-hant-tw`, `sr-latn`.
+ *
+ * The supported grammar is deliberately bounded and documented here, in ONE place:
+ *
+ *     language           2–3 lowercase letters            en, fr, id, zh, sr
+ *     [-script]          4 lowercase letters              hans, hant, latn
+ *     [-region]          2 lowercase letters, or 3 digits ca, tw, 419
+ *
+ * BCP 47 extensions, variants and private-use subtags are NOT supported (nothing here consumes
+ * them), and the key is always lowercase because it is a directory name AND a URL segment.
+ */
+export const LOCALE_PATH_KEY_PATTERN = /^[a-z]{2,3}(?:-[a-z]{4})?(?:-[a-z]{2}|-[0-9]{3})?$/;
 
 /** True when a value may be a locale path key (lowercase, no spaces, no traversal). */
 export function isLocalePathKey(value: string): boolean {
   return typeof value === "string" && LOCALE_PATH_KEY_PATTERN.test(value);
 }
 
-/** The canonical (standards-facing) language tag for a path key: `en-ca` → `en-CA`. */
+/**
+ * The canonical (standards-facing) language tag for a path key — language lowercase, script
+ * title-case, region uppercase:
+ *
+ *     en-ca      → en-CA
+ *     fr-ca      → fr-CA
+ *     zh-hant    → zh-Hant
+ *     zh-hant-tw → zh-Hant-TW
+ *     sr-latn    → sr-Latn
+ *
+ * The path key and the canonical tag are the SAME locale in two spellings; the mapping is total
+ * and deterministic, never a lookup table.
+ */
 export function canonicalTagForPathKey(pathKey: string): string {
-  const [language, ...rest] = pathKey.split("-");
+  const [language, ...subtags] = pathKey.split("-");
   if (language === undefined || language === "") return pathKey;
-  return [language, ...rest.map((subtag) => (subtag.length === 2 ? subtag.toUpperCase() : subtag))].join("-");
+  return [
+    language,
+    ...subtags.map((subtag) => {
+      if (subtag.length === 4) return subtag.charAt(0).toUpperCase() + subtag.slice(1);
+      if (subtag.length === 2) return subtag.toUpperCase();
+      return subtag;
+    }),
+  ].join("-");
 }
 
-/**
- * The documented global conventions for a SIMPLE key inside the Worldwide site — the only place
- * such a choice is made, so `ww/en` is `en-US` everywhere and nowhere else.
- */
-export const WORLDWIDE_LOCALE_CONVENTIONS: Readonly<Record<string, string>> = {
-  en: "en-US",
-  pt: "pt-PT",
-  es: "es-ES",
-  zh: "zh-Hans",
-};
 
 /** One locale as an adopter declares it for a site. */
 export interface SiteLocaleInput {
@@ -103,8 +123,13 @@ export function resolveSiteLocale(
   }
 
   const canonical = (() => {
+    // A FULL key already names its own locale: `fr-ca` → `fr-CA`, `zh-hant-tw` → `zh-Hant-TW`.
     if (!isSimpleLocalePathKey(key)) return canonicalTagForPathKey(key);
-    if (isWorldwideSiteCode(code)) return WORLDWIDE_LOCALE_CONVENTIONS[key] ?? key;
+    // The Worldwide site makes NO country assumption: `ww/fr` is simply French (`fr`). A
+    // deliberate convention (`ww/en` → `en-US`) is an EXPLICIT `canonical` on the entry, so the
+    // platform never invents a country for a global language.
+    if (isWorldwideSiteCode(code)) return key;
+    // A country site derives the country's own variant: `ca/en` → `en-CA`, `br/pt` → `pt-BR`.
     return `${key}-${code.toUpperCase()}`;
   })();
 

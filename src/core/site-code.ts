@@ -67,6 +67,38 @@ export function isWorldwideSiteCode(value: string): boolean {
   return normalizeSiteCode(value) === WORLDWIDE_SITE_CODE;
 }
 
+/** True when the code is recognized AND already written in the canonical lowercase spelling. */
+export function isCanonicalSiteCode(value: string): boolean {
+  return (
+    typeof value === "string" &&
+    value === value.trim() &&
+    value === value.toLowerCase() &&
+    SITE_CODE_SET.has(value)
+  );
+}
+
+/**
+ * The ONE actionable diagnosis for a configured site code, or `null` when it is usable.
+ *
+ * A configured code is NOT silently normalised: the code is simultaneously the content folder and
+ * the URL segment, so `CA` must be reported as a lowercase mistake rather than accepted and quietly
+ * turned into `ca` — the author would otherwise believe a directory named `CA` works.
+ */
+export function siteCodeIssue(value: string): string | null {
+  if (isCanonicalSiteCode(value)) return null;
+  const normalized = normalizeSiteCode(value);
+  if (SITE_CODE_SET.has(normalized)) {
+    return (
+      `site code "${value}" must be lowercase — write it as "${normalized}" ` +
+      "(the code is also the content folder and the URL segment)"
+    );
+  }
+  return (
+    `site code "${value}" must be a recognized two-letter country code or the reserved ` +
+    `"${WORLDWIDE_SITE_CODE}" (arbitrary names are not site codes)`
+  );
+}
+
 /** The default display label for a site code: the country code, or `Worldwide` for `ww`. */
 export function defaultSiteLabel(code: string): string {
   const normalized = normalizeSiteCode(code);
