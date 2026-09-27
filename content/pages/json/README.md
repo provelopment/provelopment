@@ -3,9 +3,12 @@
 This directory is the **advanced** authoring mode: a page written as structured,
 **schema-validated data** instead of prose, for a page that needs presentation
 ordinary Markdown cannot express. Foundation ships exactly two page-authoring
-modes, and this is the second of them:
+modes, and this is the second of them. It lives in the human-facing content area —
+see [`../../README.md`](../../README.md) for the map, and
+[`../markdown/README.md`](../markdown/README.md) for the mode almost everyone should
+use instead.
 
-| | Safe Markdown (`../pages-markdown/`) | Declarative JSON (this directory) |
+| | Safe Markdown (`../markdown/`) | Declarative JSON (this directory) |
 | --- | --- | --- |
 | **For** | an ordinary, non-technical author | an advanced author / developer |
 | **Written as** | ordinary Markdown text | validated JSON data |

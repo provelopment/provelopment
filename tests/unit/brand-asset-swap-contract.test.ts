@@ -330,7 +330,7 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
       const shipped = read("public", "assets", role);
       expect(shipped, `${role} must be its placeholder source`).toBe(
-        read("assets", "placeholders", role),
+        read("content", "assets", "placeholders", role),
       );
       expect(shipped, `${role} must draw nothing`).not.toMatch(
         /<(path|rect|circle|ellipse|polygon|line|image|text)\b/i,
@@ -339,7 +339,7 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
       expect(shipped, `${role} must declare a viewBox`).toMatch(/viewBox="[^"]+"/);
       // …and no deployment-specific artwork ships for the role in the template:
       // the generic template has no brand of its own.
-      expect(existsSync(path.join(ROOT, "assets", "branding"))).toBe(false);
+      expect(existsSync(path.join(ROOT, "content", "assets", "branding"))).toBe(false);
     }
   });
 

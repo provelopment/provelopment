@@ -25,10 +25,10 @@ import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/s
  * consuming the PAGE-SPECIFIC `banners` region above the shell.
  *
  * The header band's DEFAULT artwork is now the BLANK TRANSPARENT placeholder
- * (`assets/placeholders/header-graphic.svg` → `public/assets/header-graphic.svg`,
+ * (`content/assets/placeholders/header-graphic.svg` → `public/assets/header-graphic.svg`,
  * owner ruling 2026-09): the role is present, valid and ACTIVATED, and it paints
  * nothing. The branded Foundation artwork for the role remains available in the
- * source package (`assets/branding/page-graphics/header-graphic.svg`) and is
+ * source package (`content/assets/branding/page-graphics/header-graphic.svg`) and is
  * activated by replacing the runtime file — a pure artwork swap. The
  * positive/negative availability cases below deliberately reuse the repository's
  * existing neutral `logo-header.svg` fixture: the availability rule stays proven
@@ -123,7 +123,7 @@ describe("P12-HG — schema / backward compatibility", () => {
     // byte-identical to its declared placeholder source.
     const shipped = readFileSync(path.join(root, "public", "assets", "header-graphic.svg"), "utf8");
     const source = readFileSync(
-      path.join(root, "assets", "placeholders", "header-graphic.svg"),
+      path.join(root, "content", "assets", "placeholders", "header-graphic.svg"),
       "utf8",
     );
     expect(shipped).toBe(source);
@@ -131,7 +131,7 @@ describe("P12-HG — schema / backward compatibility", () => {
     expect(shipped).toMatch(/viewBox="0 0 4096 512"/);
     expect(shipped).not.toMatch(/#4F7CAC/i);
     // …and no deployment-specific artwork ships for this role in the template.
-    expect(existsSync(path.join(root, "assets", "branding"))).toBe(false);
+    expect(existsSync(path.join(root, "content", "assets", "branding"))).toBe(false);
   });
 });
 

@@ -20,7 +20,7 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 
 /**
  * THE ONE PAGE-SOURCE COMPOSITION this route consults: the two first-class
- * authoring modes (`config/pages-markdown`, `config/pages-json`) in the declared
+ * authoring modes (`content/pages/markdown`, `content/pages/json`) in the declared
  * precedence order (`@/core/page-source`). The route never decides where a page
  * comes from — it asks, and renders what answered.
  */
@@ -66,7 +66,7 @@ const STATIC_ROUTE_SLUGS: ReadonlySet<string> = new Set([
  *
  *  - When `item` is a configured REGION LANDING for the locale (a landing
  *    entry `{ locale, region }`), this renders the regional home: the locale's
- *    page source for the region (`config/pages-markdown/{locale}/{region}.md` or
+ *    page source for the region (`content/pages/markdown/{locale}/{region}.md` or
  *    its JSON counterpart) plus the region's complete operational identity.
  *  - Otherwise it is the flat non-regional page (Phase K behavior): the locale's
  *    page source for `{item}` with no operational identity.

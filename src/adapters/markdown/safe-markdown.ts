@@ -3,7 +3,7 @@
  * ====================================
  *
  * Turns author-written Markdown into HTML that CANNOT carry active web behaviour.
- * This is the primitive the `config/pages-markdown` authoring mode renders through;
+ * This is the primitive the `content/pages/markdown` authoring mode renders through;
  * it is deliberately NOT the renderer the trusted content collections use
  * (`src/components/site/markdown-content.tsx`), which passes raw HTML through
  * because those files are reviewed like source code and are never page sources.
@@ -30,6 +30,18 @@
  *       to catch a MISTAKE IN LAYER 1, not to catch author input: if it ever has
  *       to remove something, layer 1 is wrong.
  *
+ * HEADING FRAGMENTS (the one attribute this path generates)
+ * ---------------------------------------------------------
+ * An author links to a section of their own page (`[hours](#opening-hours)`), which
+ * needs a target — and they cannot write one, because raw HTML is inert here and no
+ * attribute is author-settable. So the renderer GENERATES a heading id from the
+ * heading text, by the ONE documented rule in `@/core/heading-anchor`
+ * (`## Opening Hours` → `#opening-hours`, repeats disambiguated `-2`, `-3`, …). It
+ * is the only attribute produced outside `href`/`title`/`src`/`alt`/`class`, the
+ * allowlist grants `id` to headings only, and layer 2 re-checks the SHAPE of every
+ * id (`isHeadingAnchor`) — so a mistake in layer 1 cannot put an arbitrary attribute
+ * value into a page.
+ *
  * WHY A LIBRARY RATHER THAN A CLEAN-UP REGEX (dependency justification)
  * -------------------------------------------------------------------
  * `sanitize-html` (MIT, maintained, built on the htmlparser2 HTML parser) applies
@@ -43,9 +55,14 @@
  * single hand-written renderer, which is a weaker guarantee than the project
  * accepts for an authoring path.
  */
-import { Marked, Renderer, type Tokens } from "marked";
+import { Marked, Renderer, type Token, type Tokens } from "marked";
 import sanitizeHtml from "sanitize-html";
 
+import {
+  createHeadingAnchors,
+  isHeadingAnchor,
+  type HeadingAnchorAllocator,
+} from "@/core/heading-anchor";
 import {
   MARKDOWN_ALLOWED_ATTRIBUTES,
   MARKDOWN_ALLOWED_CLASSES,
@@ -53,6 +70,7 @@ import {
   MARKDOWN_ALLOWED_TAGS,
   MARKDOWN_CODE_LANGUAGE_CLASS_PREFIX,
   MARKDOWN_CODE_LANGUAGE_PATTERN,
+  MARKDOWN_HEADING_TAGS,
 } from "@/core/markdown-policy";
 import { classifyAuthorUrl } from "@/core/safe-url";
 
@@ -97,8 +115,12 @@ function languageAttribute(info: string | null | undefined): string {
  *
  * Each destination is classified by `@/core/safe-url`; anything unsafe is
  * dropped, so this layer fails closed on its own.
+ *
+ * A heading additionally receives its generated fragment id, which is why the
+ * renderer is a FACTORY: the anchors of one document are allocated together (see
+ * `createHeadingAnchors`), so the allocator is created per rendered page.
  */
-const AUTHORING_RENDERER = {
+const AUTHORING_RENDERER_METHODS = {
   /** Raw HTML is not an authoring capability: show it as text, inertly. */
   html(this: Renderer, token: Tokens.HTML | Tokens.Tag): string {
     const text = escapeAuthorText(token.text ?? "");
@@ -157,9 +179,60 @@ const AUTHORING_RENDERER = {
   },
 };
 
-/** Our own parser instance: its options cannot be changed by anything else in the application. */
-const authoringMarked = new Marked({ async: false, gfm: true });
-authoringMarked.use({ renderer: AUTHORING_RENDERER });
+/** The words a heading contributes, with inline markup flattened to its own text. */
+function headingPlainText(tokens: readonly Token[] | undefined): string {
+  if (tokens === undefined || tokens.length === 0) return "";
+  return tokens
+    .map((token) => {
+      const children = (token as { tokens?: Token[] }).tokens;
+      if (Array.isArray(children) && children.length > 0) return headingPlainText(children);
+      return (token as { text?: string }).text ?? "";
+    })
+    .join("");
+}
+
+/**
+ * Layer 1 for ONE document: the policy methods above, plus generated heading
+ * fragments.
+ *
+ * The allocator is passed in rather than held as module state, so one document's
+ * heading ids can never leak into another page (or into a concurrent render).
+ */
+function createAuthoringRenderer(nextHeadingAnchor: HeadingAnchorAllocator) {
+  return {
+    ...AUTHORING_RENDERER_METHODS,
+
+    /**
+     * A heading keeps its ordinary semantics and gains a DETERMINISTIC fragment id:
+     * `## Opening Hours` becomes `<h2 id="opening-hours">Opening Hours</h2>`, so the
+     * author's `[hours](#opening-hours)` has a real target. Levels are clamped to
+     * 1–6 so the emitted element is always one the allowlist names, and the id is
+     * escaped here as well as shape-checked by layer 2.
+     */
+    heading(this: Renderer, token: Tokens.Heading): string {
+      const depth = Math.min(Math.max(token.depth, 1), 6);
+      const id = nextHeadingAnchor(headingPlainText(token.tokens));
+      const body = this.parser.parseInline(token.tokens) as string;
+      return `<h${depth} id="${escapeAuthorText(id)}">${body}</h${depth}>`;
+    },
+  };
+}
+
+/**
+ * Layer 2 — keep only an id the heading rule could have produced.
+ *
+ * The allowlist grants `id` to headings, and the renderer above is its only
+ * producer. This transform additionally checks the VALUE, so the policy's claim
+ * ("ids look like this") is enforced rather than assumed: an id that does not match
+ * the deterministic pattern is DROPPED, never repaired into something else.
+ */
+const constrainHeadingId: sanitizeHtml.Transformer = (tagName, attribs) => {
+  const id = attribs.id;
+  if (id === undefined || isHeadingAnchor(id)) return { tagName, attribs };
+  const permitted: sanitizeHtml.Attributes = { ...attribs };
+  delete permitted.id;
+  return { tagName, attribs: permitted };
+};
 
 /** Layer 2 — the narrow allowlist, applied to the HTML layer 1 produced. */
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
@@ -172,6 +245,9 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedSchemesAppliedToAttributes: ["href", "src"],
   allowProtocolRelative: false,
   disallowedTagsMode: "discard",
+  transformTags: Object.fromEntries(
+    MARKDOWN_HEADING_TAGS.map((tag) => [tag, constrainHeadingId]),
+  ),
   parser: { lowerCaseTags: true, lowerCaseAttributeNames: true },
 };
 
@@ -182,7 +258,11 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
  */
 export function renderSafeMarkdown(markdown: string): string {
   if (typeof markdown !== "string" || markdown.length === 0) return "";
-  const rendered = authoringMarked.parse(markdown, { async: false });
+  // ONE parser per document, so the heading-anchor allocator belongs to exactly this
+  // render: ids are unique within the page and cannot leak into another page.
+  const parser = new Marked({ async: false, gfm: true });
+  parser.use({ renderer: createAuthoringRenderer(createHeadingAnchors()) });
+  const rendered = parser.parse(markdown, { async: false });
   const html = typeof rendered === "string" ? rendered : "";
   return html.length === 0 ? "" : sanitizeHtml(html, SANITIZE_OPTIONS);
 }

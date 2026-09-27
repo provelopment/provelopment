@@ -60,7 +60,7 @@ The boundary between "Foundation-owned" and "downstream/user-owned" is:
 | `src/**` — application code, components, framework wiring | `site.config.json` — site identity, navigation, features, UI composition, theme, assets |
 | configuration **schema + loaders** (`src/config/`) | `content/**` — Markdown pages, offerings, portfolio, posts, testimonials, legal |
 | UI engine (`src/core/ui/`, `src/components/ui/`) | `config/i18n/<locale>.json` — localized interface strings |
-| design-system implementation (`src/app/globals.css` tokens) | `assets/**` — the source asset tree; `public/assets/*` is its mirrored runtime derivative |
+| design-system implementation (`src/app/globals.css` tokens) | `content/assets/**` — the source asset tree; `public/assets/*` is its mirrored runtime derivative |
 | localization infrastructure + dictionary schema | asset URL values you supply through `site.assets.*` |
 | build/deploy machinery, tests, proofs-of-consistency | feature/provider switches (`features.*`, `provider: "none"`) you choose |
 | Foundation **defaults** (what the layers above fall back to) | presentation values you expose through the configuration contract (`ui.presentation`, `ui.theme.background`, …) |
@@ -501,10 +501,10 @@ and the same left-side vertical position.
   icon at **16×16** in both states — expanded (icon **+** page name) and collapsed
   (icon **only**, with the page name kept as the sr-only accessible name plus a
   native `title` tooltip). The canonical configuration maps each page to a
-  **semantic icon from `assets/icon-library/`** (`icon-home.svg`,
+  **semantic icon from `content/assets/icon-library/`** (`icon-home.svg`,
   `icon-about.svg`, `icon-resources.svg`, `icon-testimonials.svg`,
   `icon-portfolio.svg`, `icon-blog.svg`, `icon-contact.svg`, `icon-services.svg`);
-  the neutral dot/plus pair in `assets/placeholders/` is the fallback for an
+  the neutral dot/plus pair in `content/assets/placeholders/` is the fallback for an
   unmapped page type. Each item is independently replaceable, per state, through
   configuration:
 
@@ -515,7 +515,7 @@ and the same left-side vertical position.
   | `"iconOpen": "a.svg"`, `"iconClosed": "b.svg"` | `a.svg` | `b.svg` |
 
   Source precedence: an explicitly configured deployment icon (business artwork in
-  `assets/branding/`) → a generic icon from `assets/icon-library/` → the neutral
+  `content/assets/branding/`) → a generic icon from `content/assets/icon-library/` → the neutral
   placeholder fallback. All library icons are retained whether or not a page uses
   them. Mobile navigation does **not** use these page icons.
 
@@ -737,18 +737,30 @@ A page is authored in one of **two first-class modes**:
 
 | Where | What it is |
 | --- | --- |
-| `config/pages-markdown/<locale>/<slug>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
-| `config/pages-json/<locale>/<slug>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
+| `content/pages/markdown/<locale>/<slug>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
+| `content/pages/json/<locale>/<slug>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
 
-Those are the *only* two page-authoring paths. The `content/**` tree holds the
-platform's **other content collections** (offerings, legal, testimonials, portfolio,
-posts) and is never a page source: a file left under `content/pages` publishes
-nothing and shadows nothing.
+Those are the *only* two page-authoring paths. `content/` is the single
+human-facing content area — pages, assets and the other collections all live there —
+and [`content/README.md`](content/README.md) is the map to hand to whoever edits the
+site. Each mode root's own `README.md` explains its mode in plain language, and is
+never itself a page.
 
-Each root's own `README.md` explains its mode in plain language, and is never
-itself a page. A page becomes a route and a sitemap entry as soon as its file
-exists for a configured language — publishing the route needs no configuration
-change; `navigation` in `site.config.json` controls the menu, not existence.
+A page becomes a route and a sitemap entry as soon as its file exists for a
+configured language — publishing the *route* needs no configuration change;
+`navigation` in `site.config.json` controls the menu, not existence. Publishing the
+*change* means committing and pushing it (see
+[Publishing your changes](README.md#publishing-your-changes) in the root README):
+a saved but uncommitted file is invisible to the site.
+
+Safe Markdown supports the full ordinary Markdown/GFM feature set — headings and
+paragraphs, bold/italic/strikethrough, ordered/unordered/**nested** lists,
+blockquotes, links, images, inline code, fenced code blocks, horizontal rules,
+autolinks, task-list marks and **tables**. Each heading also receives a deterministic
+fragment id, so `## Opening hours` is linkable as `#opening-hours` (case and accents
+ignored; repeats become `-2`, `-3`; documentation:
+[`content/pages/markdown/README.md`](content/pages/markdown/README.md)). A capability
+not listed here is deliberately not part of the mode.
 
 If the same slug exists in both modes, the order is: JSON, then safe Markdown —
 within the requested language first, and only then falling back to the default
@@ -758,8 +770,8 @@ frontmatter, then the first `# heading`, then the filename).
 ### The home page is OPTIONAL, and may be authored as content (`home.md`)
 
 The locale root (`/{locale}`) renders the generic, configuration-driven starter homepage
-**unless you author it as content**: add `config/pages-markdown/<locale>/home.md` (or
-`config/pages-json/<locale>/home.json`)
+**unless you author it as content**: add `content/pages/markdown/<locale>/home.md` (or
+`content/pages/json/<locale>/home.json`)
 and the locale-root route renders THAT, through the same page-source composition as every
 other page — same precedence, same per-locale fallback, and the same safe Markdown
 policy.
@@ -1122,7 +1134,7 @@ the single source.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `assets/branding/branding-schema.md`
+  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `content/assets/branding/branding-schema.md`
   — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
@@ -1299,16 +1311,16 @@ There are **two equally-supported ways to customize an asset**:
 {
   "site": {
     "assets": {
-      "logo":       "https://cdn.example.com/assets/my-logo-header.svg", // replaces JSON-LD logo
-      "ogImage":    "https://cdn.example.com/assets/my-share.png",       // replaces og:image / twitter:image
-      "favicon":    "https://cdn.example.com/assets/my-icon.svg",        // replaces the browser icon
-      "logoFooter": "https://cdn.example.com/assets/my-logo-footer.svg", // footer mark
-      "banners":    { "home": "https://cdn.example.com/assets/banner-home.png" }, // page-keyed banners (P6-3B)
-      "backgrounds": { "all": "https://cdn.example.com/assets/background-all.webp",   // global decorative background (P12-BG)
-                       "about": "https://cdn.example.com/assets/background-about.webp" }, // page-specific wins
-      "footerGraphic": "https://cdn.example.com/assets/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
-      "headerGraphic": "https://cdn.example.com/assets/header-graphic.svg", // decorative header band (P12-HG) — NOT the header logo or a banner
-      "statusGraphic": "https://cdn.example.com/assets/status-graphic.svg"   // decorative error/404 graphic (P12-SG) — ONE shared status role, NOT an icon
+      "logo":       "https://cdn.example.com/content/assets/my-logo-header.svg", // replaces JSON-LD logo
+      "ogImage":    "https://cdn.example.com/content/assets/my-share.png",       // replaces og:image / twitter:image
+      "favicon":    "https://cdn.example.com/content/assets/my-icon.svg",        // replaces the browser icon
+      "logoFooter": "https://cdn.example.com/content/assets/my-logo-footer.svg", // footer mark
+      "banners":    { "home": "https://cdn.example.com/content/assets/banner-home.png" }, // page-keyed banners (P6-3B)
+      "backgrounds": { "all": "https://cdn.example.com/content/assets/background-all.webp",   // global decorative background (P12-BG)
+                       "about": "https://cdn.example.com/content/assets/background-about.webp" }, // page-specific wins
+      "footerGraphic": "https://cdn.example.com/content/assets/footer-graphic.png", // decorative footer watermark (P12-FG) — NOT the footer logo
+      "headerGraphic": "https://cdn.example.com/content/assets/header-graphic.svg", // decorative header band (P12-HG) — NOT the header logo or a banner
+      "statusGraphic": "https://cdn.example.com/content/assets/status-graphic.svg"   // decorative error/404 graphic (P12-SG) — ONE shared status role, NOT an icon
     }
   }
 }
@@ -1351,9 +1363,9 @@ without changing component source code.
 Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
 - **`favicon`** — fully live and authoritative: `site.assets.favicon` resolves via
-  `assetPathFromUrl` to the same-origin `/assets/favicon.svg` and Next.js emits
+  `assetPathFromUrl` to the same-origin `/content/assets/favicon.svg` and Next.js emits
   exactly one `<link rel="icon">` (browser-verified `count=1`,
-  `href=/assets/favicon.svg`). The former file-convention route `src/app/icon.svg`
+  `href=/content/assets/favicon.svg`). The former file-convention route `src/app/icon.svg`
   was **removed** in P6-3B, so no competing/stale icon declaration exists. The
   artwork is the owner-supplied graphic; no favicon redesign was performed.
 - **`logo-header`** — wired through JSON-LD `Organization.logo`
@@ -1437,10 +1449,10 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   optimizer. **The default Foundation configuration no longer requires a branded
   decorative footer graphic**: `public/assets/footer-graphic.svg` is the byte-identical
   mirror of the blank transparent placeholder
-  (`assets/placeholders/footer-graphic.svg`), so the default presentation is
+  (`content/assets/placeholders/footer-graphic.svg`), so the default presentation is
   **blank / not used** while the role stays ACTIVE through
   `site.assets.footerGraphic`. The branded Foundation footer graphic is retained as
-  source at `assets/branding/page-graphics/footer-graphic.svg` and is activated by
+  source at `content/assets/branding/page-graphics/footer-graphic.svg` and is activated by
   replacing the runtime file (2026-09 owner ruling).
 - **`header-graphic` (P12-HG)** — **capability composed; role ACTIVE with a BLANK default**:
   `site.assets.headerGraphic` is ONE optional **global** decorative header band /
@@ -1472,11 +1484,11 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   parallax). **The default Foundation configuration no longer requires a branded
   decorative header graphic**: `public/assets/header-graphic.svg` is the
   byte-identical mirror of the blank transparent placeholder
-  (`assets/placeholders/header-graphic.svg`) — a valid 4096 × 512 canvas that draws
+  (`content/assets/placeholders/header-graphic.svg`) — a valid 4096 × 512 canvas that draws
   nothing — so the default presentation is **blank / not used** while the canonical
   role stays ACTIVE (`site.assets.headerGraphic`). The branded Foundation header
   graphic is retained as source at
-  `assets/branding/page-graphics/header-graphic.svg`; activating it is a pure file
+  `content/assets/branding/page-graphics/header-graphic.svg`; activating it is a pure file
   replacement, and the measured `cover` crop it would imply inside the header box
   (19.46:1 desktop / 2.59:1 mobile) stays an artwork/owner judgement recorded in the
   living-pack provenance — never a coding gate, and no artwork was altered and no CSS
@@ -1545,7 +1557,7 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 > **owner-approved Provelopment Foundation brand artwork** at three of these roles:
 > `favicon`, `logo-header` and `logo-footer` are the three identity roles. In the
 > **generic template** all three resolve to the neutral files in
-> `assets/placeholders/` (`favicon.svg` and `logo-header.svg`; the footer role shares
+> `content/assets/placeholders/` (`favicon.svg` and `logo-header.svg`; the footer role shares
 > the header source). A deployment replaces them with its own
 > byte-identical brand install — which is exactly the swap described here: a file
 > replacement (or a `site.assets.*` URL) with no component or configuration change.
@@ -1554,13 +1566,13 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 > The expanded reverse variants (`lockup-reversed-mono.svg`, `lockup-reversed-color.svg`,
 > `lockup-reversed-knockout.svg`) are **not** consumed by any runtime role yet.
 
-#### Source asset tree — `assets/` (the three ownership categories)
+#### Source asset tree — `content/assets/` (the three ownership categories)
 
-The repository carries the **source** asset tree in `assets/`. It is NOT served
+The repository carries the **source** asset tree in `content/assets/`. It is NOT served
 under `public/`; the runtime files are byte-identical mirrors of it (see below):
 
 ```text
-assets/
+content/assets/
 ├── branding/          — deployment/business-specific artwork (this repo: the
 │   ├── banners/         Provelopment Foundation mark, favicons, logos, banners,
 │   ├── identity/        branded page graphics and the brand specification)
@@ -1580,7 +1592,7 @@ assets/
 Architecture (one authority per file — never a second asset system):
 
 ```text
-assets/**                          (source of truth — edit here)
+content/assets/**                          (source of truth — edit here)
     ↓  scripts/sync-runtime-assets.mjs   (byte-identical mirror)
 public/assets/                     (the ONLY directory the site fetches)
     ↓
@@ -1592,11 +1604,11 @@ Foundation components / site.assets.* configuration
   `public/assets/`. `pnpm build` runs the mirror first, so a half-applied asset
   move can never ship. `tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
 - There are **no permanent runtime-only exceptions**: every persistent runtime
-  visual asset has an authoritative source beneath `assets/` (the ten
-  `banner-<page>.png` page banners live in `assets/branding/banners/` and are
+  visual asset has an authoritative source beneath `content/assets/` (the ten
+  `banner-<page>.png` page banners live in `content/assets/branding/banners/` and are
   mirrored like any other graphic, so the runtime-only allowlist is empty).
 - The header and footer logo ROLES derive from **one** authoritative coloured
-  source (`assets/branding/logos/lockup-horizontal.svg`), so the footer uses the
+  source (`content/assets/branding/logos/lockup-horizontal.svg`), so the footer uses the
   same coloured lockup as the header; the monochrome lockup remains a retained
   optional source asset.
 - The four categories have distinct responsibilities: **branding** is the
@@ -1608,18 +1620,18 @@ Foundation components / site.assets.* configuration
 **Branding-agent workflow** (source tree → runtime):
 
 1. Read the brand specification
-   (`assets/branding/branding-schema.md`).
-2. Review the source graphics under `assets/branding/`.
+   (`content/assets/branding/branding-schema.md`).
+2. Review the source graphics under `content/assets/branding/`.
 3. Determine the required branding for the target site.
-4. Author/replace the role file **in `assets/`** (e.g.
-   `assets/branding/identity/favicon.svg`).
+4. Author/replace the role file **in `content/assets/`** (e.g.
+   `content/assets/branding/identity/favicon.svg`).
 5. Run `pnpm assets:sync` to mirror it to `public/assets/`, then `pnpm assets:check`.
 6. Build the Foundation (`pnpm build`).
 7. Verify the assets resolve (no broken images; gate green).
 8. Deploy.
 
 A customer/branding implementation should never require a Foundation
-component-source change merely to replace branding — only an `assets/**` file
+component-source change merely to replace branding — only an `content/assets/**` file
 replacement (mirrored) and/or a `site.assets.*` URL change.
 
 #### Shipped brand assets — what a fresh clone already contains
@@ -1633,7 +1645,7 @@ activates some of those roles while deliberately leaving others merely available
 | Identity | `logo-header.svg`, `logo-footer.svg`, `favicon.svg` | yes — `logo`, `logoFooter`, `favicon` |
 | Page banners | `banner-home/about/contact/connect/offerings/portfolio/blog/resources/testimonials/legal.png` | yes — `banners` (ten page roles) |
 | Decorative graphics | `background-all.svg`, `status-graphic.svg` (branded); `header-graphic.svg`, `footer-graphic.svg` (**blank transparent defaults**) | yes — `backgrounds.all`, `headerGraphic`, `footerGraphic`, `statusGraphic` |
-| Generic page icons | the `assets/icon-library/` set (`icon-home.svg`, `icon-about.svg`, `icon-services.svg`, …) — every library icon is mirrored into `public/assets/` | yes — `navigation[].iconOpen/iconClosed` for the sidebar pages |
+| Generic page icons | the `content/assets/icon-library/` set (`icon-home.svg`, `icon-about.svg`, `icon-services.svg`, …) — every library icon is mirrored into `public/assets/` | yes — `navigation[].iconOpen/iconClosed` for the sidebar pages |
 | Social preview | `og-image.png` (1200 × 630) | yes — `ogImage` (the generated per-locale route remains the fallback) |
 | Generic connectivity icons | `icon-phone.svg`, `icon-email.svg`, `icon-message.svg`, `icon-link.svg`, `icon-external-link.svg`, `icon-share.svg`, `icon-globe.svg` | **no** — available for your own connectivity items |
 | Admitted platform marks | `whatsapp.svg`, `telegram.svg`, `facebook.png`, `messenger.svg`, `instagram.svg`, `linkedin.png`, `github.svg` | **no** — available only; see below |
@@ -1647,9 +1659,9 @@ absent one and renders nothing (never a placeholder, never a broken image).
 > **`header-graphic.svg` and `footer-graphic.svg` ship as BLANK transparent
 > defaults (ACTIVE).** The default Foundation configuration does not require a
 > branded decorative graphic: each runtime file is the byte-identical mirror of its
-> `assets/placeholders/` source and draws nothing, so the default presentation is
+> `content/assets/placeholders/` source and draws nothing, so the default presentation is
 > **blank / not used**. Activating branded artwork is a pure file replacement — the
-> branded masters are retained at `assets/branding/page-graphics/`. The header band
+> branded masters are retained at `content/assets/branding/page-graphics/`. The header band
 > is `cover`-painted inside the measured header box (19.46:1 desktop / 2.59:1
 > mobile), so activating the 8:1 branded master would magnify and crop it; that crop
 > outcome is a **Master-Brand-Architect-owned aesthetic judgement**, recorded in the
@@ -1673,7 +1685,7 @@ third-party platform mark (WhatsApp, Telegram, …)
 
 **Generic connectivity icons** are used exactly like any other icon leaf: set
 `connect.methods[].icon` (or `socialLinks[].icon`) to the plain filename, e.g.
-`"icon-phone.svg"` → `/assets/icon-phone.svg`. They are never recoloured in code,
+`"icon-phone.svg"` → `/content/assets/icon-phone.svg`. They are never recoloured in code,
 and because they render through a plain `<img>` they cannot inherit the
 surrounding text colour either: the shipped `stroke="currentColor"` masters paint
 in the image's own initial colour (**black**). Encode the colour you want in the
@@ -1708,7 +1720,7 @@ Two honest caveats:
    accessible name.
 
 Admitted-mark provenance and the withheld register live with the marks themselves —
-`assets/platform-marks/platform-marks-provenance.md` (official source owner,
+`content/assets/platform-marks/platform-marks-provenance.md` (official source owner,
 published use basis, colour variant, modifications and
 preconditions P-1…P-4). Note that platform brand rules sometimes require a
 particular colour variant for a particular surface, and the engine applies **no**
@@ -1746,7 +1758,7 @@ change:
    file* fails the build with an actionable error — it never silently falls
    back to English. (`getDictionary()` falls back to the default locale only
    for locales that are NOT configured.)
-4. Optionally translate pages: add `config/pages-markdown/<code>/<slug>.md` (or the
+4. Optionally translate pages: add `content/pages/markdown/<code>/<slug>.md` (or the
    JSON counterpart) beside the default language's file.
 
 Every locale is statically rendered and included in the sitemap with
@@ -1848,7 +1860,7 @@ Key rules:
 - **Deterministic modal precedence.** `business.regions` non-empty → regional
   mode (legacy footer NAP + global JSON-LD are suppressed). `business.regions`
   absent → the legacy global model renders exactly as before. The two never mix.
-- **Pages are independent.** Create `config/pages-markdown/<locale>/<slug>.md` for each
+- **Pages are independent.** Create `content/pages/markdown/<locale>/<slug>.md` for each
   page (its existence makes the route real), add a `pages` binding to attach a
   region, and add navigation entries for discoverability. Locales may have
   different page sets; one locale may host several regional pages; one region
@@ -2268,7 +2280,7 @@ output), plus Vercel's own product description where noted:
 ### Contact inquiries (`features.contact` + `/contact`)
 
 The `/contact` page and contact form are the inquiry capability. It is
-**content-driven** (`config/pages-markdown/<locale>/contact.md`, or its JSON
+**content-driven** (`content/pages/markdown/<locale>/contact.md`, or its JSON
 counterpart — the sitemap picks the
 route up automatically) and **config-driven**:
 

@@ -22,7 +22,7 @@ import { siteConfig } from "@/config";
 /**
  * THE TWO AUTHORING MODES, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1/A1C).
  *
- * A1 succeeds only if a REAL file under `config/pages-markdown/<locale>/<slug>.md`
+ * A1 succeeds only if a REAL file under `content/pages/markdown/<locale>/<slug>.md`
  * produces a REAL generated page: a static route, its metadata, its sitemap entry —
  * through the normal Foundation application, not a bespoke path. The same fixtures
  * prove that a page-shaped file under `content/pages` publishes NOTHING (no route, no
@@ -30,7 +30,7 @@ import { siteConfig } from "@/config";
  * directory produce no phantom route, and that a dedicated page route (`/about`)
  * renders its source through the same composition.
  *
- * The file under `config/pages-markdown/en/` is a run fixture, created here and
+ * The file under `content/pages/markdown/en/` is a run fixture, created here and
  * removed afterwards: the template still ships no authored pages.
  */
 const root = process.cwd();
@@ -43,16 +43,17 @@ const EMPTY_LOCALE_NAME = "zz-empty";
 // A well-formed language tag that the site does NOT configure (subtags are 2–8
 // characters), holding a page that must therefore never be published.
 const UNCONFIGURED_LOCALE_NAME = "zz-unconf";
-const EMPTY_LOCALE_DIRECTORY = path.join(root, "config", "pages-markdown", EMPTY_LOCALE_NAME);
+const EMPTY_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", EMPTY_LOCALE_NAME);
 const UNCONFIGURED_LOCALE_DIRECTORY = path.join(
   root,
-  "config",
-  "pages-markdown",
+  "content",
+  "pages",
+  "markdown",
   UNCONFIGURED_LOCALE_NAME,
 );
 const createdPaths = [
-  path.join(root, "config", "pages-markdown", "en", `${MARKDOWN_SLUG}.md`),
-  path.join(root, "config", "pages-markdown", "en", `${ABOUT_SLUG}.md`),
+  path.join(root, "content", "pages", "markdown", "en", `${MARKDOWN_SLUG}.md`),
+  path.join(root, "content", "pages", "markdown", "en", `${ABOUT_SLUG}.md`),
   path.join(root, "content", "pages", "en", `${COLLECTION_PATH_SLUG}.md`),
 ];
 
@@ -76,7 +77,7 @@ const params = (item: string) => ({ params: Promise.resolve({ locale: "en", item
 describe("the first-class authoring modes, through the real application", () => {
   beforeAll(() => {
     write(
-      path.join(root, "config", "pages-markdown", "en", `${MARKDOWN_SLUG}.md`),
+      path.join(root, "content", "pages", "markdown", "en", `${MARKDOWN_SLUG}.md`),
       [
         "---",
         "title: Authored fixture page",
@@ -85,6 +86,16 @@ describe("the first-class authoring modes, through the real application", () => 
         "",
         "Ordinary **Markdown** with a [link](/about).",
         "",
+        "| Day | Opens |",
+        "| --- | --- |",
+        "| Monday | 9:00 |",
+        "",
+        "See [details](#details-heading) below.",
+        "",
+        "## Details heading",
+        "",
+        "The paragraph the author's fragment link must reach.",
+        "",
         "<script>window.__authorScript = true;</script>",
         "",
         '<div onclick="window.__authorHandler = true">raw html text</div>',
@@ -92,7 +103,7 @@ describe("the first-class authoring modes, through the real application", () => 
       ].join("\n"),
     );
     write(
-      path.join(root, "config", "pages-markdown", "en", `${ABOUT_SLUG}.md`),
+      path.join(root, "content", "pages", "markdown", "en", `${ABOUT_SLUG}.md`),
       "# About the fixture\n\nA safe Markdown page for the dedicated About route.\n",
     );
     // A page-shaped file under `content/pages`: NOT a page source, at all.
@@ -129,6 +140,35 @@ describe("the first-class authoring modes, through the real application", () => 
     expect(generated.some((route) => route.item === COLLECTION_PATH_SLUG)).toBe(false);
     // …and the route that would serve it is a proper 404.
     await expect(ItemPage(params(COLLECTION_PATH_SLUG))).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("renders the authored page's table and its own fragment target (A1D)", async () => {
+    const html = renderToStaticMarkup(await ItemPage(params(MARKDOWN_SLUG)));
+
+    // The documented capability, through the real route: a GFM table…
+    expect(html).toContain("<table>");
+    expect(html).toContain("<th>Day</th>");
+    expect(html).toContain("<td>Monday</td>");
+    // …and a heading the author's own `[details](#details-heading)` can reach.
+    expect(html).toContain('<h2 id="details-heading">Details heading</h2>');
+    expect(html).toContain('<a href="#details-heading">details</a>');
+  });
+
+  it("never publishes a README from the content area, in any shape", async () => {
+    const generated = await generateStaticParams();
+    for (const readme of ["README", "readme"]) {
+      expect(generated.some((route) => route.item === readme), readme).toBe(false);
+    }
+    const urls = (await sitemap()).map((entry) => entry.url);
+    expect(urls.some((url) => /\/readme$/i.test(url))).toBe(false);
+    // The three documentation files really are present and really are not pages.
+    for (const readme of [
+      "content/README.md",
+      "content/pages/markdown/README.md",
+      "content/pages/json/README.md",
+    ]) {
+      expect(existsSync(path.join(root, readme)), readme).toBe(true);
+    }
   });
 
   it("publishes no phantom page from an empty or unconfigured locale directory", async () => {
@@ -191,7 +231,7 @@ describe("the first-class authoring modes, through the real application", () => 
 
   it("lets a safe Markdown file author the home page (content-first, unchanged order)", async () => {
     write(
-      path.join(root, "config", "pages-markdown", "en", "home.md"),
+      path.join(root, "content", "pages", "markdown", "en", "home.md"),
       `# ${HOME_FIXTURE}\n\nA safe Markdown home page.\n`,
     );
     try {
@@ -199,7 +239,7 @@ describe("the first-class authoring modes, through the real application", () => 
       expect(html).toContain(HOME_FIXTURE);
       expect(html).not.toContain("home-hero");
     } finally {
-      cleanUp(path.join(root, "config", "pages-markdown", "en", "home.md"));
+      cleanUp(path.join(root, "content", "pages", "markdown", "en", "home.md"));
     }
   });
 });

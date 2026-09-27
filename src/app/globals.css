@@ -183,7 +183,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-ring: var(--ring);
-  /* P6-2D — the brand heading/body typeface (assets/branding/branding-schema.md):
+  /* P6-2D — the brand heading/body typeface (content/assets/branding/branding-schema.md):
      Plus Jakarta Sans, loaded in src/app/[locale]/layout.tsx via next/font. */
   --font-sans: var(--font-brand-sans);
   --font-mono: var(--font-geist-mono);

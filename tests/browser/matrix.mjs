@@ -760,7 +760,7 @@ async function runAdaptiveMobile(rows, cdp) {
 
 /**
  * P1-4 (template scope) — the `/en/contact` route renders only when the adopter
- * supplies the page's source (`config/pages-markdown/<locale>/contact.md`, or its
+ * supplies the page's source (`content/pages/markdown/<locale>/contact.md`, or its
  * JSON counterpart); the generic template ships no pages, so that route is a 404
  * here. The Section/Button primitives keep their unit-level proof in
  * `tests/unit/ui-primitives.test.ts`, and the shell-composition proof below still
@@ -2123,7 +2123,7 @@ async function runConnectivityIconScenario(chrome) {
   // Connect page's safe Markdown source for the duration of the run (removed in
   // `finally`). The seam under test is the connectivity contract, not whether a fresh
   // clone has written its own pages yet.
-  const connectContentPath = join(ROOT, "config", "pages-markdown", "en", "connect.md");
+  const connectContentPath = join(ROOT, "content", "pages", "markdown", "en", "connect.md");
   await mkdir(dirname(connectContentPath), { recursive: true });
   await writeFile(
     connectContentPath,
@@ -2452,28 +2452,25 @@ const NAV_PROBE_HELPERS = `
  * somewhere below the fold to land. Written for the duration of the run only.
  */
 /**
- * The tall fixture is authored as SAFE Markdown, so the raw HTML it contains stays
- * INERT text: an author-written construct can never create an `id` (the Markdown
- * allowlist has no `id`, by design). The fragment TARGET is therefore planted by the
- * harness, and the contract under test is the shell's clearance — which applies to ANY
- * in-page target: the jump must leave the target below the sticky chrome, and the
- * clearance is removed where the rail persists. Planting also asserts the safe-mode
- * property itself: the authored anchor must NOT exist as an element while its source
- * is still visible as text.
+ * The tall fixture is authored as SAFE Markdown, and its fragment TARGET is an
+ * authored HEADING: `## Anchor Section` gains the deterministic id `anchor-section`
+ * (FOUNDATION-PAGES-A1D), so the contract under test is the shell's clearance applied
+ * to a target the AUTHOR created. The fixture also keeps a raw-HTML anchor attempt,
+ * which must stay INERT — an author cannot set an id by typing HTML — so the scenario
+ * asserts that property in the same probe.
  */
-async function plantAnchorTarget(cdp) {
+async function authoredAnchorTarget(cdp) {
   return cdp.evaluate(`(() => {
-    const authored = document.getElementById('zz-nav-anchor');
+    const authoredHtmlAnchor = document.getElementById('zz-nav-anchor');
+    const heading = document.getElementById('anchor-section');
     const text = document.body.textContent || '';
-    const main = document.querySelector('main') || document.body;
-    const target = document.createElement('div');
-    target.id = 'zz-nav-anchor';
-    // Mid-document, so the browser has room to scroll it below the sticky chrome.
-    const paragraphs = [...main.querySelectorAll('p')];
-    const after = paragraphs[Math.floor(paragraphs.length / 2)];
-    if (after && after.parentElement) after.parentElement.insertBefore(target, after.nextSibling);
-    else main.appendChild(target);
-    return { authoredInert: authored === null, rawHtmlAsText: text.includes('zz-nav-anchor') };
+    return {
+      // The raw HTML attempt produced no element, and its source is visible as text.
+      rawHtmlInert: authoredHtmlAnchor === null,
+      rawHtmlAsText: text.includes('zz-nav-anchor'),
+      // The AUTHORED heading did produce the documented fragment target.
+      headingIsTarget: !!heading && heading.tagName === 'H2',
+    };
   })()`);
 }
 
@@ -2481,7 +2478,23 @@ function tallPageFixture() {
   const paragraph = (n) =>
     `Paragraph ${n}. The rail stays reachable while this page scrolls, so a visitor never has to travel back to the top of the document to navigate elsewhere.`;
   const block = (from, to) => Array.from({ length: to - from }, (_, i) => paragraph(from + i)).join("\n\n");
-  return `---\ntitle: Persistent navigation fixture\n---\n\n${block(1, 25)}\n\n<div id="zz-nav-anchor"></div>\n\n${block(25, 100)}\n`;
+  // `## Anchor Section` is the author's own fragment target (id `anchor-section`); the
+  // raw-HTML anchor beside it is an attempt to set an id by typing HTML, which must
+  // stay inert text.
+  return [
+    "---",
+    "title: Persistent navigation fixture",
+    "---",
+    "",
+    block(1, 25),
+    "",
+    '<div id="zz-nav-anchor"></div>',
+    "",
+    "## Anchor Section",
+    "",
+    block(25, 100),
+    "",
+  ].join("\n");
 }
 
 async function runPersistentNavigationScenario(chrome) {
@@ -2513,7 +2526,7 @@ async function runPersistentNavigationScenario(chrome) {
 
   // FS1 — the generic template ships NO pages, so this fixture supplies the tall
   // safe Markdown page the scroll assertions need (removed in `finally`).
-  const tallPath = join(ROOT, "config", "pages-markdown", "en", "zz-nav-tall.md");
+  const tallPath = join(ROOT, "content", "pages", "markdown", "en", "zz-nav-tall.md");
   await mkdir(dirname(tallPath), { recursive: true });
   await writeFile(tallPath, tallPageFixture(), "utf8");
 
@@ -2681,22 +2694,28 @@ async function runPersistentNavigationScenario(chrome) {
     await cdp.setViewport(VIEWPORTS.tablet.width, VIEWPORTS.tablet.height);
     await cdp.navigate(tallUrl);
     await waitReady(cdp);
-    // The fixture's own raw-HTML anchor is INERT (safe Markdown has no `id`), so the
-    // harness supplies the in-page target and asserts that property at the same time.
-    const planted = await plantAnchorTarget(cdp);
+    // The fixture's raw-HTML anchor attempt is INERT (safe Markdown has no author-set
+    // id), while its AUTHORED heading provides the real target the jump uses.
+    const planted = await authoredAnchorTarget(cdp);
     check(
       rows,
       "persist.authoredAnchor.inert",
-      !!planted.authoredInert && !!planted.rawHtmlAsText,
-      `element=${!planted.authoredInert} asText=${planted.rawHtmlAsText}`,
+      !!planted.rawHtmlInert && !!planted.rawHtmlAsText,
+      `element=${!planted.rawHtmlInert} asText=${planted.rawHtmlAsText}`,
+    );
+    check(
+      rows,
+      "persist.authoredAnchor.headingTarget",
+      !!planted.headingIsTarget,
+      `h2=${planted.headingIsTarget}`,
     );
     // A fragment navigation on the SAME document fires no load event, so the
     // harness sets the hash exactly as the skip link / an in-page anchor does.
-    await cdp.evaluate("location.hash = '#zz-nav-anchor'");
+    await cdp.evaluate("location.hash = '#anchor-section'");
     await sleep(400);
     const railAnchor = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
       const column = railColumn();
-      const anchor = document.getElementById('zz-nav-anchor');
+      const anchor = document.getElementById('anchor-section');
       return {
         clearance: getComputedStyle(document.documentElement).scrollPaddingTop,
         columnSticky: sticky(column),
@@ -2752,13 +2771,12 @@ async function runPersistentNavigationScenario(chrome) {
     check(rows, "persist.mobile.noDialogWhileScrolling", mob.dialogs === 0);
 
     // ── MOBILE: a fragment target is not hidden beneath the sticky header ────
-    // (the same harness-supplied target as the rail band; the fixture is safe Markdown)
-    await plantAnchorTarget(cdp);
-    await cdp.evaluate("location.hash = '#zz-nav-anchor'");
+    // (the AUTHOR's own heading anchor — see `authoredAnchorTarget`)
+    await cdp.evaluate("location.hash = '#anchor-section'");
     await sleep(400);
     const anchor = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
       const header = document.querySelector('.ui-shell-top');
-      const target = document.getElementById('zz-nav-anchor');
+      const target = document.getElementById('anchor-section');
       const hr = header ? header.getBoundingClientRect() : null;
       const tr = target ? target.getBoundingClientRect() : null;
       return {
@@ -2890,7 +2908,7 @@ async function runPersistentNavigationScenario(chrome) {
 }
 
 /**
- * SAFE MARKDOWN, IN A REAL BROWSER (FOUNDATION-PAGES-A1).
+ * SAFE MARKDOWN, IN A REAL BROWSER (FOUNDATION-PAGES-A1; capability + fragments, A1D).
  *
  * The policy is proven twice in unit tests (`safe-markdown`, `safe-url`); what only
  * a browser can prove is that the SERVED page — through the real route, the real
@@ -2898,8 +2916,23 @@ async function runPersistentNavigationScenario(chrome) {
  * event handler, no unsafe destination, and no forbidden element. The fixture is an
  * ordinary authored page with hostile fragments inside it, written for the run and
  * removed afterwards.
+ *
+ * A1D adds the two things an author notices: a real GFM **table**, and an authored
+ * **heading fragment** (`[jump](#fixture-section)` → `## Fixture Section`) that the
+ * browser actually navigates to — including the shell's sticky-header clearance,
+ * which until A1D could only be measured on a harness-supplied target.
  */
 const SAFE_MARKDOWN_SLUG = "zz-safe-markdown-fixture";
+const SAFE_MARKDOWN_HEADING_ID = "fixture-section";
+const SAFE_MARKDOWN_DUPLICATE_ID = "fixture-section-2";
+
+/** Enough prose that an authored fragment link has to SCROLL to reach its target. */
+const safeMarkdownFiller = (from, to) =>
+  Array.from(
+    { length: to - from },
+    (_, index) =>
+      `Paragraph ${from + index}. This page is deliberately long enough that the fragment link above must scroll, so the sticky header's clearance can be measured on a target the author created.`,
+  ).join("\n\n");
 
 const SAFE_MARKDOWN_FIXTURE = `---
 title: Safe Markdown fixture
@@ -2908,10 +2941,37 @@ description: An authored page that tries to be dangerous.
 
 # Safe Markdown fixture
 
-Ordinary **Markdown** with a [link](/about) and a list:
+Ordinary **Markdown** with a [link](/about), *emphasis*, ~~strikethrough~~ and a list:
 
 - one
 - two
+  - nested
+
+1. first
+2. second
+
+> A quotation.
+
+| Day      | Opens | Closes |
+| -------- | ----- | ------ |
+| Monday   | 9:00  | 17:00  |
+| Saturday | 10:00 | 14:00  |
+
+See [jump](#${SAFE_MARKDOWN_HEADING_ID}) below.
+
+${safeMarkdownFiller(1, 12)}
+
+---
+
+## Fixture Section
+
+The paragraph the fragment link above must reach.
+
+${safeMarkdownFiller(12, 26)}
+
+## Fixture Section
+
+A repeated heading, which the renderer must disambiguate.
 
 <script>window.__authorScript = true;</script>
 
@@ -2924,12 +2984,14 @@ Ordinary **Markdown** with a [link](/about) and a list:
 <img src=x onerror="window.__authorImageHandler = true">
 
 [unsafe link](javascript:window.__authorHref = true)
+
+<h2 id="author-made-id">raw html id attempt</h2>
 `;
 
 async function runSafeMarkdownScenario(chrome) {
   const port = BASE_PORT + 260;
   BASE_URL = `http://localhost:${port}`;
-  const fixturePath = join(ROOT, "config", "pages-markdown", "en", `${SAFE_MARKDOWN_SLUG}.md`);
+  const fixturePath = join(ROOT, "content", "pages", "markdown", "en", `${SAFE_MARKDOWN_SLUG}.md`);
   const url = `${BASE_URL}/en/${SAFE_MARKDOWN_SLUG}`;
   const rows = [];
   await mkdir(dirname(fixturePath), { recursive: true });
@@ -2979,6 +3041,22 @@ async function runSafeMarkdownScenario(chrome) {
         // The author's raw HTML is still readable — as inert text.
         rawTextVisible: text.includes('raw html text'),
         visible: text.includes('Ordinary'),
+        // A1D — the capability an author actually uses, through the real route: a GFM
+        // table with real cells, and GENERATED heading fragments.
+        table: !!document.querySelector('main table'),
+        tableCells: document.querySelectorAll('main table th, main table td').length,
+        tableHeaders: [...document.querySelectorAll('main table th')].map((th) => th.textContent.trim()),
+        headingIds: [...document.querySelectorAll('main h1[id], main h2[id], main h3[id]')].map((h) => h.id),
+        sectionId: (document.getElementById('${SAFE_MARKDOWN_HEADING_ID}') || {}).tagName || null,
+        duplicateId: (document.getElementById('${SAFE_MARKDOWN_DUPLICATE_ID}') || {}).tagName || null,
+        fragmentHref: (() => {
+          const link = document.querySelector('main a[href="#${SAFE_MARKDOWN_HEADING_ID}"]');
+          return link ? link.getAttribute('href') : null;
+        })(),
+        authorIdInert: document.getElementById('author-made-id') === null,
+        nestedList: !!document.querySelector('main ul ul'),
+        quote: !!document.querySelector('main blockquote'),
+        strike: !!document.querySelector('main del'),
       };
     })()`);
 
@@ -2994,6 +3072,47 @@ async function runSafeMarkdownScenario(chrome) {
     check(rows, "safeMarkdown.content.noForbiddenElements", !!page && page.forbiddenInContent.length === 0, JSON.stringify(page && page.forbiddenInContent));
     check(rows, "safeMarkdown.document.noForbiddenElements", !!page && page.forbiddenInDocument.length === 0, JSON.stringify(page && page.forbiddenInDocument));
     check(rows, "safeMarkdown.noPageErrors", !!page && page.pageErrors.length === 0, JSON.stringify(page && page.pageErrors));
+
+    // ── A1D: the documented capability, in the served page ────────────────────
+    // Each of these is documented in `content/pages/markdown/README.md`, so the
+    // guide cannot promise something the served page does not do.
+    check(rows, "safeMarkdown.capability.table", !!page && page.table && page.tableCells === 9, `cells=${page && page.tableCells}`);
+    check(rows, "safeMarkdown.capability.tableHeaders", !!page && page.tableHeaders.includes("Day"), JSON.stringify(page && page.tableHeaders));
+    check(rows, "safeMarkdown.capability.nestedList", !!page && page.nestedList);
+    check(rows, "safeMarkdown.capability.quote", !!page && page.quote);
+    check(rows, "safeMarkdown.capability.strikethrough", !!page && page.strike);
+
+    // ── A1D: authored heading fragments, and the shell's clearance for them ───
+    check(rows, "safeMarkdown.fragment.headingId", !!page && page.sectionId === "H2", `tag=${page && page.sectionId}`);
+    check(rows, "safeMarkdown.fragment.duplicateDisambiguated", !!page && page.duplicateId === "H2", `tag=${page && page.duplicateId}`);
+    check(rows, "safeMarkdown.fragment.linkPointsAtIt", !!page && page.fragmentHref === `#${SAFE_MARKDOWN_HEADING_ID}`, page && page.fragmentHref);
+    // An author-supplied id in raw HTML stays inert: no element carries it.
+    check(rows, "safeMarkdown.fragment.authorIdInert", !!page && page.authorIdInert);
+
+    // The author's own fragment link must actually REACH the heading, and the sticky
+    // header must not cover it — the N1 clearance contract, measured on a target the
+    // AUTHOR created (until A1D it could only be measured on a harness-supplied one).
+    await cdp.evaluate(`location.hash = '#${SAFE_MARKDOWN_HEADING_ID}'`);
+    await sleep(400);
+    const jump = await cdp.evaluate(`(() => {
+      const header = document.querySelector('.ui-shell-top');
+      const target = document.getElementById('${SAFE_MARKDOWN_HEADING_ID}');
+      const hr = header ? header.getBoundingClientRect() : null;
+      const tr = target ? target.getBoundingClientRect() : null;
+      return {
+        scrolled: window.scrollY > 0,
+        clearance: getComputedStyle(document.documentElement).scrollPaddingTop,
+        targetTop: tr ? Math.round(tr.top) : null,
+        headerBottom: hr ? Math.round(hr.bottom) : null,
+      };
+    })()`);
+    check(rows, "safeMarkdown.fragment.reached", !!jump.scrolled, `scrollY>0=${jump.scrolled}`);
+    check(rows, "safeMarkdown.fragment.belowStickyHeader", jump.targetTop != null && jump.headerBottom != null && jump.targetTop >= jump.headerBottom - 1, `targetTop=${jump.targetTop} headerBottom=${jump.headerBottom}`);
+    // The clearance is BAND-appropriate: at this width the rail persists, so no
+    // scroll padding is needed (0px) and the shell top is not sticky. The mobile band,
+    // where the header IS sticky and the padding is 96px, is proven on the same kind of
+    // authored heading target by the persistent-navigation scenario.
+    check(rows, "safeMarkdown.fragment.clearanceMatchesBand", jump.clearance === "0px", `scrollPaddingTop=${jump.clearance}`);
   } catch (error) {
     check(rows, "safe-markdown.scenario.error", false, String(error));
   } finally {

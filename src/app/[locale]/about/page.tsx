@@ -14,8 +14,8 @@ const localeCodes = siteConfig.locales.map((locale) => locale.code);
 /**
  * THE PAGE-SOURCE COMPOSITION for this route's page. `/about` owns its URL, but its
  * SOURCE is authored like every other page: safe Markdown under
- * `config/pages-markdown/<locale>/about.md`, or declarative JSON under
- * `config/pages-json/<locale>/about.json`. A site that authors neither has no
+ * `content/pages/markdown/<locale>/about.md`, or declarative JSON under
+ * `content/pages/json/<locale>/about.json`. A site that authors neither has no
  * About page, and the URL is a proper 404.
  */
 const pages = createPageSources({

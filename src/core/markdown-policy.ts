@@ -2,7 +2,7 @@
  * THE AUTHORING ALLOWLIST FOR MARKDOWN PAGES
  * =========================================
  *
- * The declared policy for the `config/pages-markdown` authoring mode: which
+ * The declared policy for the `content/pages/markdown` authoring mode: which
  * elements a Markdown page may produce, which attributes those elements may
  * carry, and which destination schemes may appear. It is deliberately NARROW —
  * ordinary Markdown semantics and nothing else — and it is the ONE authority for
@@ -60,12 +60,33 @@ export const MARKDOWN_ALLOWED_TAGS: readonly string[] = [
   "ul",
 ];
 
-/** Every attribute allowed, per element. Nothing else may appear — not even `id` or `style`. */
+/**
+ * Every attribute allowed, per element. Nothing else may appear — not even `style`.
+ *
+ * `id` appears for headings ONLY, and it is not an author-settable attribute: raw
+ * HTML is inert in this mode, so the sole producer is the renderer's heading
+ * fragment (`@/core/heading-anchor`), which the sanitiser re-checks against
+ * `HEADING_ANCHOR_PATTERN`. An author writes `## Opening hours` and links to
+ * `#opening-hours`; they cannot write an attribute at all.
+ */
 export const MARKDOWN_ALLOWED_ATTRIBUTES: Readonly<Record<string, readonly string[]>> = {
   a: ["href", "title"],
   img: ["src", "alt", "title"],
   code: ["class"],
+  h1: ["id"],
+  h2: ["id"],
+  h3: ["id"],
+  h4: ["id"],
+  h5: ["id"],
+  h6: ["id"],
 };
+
+/**
+ * Elements whose `id` the renderer may generate. It is exactly the headings, so a
+ * page can never put an id anywhere else — another reason the allowlist stays
+ * narrow.
+ */
+export const MARKDOWN_HEADING_TAGS: readonly string[] = ["h1", "h2", "h3", "h4", "h5", "h6"];
 
 /** The only class a page may set: the language of a fenced code block. */
 export const MARKDOWN_ALLOWED_CLASSES: Readonly<Record<string, readonly string[]>> = {

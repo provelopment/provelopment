@@ -70,12 +70,19 @@ tree stays clean.
   persistent), the bottom-bar More disclosure keeps its focus/inert/Escape/scroll
   behaviour while scrolled, the primary CTA stays in normal flow, and the
   configured destinations are unchanged. The tall fixture is authored as **safe
-  Markdown**, so the raw HTML it contains is inert — the fragment target is planted
-  by the harness (an authored page cannot create an `id`), and the scenario asserts
-  that inertness alongside the shell's clearance.
+  Markdown**, and its fragment target is an **authored heading** (`## Anchor Section`
+  → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is
+  measured on a target the author created; a raw-HTML anchor attempt in the same
+  fixture must stay inert, and the scenario asserts both.
 - **safe Markdown** (`safe-markdown` scenario): an authored page under
-  `config/pages-markdown/en/` is served through the normal route with its authored
+  `content/pages/markdown/en/` is served through the normal route with its authored
   title, its ordinary Markdown rendered, and no active markup anywhere — no author
   script, no event-handler attribute, no unsafe `href`, no forbidden element inside
   the content — while the author's raw HTML remains readable as inert text and the
-  page raises no runtime error.
+  page raises no runtime error. The same served page proves the documented
+  capability (a GFM table with real cells, nested lists, a quotation,
+  strikethrough) and the authored **heading fragments**: `## Fixture Section`
+  becomes `#fixture-section` (a repeat becomes `#fixture-section-2`), the author's
+  `[jump](#fixture-section)` link reaches it, and the sticky header's clearance
+  keeps the target visible — measured on a target the AUTHOR created. An id typed
+  in raw HTML stays inert.

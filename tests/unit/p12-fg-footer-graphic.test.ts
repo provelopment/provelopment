@@ -86,7 +86,7 @@ describe("P12-FG — schema / backward compatibility", () => {
     // The blank placeholder still ships, so activating the role is one config
     // line and needs no artwork at all.
     const shipped = readFileSync(path.join(root, "public", "assets", "footer-graphic.svg"), "utf8");
-    expect(shipped).toBe(readFileSync(path.join(root, "assets", "placeholders", "footer-graphic.svg"), "utf8"));
+    expect(shipped).toBe(readFileSync(path.join(root, "content", "assets", "placeholders", "footer-graphic.svg"), "utf8"));
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|line|image|text)\b/i);
   });
 });

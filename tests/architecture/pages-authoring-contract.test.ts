@@ -1,13 +1,16 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { isHeadingAnchor } from "@/core/heading-anchor";
 import { CONTENT_SLUG_PATTERN, isContentSlug } from "@/core/page-content";
 import {
+  MARKDOWN_ALLOWED_ATTRIBUTES,
   MARKDOWN_ALLOWED_TAGS,
   MARKDOWN_FORBIDDEN_ATTRIBUTES,
   MARKDOWN_FORBIDDEN_ELEMENTS,
+  MARKDOWN_HEADING_TAGS,
 } from "@/core/markdown-policy";
 import { PAGE_AUTHORING_MODES, PAGE_AUTHORING_ROOTS } from "@/core/page-source";
 
@@ -44,9 +47,46 @@ function importsOf(file: string): string[] {
 
 describe("pages-authoring contract — exactly two first-class modes", () => {
   it("declares the two authoring roots, each shipping its own documentation", () => {
-    expect(Object.keys(PAGE_AUTHORING_ROOTS).sort()).toEqual(["json", "markdown"]);
+    expect(PAGE_AUTHORING_ROOTS).toEqual({
+      json: "content/pages/json",
+      markdown: "content/pages/markdown",
+    });
     for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
       expect(readdirSync(path.join(projectRoot, root))).toContain("README.md");
+    }
+    // One human-facing content area: every authored page root lives under
+    // `content/`, and the `content/` README is the obvious entry point.
+    for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
+      expect(root.startsWith("content/")).toBe(true);
+    }
+    expect(readdirSync(projectRoot)).toContain("content");
+  });
+
+  it("keeps the documented authoring roots, and leaves the retired ones absent", () => {
+    // The human-facing layout A1D establishes: one content area, two mode roots.
+    expect(PAGE_AUTHORING_ROOTS).toEqual({
+      markdown: "content/pages/markdown",
+      json: "content/pages/json",
+    });
+    for (const retired of ["config/pages-markdown", "config/pages-json", "assets"]) {
+      expect(existsSync(path.join(projectRoot, retired)), `${retired} must not exist`).toBe(false);
+    }
+    // The documentation a user needs is present, in the content area itself.
+    for (const readme of [
+      "content/README.md",
+      "content/pages/markdown/README.md",
+      "content/pages/json/README.md",
+      "content/assets/README.md",
+    ]) {
+      expect(existsSync(path.join(projectRoot, readme)), readme).toBe(true);
+    }
+  });
+
+  it("keeps the retired `config/pages-*` roots out of the source entirely", () => {
+    // A1D replaced the temporary A1/A1C roots. Nothing in the application may name
+    // them, and no code may read a page from them: the move is complete, not aliased.
+    for (const file of sourceFiles.map(relative)) {
+      expect(read(file), file).not.toContain("config/pages");
     }
   });
 
@@ -54,9 +94,12 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     // The contract exposes exactly the two modes: there is no third kind.
     expect(PAGE_AUTHORING_MODES).toHaveLength(2);
 
-    // The composition consults only the two authoring roots.
+    // The composition consults only the two authoring roots, and takes their
+    // spelling from the ONE core contract — it names no path literal itself, so the
+    // retired `config/pages-*` spelling cannot come back through it.
     const composition = read("adapters/content/page-sources.ts");
-    expect(composition).not.toContain("content/pages");
+    expect(composition).toContain("PAGE_AUTHORING_ROOTS");
+    expect(composition).not.toContain("config/pages");
     expect(composition).not.toContain("fs-page-content-repository");
 
     // The collection repository cannot even NAME a `pages` collection, so the
@@ -82,7 +125,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       // A route that read the collection repository itself would own a second,
       // competing precedence rule — and could serve a non-page collection as a page.
       expect(source, route).not.toContain("createFileSystemPageContentRepository");
-      expect(source, route).not.toContain("content/pages");
+      expect(source, route).not.toContain("config/pages");
       // A page body is ALWAYS rendered under the safe Markdown policy: the trusted
       // collection renderer is unreachable from a page route.
       expect(source, route).toContain("SafeMarkdownContent");
@@ -135,8 +178,8 @@ describe("pages-authoring contract — dependency direction", () => {
       "next/",
       "node:fs",
       "node:path",
-      "config/pages-markdown",
-      "config/pages-json",
+      "content/pages/markdown",
+      "content/pages/json",
     ]) {
       expect(source, forbidden).not.toContain(forbidden);
     }
@@ -184,6 +227,39 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     // The allowlist is narrow: ordinary Markdown semantics and nothing more.
     expect(MARKDOWN_ALLOWED_TAGS).not.toContain("div");
     expect(MARKDOWN_ALLOWED_TAGS).not.toContain("span");
+  });
+
+  it("allows a generated id on HEADINGS only, and nowhere else", () => {
+    // The heading fragment is the ONE attribute this path generates beyond
+    // href/title/src/alt/class — and an author cannot set it (raw HTML is inert).
+    const carriers = Object.entries(MARKDOWN_ALLOWED_ATTRIBUTES)
+      .filter(([, attributes]) => attributes.includes("id"))
+      .map(([tag]) => tag)
+      .sort();
+
+    expect(carriers).toEqual([...MARKDOWN_HEADING_TAGS].sort());
+    expect(MARKDOWN_HEADING_TAGS).toEqual(["h1", "h2", "h3", "h4", "h5", "h6"]);
+    for (const tag of MARKDOWN_HEADING_TAGS) {
+      expect(MARKDOWN_ALLOWED_TAGS).toContain(tag);
+    }
+    // No other element may carry an id — not a link, an image, a list or a table cell.
+    for (const tag of ["a", "img", "code", "p", "li", "td", "table", "blockquote"]) {
+      expect(MARKDOWN_ALLOWED_ATTRIBUTES[tag] ?? [], tag).not.toContain("id");
+    }
+    // The id's SHAPE is a core rule both layers share, so layer 2 can enforce it.
+    expect(read("adapters/markdown/safe-markdown.ts")).toContain("isHeadingAnchor");
+    expect(read("core/heading-anchor.ts")).toContain("createHeadingAnchors");
+  });
+
+  it("keeps the heading-anchor rule framework-free and deterministic (core purity)", () => {
+    const source = read("core/heading-anchor.ts");
+    for (const forbidden of ["node:", "react", "next/", "Math.random", "Date.now", "new Date"]) {
+      expect(source, forbidden).not.toContain(forbidden);
+    }
+    // The rule is documented for authors, and the pattern is the ONLY shape allowed.
+    expect(source).toContain("HEADING_ANCHOR_PATTERN");
+    expect(isHeadingAnchor("opening-hours")).toBe(true);
+    expect(isHeadingAnchor("opening hours")).toBe(false);
   });
 
   it("never pretends a JSON page can render, and keeps that boundary in ONE place", () => {

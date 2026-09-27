@@ -19,8 +19,8 @@ import {
  * exercised, and they are removed afterwards.
  */
 const root = process.cwd();
-const markdownRoot = path.join(root, "config", "pages-markdown");
-const jsonRoot = path.join(root, "config", "pages-json");
+const markdownRoot = path.join(root, "content", "pages", "markdown");
+const jsonRoot = path.join(root, "content", "pages", "json");
 // A locale directory UNIQUE to this suite: vitest runs test FILES in parallel, so
 // two suites sharing one fixture directory would overwrite each other's fixtures.
 // (Subtags must be 2–8 characters for a name to be a well-formed language tag.)

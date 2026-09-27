@@ -16,7 +16,7 @@ export interface PageContent {
    * A page that supplies one carries its own short standalone description; a page
    * that omits it keeps the site's configured description, so this is purely
    * additive and changes no existing page's metadata. The first-class authoring
-   * modes supply it (`config/pages-markdown` frontmatter today; the JSON mode's
+   * modes supply it (`content/pages/markdown` frontmatter today; the JSON mode's
    * validated vocabulary when it lands).
    */
   readonly description?: string;
@@ -61,7 +61,7 @@ export function isContentSlug(value: string): boolean {
  * The RESERVED content slug for a site's HOME page.
  *
  * A site may author its home page as ordinary content —
- * `config/pages-markdown/<locale>/home.md` (or its JSON counterpart) — and the
+ * `content/pages/markdown/<locale>/home.md` (or its JSON counterpart) — and the
  * locale-root route (`/{locale}`) renders it. Authoring the home page this way is
  * OPTIONAL: a site with no home page keeps the generic configuration-driven
  * starter homepage.

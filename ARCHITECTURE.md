@@ -123,15 +123,36 @@ Content should remain separate from application implementation.
 
 #### Content system
 
-**Pages** are authored in exactly two ways and live outside `content/`:
-`config/pages-markdown/<locale>/<slug>.md` (safe Markdown) and
-`config/pages-json/<locale>/<slug>.json` (declarative JSON) — see
+**One human-facing content area.** Everything a normal user authors as website
+content has ONE obvious home under `content/`, and `content/README.md` is the map
+that answers "where do I edit my website?". Content is never authored under
+`config/` (configuration changes how the site *behaves*; content is what it *says*),
+and unrelated technical configuration is never moved into `content/` to make the tree
+look uniform. The layout is:
+
+```text
+content/README.md      the human-facing map
+content/pages/markdown/<locale>/<slug>.md   simple, safe pages
+content/pages/json/<locale>/<slug>.json     advanced, declarative pages
+content/assets/**      the ONE user-editable asset authority (see below)
+content/<collection>/<locale>/<slug>.md     legal, offerings, testimonials, portfolio, posts
+```
+
+**Pages** are authored in exactly two ways — safe Markdown at
+`content/pages/markdown/<locale>/<slug>.md` and declarative JSON at
+`content/pages/json/<locale>/<slug>.json` — see
 [Page authoring](#page-authoring--two-first-class-modes) below.
 
-`content/` hosts the platform's **non-page content collections**
-(`content/<collection>/<locale>/<slug>.md`: offerings, legal, testimonials,
-portfolio, posts) through one repository. There is no `pages` collection: no file
-under `content/pages` is a page source, and the adapter cannot even name such a
+**Assets** are authored under `content/assets/**` and mirrored byte-for-byte into
+`public/assets/**` by `scripts/sync-runtime-assets.mjs` (`pnpm assets:sync` /
+`assets:check`). `content/assets/**` is the source of truth a human edits;
+`public/assets/**` is a GENERATED derivative that is never edited by hand, and a test
+asserts that no second user-editable asset authority exists at the repository root.
+
+**Other content collections** are read from
+`content/<collection>/<locale>/<slug>.md` (offerings, legal, testimonials, portfolio,
+posts) through one repository. There is no `pages` collection: no file under
+`content/pages` is a page source, and the adapter cannot even name such a
 collection.
 
 Each file begins with minimal frontmatter containing a `title`:
@@ -177,8 +198,8 @@ A page is authored in exactly ONE of two first-class modes:
 
 | Mode | Root | What it is |
 | --- | --- | --- |
-| **safe Markdown** | `config/pages-markdown/<locale>/<slug>.md` | ordinary Markdown for a non-technical author; the recommended mode |
-| **safe declarative JSON** | `config/pages-json/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (its vocabulary is delivered by a later increment) |
+| **safe Markdown** | `content/pages/markdown/<locale>/<slug>.md` | ordinary Markdown for a non-technical author; the recommended mode |
+| **safe declarative JSON** | `content/pages/json/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (its vocabulary is delivered by a later increment) |
 
 Both modes are CONTENT and DATA, never executable code. The Markdown mode's policy
 is enforced in TWO independent layers: the renderer
@@ -187,6 +208,16 @@ escapes code, and asks `src/core/safe-url.ts` about every destination (which fai
 closed and refuses executable/unknown schemes); the generated HTML is then
 re-parsed against the allowlist in `src/core/markdown-policy.ts` by
 `sanitize-html`, so a mistake in the renderer cannot produce active markup either.
+
+**Heading fragments are generated, never authored.** An author may link to a section
+of their own page (`[hours](#opening-hours)`), which requires a target they cannot
+write (raw HTML is inert and no attribute is author-settable). The renderer therefore
+derives a deterministic id from each heading by the ONE rule in
+`src/core/heading-anchor.ts` (`## Opening Hours` → `#opening-hours`, accents and case
+ignored, punctuation dropped, repeats disambiguated `-2`, `-3`, …), and `id` is
+allowed on headings only — with layer 2 re-checking the id's SHAPE. The shell's
+fragment clearance (`scroll-padding-top`) therefore applies to authored targets
+exactly as it does to any other in-page target.
 
 There is no third page-source kind. `content/**` hosts the platform's other content
 collections and is never consulted for a page: a file left under `content/pages`
@@ -237,7 +268,10 @@ htmlparser2) is server-side only, imported by exactly ONE module
 
 ### `public`
 
-Static assets served directly by the web application.
+Static files served directly by the web application. `public/assets/**` is a
+GENERATED mirror of the user-editable source tree `content/assets/**` (written by
+`scripts/sync-runtime-assets.mjs`); it is never edited by hand, and `assets:check`
+fails on any drift between the two.
 
 ### `tests`
 
@@ -353,8 +387,8 @@ back to the default locale's dictionary.
 
 ### Localized content
 
-Pages are organized per locale under `config/pages-markdown/<locale>/` (and
-`config/pages-json/<locale>/`); the non-page collections are organized per locale
+Pages are organized per locale under `content/pages/markdown/<locale>/` (and
+`content/pages/json/<locale>/`); the non-page collections are organized per locale
 under `content/<collection>/<locale>/`.
 The content port accepts a locale and falls back to the default locale when
 a translation has not been authored yet. Missing translations must not
