@@ -339,6 +339,11 @@ export interface SitePageOverrides {
   readonly footerNavigation?: FooterNavGroup | undefined;
   readonly legal?: readonly LegalConfigEntry[] | undefined;
   readonly connect?: ConnectConfig | undefined;
+  /**
+   * S1E3 — the shell CTA's page destination for THIS site. Presentation stays shared (`ui.cta`);
+   * only the destination — a page in this site's own tree — may differ.
+   */
+  readonly ctaHref?: string | undefined;
 }
 
 export interface SiteConfig {

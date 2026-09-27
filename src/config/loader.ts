@@ -61,6 +61,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
         : { footerNavigation: entry.footerNavigation }),
       ...(entry.legal === undefined ? {} : { legal: entry.legal }),
       ...(entry.connect === undefined ? {} : { connect: entry.connect }),
+      ...(entry.ctaHref === undefined ? {} : { ctaHref: entry.ctaHref }),
     };
     if (Object.keys(overrides).length > 0) sitePageOverrides[entry.code] = overrides;
   }

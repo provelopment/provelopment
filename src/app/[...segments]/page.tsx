@@ -24,6 +24,7 @@ import {
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 import {
   resolveSiteRequest,
+  siteLocalePath,
   sitePath,
   sitePrefixPath,
   siteSetOf,
@@ -169,7 +170,14 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   if (request === null) return {};
 
   const { site, locale: localeTag, localePath: locale, routePath } = request;
-  const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
+  // S1E3 — the generated OG image is served by the SAME route segment as the page, so its URL is
+  // built by the site path helper (`/<site>/<locale>/opengraph-image`) instead of a locale-only
+  // concatenation that would 404.
+  const ogImage = resolveOgImageUrl(
+    siteConfig.assets?.ogImage,
+    siteConfig.url,
+    sitePath(site, locale, "opengraph-image") ?? siteLocalePath(site, locale),
+  );
   // The OG locale/alternate locales are STANDARDS tags (`fr-CA`), unlike the URL segment.
   const alternateLocales = site.locales
     .filter((entry) => entry.path !== locale)
@@ -310,6 +318,7 @@ export default async function PageRoute({ params }: PageRouteProps) {
           <ResolvedRegionBlock
             region={context.region}
             locale={locale}
+            siteId={site.code}
             directionLinkResolver={directionLinkResolver}
           />
           <RegionStructuredData

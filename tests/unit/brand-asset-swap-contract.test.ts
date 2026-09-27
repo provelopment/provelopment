@@ -209,7 +209,7 @@ describe("swap contract — no engine dependency on any artwork", () => {
   const ENGINE_FILES = [
     "src/config/assets.ts",
     "src/config/site-config.ts",
-    "src/app/[locale]/layout.tsx",
+    "src/app/[...segments]/layout.tsx",
     "src/components/site/page-banner.tsx",
     "src/components/site/page-background.tsx",
     "src/components/site/header-graphic.ts",
@@ -231,7 +231,7 @@ describe("swap contract — no engine dependency on any artwork", () => {
   });
 
   /**
-   * The files that RENDER a graphic role. The `[locale]` layout is deliberately
+   * The files that RENDER a graphic role. The `[...segments]` layout is deliberately
    * EXCLUDED from the colour check below: its only hex values are the pre-existing
    * `viewport` browser `theme-color` declarations (`#ffffff` / `#0a0a0a`), which
    * are mobile-browser chrome, not artwork rendering.
@@ -261,7 +261,7 @@ describe("swap contract — no engine dependency on any artwork", () => {
   });
 
   it("the configuration is the ONLY source of role values", () => {
-    const layout = read("src", "app", "[locale]", "layout.tsx");
+    const layout = read("src", "app", "[...segments]", "layout.tsx");
     const header = read("src", "components", "site", "site-header.tsx");
     const footer = read("src", "components", "site", "site-footer.tsx");
     expect(layout).toContain("siteConfig.assets?.banners");

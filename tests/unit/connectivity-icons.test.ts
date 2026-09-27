@@ -360,7 +360,7 @@ describe("connectivity icon seam — data-driven, no platform logic", () => {
     "src/components/site/context-nav-links.tsx",
     "src/components/ui/asset-icon.tsx",
     "src/components/ui/nav-item.tsx",
-    "src/app/[locale]/connect/page.tsx",
+    "src/app/[...segments]/connect/page.tsx",
   ];
 
   it("introduces NO platform-specific icon leaf (one generic `icon` only)", () => {

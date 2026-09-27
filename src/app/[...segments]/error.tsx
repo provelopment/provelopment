@@ -56,7 +56,7 @@ export default function Error({
           {messages.tryAgain}
         </Button>
         <Link
-          href={sitePath(request.site, request.locale) as string}
+          href={sitePath(request.site, request.localePath) as string}
           className="font-medium text-primary hover:underline"
         >
           {messages.returnHome}

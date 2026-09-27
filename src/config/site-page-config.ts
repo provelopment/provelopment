@@ -39,6 +39,8 @@ export interface PageFacingConfig {
   readonly footerNavigation?: FooterNavGroup | undefined;
   readonly legal?: readonly LegalConfigEntry[] | undefined;
   readonly connect?: ConnectConfig | undefined;
+  /** S1E3 — the shell CTA's page destination (shared `ui.cta.href` unless a site replaces it). */
+  readonly ctaHref?: string | undefined;
 }
 
 /** One site's EFFECTIVE page-facing configuration, together with that site. */
@@ -60,6 +62,7 @@ export function mergeSitePageConfig(
     footerNavigation: override.footerNavigation ?? shared.footerNavigation,
     legal: override.legal ?? shared.legal,
     connect: override.connect ?? shared.connect,
+    ctaHref: override.ctaHref ?? shared.ctaHref,
   };
 }
 
@@ -84,6 +87,7 @@ export function effectiveSitePageConfig(
     footerNavigation: config.footerNavigation,
     legal: config.legal,
     connect: config.connect,
+    ctaHref: config.ui?.cta?.href,
   };
 
   return {

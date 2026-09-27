@@ -690,8 +690,8 @@ describe("Phase L — region configuration validation", () => {
     expect(config.regions.toronto.timezone).toBe("America/Toronto");
     expect(config.regions.toronto.hours.monday[0].open).toBe("09:00");
     expect(config.pageBindings).toEqual([
-      { locale: "en", region: "toronto", slug: null },
-      { locale: "en", region: "vancouver", slug: null },
+      { site: "ww", locale: "en", region: "toronto", slug: null },
+      { site: "ww", locale: "en", region: "vancouver", slug: null },
     ]);
     expect(config.business.locations).toEqual([]); // legacy path untouched
   });
@@ -715,7 +715,9 @@ describe("Phase L — region configuration validation", () => {
         pages: [{ locale: "en", slug: "toronto", region: "toronto" }],
       },
     });
-    expect(config.pageBindings).toEqual([{ locale: "en", region: "toronto", slug: null }]);
+    expect(config.pageBindings).toEqual([
+      { site: "ww", locale: "en", region: "toronto", slug: null },
+    ]);
   });
 
   it("keeps a regional page binding where slug differs from the region", () => {
@@ -730,8 +732,28 @@ describe("Phase L — region configuration validation", () => {
       },
     });
     expect(config.pageBindings).toEqual([
-      { locale: "en", region: "toronto", slug: null },
-      { locale: "en", region: "toronto", slug: "about" },
+      { site: "ww", locale: "en", region: "toronto", slug: null },
+      { site: "ww", locale: "en", region: "toronto", slug: "about" },
+    ]);
+  });
+
+  it("binds a page to its OWN site (S1E3 — regions never cross site trees)", () => {
+    const config = parseSiteConfig({
+      ...regionConfig,
+      sites: [{ code: "ww" }, { code: "ca" }],
+      business: {
+        regions: regionConfig.business.regions,
+        pages: [
+          { locale: "en", region: "toronto" },
+          { site: "ca", locale: "en", region: "toronto", slug: "about" },
+        ],
+      },
+    });
+
+    // The binding without a site belongs to the DEFAULT site; the one that names `ca` stays `ca`.
+    expect(config.pageBindings).toEqual([
+      { site: "ww", locale: "en", region: "toronto", slug: null },
+      { site: "ca", locale: "en", region: "toronto", slug: "about" },
     ]);
   });
 

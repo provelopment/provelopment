@@ -5,7 +5,8 @@ import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
-import { regionsForLocale } from "@/core/regional-pages";
+import { regionsForLocale, bindingsForSite } from "@/core/regional-pages";
+import { sitePath } from "@/core/site";
 
 describe("Phase S — sitemap & robots contract (deterministic, config/content-derived)", () => {
   it("robots references the configured absolute sitemap URL", () => {
@@ -17,17 +18,26 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
     const urls = entries.map((entry) => entry.url);
 
     expect(urls[0]).toBe(siteConfig.url);
-    for (const { code } of siteConfig.locales) {
-      expect(urls, `locale root ${code}`).toContain(`${siteConfig.url}/${code}`);
+    // S1 — a locale root is a URL INSIDE a site: `/ww/en`, never a bare `/en`.
+    for (const site of siteConfig.sites) {
+      for (const { path } of site.locales) {
+        expect(urls, `locale root ${site.code}/${path}`).toContain(
+          `${siteConfig.url}${sitePath(site, path)}`,
+        );
+      }
     }
     expect(entries[0].lastModified).toBeInstanceOf(Date);
   });
 
-  it("every localized URL belongs to a configured locale (no foreign prefixes)", async () => {
+  it("every published URL belongs to a configured site AND one of that site's locales", async () => {
     const entries = await sitemap();
     for (const entry of entries.slice(1)) {
-      const locale = entry.url.slice(siteConfig.url.length + 1).split("/")[0];
-      expect(siteConfig.locales.map((l) => l.code), entry.url).toContain(locale);
+      const [siteCode, localePath] = entry.url.slice(siteConfig.url.length + 1).split("/");
+      const site = siteConfig.sites.find((candidate) => candidate.code === siteCode);
+      // No foreign site prefix…
+      expect(site, entry.url).toBeDefined();
+      // …and no locale the site does not actually serve.
+      expect(site?.locales.map((locale) => locale.path), entry.url).toContain(localePath);
     }
   });
 
@@ -36,11 +46,15 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
     const allRegionIds = new Set(Object.keys(siteConfig.regions));
 
     for (const entry of entries) {
+      // S1 — the URL is `/<site>/<locale>/<region>…`, so a region sits at index 2.
       const segments = entry.url.slice(siteConfig.url.length + 1).split("/").filter(Boolean);
-      if (segments.length >= 2 && allRegionIds.has(segments[1])) {
+      if (segments.length >= 3 && allRegionIds.has(segments[2])) {
         expect(
           siteConfig.pageBindings.some(
-            (binding) => binding.locale === segments[0] && binding.region === segments[1],
+            (binding) =>
+              binding.site === segments[0] &&
+              binding.locale === segments[1] &&
+              binding.region === segments[2],
           ),
           entry.url,
         ).toBe(true);
@@ -58,10 +72,10 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
 
     for (const url of urls) {
       const segments = url.slice(siteConfig.url.length + 1).split("/").filter(Boolean);
-      const isRegionRoute = segments.length >= 2 && regionIds.has(segments[1]);
+      const isRegionRoute = segments.length >= 3 && regionIds.has(segments[2]);
       if (isRegionRoute) continue;
-      // Non-regional: the root, or a page the site actually authored.
-      const routePath = segments.slice(1).join("/");
+      // Non-regional: the root, or a page the site actually authored — after `/<site>/<locale>`.
+      const routePath = segments.slice(2).join("/");
       if (routePath.length === 0) continue;
       expect(routePath, url).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/);
     }
@@ -73,8 +87,8 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
     for (const binding of siteConfig.pageBindings) {
       const path =
         binding.slug === null
-          ? `/${binding.locale}/${binding.region}`
-          : `/${binding.locale}/${binding.region}/${binding.slug}`;
+          ? `/${binding.site}/${binding.locale}/${binding.region}`
+          : `/${binding.site}/${binding.locale}/${binding.region}/${binding.slug}`;
       expect(urls, binding.locale + binding.region + (binding.slug ?? "")).toContain(
         `${siteConfig.url}${path}`,
       );
@@ -91,20 +105,26 @@ describe("Phase T — trust/publishing sitemap contract (derived inventory)", ()
     // list: no phantom route for content that does not exist, and no missing entry for
     // content that does.
     const expected = new Set<string>([siteConfig.url]);
-    for (const { code } of siteConfig.locales) {
-      expected.add(`${siteConfig.url}/${code}`);
-      for (const routePath of await pages.listRoutes(siteConfig.defaultSite.code, code)) {
-        // The home page's real URL is the locale root, never `/{locale}/home`.
-        if (routePath === HOME_CONTENT_SLUG) continue;
-        expected.add(`${siteConfig.url}/${code}/${routePath}`);
-      }
-      for (const region of regionsForLocale(siteConfig.pageBindings, code)) {
-        expected.add(`${siteConfig.url}/${code}/${region}`);
+    // S1 — the same derivation, PER SITE: the sitemap advertises exactly what each site serves.
+    for (const site of siteConfig.sites) {
+      const siteBindings = bindingsForSite(siteConfig.pageBindings, site.code);
+      for (const { path } of site.locales) {
+        expected.add(`${siteConfig.url}${sitePath(site, path)}`);
+        for (const routePath of await pages.listRoutes(site.code, path)) {
+          // The home page's real URL is the locale root, never `/<site>/<locale>/home`.
+          if (routePath === HOME_CONTENT_SLUG) continue;
+          expected.add(`${siteConfig.url}${sitePath(site, path, routePath)}`);
+        }
+        for (const region of regionsForLocale(siteBindings, path)) {
+          expected.add(`${siteConfig.url}${sitePath(site, path, region)}`);
+        }
       }
     }
     for (const binding of siteConfig.pageBindings) {
       if (binding.slug !== null) {
-        expected.add(`${siteConfig.url}/${binding.locale}/${binding.region}/${binding.slug}`);
+        expected.add(
+          `${siteConfig.url}/${binding.site}/${binding.locale}/${binding.region}/${binding.slug}`,
+        );
       }
     }
 
@@ -115,8 +135,10 @@ describe("Phase T — trust/publishing sitemap contract (derived inventory)", ()
   it("keeps every pre-existing sitemap invariant (robots + locale coverage)", async () => {
     expect(robots().sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
     const urls = (await sitemap()).map((entry) => entry.url);
-    for (const { code } of siteConfig.locales) {
-      expect(urls).toContain(`${siteConfig.url}/${code}`);
+    for (const site of siteConfig.sites) {
+      for (const { path } of site.locales) {
+        expect(urls).toContain(`${siteConfig.url}${sitePath(site, path)}`);
+      }
     }
   });
 });

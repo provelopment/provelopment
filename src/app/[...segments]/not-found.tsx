@@ -38,7 +38,7 @@ export default async function NotFound() {
       <p className="mt-4 text-muted-foreground">{dictionary.notFound.message}</p>
       <p className="mt-6">
         <Link
-          href={sitePath(request.site, request.locale) as string}
+          href={sitePath(request.site, request.localePath) as string}
           className="font-medium text-primary hover:underline"
         >
           {dictionary.notFound.returnHome}

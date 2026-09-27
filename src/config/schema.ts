@@ -1116,6 +1116,19 @@ const siteConfigEntrySchema = z
     footerNavigation: footerNavigationSchema.optional(),
     legal: z.array(legalEntrySchema).optional(),
     connect: connectConfigSchema.optional(),
+    /**
+     * S1E3 — this site's PAGE DESTINATION for the shell CTA. Presentation (label, style, state)
+     * stays shared in `ui.cta`; only the destination may differ per site, because a destination is
+     * a page in THAT site's tree. An internal destination is resolved inside the active site+locale
+     * like every other navigation href.
+     */
+    ctaHref: z
+      .string()
+      .min(1, "must not be empty")
+      .refine((href) => href.startsWith("/") || /^[a-z]+:/i.test(href), {
+        message: "must be an internal path (starting with /) or an absolute URL including protocol",
+      })
+      .optional(),
   })
   .strict();
 

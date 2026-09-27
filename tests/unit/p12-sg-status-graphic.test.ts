@@ -18,7 +18,7 @@ import {
  *
  * Locks in the contract: ONE optional global `site.assets.statusGraphic` role
  * (the `status-graphic` role) shared by BOTH status surfaces —
- * `[locale]/error.tsx` and `[locale]/not-found.tsx` — because the audit proved
+ * `[...segments]/error.tsx` and `[...segments]/not-found.tsx` — because the audit proved
  * they render the SAME status frame (`<Section className="py-24 text-center">`
  * with an `h1` / `p` / action rhythm). It renders in ONE deterministic in-flow
  * box ABOVE the status heading, is purely decorative, and never replaces the
@@ -38,9 +38,9 @@ const read = (...segments: string[]) => readFileSync(path.join(root, ...segments
 const globals = read("src", "app", "globals.css");
 const component = read("src", "components", "site", "status-graphic.tsx");
 const context = read("src", "components", "site", "status-graphic-context.tsx");
-const layout = read("src", "app", "[locale]", "layout.tsx");
-const errorPage = read("src", "app", "[locale]", "error.tsx");
-const notFoundPage = read("src", "app", "[locale]", "not-found.tsx");
+const layout = read("src", "app", "[...segments]", "layout.tsx");
+const errorPage = read("src", "app", "[...segments]", "error.tsx");
+const notFoundPage = read("src", "app", "[...segments]", "not-found.tsx");
 const assets = read("src", "config", "assets.ts");
 const schema = read("src", "config", "schema.ts");
 const siteConfigSource = read("src", "config", "site-config.ts");
@@ -71,7 +71,7 @@ const MISSING = "https://www.example.com/assets/status-graphic-does-not-exist.sv
 
 /**
  * Renders the status surface exactly as the status pages do: the resolved asset
- * arrives through the provider (the same transport the `[locale]` layout uses),
+ * arrives through the provider (the same transport the `[...segments]` layout uses),
  * so `undefined` proves the unconfigured/absent path end to end.
  *
  * `createElement`'s props overload requires EVERY prop the component declares —
@@ -258,14 +258,14 @@ describe("P12-SG — status-surface contract (error AND not-found share ONE role
     expect(notFoundPage).toContain("{dictionary.notFound.returnHome}");
     // Locale is still preserved through the established root-params contract.
     expect(notFoundPage).toContain('from "next/root-params"');
-    expect(notFoundPage).toContain("locale()");
+    expect(notFoundPage).toContain("segments()");
   });
 
   it("10. actions / links remain fully interactive (nothing is swallowed by the graphic)", () => {
     // The retry control is still the shared Button wired to `reset()`.
     expect(errorPage).toContain("<Button type=\"button\" onClick={() => reset()}>");
-    expect(errorPage).toMatch(/<Link\s[\s\S]*href=\{`\/\$\{locale \?\? ""\}`\}/);
-    expect(notFoundPage).toMatch(/<Link\s[\s\S]*href=\{`\/\$\{currentLocale\}`\}/);
+    expect(errorPage).toMatch(/<Link\s[\s\S]*href=\{sitePath\(request\.site, request\.localePath\)/);
+    expect(notFoundPage).toMatch(/<Link\s[\s\S]*href=\{sitePath\(request\.site, request\.localePath\)/);
     // The decorative box can never intercept a pointer event (see box CSS).
     expect(boxBlock).toContain("pointer-events: none");
     // …and nothing wraps the actions in the decorative layer.

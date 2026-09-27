@@ -133,10 +133,10 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
 
   it("keeps every page route on ONE decision point, and off any other store", () => {
     for (const route of [
-      "app/[locale]/page.tsx",
-      "app/[locale]/[...path]/page.tsx",
-      "app/[locale]/connect/page.tsx",
-      "app/[locale]/contact/page.tsx",
+      "app/[...segments]/page.tsx",
+      "app/[...segments]/[...path]/page.tsx",
+      "app/[...segments]/connect/page.tsx",
+      "app/[...segments]/contact/page.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("createPageSources");
@@ -156,7 +156,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     // `contact` carry their own chrome (the connectivity inventory and the contact
     // form), and every other page — flat, nested or regional — is served by the ONE
     // catch-all route, which resolves through the same composition.
-    const routeFiles = readdirSync(path.join(srcDirectory, "app/[locale]"))
+    const routeFiles = readdirSync(path.join(srcDirectory, "app/[...segments]"))
       .filter((entry) => entry.endsWith(".tsx"))
       .sort();
     expect(routeFiles).toEqual([
@@ -167,7 +167,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       "opengraph-image.tsx",
       "page.tsx",
     ]);
-    const directories = readdirSync(path.join(srcDirectory, "app/[locale]"), { withFileTypes: true })
+    const directories = readdirSync(path.join(srcDirectory, "app/[...segments]"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
@@ -312,10 +312,10 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     expect(read("adapters/content/page-sources.ts")).toContain("parseJsonPageFile");
     expect(read("adapters/content/page-sources.ts")).not.toContain("not yet interpreted");
     for (const route of [
-      "app/[locale]/page.tsx",
-      "app/[locale]/[...path]/page.tsx",
-      "app/[locale]/connect/page.tsx",
-      "app/[locale]/contact/page.tsx",
+      "app/[...segments]/page.tsx",
+      "app/[...segments]/[...path]/page.tsx",
+      "app/[...segments]/connect/page.tsx",
+      "app/[...segments]/contact/page.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("PageDocumentContent");
@@ -337,10 +337,10 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
       .map(relative)
       .sort();
     expect(composers).toEqual([
-      "app/[locale]/[...path]/page.tsx",
-      "app/[locale]/connect/page.tsx",
-      "app/[locale]/contact/page.tsx",
-      "app/[locale]/page.tsx",
+      "app/[...segments]/[...path]/page.tsx",
+      "app/[...segments]/connect/page.tsx",
+      "app/[...segments]/contact/page.tsx",
+      "app/[...segments]/page.tsx",
     ]);
 
     // The composer is site-neutral and configuration-independent: it may compose the

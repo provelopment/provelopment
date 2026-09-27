@@ -20,6 +20,7 @@ import {
   readImageDimensions,
 } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
+import { effectiveSitePageConfig } from "@/config/site-page-config";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
   layoutDataAttributes,
@@ -28,7 +29,7 @@ import {
   resolveShellPattern,
   resolveUiConfig,
 } from "@/core/ui";
-import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
+import { pathContextOr, siteHref, sitePrefixPath, siteSetOf } from "@/core/site";
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
@@ -171,6 +172,14 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   // The chrome works in the locale PATH KEY: it names the content directory (`ca/fr`), the
   // dictionary entry and every URL this layout builds.
   const locale = request.localePath;
+  // S1E3 — the shell CTA's DESTINATION belongs to the active site's page tree (a site may point it
+  // at its own page), while its presentation stays shared `ui.cta` configuration. An internal
+  // destination resolves inside the site+locale exactly like any other navigation href, so a
+  // shared `/contact` can never link into another site or 404 on its own site.
+  const pageConfig = effectiveSitePageConfig(siteConfig, site.code);
+  const ctaHrefSource = pageConfig.ctaHref;
+  const ctaHref = ctaHrefSource === undefined ? undefined : siteHref(site, locale, ctaHrefSource);
+
   // S1E2 — the STANDARDS-FACING tag for the same locale (`fr-CA` for `/ca/fr`): the document's
   // `lang` and every hreflang alternate identify the language, while the URL stays lowercase.
   const localeTag = request.locale;
@@ -372,7 +381,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
           locale={locale}
           pageBindings={siteConfig.pageBindings}
           ctaLabel={resolvedUi.cta.label}
-          ctaHref={resolvedUi.cta.href}
+          ctaHref={ctaHref}
         />
         {hasRegions ? null : <StructuredData locale={locale} />}
         {analytics}

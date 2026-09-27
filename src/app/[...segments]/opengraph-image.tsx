@@ -72,7 +72,7 @@ export default async function OpengraphImage({ params }: OpengraphImageProps) {
         </div>
 
         <div style={{ display: "flex", fontSize: 26, color: "#a3a3a3" }}>
-          {`${siteConfig.url}${siteLocalePath(request.site, request.locale)}`}
+          {`${siteConfig.url}${siteLocalePath(request.site, request.localePath)}`}
         </div>
       </div>
     ),

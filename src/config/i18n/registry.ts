@@ -9,6 +9,7 @@ import {
   dictionarySchema,
   mergeDictionaryOverride,
   type Dictionary,
+  type DictionaryOverride,
 } from "./dictionary";
 
 /**
@@ -62,7 +63,32 @@ interface FileProblem {
   readonly reason: string;
 }
 
-/** One actionable line per problem, used by every dictionary failure message. */
+/** S1E3 — the LANGUAGE BASE of a locale path key: its primary subtag (`fr-ca` → `fr`). */
+export function languageBaseOf(localePath: string): string {
+  return localePath.split("-")[0] ?? localePath;
+}
+
+/**
+ * S1E3 — THE SHARED BASE OF A LOCALE PATH KEY: its exact dictionary when one exists, otherwise the
+ * dictionary of its LANGUAGE BASE.
+ *
+ * This is the ONE documented fallback Foundation adds, and it exists so that alternative authoring
+ * spellings of the same language do not require copied dictionaries:
+ *
+ *     config/i18n/fr.json  serves  fr, fr-ca, fr-fr, …   (and `ca/fr`, `ca/fr-ca`, `fr/fr-fr`, …)
+ *
+ * A more specific `config/i18n/<locale>.json` REPLACES that base for its own key (it is a complete
+ * validated dictionary in its own right — refinement is an authoring decision, not a merge). There
+ * is deliberately NO script/region/variant hierarchy: `zh-hant-tw` falls back to `zh`, never to
+ * `zh-hant`, because inventing intermediate steps is how a dictionary silently comes from the
+ * wrong place.
+ */
+function sharedBaseOf(
+  byLocale: ReadonlyMap<string, Dictionary>,
+  localePath: string,
+): Dictionary | undefined {
+  return byLocale.get(localePath) ?? byLocale.get(languageBaseOf(localePath));
+}
 function formatProblems(problems: readonly FileProblem[]): string {
   return problems.map((problem) => `  - ${problem.file}: ${problem.reason}`).join("\n");
 }
@@ -139,15 +165,19 @@ export function loadDictionaryRegistry(options: LoadDictionaryRegistryOptions): 
     throw new Error(`Invalid i18n dictionary data:\n${formatProblems(problems)}`);
   }
 
-  const missing = options.declaredLocales.filter((locale) => !byLocale.has(locale));
+  const missing = options.declaredLocales.filter(
+    (locale) => sharedBaseOf(byLocale, locale) === undefined,
+  );
   if (missing.length > 0) {
     throw new Error(
       `Configured locale(s) have no dictionary file: ${missing.join(", ")}.\n` +
-        `Add a config/i18n/<locale>.json for each and make it match the shape of the existing dictionaries.`,
+        `Add a config/i18n/<locale>.json for each, or let it inherit its LANGUAGE BASE ` +
+        `(config/i18n/${languageBaseOf(missing[0] as string)}.json) — the language-base dictionary ` +
+        "is the only fallback Foundation applies; there is no broader locale hierarchy.",
     );
   }
 
-  if (!byLocale.has(options.defaultLocale)) {
+  if (sharedBaseOf(byLocale, options.defaultLocale) === undefined) {
     throw new Error(
       `Default locale "${options.defaultLocale}" has no dictionary file. ` +
         "A default locale dictionary is required for fallback.",
@@ -158,13 +188,14 @@ export function loadDictionaryRegistry(options: LoadDictionaryRegistryOptions): 
 
   return {
     get(locale: Locale, siteCode?: string): Dictionary {
-      // The site's OWN override first (only that site's file is ever consulted), then the shared
-      // dictionary for the locale, then the shared default-locale dictionary.
+      // The site's OWN effective dictionary first (only that site's files are ever consulted), then
+      // the shared base chain: the exact shared dictionary, else its language base, else the
+      // deployment default's.
       if (siteCode !== undefined) {
         const overlay = overlays.get(overlayKey(siteCode, locale));
         if (overlay !== undefined) return overlay;
       }
-      return byLocale.get(locale) ?? byLocale.get(options.defaultLocale)!;
+      return sharedBaseOf(byLocale, locale) ?? sharedBaseOf(byLocale, options.defaultLocale)!;
     },
     all(): ReadonlyMap<string, Dictionary> {
       return new Map(byLocale);
@@ -216,6 +247,9 @@ function loadSiteOverlays(
   const problems: FileProblem[] = [];
   const declared = new Map((options.sites ?? []).map((site) => [site.code, site]));
 
+  /** The VALIDATED PARTIAL overrides, keyed `<site>/<override key>` — a locale key or its base. */
+  const partials = new Map<string, DictionaryOverride>();
+
   for (const code of siteDirectories) {
     const site = declared.get(code);
     if (site === undefined) {
@@ -241,21 +275,25 @@ function loadSiteOverlays(
         problems.push({ file: relative, reason: "is not named after a locale path key" });
         continue;
       }
-      if (!site.locales.includes(locale)) {
+      // S1E3 — an override may refine a locale the site serves, OR the LANGUAGE BASE of one of
+      // them (`sites/ca/fr.json` covers `ca/fr` and `ca/fr-ca` alike).
+      if (!overridesSiteKey(site, locale)) {
         problems.push({
           file: relative,
           reason:
             `is not a locale of site "${code}" ` +
-            `(it serves: ${site.locales.join(", ")})`,
+            `(it serves: ${site.locales.join(", ")}), nor the language base of one of them`,
         });
         continue;
       }
 
-      const base = byLocale.get(locale);
+      const base = sharedBaseOf(byLocale, locale);
       if (base === undefined) {
         problems.push({
           file: relative,
-          reason: `has no shared dictionary to override (expected config/i18n/${locale}.json)`,
+          reason:
+            "has no shared dictionary to override " +
+            `(expected config/i18n/${locale}.json or its language base)`,
         });
         continue;
       }
@@ -279,16 +317,47 @@ function loadSiteOverlays(
         continue;
       }
 
-      const effective = dictionarySchema.safeParse(mergeDictionaryOverride(base, parsed.data));
-      if (!effective.success) {
+      partials.set(`${code}/${locale}`, parsed.data);
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`Invalid site+locale dictionary overrides:\n${formatProblems(problems)}`);
+  }
+
+  // S1E3 — COMPOSE the EFFECTIVE dictionary of every (site, locale) a site serves:
+  //
+  //     shared base (exact dictionary, else its language base)
+  //        + site LANGUAGE-BASE override   (`sites/ca/fr.json`   — the reusable site wording)
+  //        + site EXACT-LOCALE override    (`sites/ca/fr-ca.json` — the finer wording, wins)
+  //
+  // …and refuse anything that does not satisfy the complete dictionary schema.
+  for (const site of options.sites ?? []) {
+    for (const locale of site.locales) {
+      const keys = [languageBaseOf(locale)];
+      if (keys[0] !== locale) keys.push(locale);
+
+      const applied = keys
+        .map((key) => partials.get(`${site.code}/${key}`))
+        .filter((override): override is DictionaryOverride => override !== undefined);
+      if (applied.length === 0) continue;
+
+      const base = sharedBaseOf(byLocale, locale);
+      if (base === undefined) continue; // the declared-locale check already refused this config
+
+      let effective = base;
+      for (const override of applied) effective = mergeDictionaryOverride(effective, override);
+
+      const complete = dictionarySchema.safeParse(effective);
+      if (!complete.success) {
         problems.push({
-          file: relative,
-          reason: `produced an invalid effective dictionary:\n${formatIssues(effective.error.issues)}`,
+          file: `sites/${site.code}/${locale}.json`,
+          reason: `produced an invalid effective dictionary:\n${formatIssues(complete.error.issues)}`,
         });
         continue;
       }
 
-      overlays.set(overlayKey(code, locale), effective.data);
+      overlays.set(overlayKey(site.code, locale), complete.data);
     }
   }
 
@@ -297,4 +366,9 @@ function loadSiteOverlays(
   }
 
   return overlays;
+}
+
+/** Whether an override key refines a locale the site serves, or the language base of one. */
+function overridesSiteKey(site: DictionarySiteScope, key: string): boolean {
+  return site.locales.includes(key) || site.locales.some((locale) => languageBaseOf(locale) === key);
 }

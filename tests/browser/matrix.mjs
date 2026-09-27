@@ -1354,7 +1354,7 @@ async function runBrandingChecks(rows, tag, cdp) {
   // legitimately renders the approved `about` banner (header top moves off 0).
   //
   // `/en/zzz-deep` resolves to key `zzz-deep`, which is configured nowhere, and
-  // renders through the `[locale]` not-found boundary — still inside the shell,
+  // renders through the `[...segments]` not-found boundary — still inside the shell,
   // so the header is present and must sit at the top of the page. This is
   // exactly the "no artwork for this route ⇒ nothing at all" contract: no
   // container, no reserved gap, and never another page's banner.
@@ -1434,12 +1434,12 @@ async function runBrandingChecks(rows, tag, cdp) {
   // APPROVED-ASSET INTEGRATION — the approved status artwork is now ACTIVE on
   // the canonical status surface: exactly ONE decorative box + image resolving
   // the shipped same-origin graphic, ABOVE the status heading, while the status
-  // copy and its return-home control stay complete and operable. (The `[locale]`
+  // copy and its return-home control stay complete and operable. (The `[...segments]`
   // error boundary cannot be reached in a canonical static browser run without
   // deliberately fabricating a render failure, which this matrix must never do;
   // the error surface's identical frame, semantics and controls are asserted by
   // `tests/unit/p12-sg-status-graphic.test.ts`, and both surfaces share the ONE
-  // provider resolved in the `[locale]` layout that this route exercises.)
+  // provider resolved in the `[...segments]` layout that this route exercises.)
   check(rows, `${tag}.statusGraphic.active`, nb.statusGraphicLayers === 1 && nb.statusGraphicImages === 1, `layers=${nb.statusGraphicLayers} imgs=${nb.statusGraphicImages}`);
   check(
     rows,

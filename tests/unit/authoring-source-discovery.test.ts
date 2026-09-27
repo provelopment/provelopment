@@ -27,10 +27,11 @@ const jsonRoot = path.join(root, "content", "pages", "json");
 // suites sharing one fixture directory would overwrite each other's fixtures.
 // (Subtags must be 2–8 characters for a name to be a well-formed language tag.)
 const DISCOVERY_LOCALE = "zz-disc";
-const EMPTY_LOCALE_NAME = "zz-disc-empty";
+const EMPTY_LOCALE_NAME = "zz-disc-ez";
 // S1 — the SITE segment comes first: `content/pages/<mode>/<siteId>/<locale>/…`. The fixtures
 // use a site id unique to this suite for the same parallel-safety reason the locale is.
-const DISCOVERY_SITE = "zz-disc-site";
+const DISCOVERY_SITE = "aq"; // S1: the site folder must be a RECOGNIZED two-letter country code
+// (the site code must be a recognized country code — see DISCOVERY_SITE above)
 const MARKDOWN_FIXTURE = path.join(markdownRoot, DISCOVERY_SITE, DISCOVERY_LOCALE);
 const EMPTY_LOCALE = path.join(markdownRoot, DISCOVERY_SITE, EMPTY_LOCALE_NAME);
 const JSON_FIXTURE = path.join(jsonRoot, DISCOVERY_SITE, DISCOVERY_LOCALE);

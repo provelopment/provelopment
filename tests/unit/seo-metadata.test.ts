@@ -73,23 +73,23 @@ describe("buildTwitterData (Phase S)", () => {
     expect(data.images).toEqual(["https://example.com/en/opengraph-image"]);
   });
 
-describe("resolveOgImageUrl (FS-4)", () => {
+describe("resolveOgImageUrl (FS-4 / S1E3)", () => {
   it("uses the configured ogImage asset when supplied", () => {
-    expect(resolveOgImageUrl("https://cdn.example.com/og.png", "https://example.com", "en")).toBe(
-      "https://cdn.example.com/og.png",
+    expect(
+      resolveOgImageUrl("https://cdn.example.com/og.png", "https://example.com", "/ww/en/opengraph-image"),
+    ).toBe("https://cdn.example.com/og.png");
+  });
+
+  it("falls back to the SITE-SCOPED generated OpenGraph route when not configured", () => {
+    expect(resolveOgImageUrl(undefined, "https://example.com", "/ca/fr/opengraph-image")).toBe(
+      "https://example.com/ca/fr/opengraph-image",
     );
   });
 
-  it("falls back to the per-locale generated OpenGraph route when not configured", () => {
-    expect(resolveOgImageUrl(undefined, "https://example.com", "fr")).toBe(
-      "https://example.com/fr/opengraph-image",
-    );
-  });
-
-  it("is deterministic for every supported locale", () => {
-    for (const loc of ["en", "es", "fr", "de", "ja", "zh", "ko", "id", "ru"]) {
-      expect(resolveOgImageUrl(undefined, "https://example.com", loc)).toBe(
-        `https://example.com/${loc}/opengraph-image`,
+  it("never invents a locale-only shape of its own — the caller's site path is used verbatim", () => {
+    for (const locale of ["en", "fr-ca", "zh-hant-tw"]) {
+      expect(resolveOgImageUrl(undefined, "https://example.com", `/ca/${locale}/opengraph-image`)).toBe(
+        `https://example.com/ca/${locale}/opengraph-image`,
       );
     }
   });

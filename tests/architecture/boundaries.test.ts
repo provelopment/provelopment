@@ -77,8 +77,8 @@ function readAppFile(relativePath: string): string {
 describe("error UX boundaries (Phase E)", () => {
   it("error.tsx and global-error.tsx are Client Components as App Router requires", () => {
     for (const file of [
-      path.join("[locale]", "error.tsx"),
-      path.join("[locale]", "global-error.tsx"),
+      path.join("[...segments]", "error.tsx"),
+      path.join("[...segments]", "global-error.tsx"),
     ]) {
       const source = readAppFile(file);
       expect(source).toContain('"use client"');
@@ -96,8 +96,8 @@ describe("error UX boundaries (Phase E)", () => {
       "window.location",
     ];
     for (const file of [
-      path.join("[locale]", "error.tsx"),
-      path.join("[locale]", "global-error.tsx"),
+      path.join("[...segments]", "error.tsx"),
+      path.join("[...segments]", "global-error.tsx"),
     ]) {
       const source = readAppFile(file);
       for (const leak of forbidden) {
@@ -110,21 +110,21 @@ describe("error UX boundaries (Phase E)", () => {
     // The ONE page route must call next/navigation notFound() so an unknown in-locale
     // route renders the localized 404 rather than throwing — and it serves only the
     // routes the build discovered, so an unknown path is never rendered on demand.
-    const pageRoute = readAppFile(path.join("[locale]", "[...path]", "page.tsx"));
+    const pageRoute = readAppFile(path.join("[...segments]", "[...path]", "page.tsx"));
     expect(pageRoute).toMatch(/from\s+["']next\/navigation["']/);
     expect(pageRoute).toMatch(/\bnotFound\(\)\s*;/);
     expect(pageRoute).toContain("export const dynamicParams = false");
 
     // not-found preserves locale via the root-params contract rather than
     // hard-coding or falling back to an error page.
-    const notFound = readAppFile(path.join("[locale]", "not-found.tsx"));
+    const notFound = readAppFile(path.join("[...segments]", "not-found.tsx"));
     expect(notFound).toMatch(/from\s+["']next\/root-params["']/);
     expect(notFound).toContain("locale()");
   });
 });
 
 const componentsDirectory = path.join(process.cwd(), "src", "components");
-const layoutPath = path.join(process.cwd(), "src", "app", "[locale]", "layout.tsx");
+const layoutPath = path.join(process.cwd(), "src", "app", "[...segments]", "layout.tsx");
 
 function readSource(relativeDirectory: string, file: string): string {
   return readFileSync(path.join(relativeDirectory, file), "utf8");
@@ -146,7 +146,7 @@ describe("locale-aware business resolution (Phase G)", () => {
     expect(businessInfo).toContain("resolveBusinessForLocale");
     expect(structuredData).toContain("resolveBusinessForLocale");
 
-    // The root [locale] layout passes the active locale into structured data.
+    // The root [...segments] layout passes the active locale into structured data.
     const layout = readFileSync(layoutPath, "utf8");
     expect(layout).toContain("<StructuredData locale={locale} />");
   });
@@ -156,9 +156,9 @@ describe("locale-aware business resolution (Phase G)", () => {
 
     // Resolution must be data-driven (lookup by a config-supplied map key), never
     // locale-specific conditional branches. Guard the semantics of the resolver:
-    // overrides are resolved via lookup against `location.locales[locale]`, not
+    // overrides are resolved via lookup against `location.locales[...segments]`, not
     // literal comparisons against locale codes.
-    expect(coreBusiness).toContain("location.locales?.[locale]");
+    expect(coreBusiness).toContain("location.locales?.[...segments]");
     expect(coreBusiness).not.toMatch(/locale\s*===/); // no `locale === "…"` branch exists
   });
 });
@@ -215,7 +215,7 @@ describe("provider integration boundaries (Phase H)", () => {
   });
 
   it("booking is composed at the app boundary, not inside a component", () => {
-    const homePage = readAppFile(path.join("[locale]", "page.tsx"));
+    const homePage = readAppFile(path.join("[...segments]", "page.tsx"));
     expect(homePage).toContain("createBookingActionResolver");
 
     const bookingAction = readSource(siteComponentsDirectory, "booking-action.tsx");
@@ -404,7 +404,7 @@ describe("Phase L — regional page-context boundaries", () => {
     // ONE page route now serves flat, nested AND regional pages, so the regional
     // context contract is asserted there — the region still comes from the URL
     // (authoritative), never re-derived inside a component.
-    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    const page = readFileSync(path.join(APP_DIRECTORY, "[...segments]", "[...path]", "page.tsx"), "utf8");
     expect(page).toContain("resolveRegionalPageContext");
     // The route must not resolve timezones or read the global business block.
     expect(page).not.toContain("resolveTimezone");
@@ -453,7 +453,7 @@ describe("Phase L — regional page-context boundaries", () => {
   });
 
   it("the one page route serves regional landings and excludes reserved first segments", () => {
-    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    const page = readFileSync(path.join(APP_DIRECTORY, "[...segments]", "[...path]", "page.tsx"), "utf8");
     // The reserved list keeps the home slug (and any future reserved segment) out of
     // the generic route, so it can never double-route.
     expect(page).toContain("RESERVED_FIRST_SEGMENTS");
@@ -521,7 +521,7 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
   });
 
   it("the one page route excludes the static Connect and Contact route slugs", () => {
-    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    const page = readFileSync(path.join(APP_DIRECTORY, "[...segments]", "[...path]", "page.tsx"), "utf8");
     // The dedicated route files own those URLs; the generic route names them as
     // reserved so exactly one route serves each.
     expect(page).toContain("DEDICATED_ROUTE_SEGMENTS");
@@ -531,7 +531,7 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
 
   it("the Connect page and switchers never read global business contact location data", () => {
     const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "connect", "page.tsx"),
       "utf8",
     );
     expect(page).toContain("siteConfig.connect");
@@ -581,7 +581,7 @@ describe("Phase M refinement — footer Connect UX boundaries", () => {
 
   it("connection-method labels come from ONE shared helper (same source for page + footer)", () => {
     const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "connect", "page.tsx"),
       "utf8",
     );
     const footer = readComponent("site-footer.tsx");
@@ -608,7 +608,7 @@ describe("Phase D — design-system boundaries", () => {
     // status-color utilities; globals.css is the single source. Exemptions are
     // deliberate assets/mirrors:
     //  - opengraph-image.tsx  → generated brand image (fixed brand colors);
-    //  - [locale]/layout.tsx  → viewport theme-color mirrors the --background
+    //  - [...segments]/layout.tsx  → viewport theme-color mirrors the --background
     //    token per scheme (must be static literals for the metadata API).
     const forbidden = [
       /#[0-9a-fA-F]{3,8}\b/,
@@ -616,8 +616,8 @@ describe("Phase D — design-system boundaries", () => {
       /focus-visible:outline/,
     ];
     const exempt = new Set([
-      path.join(APP_DIRECTORY, "[locale]", "opengraph-image.tsx"),
-      path.join(APP_DIRECTORY, "[locale]", "layout.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "opengraph-image.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
     ]);
 
     for (const directory of [path.join(srcDirectory, "components"), APP_DIRECTORY]) {
@@ -641,7 +641,7 @@ describe("Phase D — design-system boundaries", () => {
     expect(globals).not.toContain("data-theme");
     // No new client-side theme surface: the layout remains a Server Component.
     const layout = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "layout.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
       "utf8",
     );
     expect(layout).not.toContain('"use client"');
@@ -654,7 +654,7 @@ describe("Phase D — design-system boundaries", () => {
 
     // (1) The two demonstrated Button consumers delegate to the shared primitive
     //     and carry NO duplicated primary-action class literal.
-    for (const rel of ["[locale]/error.tsx", "components/site/contact-form.tsx"]) {
+    for (const rel of ["[...segments]/error.tsx", "components/site/contact-form.tsx"]) {
       const file = path.join(rel.startsWith("components") ? srcDirectory : APP_DIRECTORY, rel);
       const source = readFileSync(file, "utf8");
       expect(source, `${rel} must delegate to the shared Button`).toContain(
@@ -682,7 +682,7 @@ describe("Phase D — design-system boundaries", () => {
     // The connect method grid and the header alignment stack must compose the shared
     // `<Grid>`/`<Stack>` primitives instead of inlining the raw layout classes.
     const gridConsumers = [
-      path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
+      path.join(APP_DIRECTORY, "[...segments]", "connect", "page.tsx"),
     ];
     const stackConsumers = [
       path.join(srcDirectory, "components", "site", "site-header.tsx"),
@@ -730,9 +730,9 @@ describe("Phase D — design-system boundaries", () => {
   });
 
   it("P2-12 — page/app consumers compose the shared Heading for the page-title contract", () => {
-    // No page.tsx under [locale] may inline the raw page-title h1 classes; the
+    // No page.tsx under [...segments] may inline the raw page-title h1 classes; the
     // demonstrated title consumers must compose `<Heading level={1} tone="title">`.
-    const pageFiles = listTypeScriptFiles(path.join(APP_DIRECTORY, "[locale]")).filter(
+    const pageFiles = listTypeScriptFiles(path.join(APP_DIRECTORY, "[...segments]")).filter(
       (file) => file.endsWith("page.tsx"),
     );
     let composing = 0;
@@ -816,7 +816,7 @@ describe("Phase T — trust & publishing primitive boundaries (A1E: now PAGES)",
     // A page body is always rendered by `SafeMarkdownContent`: the trusted collection
     // renderer exists for reviewed source content, and no page route may reach it.
     for (const route of ["page.tsx", "[...path]/page.tsx", "connect/page.tsx", "contact/page.tsx"]) {
-      const source = readFileSync(path.join(APP_DIRECTORY, "[locale]", route), "utf8");
+      const source = readFileSync(path.join(APP_DIRECTORY, "[...segments]", route), "utf8");
       expect(source, route).toContain("SafeMarkdownContent");
       expect(source, route).not.toContain('from "@/components/site/markdown-content"');
     }

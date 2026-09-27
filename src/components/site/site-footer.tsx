@@ -159,7 +159,11 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
                 spans the full width as a coherent single line on desktop. */}
             <div className="mx-auto grid max-w-page break-words gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 {hasRegions ? null : (
-                    <BusinessInfo locale={locale} directionLinkResolver={directionLinkResolver} />
+                    <BusinessInfo
+                        locale={locale}
+                        siteId={pageConfig.site.code}
+                        directionLinkResolver={directionLinkResolver}
+                    />
                 )}
 
                 {hasConnectivity ? (

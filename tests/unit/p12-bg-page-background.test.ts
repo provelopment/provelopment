@@ -19,7 +19,7 @@ import {
 } from "@/components/site/page-background";
 
 const root = process.cwd();
-const layout = readFileSync(path.join(root, "src", "app", "[locale]", "layout.tsx"), "utf8");
+const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "layout.tsx"), "utf8");
 const globals = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
 
 /** The single `.ui-page-background` rule block (the decorative-layer contract). */
