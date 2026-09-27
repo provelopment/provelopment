@@ -119,7 +119,11 @@ async function renderFooter(overrides: Record<string, unknown>): Promise<string>
   );
 
   return renderToStaticMarkup(
-    await SiteFooter({ locale: siteConfig.defaultLocale, directionLinkResolver: resolver }),
+    await SiteFooter({
+      locale: siteConfig.defaultLocale,
+      siteId: siteConfig.defaultSite.id,
+      directionLinkResolver: resolver,
+    }),
   );
 }
 

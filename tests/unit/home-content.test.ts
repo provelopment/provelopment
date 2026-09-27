@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import HomePage from "@/app/[locale]/page";
+import PageRoute from "@/app/[...segments]/page";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
@@ -98,18 +98,15 @@ describe("/home is never a route and never a sitemap entry", () => {
 
 describe("a site that authors no home page keeps the generic starter homepage", () => {
   it("finds no authored home page in the shipped template", async () => {
-    const pages = createPageSources({
-      defaultLocale: siteConfig.defaultLocale,
-      locales: siteConfig.locales.map((locale) => locale.code),
-    });
+    const pages = createPageSources({ sites: siteConfig.sites });
     // The template ships NO page files, so the very lookup the home route performs
     // resolves to nothing — which is what makes the fallback the live path here.
-    expect(await pages.resolve(HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
+    expect(await pages.resolve(siteConfig.defaultSite.id, HOME_CONTENT_SLUG, siteConfig.defaultLocale)).toBeNull();
   });
 
   it("renders the generic configuration-driven homepage at the locale root", async () => {
     const html = renderToStaticMarkup(
-      await HomePage({ params: Promise.resolve({ locale: siteConfig.defaultLocale }) }),
+      await PageRoute({ params: Promise.resolve({ segments: [siteConfig.defaultSite.defaultLocale] }) }),
     );
 
     // The generic starter homepage's own markers, exactly as before.
@@ -123,7 +120,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
   it("renders a homepage for every configured locale", async () => {
     for (const locale of siteConfig.locales) {
       const html = renderToStaticMarkup(
-        await HomePage({ params: Promise.resolve({ locale: locale.code }) }),
+        await PageRoute({ params: Promise.resolve({ segments: [locale.code] }) }),
       );
       expect(html.length, locale.code).toBeGreaterThan(0);
       expect(html, locale.code).toContain("home-hero");
@@ -133,7 +130,7 @@ describe("a site that authors no home page keeps the generic starter homepage", 
   it("is CONTENT-FIRST: the authored lookup precedes the generic starter render", () => {
     // If the generic return came first, an authored home page would be silently
     // ignored — the exact failure this ordering guards.
-    const lookupAt = homeRouteSource.indexOf("pages.resolve(HOME_CONTENT_SLUG");
+    const lookupAt = homeRouteSource.indexOf("pages.resolve(siteConfig.defaultSite.id, HOME_CONTENT_SLUG");
     const starterAt = homeRouteSource.indexOf("home-hero");
     expect(lookupAt).toBeGreaterThan(-1);
     expect(starterAt).toBeGreaterThan(lookupAt);

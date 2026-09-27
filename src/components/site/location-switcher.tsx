@@ -4,13 +4,14 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { siteConfig } from "@/config";
 import {
+  bindingsForSite,
   configuredRegionIds,
-  parseRegionalPath,
   regionDefaultLocale,
   regionalPath,
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
+import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
 
 interface LocationSwitcherProps {
   readonly locale: string;
@@ -52,7 +53,18 @@ export function LocationSwitcher({
   const router = useRouter();
   const pathname = usePathname();
 
-  const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
+  const parsed = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteConfig.pageBindings,
+    pathname ?? `/${locale}`,
+    locale,
+  );
+  // S1 — the LOCATION selector stays INSIDE the current site: it picks a physical/business
+  // place whose pages are shared with this site's tree, and both its inventory and its
+  // destinations come from THIS site's bindings (a binding declared for another site can
+  // never answer here, even when the two sites share a locale).
+  const sitePrefix = sitePrefixPath(parsed.site);
+  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.id);
   const availableRegions = [...configuredRegionIds(siteConfig.regions)].sort((a, b) => {
     const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
     const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;
@@ -66,19 +78,19 @@ export function LocationSwitcher({
     }
 
     if (nextRegion === "") {
-      router.push(unspecifiedDestination(locale, parsed.slug));
+      router.push(unspecifiedDestination(locale, parsed.routePath === "" ? null : parsed.routePath, sitePrefix));
       return;
     }
 
     const destination = resolveLocationDestination({
-      entries: siteConfig.pageBindings,
+      entries,
       locale,
       targetRegion: nextRegion,
-      currentSlug: parsed.slug,
-      defaultLocale: regionDefaultLocale(siteConfig.regions, siteConfig.pageBindings, nextRegion),
+      currentSlug: parsed.routePath === "" ? null : parsed.routePath,
+      defaultLocale: regionDefaultLocale(siteConfig.regions, entries, nextRegion),
     });
     if (destination) {
-      router.push(regionalPath(destination.locale, destination.region, destination.slug));
+      router.push(regionalPath(destination.locale, destination.region, destination.slug, sitePrefix));
     }
   }
 

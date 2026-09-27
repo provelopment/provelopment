@@ -7,19 +7,42 @@
 
 export type Locale = string;
 
+/**
+ * THE LOCALE CONTRACT (FOUNDATION-S1 — one rule, one place)
+ * =======================================================
+ *
+ * A locale identifier is a language tag: a language subtag of two or three lowercase
+ * letters, optionally followed by subtags of two to eight alphanumerics each, separated
+ * by `-`:
+ *
+ *     en          fr          id          de          nl
+ *     en-CA       fr-CA       fr-FR       en-GB       pt-BR
+ *     zh-Hans     sr-Latn-RS
+ *
+ * The first subtag is the language, so `en-GB` and `en-CA` are DIFFERENT locales with
+ * different page trees, while a plain `fr` is a language that a site may serve on its own
+ * (`france/fr/about`). Foundation supports this documented shape deliberately instead of
+ * a full BCP 47 implementation: a complete parser would add a large, speculative surface
+ * (grandfathered tags, extensions, private-use subtags) that nothing here consumes, while
+ * two-letter-only codes would make "Canada French" and "France French" unrepresentable —
+ * which is exactly the coupling S1 removes.
+ *
+ * THIS PATTERN IS THE ONE RULE. The configuration schema and the i18n dictionary registry
+ * import it rather than declaring their own, so "what a locale may look like" cannot drift
+ * between validation, discovery and routing.
+ */
+export const LOCALE_PATTERN = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+
+export function isWellFormedLocale(locale: string): boolean {
+  return typeof locale === "string" && LOCALE_PATTERN.test(locale);
+}
+
 export interface NegotiateLocaleOptions {
   readonly supported: readonly Locale[];
   readonly defaultLocale: Locale;
   readonly cookieLocale?: Locale | undefined;
   /** Raw `Accept-Language` header value. */
   readonly acceptLanguage?: string | undefined;
-}
-
-/** Matches well-formed language tags such as `en`, `en-US`, or `zh-Hans`. */
-const wellFormedLocalePattern = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-
-export function isWellFormedLocale(locale: string): boolean {
-  return wellFormedLocalePattern.test(locale);
 }
 
 export interface AcceptLanguageEntry {
@@ -83,16 +106,15 @@ export function negotiateLocale(options: NegotiateLocaleOptions): Locale {
 }
 
 /**
- * Returns `pathname` with its leading locale segment replaced by
- * `newLocale` (e.g. `/en/about` + `fr` → `/fr/about`). Route pathnames are
- * always rendered under a supported locale, so the first segment is treated
- * as that locale.
+ * S1 — `replaceLocaleSegment` is GONE, deliberately.
+ *
+ * "Replace the first segment" was correct only while a URL's first segment was always the
+ * locale. With site contexts it may be a site prefix instead, so the operation is no longer
+ * expressible as a segment swap: the destination of a language switch is built from the
+ * SITE's own locale path (`@/core/site` → `sitePath(site, locale, routePath)`), which keeps
+ * the site, replaces the locale and preserves the page. Removing the helper removes the
+ * possibility of a language switch that silently leaves its site.
  */
-export function replaceLocaleSegment(pathname: string, newLocale: Locale): string {
-  const segments = pathname.split("/");
-  segments[1] = newLocale;
-  return segments.join("/");
-}
 
 export interface LanguageAlternatesOptions {
   readonly baseUrl: string;
@@ -101,25 +123,31 @@ export interface LanguageAlternatesOptions {
   readonly defaultLocale?: Locale | undefined;
   /** Route path such as `/about`; omit for the locale root. */
   readonly path?: string | undefined;
+  /**
+   * S1 — the site's public prefix (`""` for the default site). It is the SAME prefix
+   * `@/core/site` puts in front of a site's URLs, so an hreflang alternate can never
+   * point at another site's tree.
+   */
+  readonly sitePrefix?: string | undefined;
 }
 
 /**
- * Builds an hreflang alternates map (`alternates.languages` metadata)
- * covering every supported locale plus an optional `x-default`.
+ * Builds an hreflang alternates map (`alternates.languages` metadata) covering every
+ * locale of ONE site plus an optional `x-default`.
  */
 export function buildLanguageAlternates(
   options: LanguageAlternatesOptions,
 ): Record<string, string> {
-  const { baseUrl, locales, defaultLocale, path = "" } = options;
+  const { baseUrl, locales, defaultLocale, path = "", sitePrefix = "" } = options;
   const normalizedPath = path === "/" ? "" : path;
 
   const alternates: Record<string, string> = {};
   for (const locale of locales) {
-    alternates[locale] = `${baseUrl}/${locale}${normalizedPath}`;
+    alternates[locale] = `${baseUrl}${sitePrefix}/${locale}${normalizedPath}`;
   }
 
   if (defaultLocale) {
-    alternates["x-default"] = `${baseUrl}/${defaultLocale}${normalizedPath}`;
+    alternates["x-default"] = `${baseUrl}${sitePrefix}/${defaultLocale}${normalizedPath}`;
   }
 
   return alternates;

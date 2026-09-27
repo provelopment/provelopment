@@ -2123,7 +2123,7 @@ async function runConnectivityIconScenario(chrome) {
   // Connect page's safe Markdown source for the duration of the run (removed in
   // `finally`). The seam under test is the connectivity contract, not whether a fresh
   // clone has written its own pages yet.
-  const connectContentPath = join(ROOT, "content", "pages", "markdown", "en", "connect.md");
+  const connectContentPath = join(ROOT, "content", "pages", "markdown", "main", "en", "connect.md");
   await mkdir(dirname(connectContentPath), { recursive: true });
   await writeFile(
     connectContentPath,
@@ -2526,7 +2526,7 @@ async function runPersistentNavigationScenario(chrome) {
 
   // FS1 — the generic template ships NO pages, so this fixture supplies the tall
   // safe Markdown page the scroll assertions need (removed in `finally`).
-  const tallPath = join(ROOT, "content", "pages", "markdown", "en", "zz-nav-tall.md");
+  const tallPath = join(ROOT, "content", "pages", "markdown", "main", "en", "zz-nav-tall.md");
   await mkdir(dirname(tallPath), { recursive: true });
   await writeFile(tallPath, tallPageFixture(), "utf8");
 
@@ -2991,7 +2991,7 @@ A repeated heading, which the renderer must disambiguate.
 async function runSafeMarkdownScenario(chrome) {
   const port = BASE_PORT + 260;
   BASE_URL = `http://localhost:${port}`;
-  const fixturePath = join(ROOT, "content", "pages", "markdown", "en", `${SAFE_MARKDOWN_SLUG}.md`);
+  const fixturePath = join(ROOT, "content", "pages", "markdown", "main", "en", `${SAFE_MARKDOWN_SLUG}.md`);
   const url = `${BASE_URL}/en/${SAFE_MARKDOWN_SLUG}`;
   const rows = [];
   await mkdir(dirname(fixturePath), { recursive: true });
@@ -3181,7 +3181,7 @@ async function waitForNotFound(cdp) {
 async function runNestedPageScenario(chrome) {
   const port = BASE_PORT + 270;
   BASE_URL = `http://localhost:${port}`;
-  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "en", NESTED_SECTION);
+  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "main", "en", NESTED_SECTION);
   const pagePath = join(sectionDirectory, `${NESTED_SLUG}.md`);
   const readmePath = join(sectionDirectory, "README.md");
   const url = `${BASE_URL}/en/${NESTED_SECTION}/${NESTED_SLUG}`;
@@ -3308,7 +3308,7 @@ const JSON_PAGE_FIXTURE = JSON.stringify(
 async function runAdvancedJsonScenario(chrome) {
   const port = BASE_PORT + 271;
   BASE_URL = `http://localhost:${port}`;
-  const directory = join(ROOT, "content", "pages", "json", "en");
+  const directory = join(ROOT, "content", "pages", "json", "main", "en");
   const pagePath = join(directory, `${JSON_ROUTE_PATH}.json`);
   const url = `${BASE_URL}/en/${JSON_ROUTE_PATH}`;
   const rows = [];
@@ -3473,7 +3473,7 @@ async function runLayoutSwitcherScenario(chrome) {
   // a different page (the shipped template has a single Home entry).
   config.navigation = [...config.navigation, { label: "Fixture page", href: "/zz-layout-page" }];
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
-  const pagePath = join(ROOT, "content", "pages", "markdown", "en", "zz-layout-page.md");
+  const pagePath = join(ROOT, "content", "pages", "markdown", "main", "en", "zz-layout-page.md");
   await mkdir(dirname(pagePath), { recursive: true });
   await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
 

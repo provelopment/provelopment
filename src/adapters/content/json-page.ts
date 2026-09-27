@@ -50,8 +50,8 @@ export interface JsonPage {
 }
 
 /** The file this page came from, for a diagnostic that an author can act on. */
-function fileLabel(routePath: string, locale: string): string {
-  return pageSourceFile("json", locale, routePath) ?? `${routePath}.json`;
+function fileLabel(siteId: string, routePath: string, locale: string): string {
+  return pageSourceFile("json", siteId, locale, routePath) ?? `${routePath}.json`;
 }
 
 /**
@@ -81,14 +81,19 @@ function unknownSectionTypes(value: unknown): string[] {
  * One authored JSON file → one declarative page, or a build-time error naming the file
  * and the property.
  */
-export function parseJsonPageFile(raw: string, routePath: string, locale: Locale): JsonPage {
+export function parseJsonPageFile(
+  raw: string,
+  siteId: string,
+  routePath: string,
+  locale: Locale,
+): JsonPage {
   if (!isPageRoutePath(routePath)) {
     throw new Error(
       `"${routePath}" is not a usable page route path (lowercase words joined by hyphens, ` +
         "folders allowed).",
     );
   }
-  const file = fileLabel(routePath, locale);
+  const file = fileLabel(siteId, routePath, locale);
 
   let value: unknown;
   try {

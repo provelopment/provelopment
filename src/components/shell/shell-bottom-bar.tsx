@@ -6,7 +6,9 @@ import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import { NavItem } from "@/components/ui/nav-item";
 import type { NavItemModel } from "@/components/ui/nav-item";
 import type { PageRegionBinding } from "@/core/region";
-import { isInternalHref, parseRegionalPath, resolveNavHref } from "@/core/regional-pages";
+import { isInternalHref, resolveNavHref } from "@/core/regional-pages";
+import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
+import { siteConfig } from "@/config";
 import { menuModeClass, splitBottomNavItems, type MenuMode } from "@/core/ui";
 
 import { ShellMobileNav } from "./shell-mobile-nav";
@@ -78,11 +80,18 @@ export function ShellBottomBar({
   // P5-5 — "closed" means the menu is not composed at all (adopter choice;
   // Escape/backdrop/focus machinery is untouched when present).
   if (mode === "closed") return null;
-  const parsed = parseRegionalPath(pageBindings, pathname ?? `/${locale}`);
+  const parsed = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    pageBindings,
+    pathname ?? `/${locale}`,
+    locale,
+  );
   const region = parsed.region;
+  // S1 — links stay inside the CURRENT site: the site's own prefix is part of every href.
+  const sitePrefix = sitePrefixPath(parsed.site);
 
   const resolved: NavItemModel[] = links.flatMap((link) => {
-    const href = resolveNavHref(pageBindings, locale, region, link.href);
+    const href = resolveNavHref(pageBindings, locale, region, link.href, sitePrefix);
     if (href === null) return [];
     return [
       {

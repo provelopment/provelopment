@@ -16,11 +16,17 @@ import { navItemKey } from "./nav-links";
 
 interface SiteFooterProps {
     readonly locale: string;
+    /**
+     * S1 — the site whose page tree this footer belongs to. Legal-document existence and
+     * every internal link are resolved INSIDE this site, so a footer can never advertise a
+     * page (or a URL) belonging to another site.
+     */
+    readonly siteId: string;
     /** Provider-resolved direction link resolver (composed at the app boundary). */
     readonly directionLinkResolver: DirectionLinkResolver;
 }
 
-export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterProps) {
+export async function SiteFooter({ locale, siteId, directionLinkResolver }: SiteFooterProps) {
     const dictionary = getDictionary(locale);
     // Phase K: the legacy global footer NAP is suppressed when operating
     // regions are configured — regional pages expose their own region's
@@ -28,18 +34,17 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     const hasRegions = Object.keys(siteConfig.regions).length > 0;
 
     // Legal documents: surfaced only where a document is BOTH listed in the
-    // `legal[]` config block AND authored as a page (`content/pages/.../legal/<slug>.md`
-    // or its JSON counterpart). Existence is decided by the SAME page-source
-    // composition every page route resolves through — never a second content store.
-    const pages = createPageSources({
-        defaultLocale: siteConfig.defaultLocale,
-        locales: siteConfig.locales.map((entry) => entry.code),
-    });
+    // `legal[]` config block AND authored as a page
+    // (`content/pages/<siteId>/<locale>/legal/<slug>.md` or its JSON counterpart).
+    // Existence is decided by the SAME page-source composition every page route resolves
+    // through — never a second content store, and never another site's tree.
+    const pages = createPageSources({ sites: siteConfig.sites });
     const legalLinks: { slug: string; label: string }[] = [];
     for (const doc of configuredLegalDocs(siteConfig.legal)) {
-        // Canonical existence (the default locale) — the same rule as before, so a
+        // Canonical existence (the site's default locale) — the same rule as before, so a
         // document that only exists in a translation is not advertised everywhere.
-        const page = await pages.resolve(legalPageRoutePath(doc.slug), siteConfig.defaultLocale);
+        const site = siteConfig.sites.find((entry) => entry.id === siteId) ?? siteConfig.defaultSite;
+        const page = await pages.resolve(site.id, legalPageRoutePath(doc.slug), site.defaultLocale);
         if (page) legalLinks.push(doc);
     }
 

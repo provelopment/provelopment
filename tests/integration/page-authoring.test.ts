@@ -16,8 +16,7 @@ vi.mock("next/navigation", () => ({
 import PageRoute, {
   generateMetadata,
   generateStaticParams,
-} from "@/app/[locale]/[...path]/page";
-import HomePage from "@/app/[locale]/page";
+} from "@/app/[...segments]/page";
 import sitemap from "@/app/sitemap";
 import { siteConfig } from "@/config";
 
@@ -109,7 +108,7 @@ function cleanUp(file: string): void {
 
 /** The route params for a page URL, from its segments (`/en/a/b` → `["a","b"]`). */
 const params = (...segments: string[]) => ({
-  params: Promise.resolve({ locale: "en", path: segments }),
+  params: Promise.resolve({ segments: ["en", ...segments] }),
 });
 
 const urlFor = (routePath: string) => `${siteConfig.url}/en/${routePath}`;
@@ -191,8 +190,8 @@ describe("the one page model, through the real application", () => {
   it("generates a real static route for a flat AND a nested page", async () => {
     const generated = await generateStaticParams();
     const paths = generated
-      .filter((route) => route.locale === "en")
-      .map((route) => route.path.join("/"));
+      .filter((route) => route.segments[0] === "en")
+      .map((route) => route.segments.slice(1).join("/"));
 
     expect(paths).toContain(MARKDOWN_SLUG);
     expect(paths).toContain(NESTED_ROUTE_PATH);
@@ -275,7 +274,7 @@ describe("the one page model, through the real application", () => {
   it("never publishes a README, in any shape, and never serves an unknown path", async () => {
     const generated = await generateStaticParams();
     for (const readme of ["README", "readme"]) {
-      expect(generated.some((route) => route.path.join("/") === readme), readme).toBe(false);
+      expect(generated.some((route) => route.segments.join("/") === readme), readme).toBe(false);
     }
     const urls = (await sitemap()).map((entry) => entry.url);
     expect(urls.some((url) => /\/readme$/i.test(url))).toBe(false);
@@ -302,10 +301,10 @@ describe("the one page model, through the real application", () => {
     const generated = await generateStaticParams();
 
     for (const route of generated) {
-      expect(route.locale, JSON.stringify(route)).not.toBe(EMPTY_LOCALE_NAME);
-      expect(route.locale, JSON.stringify(route)).not.toBe(UNCONFIGURED_LOCALE_NAME);
+      expect(route.segments[0], JSON.stringify(route)).not.toBe(EMPTY_LOCALE_NAME);
+      expect(route.segments[0], JSON.stringify(route)).not.toBe(UNCONFIGURED_LOCALE_NAME);
     }
-    expect(generated.some((route) => route.path.includes("a-page"))).toBe(false);
+    expect(generated.some((route) => route.segments.includes("a-page"))).toBe(false);
   });
 
   it("lists the authored pages in the sitemap, nested paths included, and nothing else", async () => {
@@ -329,7 +328,7 @@ describe("the one page model, through the real application", () => {
     );
     try {
       const html = renderToStaticMarkup(
-        await HomePage({ params: Promise.resolve({ locale: "en" }) }),
+        await PageRoute({ params: Promise.resolve({ segments: ["en"] }) }),
       );
       expect(html).toContain(HOME_FIXTURE);
       expect(html).not.toContain("home-hero");
@@ -347,13 +346,13 @@ describe("the one page model, through the real application", () => {
     );
     try {
       const html = renderToStaticMarkup(
-        await HomePage({ params: Promise.resolve({ locale: "en" }) }),
+        await PageRoute({ params: Promise.resolve({ segments: ["en"] }) }),
       );
       expect(html).toContain("JSON home page");
       expect(html).toContain("Authored with JSON.");
       expect(html).not.toContain("home-hero");
       // …and never as `/{locale}/home`.
-      const paths = (await generateStaticParams()).map((route) => route.path.join("/"));
+      const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
       expect(paths).not.toContain("home");
     } finally {
       cleanUp(path.join(root, "content", "pages", "json", "en", "home.json"));

@@ -84,10 +84,7 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
 describe("Phase T — trust/publishing sitemap contract (derived inventory)", () => {
   it("publishes exactly the inventory the site actually serves", async () => {
     const urls = (await sitemap()).map((entry) => entry.url);
-    const pages = createPageSources({
-      defaultLocale: siteConfig.defaultLocale,
-      locales: siteConfig.locales.map((locale) => locale.code),
-    });
+    const pages = createPageSources({ sites: siteConfig.sites });
 
     // The expected set is derived from the SAME composition the routes use, so the
     // assertion is "the sitemap advertises what the site serves" rather than a frozen
@@ -96,7 +93,7 @@ describe("Phase T — trust/publishing sitemap contract (derived inventory)", ()
     const expected = new Set<string>([siteConfig.url]);
     for (const { code } of siteConfig.locales) {
       expected.add(`${siteConfig.url}/${code}`);
-      for (const routePath of await pages.listRoutes(code)) {
+      for (const routePath of await pages.listRoutes(siteConfig.defaultSite.id, code)) {
         // The home page's real URL is the locale root, never `/{locale}/home`.
         if (routePath === HOME_CONTENT_SLUG) continue;
         expected.add(`${siteConfig.url}/${code}/${routePath}`);

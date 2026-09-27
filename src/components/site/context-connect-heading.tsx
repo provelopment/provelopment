@@ -4,10 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { siteConfig } from "@/config";
-import {
-  parseRegionalPath,
-  resolveNavHref,
-} from "@/core/regional-pages";
+import { resolveNavHref } from "@/core/regional-pages";
+import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
 import { FOOTER_TARGET_CLASS } from "./footer-link-class";
 
 interface ContextConnectHeadingProps {
@@ -32,8 +30,19 @@ interface ContextConnectHeadingProps {
  */
 export function ContextConnectHeading({ locale, label }: ContextConnectHeadingProps) {
   const pathname = usePathname();
-  const parsed = parseRegionalPath(siteConfig.pageBindings, pathname ?? `/${locale}`);
-  const href = resolveNavHref(siteConfig.pageBindings, locale, parsed.region, "/connect");
+  const parsed = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteConfig.pageBindings,
+    pathname ?? `/${locale}`,
+    locale,
+  );
+  const href = resolveNavHref(
+    siteConfig.pageBindings,
+    locale,
+    parsed.region,
+    "/connect",
+    sitePrefixPath(parsed.site),
+  );
 
   const headingClass =
     "text-sm font-semibold uppercase tracking-wide text-muted-foreground";

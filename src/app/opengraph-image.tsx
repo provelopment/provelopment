@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
+import { pathContextOr, siteLocalePath, siteSetOf } from "@/core/site";
 
 export const alt = `${siteConfig.name} — ${siteConfig.tagline}`;
 export const size = {
@@ -11,15 +12,25 @@ export const size = {
 export const contentType = "image/png";
 
 interface OpengraphImageProps {
-  readonly params: Promise<{ readonly locale: string }>;
+  readonly params: Promise<{ readonly segments?: string[] }>;
 }
 
-/** Generates a branded social preview image at build time. */
-export default async function OpengraphImage({
-  params,
-}: OpengraphImageProps) {
-  const { locale } = await params;
-  const dictionary = getDictionary(locale);
+/**
+ * Generates a branded social preview image at build time.
+ *
+ * S1 — the image is SITE-SCOPED like the page it belongs to: the path resolves to exactly one
+ * site + locale (an unknown path deterministically to the default site), so the tagline and the
+ * printed address are that site's.
+ */
+export default async function OpengraphImage({ params }: OpengraphImageProps) {
+  const { segments } = await params;
+  const request = pathContextOr(
+    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+  const dictionary = getDictionary(request.locale);
 
   return new ImageResponse(
     (
@@ -61,7 +72,7 @@ export default async function OpengraphImage({
         </div>
 
         <div style={{ display: "flex", fontSize: 26, color: "#a3a3a3" }}>
-          {`${siteConfig.url}/${locale}`}
+          {`${siteConfig.url}${siteLocalePath(request.site, request.locale)}`}
         </div>
       </div>
     ),

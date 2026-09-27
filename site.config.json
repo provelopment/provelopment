@@ -16,6 +16,11 @@
       }
     ]
   },
+  "sites": [
+    {
+      "id": "main"
+    }
+  ],
   "contact": {
     "email": "hello@example.com"
   },

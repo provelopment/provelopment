@@ -66,7 +66,7 @@ describe("the resolution order", () => {
 
   it("expands to the requested locale first and the default locale second, marking the fallback", () => {
     expect(
-      pageResolutionCandidates({ routePath: "about", locale: "de", defaultLocale: "en" }),
+      pageResolutionCandidates({ siteId: "main", routePath: "about", locale: "de", defaultLocale: "en" }),
     ).toEqual([
       { kind: "json", locale: "de", fallback: false },
       { kind: "markdown", locale: "de", fallback: false },
@@ -80,6 +80,7 @@ describe("the resolution order", () => {
     // request, and the order does not know how deep it is.
     expect(
       pageResolutionCandidates({
+      siteId: "main",
         routePath: "offerings/website-design",
         locale: "de",
         defaultLocale: "en",
@@ -94,6 +95,7 @@ describe("the resolution order", () => {
 
   it("omits the fallback steps when fallback is not permitted", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "main",
       routePath: "about",
       locale: "de",
       defaultLocale: "en",
@@ -105,6 +107,7 @@ describe("the resolution order", () => {
 
   it("omits them when the requested locale IS the default locale", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "main",
       routePath: "about",
       locale: "en",
       defaultLocale: "en",
@@ -114,7 +117,7 @@ describe("the resolution order", () => {
   });
 
   it("JSON wins over Markdown within one locale", () => {
-    const exact = pageResolutionCandidates({ routePath: "about", locale: "de", defaultLocale: "en" })
+    const exact = pageResolutionCandidates({ siteId: "main", routePath: "about", locale: "de", defaultLocale: "en" })
       .filter((candidate) => !candidate.fallback)
       .map((candidate) => candidate.kind);
     expect(exact).toEqual(["json", "markdown"]);
@@ -122,6 +125,7 @@ describe("the resolution order", () => {
 
   it("makes an exact-locale page beat a default-locale one, whatever the format", () => {
     const candidates = pageResolutionCandidates({
+      siteId: "main",
       routePath: "about",
       locale: "de",
       defaultLocale: "en",
@@ -146,7 +150,7 @@ describe("the resolution order", () => {
       "a/b/c/d/e",
     ]) {
       expect(
-        pageResolutionCandidates({ routePath, locale: "en", defaultLocale: "en" }),
+        pageResolutionCandidates({ siteId: "main", routePath, locale: "en", defaultLocale: "en" }),
         routePath,
       ).toEqual([]);
     }
@@ -173,20 +177,20 @@ describe("the discovery primitives", () => {
   });
 
   it("builds the source file of a page route path, nested paths included", () => {
-    expect(pageSourceFile("markdown", "en", "about")).toBe("content/pages/markdown/en/about.md");
-    expect(pageSourceFile("json", "de", "about")).toBe("content/pages/json/de/about.json");
-    expect(pageSourceFile("markdown", "en", "offerings/website-design")).toBe(
-      "content/pages/markdown/en/offerings/website-design.md",
+    expect(pageSourceFile("markdown", "main", "en", "about")).toBe("content/pages/markdown/main/en/about.md");
+    expect(pageSourceFile("json", "main", "de", "about")).toBe("content/pages/json/main/de/about.json");
+    expect(pageSourceFile("markdown", "main", "en", "offerings/website-design")).toBe(
+      "content/pages/markdown/main/en/offerings/website-design.md",
     );
-    expect(pageSourceFile("json", "en", "blog/2026/choosing-a-domain")).toBe(
-      "content/pages/json/en/blog/2026/choosing-a-domain.json",
+    expect(pageSourceFile("json", "main", "en", "blog/2026/choosing-a-domain")).toBe(
+      "content/pages/json/main/en/blog/2026/choosing-a-domain.json",
     );
-    expect(pageSourceDirectory("markdown", "en")).toBe("content/pages/markdown/en");
+    expect(pageSourceDirectory("markdown", "main", "en")).toBe("content/pages/markdown/main/en");
   });
 
   it("keeps every source file UNDER a locale directory, at every depth", () => {
     for (const mode of PAGE_AUTHORING_MODES) {
-      const file = pageSourceFile(mode, "en", "blog/post") ?? "";
+      const file = pageSourceFile(mode, "main", "en", "blog/post") ?? "";
       const belowRoot = file.slice(`${PAGE_AUTHORING_ROOTS[mode]}/`.length);
       // `<locale>/…/<slug>.<ext>` — the first segment is always the locale, so a file
       // directly under a root (its README) can never be a page.
@@ -196,11 +200,11 @@ describe("the discovery primitives", () => {
   });
 
   it("never builds a path from a value it has not validated", () => {
-    expect(pageSourceDirectory("markdown", "../etc")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "README")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "../escape")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "blog/../../escape")).toBeNull();
-    expect(pageSourceFile("markdown", "en", "blog\\post")).toBeNull();
-    expect(pageSourceFile("markdown", "not a locale", "about")).toBeNull();
+    expect(pageSourceDirectory("markdown", "main", "../etc")).toBeNull();
+    expect(pageSourceFile("markdown", "main", "en", "README")).toBeNull();
+    expect(pageSourceFile("markdown", "main", "en", "../escape")).toBeNull();
+    expect(pageSourceFile("markdown", "main", "en", "blog/../../escape")).toBeNull();
+    expect(pageSourceFile("markdown", "main", "en", "blog\\post")).toBeNull();
+    expect(pageSourceFile("markdown", "main", "not a locale", "about")).toBeNull();
   });
 });

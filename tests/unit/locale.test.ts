@@ -2,22 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLanguageAlternates,
+  isWellFormedLocale,
   negotiateLocale,
   parseAcceptLanguage,
-  replaceLocaleSegment,
 } from "@/core/locale";
 
-describe("replaceLocaleSegment", () => {
-  it("swaps the leading locale segment", () => {
-    expect(replaceLocaleSegment("/en/about", "fr")).toBe("/fr/about");
+describe("the locale contract", () => {
+  it("accepts the documented language-tag shape", () => {
+    for (const tag of ["en", "fr", "id", "de", "en-CA", "fr-CA", "fr-FR", "en-GB", "pt-BR", "zh-Hans"]) {
+      expect(isWellFormedLocale(tag), tag).toBe(true);
+    }
   });
 
-  it("handles the locale root", () => {
-    expect(replaceLocaleSegment("/en", "de")).toBe("/de");
-  });
-
-  it("preserves deeper paths and trailing slashes", () => {
-    expect(replaceLocaleSegment("/en/resources/", "zh")).toBe("/zh/resources/");
+  it("refuses anything that is not a language tag", () => {
+    for (const tag of ["e", "english", "EN", "en-", "en_CA", "1a", "en CA", ""]) {
+      expect(isWellFormedLocale(tag), tag).toBe(false);
+    }
   });
 });
 

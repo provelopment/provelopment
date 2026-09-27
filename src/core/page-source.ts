@@ -1,5 +1,6 @@
 import { isPageRoutePath } from "./page-route-path";
 import { isWellFormedLocale, type Locale } from "./locale";
+import { isSiteId, type SiteId } from "./site";
 
 /**
  * THE PAGE-SOURCE CONTRACT — TWO FIRST-CLASS AUTHORING MODES
@@ -11,56 +12,67 @@ import { isWellFormedLocale, type Locale } from "./locale";
  * nothing and renders nothing: it is a `@/core` rule.
  *
  *   `markdown`  the accessibility-first mode: ordinary Markdown under
- *               `content/pages/markdown/<locale>/<route-path>.md`, for an author who
- *               should need nothing but a text editor. Its safety policy lives in
+ *               `content/pages/markdown/<siteId>/<locale>/<route-path>.md`, for an author
+ *               who should need nothing but a text editor. Its safety policy lives in
  *               `@/core/markdown-policy` + `@/core/safe-url`.
  *   `json`      the advanced mode: validated declarative data under
- *               `content/pages/json/<locale>/<route-path>.json`, for an author who
- *               needs presentation the Markdown mode does not offer. It is
- *               schema-validated and non-executable, and the vocabulary that
- *               interprets it is a later increment; this contract declares the mode,
- *               its root and its place in the order.
+ *               `content/pages/json/<siteId>/<locale>/<route-path>.json`, for an author
+ *               who needs presentation the Markdown mode does not offer. It is
+ *               schema-validated and non-executable.
  *
  * A `<route-path>` is one segment (`about`) or several (`offerings/website-design`),
  * because a page's URL is built from folders as well as files: see
  * `@/core/page-route-path` for the ONE rule, which refuses traversal, empty segments
  * and anything that is not a safe slug.
  *
- * Those are the ONLY page-source kinds. There is no third kind and no compatibility
- * kind: `content/` holds this platform's pages and assets and NOTHING else — there
- * are no separate author-facing collections to compete with the page model, so no
- * file outside the two roots can name, answer or shadow a page.
+ * THE SITE IS PART OF THE ADDRESS (FOUNDATION-S1)
+ * ----------------------------------------------
+ * A page's identity is `siteId + locale + routePath`. The SITE segment comes first, so two
+ * sites may serve the SAME language at the SAME route path and never collide:
  *
- * A ROOT HOLDS DOCUMENTATION BESIDE ITS LOCALE DIRECTORIES
- * -------------------------------------------------------
- * Only files INSIDE a locale directory are page candidates, so a root-level file has
- * no locale segment, and `README` is not a well-formed slug either (see
- * `isContentSlug`) — so an authoring root's documentation can never become a page,
- * for two independent reasons. `.gitkeep` is refused by the same rule, and because
- * the rule applies at EVERY level, a README beside nested pages is equally inert.
+ *     content/pages/markdown/main/en/about.md        → site main,   en,    about
+ *     content/pages/markdown/canada/fr-CA/about.md   → site canada, fr-CA, about
+ *     content/pages/markdown/france/fr-FR/about.md   → site france, fr-FR, about
+ *
+ * There is ONE shape — always site-scoped — with no site-less alternative and no
+ * compatibility alias, so an author has exactly one predictable filesystem model. The
+ * ordinary single-site deployment names its site `main`.
+ *
+ * A MODE ROOT HOLDS DOCUMENTATION BESIDE ITS SITE DIRECTORIES
+ * ----------------------------------------------------------
+ * `content/pages/markdown/README.md` and `content/pages/json/README.md` are the two
+ * authoring guides, and only files INSIDE a site directory (and inside a locale directory
+ * within it) are page candidates. `README` is not a well-formed slug and a mode root has no
+ * site segment, so documentation can never become a page, for two independent reasons. The
+ * same rule applies at EVERY level, so a README beside nested pages is equally inert.
  *
  * A DIRECTORY'S EXISTENCE IS NOT PUBLICATION
  * ------------------------------------------
- * A locale directory — or any folder inside it — MAY BE EMPTY: a site may prepare a
- * language or a section before it has anything to put in it, and an empty directory
- * is an ordinary state rather than a fault. Creating `content/pages/markdown/de/`
- * publishes nothing, creates no route and adds no sitemap entry — what the public
- * site serves is decided by the site's own locale configuration, never by the
- * authoring tree.
+ * A site directory, a locale directory or any folder inside one MAY BE EMPTY: a deployment
+ * may prepare a site, a language or a section before it has anything to put in it, and an
+ * empty directory is an ordinary state rather than a fault. What the public site serves is
+ * decided by the deployment's SITE configuration — which sites, which locales, which default
+ * locale — never by the authoring tree.
  *
  * RESOLUTION POLICY (the rule a resolver must implement)
  * -----------------------------------------------------
- *   1. requested-locale JSON        3. default-locale JSON
- *   2. requested-locale Markdown    4. default-locale Markdown
+ *   1. requested-locale JSON        3. site-default-locale JSON
+ *   2. requested-locale Markdown    4. site-default-locale Markdown
  *                                   5. not found
- * Steps 3–4 apply ONLY when fallback is permitted. Two consequences must never
- * be "simplified": **JSON wins over Markdown within one locale** (the more
- * capable declaration is served when a route exists in both), and **an
- * exact-locale page beats a fallback-locale page** (a German Markdown page
- * answers a German URL even when an English JSON page exists, because the
- * visitor asked for German — fallback is a last resort, never a preference of
- * format over language). Both rules apply to the COMPLETE route path: a nested page
- * is resolved exactly as a top-level one is.
+ *
+ * Steps 3–4 apply ONLY when the SITE permits fallback, and the default locale is the SITE's
+ * — never the deployment's, and never another site's. Two consequences must never be
+ * "simplified": **JSON wins over Markdown within one locale** (the more capable declaration
+ * is served when a route exists in both, and two modes compete only when they carry the SAME
+ * site, locale and route path), and **an exact-locale page beats a fallback-locale page** (a
+ * German Markdown page answers a German URL even when an English JSON page exists, because
+ * the visitor asked for German — fallback is a last resort, never a preference of format
+ * over language). Both rules apply to the COMPLETE route path: a nested page is resolved
+ * exactly as a top-level one is.
+ *
+ * NO CROSS-SITE LOOKUP. The request names ONE site and the providers are bound to that
+ * site's tree, so a missing page in one site can never be answered from another — not as a
+ * fallback, not as a convenience.
  *
  * SECURITY POSTURE (recorded with the contract)
  * --------------------------------------------
@@ -118,13 +130,19 @@ export const PAGE_RESOLUTION_ORDER: readonly PageSourceStep[] = [
 
 /** A resolution request: what is being asked for, and whether fallback is permitted. */
 export interface PageSourceRequest {
+  /**
+   * The site whose tree may answer. A page's identity is `siteId + locale + routePath`, so
+   * a request always names ONE site — which is what makes a cross-site lookup
+   * unrepresentable rather than merely forbidden.
+   */
+  readonly siteId: SiteId;
   /** The page's route path: one segment (`about`) or several (`offerings/website-design`). */
   readonly routePath: string;
   /** The locale the visitor asked for. */
   readonly locale: Locale;
-  /** The site's default locale — the only locale a fallback may come from. */
+  /** THE SITE'S default locale — the only locale a fallback may come from. */
   readonly defaultLocale: Locale;
-  /** Whether the default locale may answer for the requested one. Defaults to true. */
+  /** Whether the site's default locale may answer for the requested one. Defaults to true. */
   readonly fallback?: boolean;
 }
 
@@ -159,8 +177,13 @@ export interface PageResolutionCandidate {
 export function pageResolutionCandidates(
   request: PageSourceRequest,
 ): readonly PageResolutionCandidate[] {
-  const { routePath, locale, defaultLocale, fallback = true } = request;
-  if (!isPageRoutePath(routePath) || !isWellFormedLocale(locale) || !isWellFormedLocale(defaultLocale)) {
+  const { siteId, routePath, locale, defaultLocale, fallback = true } = request;
+  if (
+    !isSiteId(siteId) ||
+    !isPageRoutePath(routePath) ||
+    !isWellFormedLocale(locale) ||
+    !isWellFormedLocale(defaultLocale)
+  ) {
     return [];
   }
 
@@ -183,12 +206,23 @@ export interface AuthoringRootEntry {
 }
 
 /**
- * The locale directories of an authoring root, from its listing.
+ * The SITE directories of an authoring root, from its listing.
  *
- * A directory must be a WELL-FORMED LANGUAGE TAG to count. Anything else — the
- * root's README, a stray file, a directory whose name is not a language — is
- * ignored, and ignoring it is never an error. A locale directory MAY BE EMPTY:
- * discovery reports what exists, never what is published.
+ * A directory must be a well-formed SITE id (a content slug) to count. Anything else — the
+ * root's README, a stray file, a directory whose name is not a slug — is ignored, and
+ * ignoring it is never an error. A site directory MAY BE EMPTY: discovery reports what
+ * exists, never what is published.
+ */
+export function authoringSiteDirectories(entries: readonly AuthoringRootEntry[]): readonly string[] {
+  const sites = entries
+    .filter((entry) => entry.directory && isSiteId(entry.name))
+    .map((entry) => entry.name);
+  return [...new Set(sites)].sort();
+}
+
+/**
+ * The locale directories of ONE SITE inside an authoring root, from that site directory's
+ * listing. A directory must be a WELL-FORMED LANGUAGE TAG to count.
  */
 export function authoringLocaleDirectories(
   entries: readonly AuthoringRootEntry[],
@@ -200,28 +234,35 @@ export function authoringLocaleDirectories(
 }
 
 /**
- * One authoring locale directory, repository-relative (POSIX) — for example
- * `content/pages/markdown/de`. Returns `null` for a malformed mode or locale, so a
- * caller can never build a path from a string it has not validated.
+ * One site's locale directory, repository-relative (POSIX) — for example
+ * `content/pages/markdown/main/de`. Returns `null` for a malformed mode, site or locale, so
+ * a caller can never build a path from a string it has not validated.
  */
-export function pageSourceDirectory(mode: PageAuthoringMode, locale: Locale): string | null {
-  if (!PAGE_AUTHORING_MODES.includes(mode) || !isWellFormedLocale(locale)) return null;
-  return `${PAGE_AUTHORING_ROOTS[mode]}/${locale}`;
+export function pageSourceDirectory(
+  mode: PageAuthoringMode,
+  siteId: SiteId,
+  locale: Locale,
+): string | null {
+  if (!PAGE_AUTHORING_MODES.includes(mode) || !isSiteId(siteId) || !isWellFormedLocale(locale)) {
+    return null;
+  }
+  return `${PAGE_AUTHORING_ROOTS[mode]}/${siteId}/${locale}`;
 }
 
 /**
  * One page source file, repository-relative (POSIX) — for example
- * `content/pages/markdown/de/ueber-uns.md`, or
- * `content/pages/markdown/de/offerings/web-design.md` for a nested page. `null` for a
- * malformed mode, locale or route path, so an arbitrary string can never address a
- * file — and a traversal attempt can never leave the authoring root.
+ * `content/pages/markdown/main/de/ueber-uns.md`, or
+ * `content/pages/markdown/canada/fr-CA/offerings/web-design.md` for a nested page in
+ * another site. `null` for a malformed mode, site, locale or route path, so an arbitrary
+ * string can never address a file — and a traversal attempt can never leave the root.
  */
 export function pageSourceFile(
   mode: PageAuthoringMode,
+  siteId: SiteId,
   locale: Locale,
   routePath: string,
 ): string | null {
   if (!isPageRoutePath(routePath)) return null;
-  const directory = pageSourceDirectory(mode, locale);
+  const directory = pageSourceDirectory(mode, siteId, locale);
   return directory === null ? null : `${directory}/${routePath}.${PAGE_AUTHORING_EXTENSIONS[mode]}`;
 }

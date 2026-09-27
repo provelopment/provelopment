@@ -124,6 +124,12 @@ export interface PageRegionBinding {
   readonly region: string;
   /** Content page slug within the region; null = regional landing. */
   readonly slug: string | null;
+  /**
+   * S1 — the SITE whose page tree carries this binding. Absent → the default site, so a
+   * single-site deployment is unchanged. Regional (location) pages live inside ONE site's
+   * tree: the region selector picks a location within the current site, never another site.
+   */
+  readonly site?: string;
 }
 
 /**

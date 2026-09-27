@@ -10,6 +10,7 @@ export type {
   MapsConfig,
   NavigationItem,
   SiteConfig,
+  SiteConfigEntry,
   SocialLink,
   UiConfig,
   UiContentConfig,

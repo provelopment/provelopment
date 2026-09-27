@@ -26,6 +26,7 @@ import {
   resolveShellPattern,
   resolveUiConfig,
 } from "@/core/ui";
+import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
 import { ShellEngine } from "@/components/shell";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
@@ -50,6 +51,7 @@ const geistMono = Geist_Mono({
 });
 
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+const siteSet = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
 
 // UI-04/UI-05/UI-06: the single resolved UI configuration (UI-02) drives the
 // shell. The values come from the Foundation canonical presentation defaults
@@ -78,11 +80,17 @@ const hasRegions = Object.keys(siteConfig.regions).length > 0;
 const analytics = createAnalyticsProvider(siteConfig.analytics);
 const directionLinkResolver = createDirectionLinkResolver(siteConfig.mapsFeature);
 
-export function generateStaticParams() {
-  return siteConfig.locales.map((locale) => ({ locale: locale.code }));
-}
-
-/** Unknown locales render the 404 instead of being rendered on demand. */
+/**
+ * S1 — the ROOT layout of a SITE-SCOPED URL space: `/{locale}/...` for the default site and
+ * `/{sitePrefix}/{locale}/...` for every other site. The layout resolves the request's site
+ * and locale from the whole path (the same ONE resolver the page uses), so the document's
+ * `lang`, the dictionary, the navigation, the footer and every internal URL belong to ONE
+ * site. The path belongs to the page below: an unknown path resolves here to the default
+ * site (deterministic, never a guess about another site) and the page decides the 404.
+ *
+ * Unknown SITES and LOCALES are not rendered on demand: only the (site, locale) combinations
+ * the configuration declares are generated, which is what `dynamicParams = false` enforces.
+ */
 export const dynamicParams = false;
 
 /**
@@ -97,7 +105,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
+  const { segments } = await params;
+  const request = pathContextOr(
+    siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+
   return {
     metadataBase: new URL(siteConfig.url),
     title: {
@@ -122,10 +138,13 @@ export async function generateMetadata(): Promise<Metadata> {
       icon: assetPathFromUrl(siteConfig.assets?.favicon),
     },
     alternates: {
+      // S1 — alternates cover THIS site's locales, under the site's own public prefix, so an
+      // hreflang link can never point at another site's tree.
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: localeCodes,
-        defaultLocale: siteConfig.defaultLocale,
+        locales: [...request.site.locales],
+        defaultLocale: request.site.defaultLocale,
+        sitePrefix: sitePrefixPath(request.site),
       }),
     },
   };
@@ -133,14 +152,24 @@ export async function generateMetadata(): Promise<Metadata> {
 
 interface LocaleLayoutProps {
   readonly children: React.ReactNode;
-  readonly params: Promise<{ readonly locale: string }>;
+  readonly params: Promise<{ readonly segments?: string[] }>;
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: LocaleLayoutProps) {
-  const { locale } = await params;
+export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
+  const { segments } = await params;
+  // The URL decides the site and the locale; an unknown path falls back to the DEFAULT site
+  // deterministically (the page below turns it into a 404, so the status page still renders
+  // inside the site chrome).
+  const request = pathContextOr(
+    siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+  const site = request.site;
+  const locale = request.locale;
+  // The page source this site+locale's navigation/status surfaces belong to.
+  const localeCodesForSite = [...site.locales];
   const dictionary = getDictionary(locale);
   const navLinks = getSiteNavLinks(locale);
   // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
@@ -294,7 +323,7 @@ export default async function LocaleLayout({
               <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>
             </ErrorMessagesProvider>
           }
-          footer={<SiteFooter locale={locale} directionLinkResolver={directionLinkResolver} />}
+          footer={<SiteFooter locale={locale} siteId={site.id} directionLinkResolver={directionLinkResolver} />}
           mainId="main"
           mainClassName="flex-1"
           navigationLabel={dictionary.navigation.primaryLabel}

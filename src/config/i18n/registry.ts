@@ -2,11 +2,16 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import type { Locale } from "@/core/locale";
+import { LOCALE_PATTERN } from "@/core/locale";
 
 import { dictionarySchema, type Dictionary } from "./dictionary";
 
-/** Well-formed locale code (e.g. `en`, `pt-BR`, `zh-Hans`). */
-const localeNamePattern = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
+/**
+ * Well-formed locale code — the ONE contract (`@/core/locale`), imported rather than
+ * restated so dictionary discovery can never accept a locale the rest of the platform
+ * refuses (`en`, `pt-BR`, `zh-Hans`, `en-CA`).
+ */
+const localeNamePattern = LOCALE_PATTERN;
 
 export interface DictionaryRegistry {
   /** Returns the dictionary for a locale, falling back to the default locale. */

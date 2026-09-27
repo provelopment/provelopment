@@ -10,7 +10,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import PageRoute from "@/app/[locale]/[...path]/page";
+import PageRoute from "@/app/[...segments]/page";
 import { PAGE_SECTION_TYPES } from "@/core/page-document";
 
 /**
@@ -133,7 +133,7 @@ describe("the declarative page vocabulary, through the real route", () => {
       "utf8",
     );
     html = renderToStaticMarkup(
-      await PageRoute({ params: Promise.resolve({ locale: LOCALE, path: [ROUTE_PATH] }) }),
+      await PageRoute({ params: Promise.resolve({ segments: [LOCALE, ROUTE_PATH] }) }),
     );
   });
 

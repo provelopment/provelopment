@@ -6,6 +6,8 @@ import { isIanaTimeZone } from "@/core/business-hours";
 // both name a real content file, so they consume the same authority the page-source
 // contract and the content repository use — never a restated copy of the regex.
 import { CONTENT_SLUG_PATTERN } from "@/core/page-content";
+import { LOCALE_PATTERN } from "@/core/locale";
+import { resolveSites, SiteConfigurationError, type SiteSet } from "@/core/site";
 import {
   CONTENT_WIDTHS,
   CTA_ACTIONS,
@@ -39,13 +41,12 @@ import {
  * message instead of producing a broken site.
  */
 
-const localeCodePattern = /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/;
-
 const localeCode = z
   .string()
   .regex(
-    localeCodePattern,
-    "must be a BCP 47-style locale code such as 'en' or 'pt-BR'",
+    LOCALE_PATTERN,
+    "must be a language tag such as 'en', 'fr-CA' or 'zh-Hans' (two or three lowercase " +
+      "letters, then optional alphanumeric subtags of 2–8 characters)",
   );
 
 export const localeConfigSchema = z.object({
@@ -451,6 +452,16 @@ const pageRegionBindingSchema = z.object({
   locale: localeCode,
   region: z.string().min(1, "must not be empty"),
   slug: z
+    .string()
+    .regex(CONTENT_SLUG_PATTERN, "must be a lowercase slug")
+    .optional(),
+  /**
+   * S1 — the SITE whose page tree this regional binding belongs to. Absent → the default
+   * site (the one whose `pathPrefix` is `""`), which keeps a single-site deployment
+   * unchanged. A binding can never leak into another site: the route resolves regions
+   * inside one site, and the site names its own bindings here.
+   */
+  site: z
     .string()
     .regex(CONTENT_SLUG_PATTERN, "must be a lowercase slug")
     .optional(),
@@ -1014,9 +1025,47 @@ export const uiConfigSchema = z
     },
   );
 
-export const siteConfigFileSchema = z.object({
-  site: siteSettingsSchema,
-  i18n: i18nConfigSchema,
+/**
+ * S1 — a SITE: an independent page/configuration context.
+ *
+ * The site id is the folder name under each authoring root and never appears in a URL by
+ * itself: the PUBLIC URL comes from `pathPrefix`. The locale leaves are the site's own
+ * locale policy — what it serves, which locale answers by default, and whether that default
+ * may stand in for the others.
+ *
+ * Every leaf except `id` is optional, and the defaults are the single-site ones: an adopter
+ * who declares `sites: [{ "id": "main" }]` (or declares no `sites` block at all) gets the
+ * deployment's default locale and every declared locale, at the deployment's own URLs.
+ * Coherence (unique ids and prefixes, a prefix that is not also a locale code, exactly one
+ * empty prefix when several sites exist, membership of `i18n.locales`) is enforced by the
+ * SAME core resolver the runtime uses, so validation can never disagree with resolution.
+ */
+const siteConfigEntrySchema = z
+  .object({
+    id: z
+      .string()
+      .regex(CONTENT_SLUG_PATTERN, "must be a lowercase slug (it is also the folder name)"),
+    label: z.string().min(1, "must not be empty").optional(),
+    pathPrefix: z
+      .string()
+      .regex(CONTENT_SLUG_PATTERN, "must be a lowercase slug, or \"\" for the default site")
+      .optional(),
+    defaultLocale: localeCode.optional(),
+    locales: z.array(localeCode).min(1, "must list at least one locale").optional(),
+    fallback: z.boolean().optional(),
+  })
+  .strict();
+
+export const siteConfigFileSchema = z
+  .object({
+    site: siteSettingsSchema,
+    i18n: i18nConfigSchema,
+  /**
+   * S1 — the deployment's sites, in configuration order. Absent/empty → ONE implicit site
+   * `main` (the ordinary single-site template), so a deployment that never thinks about
+   * sites keeps exactly the behaviour and URLs it always had.
+   */
+  sites: z.array(siteConfigEntrySchema).optional(),
   contact: contactConfigSchema,
   socialLinks: z.array(socialLinkSchema),
   navigation: z.array(navigationItemSchema),
@@ -1043,4 +1092,53 @@ export const siteConfigFileSchema = z.object({
    * changes nothing at runtime.
    */
   ui: uiConfigSchema.optional(),
-});
+})
+  .superRefine((file, ctx) => {
+    // S1 — site coherence is checked by the SAME core resolver the runtime uses
+    // (`@/core/site`), so configuration validation and resolution cannot disagree: one
+    // implementation, one set of messages.
+    const locales = file.i18n.locales.map((locale) => locale.code);
+    let sites: SiteSet | null = null;
+    try {
+      sites = resolveSites({
+        input: file.sites,
+        defaultLocale: file.i18n.defaultLocale,
+        locales,
+      });
+    } catch (error) {
+      if (error instanceof SiteConfigurationError) {
+        for (const issue of error.issues) {
+          ctx.addIssue({ code: "custom", path: ["sites"], message: issue });
+        }
+      } else {
+        throw error;
+      }
+    }
+
+    if (sites === null) return;
+
+    // Regional bindings (locations) belong to ONE site's page tree: a binding must name a
+    // declared site that actually serves the binding's locale, so a regional page can never
+    // resolve inside another site's tree.
+    const bindings = file.business?.pages ?? [];
+    bindings.forEach((binding, index) => {
+      const site = sites.sites.find((entry) => entry.id === (binding.site ?? sites.defaultSite.id));
+      if (site === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["business", "pages", index, "site"],
+          message: `unknown site "${binding.site}" (declare it in "sites")`,
+        });
+        return;
+      }
+      if (!site.locales.includes(binding.locale)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["business", "pages", index, "locale"],
+          message:
+            `site "${site.id}" does not serve locale "${binding.locale}" ` +
+            `(it serves: ${site.locales.join(", ")})`,
+        });
+      }
+    });
+  });
