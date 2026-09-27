@@ -1151,6 +1151,48 @@ bottom-bar patterns, adequate touch targets, `prefers-reduced-motion` support,
 and WCAG 2.1 AA contrast (existing token pairs remain enforced by
 `tests/unit/design-tokens.test.ts`).
 
+A **persistent top region** additionally clears fragment targets:
+`html:has(.ui-shell-top)` carries a `scroll-padding-top` clearance
+(`--ui-shell-top-clearance`), removed in exactly the bands where the rail — not
+the header — is persistent, so a skip link or an in-page anchor never lands
+beneath the sticky header (see *Persistent navigation* below).
+
+### Persistent navigation (shell top region + rail content column)
+
+A visitor must never have to scroll back to the top of the page to reach another
+page. The shell therefore composes **two persistent regions, never at the same
+width**:
+
+| Where | What persists | Why |
+| --- | --- | --- |
+| any width where a **rail band** is composed beside the content | the rail's **content column** (`.ui-sidebar-rail-sticky`: its show/hide control and its navigation list) | the composition already puts the navigation beside the content |
+| everywhere else — a header-slot composition, and every width below `md` | the shell's **top region** (`.ui-shell-top`: identity, any header-slot navigation, and the mobile disclosure trigger) | the header is where the navigation is |
+
+- The engine (UI-04 `ShellEngine`) emits the rail-band markers
+  (`ui-shell-top--rail-md` / `ui-shell-top--rail-lg`) as a pure function of the
+  **resolved slot vocabulary** (`decision.{desktop,tablet}.slot === "aside"`).
+  The stylesheet returns the top region to normal flow inside exactly those
+  bands, so the two regions can never be sticky at once, can never overlap, and
+  no measured offset between them is needed. Neither value carries presentation
+  identity, configuration or business content.
+- Both regions use `position: sticky`, never `fixed`: they stay in flow, reserve
+  their own height, can never cover page content, and the footer still scrolls
+  into view beneath them.
+- The rail's content column is bounded by the **viewport** (`max-height: 100dvh`)
+  and scrolls on its own when the navigation is taller than that
+  (`overflow-y: auto`, `overscroll-behavior: contain`), so no destination becomes
+  unreachable. The rail is therefore `overflow-x: clip`, never `hidden` —
+  `hidden` would make the rail a scroll container and pin its sticky child to the
+  rail instead of the viewport.
+- The **primary CTA is deliberately NOT part of what persists**: it keeps its one
+  top-region home and stays in normal flow (P6-3C), because persistence exists
+  for navigation — a destination list — not for actions.
+- Asserted by `tests/unit/shell-persistent-navigation.test.ts` (the composition
+  and CSS contract) and by the browser matrix's `persistent-navigation` scenario
+  (rendered behaviour: stickiness, reachability, one persistent region per width,
+  no rail/content overlap, a long navigation scrolled inside the column, fragment
+  clearance, the mobile disclosure while scrolled, and unchanged destinations).
+
 ### Boundaries
 
 | Concern | Owner | Status |

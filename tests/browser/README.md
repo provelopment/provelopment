@@ -59,4 +59,14 @@ tree stays clean.
   contract (vertical navigation, content-appropriate bounded width, explicit
   "Close navigation" control that closes with focus-return + inert/scroll restore);
 - responsive landmark exclusivity and deterministic unique ids;
-- Adaptive's bottom-bar **More** disclosure through the same Drawer path.
+- Adaptive's bottom-bar **More** disclosure through the same Drawer path;
+- **persistent navigation** (`persistent-navigation` scenario): the rail's content
+  column stays in view while the page scrolls (bounded by the viewport, its
+  control and destinations reachable, expanding the collapsed tablet rail while
+  scrolled), the shell's top region takes over below `md`, exactly ONE of the two
+  regions is persistent at each breakpoint boundary, a long navigation scrolls
+  inside the rail column with its last destination still reachable, a fragment
+  target clears the sticky header (and the clearance is removed where the rail is
+  persistent), the bottom-bar More disclosure keeps its focus/inert/Escape/scroll
+  behaviour while scrolled, the primary CTA stays in normal flow, and the
+  configured destinations are unchanged.

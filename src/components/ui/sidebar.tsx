@@ -48,6 +48,15 @@ import { createInitialDisclosure, disclosureReducer, type DisclosureState } from
  *    renderer styling: border, surface, hover/focus-visible/active affordance,
  *    pointer cursor) so it never reads as ordinary static heading text.
  *
+ * PERSISTENT NAVIGATION — the rail's CONTENT COLUMN (this component's
+ * `.ui-sidebar-rail-sticky`) is the persistent element: it stays in view while
+ * the page scrolls and scrolls on its own when the navigation is taller than the
+ * viewport (globals.css — persistent navigation). It changes no disclosure
+ * semantics, no id and no geometry — it is a plain block that wraps the toggle
+ * and the panel, so every inset measures exactly as before, and the rail's own
+ * full-height box (and its divider) is untouched. Where a rail is composed, it —
+ * not the shell's top region — carries the persistent navigation.
+ *
  * Shared semantics, presentation-agnostic: `collapsible === true` means the same
  * thing in every Presentation/custom composition (the Presentation only supplies the
  * value). The UI-10 behavioral matrix covers focus/keyboard/scroll for the
@@ -128,28 +137,39 @@ export function Sidebar({
       data-collapsed={isCollapsed ? "true" : "false"}
       className={["ui-sidebar-rail", className].filter(Boolean).join(" ")}
     >
-      {collapsible ? (
-        <button
-          type="button"
-          onClick={() => setState((current) => disclosureReducer(current, { type: "toggle" }))}
-          aria-expanded={!isCollapsed}
-          aria-controls={`${id}-panel`}
-          // Icon-only controls (visible text "" with an icon) keep the
-          // accessible name from the localized label; decorative icon.
-          aria-label={visibleText === "" && icon !== undefined ? fallbackLabel : undefined}
-          className="ui-sidebar-toggle"
-        >
-          <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
-          {toggleText !== "" ? <span>{toggleText}</span> : null}
-        </button>
-      ) : null}
-      {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows
-          the rail horizontally (CSS) rather than hiding the panel — labels are
-          visually hidden (but kept for assistive tech) only for icon-bearing
-          items; icon-less items keep their labels so no destination becomes
-          invisible/inaccessible while nav icons are unconfigured. */}
-      <div id={`${id}-panel`} className="ui-sidebar-rail-panel">
-        {children}
+      {/* PERSISTENT NAVIGATION — the rail's CONTENT COLUMN is the persistent
+          element. The rail's own box stays a full-height region (its inline-end
+          divider still spans the whole shell row — P6-3A/P6-3B, unchanged); this
+          inner column is what stays in view while the page scrolls, and it
+          scrolls ON ITS OWN when the navigation is taller than the viewport, so
+          no destination ever becomes unreachable (globals.css). Geometry is
+          deliberately untouched: the column is a plain block of the same content
+          width, so every inset (rail padding, control inset, list padding)
+          measures exactly as before. */}
+      <div className="ui-sidebar-rail-sticky">
+        {collapsible ? (
+          <button
+            type="button"
+            onClick={() => setState((current) => disclosureReducer(current, { type: "toggle" }))}
+            aria-expanded={!isCollapsed}
+            aria-controls={`${id}-panel`}
+            // Icon-only controls (visible text "" with an icon) keep the
+            // accessible name from the localized label; decorative icon.
+            aria-label={visibleText === "" && icon !== undefined ? fallbackLabel : undefined}
+            className="ui-sidebar-toggle"
+          >
+            <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
+            {toggleText !== "" ? <span>{toggleText}</span> : null}
+          </button>
+        ) : null}
+        {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows
+            the rail horizontally (CSS) rather than hiding the panel — labels are
+            visually hidden (but kept for assistive tech) only for icon-bearing
+            items; icon-less items keep their labels so no destination becomes
+            invisible/inaccessible while nav icons are unconfigured. */}
+        <div id={`${id}-panel`} className="ui-sidebar-rail-panel">
+          {children}
+        </div>
       </div>
     </nav>
   );
