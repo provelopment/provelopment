@@ -795,8 +795,8 @@ A page is authored in one of **two first-class modes**:
 
 | Where | What it is |
 | --- | --- |
-| `content/pages/markdown/<locale>/<route>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
-| `content/pages/json/<locale>/<route>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data composed from a fixed vocabulary of sections (hero, prose, media, gallery, actions, callout, cards, features, columns, steps, stats, quote, table, FAQ, list, divider). Anything the vocabulary does not declare is refused, naming the file and the property. |
+| `content/pages/markdown/<site>/<locale>/<route>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
+| `content/pages/json/<site>/<locale>/<route>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data composed from a fixed vocabulary of sections (hero, prose, media, gallery, actions, callout, cards, features, columns, steps, stats, quote, table, FAQ, list, divider). Anything the vocabulary does not declare is refused, naming the file and the property. |
 
 `<route>` is the page's path inside its locale folder — one name (`about`) or a folder
 path (`services/web-design`), because a page's URL is built from the folders it is
@@ -832,8 +832,8 @@ frontmatter, then the first `# heading`, then the filename).
 ### The home page is OPTIONAL, and may be authored as content (`home.md`)
 
 The locale root (`/{locale}`) renders the generic, configuration-driven starter homepage
-**unless you author it as content**: add `content/pages/markdown/<locale>/home.md` (or
-`content/pages/json/<locale>/home.json`)
+**unless you author it as content**: add `content/pages/markdown/<site>/<locale>/home.md` (or
+`content/pages/json/<site>/<locale>/home.json`)
 and the locale-root route renders THAT, through the same page-source composition as every
 other page — same precedence, same per-locale fallback, and the same safe Markdown
 policy.
@@ -877,7 +877,7 @@ Your homepage body, in Markdown.
 > leave) the matching navigation entry yourself.
 
 All page bodies are localized the same way: the requested locale's file at
-`content/pages/markdown/<locale>/<route>.md` is served when present; otherwise the
+`content/pages/markdown/<site>/<locale>/<route>.md` is served when present; otherwise the
 composition falls back to the default locale's file. No per-kind rule exists — a page
 is a page.
 
@@ -888,7 +888,7 @@ starter homepage with no authored pages. Adding a locale is data work — add
 platform code changes are required.
 
 > **Fallback is intentional, not a bug.** A localized URL (e.g.
-> `/de/legal/privacy`) with a missing translation serves the default-locale
+> `/ww/de/legal/privacy`) with a missing translation serves the default-locale
 > body under that URL, and `<html lang>` still reflects the requested locale.
 > That is the documented behavior — localize the file when you want a
 > true per-locale page.
@@ -902,12 +902,12 @@ page inside that folder.
 
 | What you want | Where it goes | URL |
 | --- | --- | --- |
-| A services overview | `content/pages/markdown/en/services.md` | `/en/services` |
-| One service | `content/pages/markdown/en/services/web-design.md` | `/en/services/web-design` |
-| A blog index | `content/pages/markdown/en/blog.md` | `/en/blog` |
-| One article | `content/pages/markdown/en/blog/choosing-a-domain.md` | `/en/blog/choosing-a-domain` |
-| A portfolio project | `content/pages/markdown/en/portfolio/rebrand.md` | `/en/portfolio/rebrand` |
-| A privacy policy | `content/pages/markdown/en/legal/privacy.md` | `/en/legal/privacy` |
+| A services overview | `content/pages/markdown/ww/en/services.md` | `/ww/en/services` |
+| One service | `content/pages/markdown/ww/en/services/web-design.md` | `/ww/en/services/web-design` |
+| A blog index | `content/pages/markdown/ww/en/blog.md` | `/ww/en/blog` |
+| One article | `content/pages/markdown/ww/en/blog/choosing-a-domain.md` | `/ww/en/blog/choosing-a-domain` |
+| A portfolio project | `content/pages/markdown/ww/en/portfolio/rebrand.md` | `/ww/en/portfolio/rebrand` |
+| A privacy policy | `content/pages/markdown/ww/en/legal/privacy.md` | `/ww/en/legal/privacy` |
 
 - **Folders may be up to four deep**, and every folder and file name follows the same
   rule as a page name (lowercase words joined by hyphens). The rule is declared once
@@ -934,7 +934,7 @@ A legal document is a page **plus one line of configuration** so the footer can 
 to it:
 
 ```text
-content/pages/markdown/en/legal/privacy.md   →   /en/legal/privacy
+content/pages/markdown/ww/en/legal/privacy.md   →   /ww/en/legal/privacy
 ```
 
 ```json
@@ -950,7 +950,7 @@ content/pages/markdown/en/legal/privacy.md   →   /en/legal/privacy
 - **Labels** come from `config/i18n/<locale>.json` → `legal.labels.<slug>`, falling back
   to the configured `label`.
 - **Localization is the page's own fallback** (see above): author
-  `content/pages/markdown/<locale>/legal/<slug>.md` for a translated document.
+  `content/pages/markdown/<site>/<locale>/legal/<slug>.md` for a translated document.
 - There is **no legal index page** and no legal-specific chrome: the document is an
   ordinary page with an ordinary page's presentation.
 
@@ -1059,7 +1059,7 @@ the single source.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[locale]/layout.tsx` (P6-2D, `content/assets/branding/branding-schema.md`
+  loaded in `src/app/[...segments]/layout.tsx` (P6-2D, `content/assets/branding/branding-schema.md`
   — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
@@ -1171,7 +1171,7 @@ per-page SEO configuration to fill in:
   screened for local file existence: `site.assets.ogImage` is an absolute URL that may
   legitimately point at a CDN, so it is emitted verbatim and no build failure or
   fallback guards a typo — keep the URL reachable on the live origin. The generated
-  route's palette lives in `src/app/[locale]/opengraph-image.tsx`; edit that file only
+  route's palette lives in `src/app/[...segments]/opengraph-image.tsx`; edit that file only
   if you want the *fallback* preview to match your palette.
 - **Sitemap & robots** — `sitemap.xml` covers every configured locale, content
   page, offering, legal document, and regional page (only genuinely configured
@@ -1422,15 +1422,15 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   (2026-09 owner ruling).
 - **`status-graphic` (P12-SG)** — **capability composed; approved artwork integrated and ACTIVE**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
-  shared by **both** status surfaces (`[locale]/error.tsx` and
-  `[locale]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
+  shared by **both** status surfaces (`[...segments]/error.tsx` and
+  `[...segments]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
   render the *same* status frame (`<Section className="py-24 text-center">` with an
   `h1` / `p` / action rhythm), so one replaceable graphic serves both truthfully and
   no per-route artwork or per-route config exists. It is **not** an error icon, **not**
   semantic status communication and **not** a replacement for the status heading — the
   heading, the message and the retry/navigation controls remain the complete
   expression of the state, and **the page must be fully understandable and operable
-  with no graphic at all**. The `[locale]` layout (server-side) resolves the role
+  with no graphic at all**. The `[...segments]` layout (server-side) resolves the role
   through `availableStatusGraphicPath` (the **same** generic availability rule as the
   banner/background/footer-graphic/header-graphic roles) to a same-origin path only
   when the file exists under `public/assets/`, reads its intrinsic size, and hands
@@ -1785,7 +1785,7 @@ Key rules:
 - **Deterministic modal precedence.** `business.regions` non-empty → regional
   mode (legacy footer NAP + global JSON-LD are suppressed). `business.regions`
   absent → the legacy global model renders exactly as before. The two never mix.
-- **Pages are independent.** Create `content/pages/markdown/<locale>/<slug>.md` for each
+- **Pages are independent.** Create `content/pages/markdown/<site>/<locale>/<slug>.md` for each
   page (its existence makes the route real), add a `pages` binding to attach a
   region, and add navigation entries for discoverability. Locales may have
   different page sets; one locale may host several regional pages; one region
@@ -1891,11 +1891,11 @@ Key behavior:
 
 - **`region.defaultLocale` (optional).** The deterministic locale chosen when a
   location switch arrives from an unsupported language (`/de` → Toronto →
-  `/en/toronto`). Must be a configured locale AND bound to the region (build
+  `/ww/en/toronto`). Must be a configured locale AND bound to the region (build
   error otherwise). Absent → derived from the region's first landing binding.
   Never inferred from country/timezone/browser.
-- **Unspecified returns you to generic:** `/en/toronto/about` → *Location:
-  Unspecified* → `/en/about`; `/de/berlin` → `/de`. Generic pages have no
+- **Unspecified returns you to generic:** `/ww/en/toronto/about` → *Location:
+  Unspecified* → `/ww/en/about`; `/ww/de/berlin` → `/de`. Generic pages have no
   operating identity (no invented address/timezone/JSON-LD).
 - **Region-aware navigation.** Inside a region, primary/footer navigation shows
   only pages that exist for that locale + region (e.g. Home/About/Connect, no
@@ -2198,14 +2198,14 @@ output), plus Vercel's own product description where noted:
   integrations, or operate in a jurisdiction with specific rules, **you** determine
   whatever privacy/consent requirements apply to your configuration. If you publish a
   cookie policy, author it as a page
-  (`content/pages/markdown/<locale>/legal/cookies.md`) and list it in `legal[]` — page
+  (`content/pages/markdown/<site>/<locale>/legal/cookies.md`) and list it in `legal[]` — page
   content is not legal advice — and `features.analytics: { "provider": "none" }`
   disables analytics entirely if you prefer.
 
 ### Contact inquiries (`features.contact` + `/contact`)
 
 The `/contact` page and contact form are the inquiry capability. It is
-**content-driven** (`content/pages/markdown/<locale>/contact.md`, or its JSON
+**content-driven** (`content/pages/markdown/<site>/<locale>/contact.md`, or its JSON
 counterpart — the sitemap picks the
 route up automatically) and **config-driven**:
 
@@ -2342,4 +2342,91 @@ Before committing or deploying, run the validation gate:
 ```bash
 pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build
 ```
+
+
+---
+
+## Serving more than one country (sites)
+
+One Foundation repository can serve several **independent websites**. Each site is named by a
+recognized lowercase country code (or `ww` for a worldwide site — see
+[`content/COUNTRY-CODES.md`](content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
+
+```json
+{
+  "sites": [
+    { "code": "ca", "locales": ["fr", "en"], "defaultLocale": "fr" },
+    { "code": "fr", "locales": ["fr"], "defaultLocale": "fr" }
+  ],
+  "defaultSite": "ca"
+}
+```
+
+**Do you need another site?** Only when you have an independent website:
+
+```
+independent page tree              →  another SITE      (a different country/business)
+same page tree, another office     →  another LOCATION  (a city/region inside that site)
+```
+
+Toronto, Montreal and Vancouver are Locations inside the Canada site, not sites of their own:
+
+```json
+{
+  "business": {
+    "regions": { "toronto": { "timezone": "America/Toronto", "address": { }, "hours": {} } },
+    "pages": [{ "site": "ca", "locale": "fr", "region": "toronto" }]
+  }
+}
+```
+
+### What a site may change — and what stays shared
+
+| A site may override | Deliberately shared |
+| --- | --- |
+| `navigation` and `footerNavigation` | theme and design tokens |
+| `legal` page destinations | assets (logos, icons, backgrounds) |
+| `connect` (contact methods) | the component vocabulary |
+| the page CTA destination (`ctaHref`) | the shell/layout system |
+| its `locales`, `defaultLocale`, `fallback` | UI dictionaries, unless a site refines them |
+| its region/page bindings | |
+
+You do **not** duplicate the configuration file per country — you add only what differs:
+
+```json
+{
+  "sites": [
+    { "code": "ca", "locales": ["fr", "en"], "navigation": [{ "label": "Emplacements", "href": "/locations" }] },
+    { "code": "fr", "locales": ["fr"], "navigation": [{ "label": "Conformité", "href": "/conformite" }] }
+  ],
+  "navigation": [{ "label": "Home", "href": "/" }]
+}
+```
+
+### Refining the interface language per site
+
+`config/i18n/fr.json` is the common French interface language, and it already serves `fr`, `fr-ca`
+and `fr-fr`. Add a partial override only where a site must differ:
+
+```
+config/i18n/sites/ca/fr.json       → Canadian French wording
+config/i18n/sites/fr/fr.json       → France wording
+config/i18n/sites/ca/fr-ca.json    → an exact-locale refinement (wins over the two above)
+```
+
+Overrides are **optional** and **partial** (state only the keys you change), an **unknown key is
+refused** with the file named, and **another site's override is never used**.
+
+### The four visitor controls
+
+| Control | What it changes | When it appears |
+| --- | --- | --- |
+| **Site** | which independent website | when the deployment configures more than one site |
+| **Language** | the language inside the active site | when the active site offers more than one language |
+| **Location** | the office/city/region inside the active site | when locations are configured for it |
+| **Layout** | Sidebar or Menu bar presentation (visitor's own choice) | when `ui.layoutSwitcher.enabled` is true |
+
+Each control is a plain, labelled form control (keyboard-usable, with its current value exposed),
+and each one only ever offers destinations that exist — a control never invents a page, a language
+or a location.
 

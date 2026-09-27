@@ -37,7 +37,7 @@ Before production, **replace the placeholder values**: `site.url`, `site.name`,
 ## Repository structure
 
 ```
-src/app         # Next.js App Router routes under src/app/[locale], layouts, globals.css tokens
+src/app         # Next.js App Router routes under src/app/[...segments], layouts, globals.css tokens
 src/components  # Presentation components (site, shell, shared ui primitives)
 src/core        # Framework-independent domain concepts and the UI engine
 src/application # Use-case ports and services
@@ -45,8 +45,8 @@ src/adapters    # Concrete integrations (filesystem content, analytics, booking,
 src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (one shipped locale: en)
 content         # EVERYTHING you author lives here — start at content/README.md
-  pages/markdown #   Safe Markdown pages — content/pages/markdown/<locale>/<route>.md  (see its README)
-  pages/json     #   Declarative JSON pages — content/pages/json/<locale>/<route>.json  (see its README)
+  pages/markdown #   Safe Markdown pages — content/pages/markdown/<site>/<locale>/<route>.md  (see its README)
+  pages/json     #   Declarative JSON pages — content/pages/json/<site>/<locale>/<route>.json  (see its README)
   assets         #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
 public/assets   # GENERATED mirror of content/assets/** — never edit by hand (scripts/sync-runtime-assets.mjs)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
@@ -62,8 +62,8 @@ Pages and the artwork they use — all of it.
 content/
 ├── README.md            ← the map: "where do I edit my website?"
 ├── pages/
-│   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<locale>/<route>.md)
-│   └── json/            ← advanced pages      (content/pages/json/<locale>/<route>.json)
+│   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<site>/<locale>/<route>.md)
+│   └── json/            ← advanced pages      (content/pages/json/<site>/<locale>/<route>.json)
 └── assets/              ← logos, favicons, icons, graphics  (you edit here)
 ```
 
@@ -72,9 +72,28 @@ blog article, a portfolio project, a privacy policy and "About" are all pages: t
 differ only in where you put the file, and a page's address comes from its folders.
 
 ```text
-content/pages/markdown/en/services.md               →  /en/services
-content/pages/markdown/en/services/web-design.md    →  /en/services/web-design
-content/pages/markdown/en/legal/privacy.md          →  /en/legal/privacy
+## Your folder is your address
+
+A page's address is built from the folders it lives in: **mode → site → language → page**.
+
+```
+content/pages/markdown/ww/en/services.md               →  /ww/en/services
+content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
+content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
+```
+
+- **site** — a recognized lowercase country code (`ca`, `fr`, `ch`…) or `ww` for a
+  worldwide/global site. The complete list is in
+  [`content/COUNTRY-CODES.md`](../COUNTRY-CODES.md); a folder that is not one of those
+  codes is not a site, and its pages are never published.
+- **language** — `en`, `fr`, `fr-ca`… (lowercase).
+
+If you have only one website and one language, your folders are `ww/en/…` — the site
+folder is still there, because every address carries it.
+
+
+content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
+content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
 ```
 
 Content that only ever appears *inside* another page — customer quotes, cards,
@@ -89,8 +108,8 @@ change settings in `site.config.json`.
 
 | Mode | Who it is for | Where |
 | --- | --- | --- |
-| **Simple, safe Markdown** | anyone who can edit a text file — no programming needed | `content/pages/markdown/<locale>/<slug>.md` |
-| **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express | `content/pages/json/<locale>/<route>.json` |
+| **Simple, safe Markdown** | anyone who can edit a text file — no programming needed | `content/pages/markdown/<site>/<locale>/<slug>.md` |
+| **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express | `content/pages/json/<site>/<locale>/<route>.json` |
 
 Both are documented for the person doing the authoring:
 [`content/pages/markdown/README.md`](content/pages/markdown/README.md) explains what
@@ -107,7 +126,7 @@ Editing a file is not publishing it. A change reaches the website when it is
 
 ```bash
 git status                                  # see what you changed
-git add content/pages/markdown/en/about.md  # stage the file(s) you edited
+git add content/pages/markdown/ww/en/about.md  # stage the file(s) you edited
 git commit -m "Update About page"           # record the change
 git push                                    # send it; automated checks then build the site
 ```
@@ -175,15 +194,15 @@ Create one file under the human-facing content area (see
 [Where your content lives](#where-your-content-lives) for the two modes):
 
 ```text
-content/pages/markdown/<locale>/<page>.md
+content/pages/markdown/<site>/<locale>/<page>.md
 ```
 
 Put it in a folder and the folder becomes part of its URL, so a section and its pages
 sit together:
 
 ```text
-content/pages/markdown/en/services.md              →  /en/services
-content/pages/markdown/en/services/web-design.md   →  /en/services/web-design
+content/pages/markdown/ww/en/services.md              →  /ww/en/services
+content/pages/markdown/ww/en/services/web-design.md   →  /ww/en/services/web-design
 ```
 
 Ordinary Markdown is enough — frontmatter is optional, and a file that is nothing
@@ -208,10 +227,10 @@ There is no separate "collection" to configure. A section is a folder, a listing
 page, and the items are pages inside that folder:
 
 ```text
-content/pages/markdown/en/offerings.md                 ← the offerings overview (a page)
-content/pages/markdown/en/offerings/website-design.md  ← one offering (a page)
-content/pages/markdown/en/blog.md                      ← the index of your articles
-content/pages/markdown/en/blog/choosing-a-domain.md    ← one article
+content/pages/markdown/ww/en/offerings.md                 ← the offerings overview (a page)
+content/pages/markdown/ww/en/offerings/website-design.md  ← one offering (a page)
+content/pages/markdown/ww/en/blog.md                      ← the index of your articles
+content/pages/markdown/ww/en/blog/choosing-a-domain.md    ← one article
 ```
 
 Quotes, cards, statistics and FAQ rows are **embedded**: you write them in the page
@@ -222,13 +241,13 @@ where structured page sections live — the declarative JSON mode, documented in
 Navigation entries are configuration (`navigation[]`), their labels come from
 `config/i18n/en.json` → `navigation.items`, and a policy document is surfaced in the
 footer by listing it in `legal[]` while authoring it as a page
-(`content/pages/markdown/en/legal/privacy.md`).
+(`content/pages/markdown/ww/en/legal/privacy.md`).
 
 ### Author your home page (optional)
 
 The locale root is configuration-driven by default. To author it as **content**
-instead, add `content/pages/markdown/<locale>/home.md` (or
-`content/pages/json/<locale>/home.json`) — the locale-root route then renders it
+instead, add `content/pages/markdown/<site>/<locale>/home.md` (or
+`content/pages/json/<site>/<locale>/home.json`) — the locale-root route then renders it
 through the same page-source composition as every other page (same precedence, same
 per-locale fallback). A site that authors no `home.md` keeps the generic starter
 homepage, so this is purely additive.

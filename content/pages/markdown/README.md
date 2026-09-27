@@ -23,7 +23,21 @@ idea: plain text in, a real web page out.
 ## Where a page file goes
 
 ```text
-content/pages/markdown/<language>/<page-name>.md
+## Which folder does my page go in?
+
+```
+content/pages/markdown/<site>/<language>/<page-name>.md
+```
+
+- **`<site>`** — a recognized lowercase country code (`ca`, `fr`, `ch`…), or `ww` for a
+  worldwide/global site. The complete list is
+  [`content/COUNTRY-CODES.md`](../../COUNTRY-CODES.md). A folder that is not one of those
+  codes defines no site, and pages inside it are never published.
+- **`<language>`** — `en`, `fr`, `fr-ca`… (lowercase).
+- **`<page-name>`** — one name (`about`) or a folder plus a name
+  (`services/web-design`) for a nested page.
+
+
 ```
 
 - **`<language>`** is a folder named with the language code you publish in — `en`
@@ -35,7 +49,7 @@ content/pages/markdown/<language>/<page-name>.md
 So this file:
 
 ```text
-content/pages/markdown/en/opening-hours.md
+content/pages/markdown/ww/en/opening-hours.md
 ```
 
 is served at `/en/opening-hours`. You do not register the page anywhere else, you do
@@ -48,10 +62,10 @@ Put a page in a folder and the folder becomes part of its address — that is ho
 build a section:
 
 ```text
-content/pages/markdown/en/services.md                 →  /en/services
-content/pages/markdown/en/services/web-design.md      →  /en/services/web-design
-content/pages/markdown/en/services/hosting.md         →  /en/services/hosting
-content/pages/markdown/en/blog/choosing-a-domain.md   →  /en/blog/choosing-a-domain
+content/pages/markdown/ww/en/services.md                 →  /ww/en/services
+content/pages/markdown/ww/en/services/web-design.md      →  /ww/en/services/web-design
+content/pages/markdown/ww/en/services/hosting.md         →  /ww/en/services/hosting
+content/pages/markdown/ww/en/blog/choosing-a-domain.md   →  /ww/en/blog/choosing-a-domain
 ```
 
 The section's own page and its pages live side by side: `services.md` is the
@@ -188,7 +202,7 @@ A page is part of the site's source, so it is published the same way any file is
 git status
 
 # 2. stage the file you edited
-git add content/pages/markdown/en/opening-hours.md
+git add content/pages/markdown/ww/en/opening-hours.md
 
 # 3. record the change
 git commit -m "Update Opening hours page"
@@ -202,15 +216,15 @@ enough: an unstaged, uncommitted or unpushed change is invisible to the live sit
 
 ## Languages
 
-- **One folder per language**: `content/pages/markdown/en/…`, `…/de/…`.
+- **One folder per language**: `content/pages/markdown/ww/en/…`, `…/de/…`.
 - The folder name must be a language code your site is configured to serve
   (`site.config.json`). A folder for an unconfigured language publishes nothing.
 - **Another language mirrors the same structure**, so a translated section keeps the
   same URLs under its own language:
 
   ```text
-  content/pages/markdown/en/services/web-design.md   →  /en/services/web-design
-  content/pages/markdown/de/services/web-design.md   →  /de/services/web-design
+  content/pages/markdown/ww/en/services/web-design.md   →  /ww/en/services/web-design
+  content/pages/markdown/ww/de/services/web-design.md   →  /ww/de/services/web-design
   ```
 
 - **You may create an empty language folder** before you have anything to put in it.

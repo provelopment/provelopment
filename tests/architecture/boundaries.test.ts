@@ -613,7 +613,7 @@ describe("Phase D — design-system boundaries", () => {
     // Components and pages must never carry raw color values or hardcoded
     // status-color utilities; globals.css is the single source. Exemptions are
     // deliberate assets/mirrors:
-    //  - opengraph-image.tsx  → generated brand image (fixed brand colors);
+    //  - [site]/[locale]/opengraph-image.tsx  → generated brand image (fixed brand colors);
     //  - [...segments]/layout.tsx  → viewport theme-color mirrors the --background
     //    token per scheme (must be static literals for the metadata API).
     const forbidden = [
@@ -622,7 +622,7 @@ describe("Phase D — design-system boundaries", () => {
       /focus-visible:outline/,
     ];
     const exempt = new Set([
-      path.join(APP_DIRECTORY, "[...segments]", "opengraph-image.tsx"),
+      path.join(APP_DIRECTORY, "[site]", "[locale]", "opengraph-image.tsx"),
       path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
     ]);
 

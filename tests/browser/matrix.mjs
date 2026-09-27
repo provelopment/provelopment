@@ -2123,7 +2123,7 @@ async function runConnectivityIconScenario(chrome) {
   // Connect page's safe Markdown source for the duration of the run (removed in
   // `finally`). The seam under test is the connectivity contract, not whether a fresh
   // clone has written its own pages yet.
-  const connectContentPath = join(ROOT, "content", "pages", "markdown", "main", "en", "connect.md");
+  const connectContentPath = join(ROOT, "content", "pages", "markdown", "ww", "en", "connect.md");
   await mkdir(dirname(connectContentPath), { recursive: true });
   await writeFile(
     connectContentPath,
@@ -2526,7 +2526,7 @@ async function runPersistentNavigationScenario(chrome) {
 
   // FS1 — the generic template ships NO pages, so this fixture supplies the tall
   // safe Markdown page the scroll assertions need (removed in `finally`).
-  const tallPath = join(ROOT, "content", "pages", "markdown", "main", "en", "zz-nav-tall.md");
+  const tallPath = join(ROOT, "content", "pages", "markdown", "ww", "en", "zz-nav-tall.md");
   await mkdir(dirname(tallPath), { recursive: true });
   await writeFile(tallPath, tallPageFixture(), "utf8");
 
@@ -2991,7 +2991,7 @@ A repeated heading, which the renderer must disambiguate.
 async function runSafeMarkdownScenario(chrome) {
   const port = BASE_PORT + 260;
   BASE_URL = `http://localhost:${port}`;
-  const fixturePath = join(ROOT, "content", "pages", "markdown", "main", "en", `${SAFE_MARKDOWN_SLUG}.md`);
+  const fixturePath = join(ROOT, "content", "pages", "markdown", "ww", "en", `${SAFE_MARKDOWN_SLUG}.md`);
   const url = `${BASE_URL}/en/${SAFE_MARKDOWN_SLUG}`;
   const rows = [];
   await mkdir(dirname(fixturePath), { recursive: true });
@@ -3181,7 +3181,7 @@ async function waitForNotFound(cdp) {
 async function runNestedPageScenario(chrome) {
   const port = BASE_PORT + 270;
   BASE_URL = `http://localhost:${port}`;
-  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "main", "en", NESTED_SECTION);
+  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "ww", "en", NESTED_SECTION);
   const pagePath = join(sectionDirectory, `${NESTED_SLUG}.md`);
   const readmePath = join(sectionDirectory, "README.md");
   const url = `${BASE_URL}/en/${NESTED_SECTION}/${NESTED_SLUG}`;
@@ -3308,7 +3308,7 @@ const JSON_PAGE_FIXTURE = JSON.stringify(
 async function runAdvancedJsonScenario(chrome) {
   const port = BASE_PORT + 271;
   BASE_URL = `http://localhost:${port}`;
-  const directory = join(ROOT, "content", "pages", "json", "main", "en");
+  const directory = join(ROOT, "content", "pages", "json", "ww", "en");
   const pagePath = join(directory, `${JSON_ROUTE_PATH}.json`);
   const url = `${BASE_URL}/en/${JSON_ROUTE_PATH}`;
   const rows = [];
@@ -3473,7 +3473,7 @@ async function runLayoutSwitcherScenario(chrome) {
   // a different page (the shipped template has a single Home entry).
   config.navigation = [...config.navigation, { label: "Fixture page", href: "/zz-layout-page" }];
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
-  const pagePath = join(ROOT, "content", "pages", "markdown", "main", "en", "zz-layout-page.md");
+  const pagePath = join(ROOT, "content", "pages", "markdown", "ww", "en", "zz-layout-page.md");
   await mkdir(dirname(pagePath), { recursive: true });
   await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
 
@@ -3662,7 +3662,284 @@ async function runLayoutSwitcherScenario(chrome) {
   return rows;
 }
 
+async function runMultisiteScenario(chrome) {
+  const port = BASE_PORT + 271;
+  BASE_URL = `http://localhost:${port}`;
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const written = [];
+  const rows = [];
+
+  for (const [site, locale, slug, body, title] of MULTISITE_PAGES) {
+    const file = join(ROOT, "content", "pages", "markdown", site, locale, `${slug}.md`);
+    await mkdir(dirname(file), { recursive: true });
+    await writeFile(file, `---\ntitle: ${title}\n---\n\n# ${title}\n\n${body}\n`, "utf8");
+    written.push(file);
+  }
+
+  // TWO independent sites that genuinely differ — bodies, chrome, locales and locations —
+  // plus the visitor dimensions switched on (Layout switcher, one Location in Canada).
+  const config = JSON.parse(original);
+  const ui = { ...(config.ui ?? {}) };
+  delete ui.navigation;
+  ui.layoutSwitcher = { enabled: true };
+  config.ui = ui;
+  config.i18n = {
+    ...config.i18n,
+    defaultLocale: "fr",
+    locales: [
+      { code: "en", label: "English" },
+      { code: "fr", label: "Français" },
+    ],
+  };
+  config.sites = [
+    {
+      code: "ca",
+      label: "Canada",
+      locales: ["fr", "en"],
+      defaultLocale: "fr",
+      navigation: [
+        { label: "Accueil CA", href: "/" },
+        { label: "À propos CA", href: "/about" },
+      ],
+    },
+    {
+      code: "fr",
+      label: "France",
+      locales: ["fr"],
+      defaultLocale: "fr",
+      navigation: [
+        { label: "Accueil FR", href: "/" },
+        { label: "À propos FR", href: "/about" },
+      ],
+    },
+  ];
+  config.defaultSite = "ca";
+  config.navigation = [{ label: "Shared", href: "/" }];
+  config.business = {
+    regions: {
+      toronto: {
+        timezone: "America/Toronto",
+        address: { street: "1 Demo St", city: "Toronto", country: "Canada" },
+        hours: {},
+      },
+    },
+    // The location belongs to CANADA only: France must never offer it.
+    pages: [{ site: "ca", locale: "fr", region: "toronto" }],
+  };
+  await writeFile(CONFIG_PATH, `${JSON.stringify(config, null, 2)}\n`, "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(`${BASE_URL}/ca/fr`);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+
+    // ── DIRECT NAVIGATION: each site serves its OWN body at its own URL ──────
+    await cdp.navigate(`${BASE_URL}/ca/fr/about`);
+    await waitReady(cdp);
+    const canada = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.canadaFrenchServesCanadaBody", canada.body.includes(MULTISITE_MARK.caFr), canada.path);
+    check(rows, "multisite.canadaFrenchIsNotTheFranceBody", !canada.body.includes(MULTISITE_MARK.frFr));
+
+    await cdp.navigate(`${BASE_URL}/fr/fr/about`);
+    await waitReady(cdp);
+    const france = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.franceFrenchServesFranceBody", france.body.includes(MULTISITE_MARK.frFr), france.path);
+    check(rows, "multisite.franceFrenchIsNotTheCanadaBody", !france.body.includes(MULTISITE_MARK.caFr));
+    check(rows, "multisite.sameRouteNameDifferentBodies", canada.body !== france.body);
+
+    // ── SWITCHING: Language stays in the site, Site preserves the route ──────
+    await cdp.navigate(`${BASE_URL}/ca/fr/about`);
+    await waitReady(cdp);
+    await cdp.evaluate(multisiteChoose("language", "en"));
+    await waitReady(cdp);
+    const canadaEnglish = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.languageSwitchStaysInsideTheSite", canadaEnglish.path === "/ca/en/about", canadaEnglish.path);
+    check(rows, "multisite.languageSwitchServesThatSiteOwnBody", canadaEnglish.body.includes(MULTISITE_MARK.caEn), canadaEnglish.path);
+    check(rows, "multisite.languageSwitchNeverReachesAnotherSite", !canadaEnglish.body.includes(MULTISITE_MARK.frFr));
+
+    // Layout is the visitor's own presentation choice: it is NOT part of the page identity, so it
+    // must survive BOTH a site switch and a language switch.
+    await cdp.evaluate(multisiteChoose("layout", "menu-bar"));
+    await waitReady(cdp);
+    const menuBar = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.layoutChosenAndReflected", menuBar.shellLayout === "menu-bar", menuBar.shellLayout);
+
+    await cdp.evaluate(multisiteChoose("site", "fr"));
+    await waitReady(cdp);
+    const toFrance = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.siteSwitchPreservesTheRoute", toFrance.path === "/fr/fr/about", toFrance.path);
+    check(rows, "multisite.siteSwitchServesTheTargetSiteBody", toFrance.body.includes(MULTISITE_MARK.frFr), toFrance.path);
+    check(rows, "multisite.layoutSurvivesSiteSwitch", toFrance.shellLayout === "menu-bar", toFrance.shellLayout);
+    check(rows, "multisite.chromeFollowsTheTargetSite", toFrance.navLabels.includes("À propos FR") && !toFrance.navLabels.includes("À propos CA"), `[${toFrance.navLabels}]`);
+
+    await cdp.evaluate(multisiteChoose("language", "fr"));
+    await waitReady(cdp);
+    await cdp.evaluate(multisiteChoose("site", "ca"));
+    await waitReady(cdp);
+    await cdp.evaluate(multisiteChoose("language", "en"));
+    await waitReady(cdp);
+    const layoutAfterLanguage = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.layoutSurvivesLanguageSwitch", layoutAfterLanguage.shellLayout === "menu-bar", layoutAfterLanguage.shellLayout);
+    check(rows, "multisite.oneVisibleNavigationStructureAfterSwitching", layoutAfterLanguage.visibleLinks === menuBar.visibleLinks, `${menuBar.visibleLinks} -> ${layoutAfterLanguage.visibleLinks}`);
+
+    // The keyboard is never stranded: the control the visitor just used is still operable.
+    const refocus = await cdp.evaluate(`(() => {
+      const element = document.querySelector('${MULTISITE_SELECT("site")}');
+      if (!element || element.disabled) return false;
+      element.focus();
+      return document.activeElement === element;
+    })()`);
+    check(rows, "multisite.focusRemainsUsableAfterSwitching", refocus === true);
+
+    // ── A ROUTE THE TARGET SITE DOES NOT HAVE falls back to ITS home ─────────
+    await cdp.navigate(`${BASE_URL}/ca/fr/zz-ca-only`);
+    await waitReady(cdp);
+    const canadaOnly = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.canadaOnlyPageIsServedInCanada", canadaOnly.body.includes("ZZ-CANADA-ONLY-PAGE"), canadaOnly.path);
+    await cdp.evaluate(multisiteChoose("site", "fr"));
+    await waitReady(cdp);
+    const fellBack = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.siteSwitchFallsBackToTheTargetHome", fellBack.path === "/fr/fr", fellBack.path);
+    check(rows, "multisite.fallbackLandsOnARealPage", fellBack.body.includes("À propos FR") || fellBack.body.length > 0, fellBack.path);
+
+    // ── LOCATION SEMANTICS STAY INSIDE THE ACTIVE SITE ──────────────────────
+    await cdp.navigate(`${BASE_URL}/ca/fr/toronto`);
+    await waitReady(cdp);
+    const inToronto = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.locationSelectorReflectsTheActiveLocation", !!inToronto.location && inToronto.location.value === "toronto", inToronto.location && inToronto.location.value);
+    await cdp.evaluate(multisiteChoose("site", "fr"));
+    await waitReady(cdp);
+    const afterLocationSwitch = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.locationNeverLeaksAcrossSites", afterLocationSwitch.path === "/fr/fr" && (!afterLocationSwitch.location || afterLocationSwitch.location.visible === false), afterLocationSwitch.path);
+
+    // ── PRESENTATION HEALTH AT BOTH BANDS ───────────────────────────────────
+    await cdp.navigate(`${BASE_URL}/ca/fr/about`);
+    await waitReady(cdp);
+    const desktop = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.noHorizontalOverflowDesktop", desktop.horizontalOverflow === false);
+    check(rows, "multisite.onePrimaryNavigationIsExposed", desktop.visibleLinks === menuBar.visibleLinks, `${desktop.visibleLinks}`);
+
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await cdp.navigate(`${BASE_URL}/ca/fr/about`);
+    await waitReady(cdp);
+    const mobile = await cdp.evaluate(MULTISITE_PROBE);
+    check(rows, "multisite.mobile.noHorizontalOverflow", mobile.horizontalOverflow === false);
+    check(rows, "multisite.mobile.servesTheSameSiteBody", mobile.body.includes(MULTISITE_MARK.caFr), mobile.path);
+    check(rows, "multisite.mobile.chromeIsPresent", mobile.mobileNavPresent === true);
+
+  } catch (error) {
+    check(rows, "multisite.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
+    if (cdp) await cdp.close();
+    stopServer(server);
+    for (const file of written) await rm(file, { force: true });
+    // Remove the fixture site trees ONLY while they are empty — never a recursive delete, so a
+    // developer's own pages can never be caught by a browser run.
+    for (const site of MULTISITE_SITES) {
+      for (const mode of ["markdown", "json"]) {
+        for (const locale of ["fr", "en"]) {
+          for (const directory of [join(ROOT, "content", "pages", mode, site, locale, "zz-ca-only")]) {
+            try {
+              await rmdir(directory);
+            } catch {
+              /* not empty (or already gone): leave it exactly as it is */
+            }
+          }
+          try {
+            await rmdir(join(ROOT, "content", "pages", mode, site, locale));
+          } catch {
+            /* not empty (or already gone): leave it exactly as it is */
+          }
+        }
+        try {
+          await rmdir(join(ROOT, "content", "pages", mode, site));
+        } catch {
+          /* not empty (or already gone): leave it exactly as it is */
+        }
+      }
+    }
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
+/**
+ * MULTISITE / MULTILINGUAL, IN A REAL BROWSER (FOUNDATION-S1).
+ *
+ * The S1 model's user-visible consequences, proven once, on ONE temporary deployment:
+ * two independent country sites (`ca`, `fr`) that genuinely differ (bodies, chrome, locales),
+ * driven through the four independent visitor dimensions — Site, Language, Location and Layout.
+ *
+ * Everything here is a run fixture: the configuration and the pages are written in this
+ * scenario and restored byte-for-byte/removed in `finally`, so the shipped template keeps
+ * shipping no pages and no multi-site configuration.
+ */
+const MULTISITE_SITES = ["ca", "fr"];
+const MULTISITE_MARK = {
+  caFr: "ZZ-CANADA-FRENCH-BODY",
+  caEn: "ZZ-CANADA-ENGLISH-BODY",
+  frFr: "ZZ-FRANCE-FRENCH-BODY",
+};
+const MULTISITE_PAGES = [
+  ["ca", "fr", "about", MULTISITE_MARK.caFr, "À propos (Canada)"],
+  ["ca", "en", "about", MULTISITE_MARK.caEn, "About (Canada)"],
+  ["fr", "fr", "about", MULTISITE_MARK.frFr, "À propos (France)"],
+  ["ca", "fr", "zz-ca-only", "ZZ-CANADA-ONLY-PAGE", "Page du Canada"],
+];
+
+/** The pathname of the current location, as the browser reports it. */
+const MULTISITE_PATH = "location.pathname";
+const MULTISITE_SELECT = (name) => `select[data-selector="${name}"]`;
+
+/** A probe of the four visitor dimensions as they are actually exposed. */
+const MULTISITE_PROBE = `(() => {
+  const control = (name) => document.querySelector('select[data-selector="' + name + '"]');
+  const info = (name) => {
+    const element = control(name);
+    if (!element) return null;
+    const rect = element.getBoundingClientRect();
+    return {
+      value: element.value,
+      name: element.getAttribute('aria-label') || '',
+      options: [...element.options].map((option) => option.value),
+      labels: [...element.options].map((option) => option.textContent.trim()),
+      visible: rect.width > 0 && rect.height > 0,
+    };
+  };
+  const navLinks = [...document.querySelectorAll('a')].filter((a) => {
+    if (a.closest('[inert]')) return false;
+    const rect = a.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  });
+  return {
+    path: location.pathname,
+    body: (document.body.textContent || '').replace(/\\s+/g, ' '),
+    site: info('site'),
+    language: info('language'),
+    location: info('location'),
+    layout: info('layout'),
+    shellLayout: document.documentElement.getAttribute('data-ui-shell-layout'),
+    navLabels: navLinks.map((a) => a.textContent.trim()),
+    visibleLinks: navLinks.length,
+    horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+    activeElement: document.activeElement ? document.activeElement.tagName : null,
+    activeIsSelector: !!document.activeElement && document.activeElement.matches('select[data-selector]'),
+    mobileNavPresent: !!document.querySelector('nav[aria-label]'),
+  };
+})()`;
+
+/** Choose an option on one of the shared selector controls, as the visitor would. */
+const multisiteChoose = (name, value) => `(() => {
+  const element = document.querySelector('select[data-selector="${name}"]');
+  if (!element) return false;
+  element.value = ${JSON.stringify(value)};
+  element.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+})()`;
+
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
   try {
@@ -3716,6 +3993,13 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
     const layoutFails = layoutRows.filter((r) => !r.ok).length;
     console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
+    // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
+    // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
+    // deployment (own server + fixtures, configuration and content all restored).
+    const multisiteRows = await runMultisiteScenario(chrome);
+    allRows = allRows.concat(multisiteRows.map((r) => ({ presentation: "multisite", ...r })));
+    const multisiteFails = multisiteRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] multisite: ${multisiteRows.length - multisiteFails}/${multisiteRows.length} checks passed${multisiteFails ? ` FAIL=${multisiteFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

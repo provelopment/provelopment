@@ -170,9 +170,9 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   if (request === null) return {};
 
   const { site, locale: localeTag, localePath: locale, routePath } = request;
-  // S1E3 — the generated OG image is served by the SAME route segment as the page, so its URL is
-  // built by the site path helper (`/<site>/<locale>/opengraph-image`) instead of a locale-only
-  // concatenation that would 404.
+  // S1E3 — the generated OG image is served at the SITE + LOCALE segments this page URL carries,
+  // so its URL is built by the site path helper (`/<site>/<locale>/opengraph-image`) instead of a
+  // locale-only concatenation that would 404.
   const ogImage = resolveOgImageUrl(
     siteConfig.assets?.ogImage,
     siteConfig.url,

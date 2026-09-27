@@ -124,10 +124,10 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       expect(source, file).not.toContain("ContentCollection");
     }
 
-    // The human-facing area holds ONE page tree and the assets beside it — no
-    // historical collection directories, empty or otherwise.
+    // The human-facing area holds ONE page tree, the artwork beside it, the map README and the
+    // country-code reference — no historical collection directories, empty or otherwise.
     expect(readdirSync(path.join(projectRoot, "content")).filter((entry) => entry !== "assets").sort()).toEqual(
-      ["README.md", "pages"],
+      ["COUNTRY-CODES.md", "README.md", "pages"],
     );
   });
 
@@ -169,7 +169,6 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       "global-error.tsx",
       "layout.tsx",
       "not-found.tsx",
-      "opengraph-image.tsx",
       "page.tsx",
     ]);
     // …and no nested route directory survives: a page URL is `/<site>/<locale>/<route>`, so there
@@ -179,6 +178,13 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       .map((entry) => entry.name)
       .sort();
     expect(directories).toEqual([]);
+
+    // The generated social image is the ONE metadata route a page URL carries, and it CANNOT live
+    // under the catch-all: Next.js requires a catch-all segment to be the last segment that
+    // modifies the path, so a static metadata segment below `[...segments]` refuses to build. It
+    // therefore sits in the SAME two dynamic segments a page URL carries (`/<site>/<locale>`).
+    expect(existsSync(path.join(srcDirectory, "app/[...segments]/opengraph-image.tsx"))).toBe(false);
+    expect(existsSync(path.join(srcDirectory, "app/[site]/[locale]/opengraph-image.tsx"))).toBe(true);
   });
 
   it("gives the sitemap the same inventory the routes use", () => {
