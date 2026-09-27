@@ -118,22 +118,47 @@ export function negotiateLocale(options: NegotiateLocaleOptions): Locale {
 
 export interface LanguageAlternatesOptions {
   readonly baseUrl: string;
-  readonly locales: readonly Locale[];
-  /** When provided, emits an `x-default` entry for this locale. */
+  /**
+   * The alternate locales. A plain string is a locale PATH KEY used for BOTH the URL segment and
+   * the advertised tag; an entry may instead carry a canonical tag, so a `fr-CA` hreflang can
+   * point at the lowercase `/ca/fr` URL (S1E2 — path keys address, tags identify).
+   */
+  readonly locales: readonly (Locale | LanguageAlternateLocale)[];
+  /** When provided, emits an `x-default` entry for this locale PATH KEY. */
   readonly defaultLocale?: Locale | undefined;
   /** Route path such as `/about`; omit for the locale root. */
   readonly path?: string | undefined;
   /**
-   * S1 — the site's public prefix (`""` for the default site). It is the SAME prefix
-   * `@/core/site` puts in front of a site's URLs, so an hreflang alternate can never
-   * point at another site's tree.
+   * S1 — the site's public prefix (`/<site>`), always present in the site-scoped URL model. It is
+   * the SAME prefix `@/core/site` puts in front of a site's URLs, so an hreflang alternate can
+   * never point at another site's tree.
    */
   readonly sitePrefix?: string | undefined;
+}
+
+/** S1E2 — one alternate locale: how its URL is spelled, and how standards identify it. */
+export interface LanguageAlternateLocale {
+  /** The locale PATH KEY: the URL segment (lowercase). */
+  readonly path: string;
+  /** The standards-facing tag (`fr-CA`, `zh-Hant`). Absent → the path key is used as-is. */
+  readonly canonical?: string;
+}
+
+/** The path key and the advertised tag of one alternate entry. */
+export function languageAlternate(entry: Locale | LanguageAlternateLocale): {
+  readonly path: string;
+  readonly tag: string;
+} {
+  if (typeof entry === "string") return { path: entry, tag: entry };
+  return { path: entry.path, tag: entry.canonical ?? entry.path };
 }
 
 /**
  * Builds an hreflang alternates map (`alternates.languages` metadata) covering every
  * locale of ONE site plus an optional `x-default`.
+ *
+ * S1E2 — the KEY is the canonical tag and the URL is the locale PATH KEY: `/ca/fr/about` is
+ * advertised as `fr-CA`. The two spellings are the same locale, so no URL changes.
  */
 export function buildLanguageAlternates(
   options: LanguageAlternatesOptions,
@@ -142,8 +167,9 @@ export function buildLanguageAlternates(
   const normalizedPath = path === "/" ? "" : path;
 
   const alternates: Record<string, string> = {};
-  for (const locale of locales) {
-    alternates[locale] = `${baseUrl}${sitePrefix}/${locale}${normalizedPath}`;
+  for (const entry of locales) {
+    const { path: localePath, tag } = languageAlternate(entry);
+    alternates[tag] = `${baseUrl}${sitePrefix}/${localePath}${normalizedPath}`;
   }
 
   if (defaultLocale) {

@@ -7,7 +7,7 @@ import { assertValidAddressPresentation } from "@/core/business";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import { assertRegionsValid } from "@/core/region";
 import { resolveSites } from "@/core/site";
-import type { SiteConfig } from "./site-config";
+import type { SiteConfig, SitePageOverrides } from "./site-config";
 
 /** The validated shape of `site.config.json`. */
 export type SiteConfigFile = z.infer<typeof siteConfigFileSchema>;
@@ -49,6 +49,22 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
 
   const pageBindings = toPageBindings(json.business?.pages, defaultSite.code);
 
+  // S1E2 — the page-facing concerns a site OVERRIDES (navigation, footer navigation, legal, the
+  // Connect inventory). An override travels ON its own site's entry, so it can never name a site
+  // that does not exist, and a leaf that is absent stays shared. Keyed by site CODE.
+  const sitePageOverrides: Record<string, SitePageOverrides> = {};
+  for (const entry of json.sites ?? []) {
+    const overrides: SitePageOverrides = {
+      ...(entry.navigation === undefined ? {} : { navigation: entry.navigation }),
+      ...(entry.footerNavigation === undefined
+        ? {}
+        : { footerNavigation: entry.footerNavigation }),
+      ...(entry.legal === undefined ? {} : { legal: entry.legal }),
+      ...(entry.connect === undefined ? {} : { connect: entry.connect }),
+    };
+    if (Object.keys(overrides).length > 0) sitePageOverrides[entry.code] = overrides;
+  }
+
   // Phase K — cross-reference validation (page→region, duplicate bindings,
   // locale membership, address-presentation invariants). Loud at build time so
   // a regional page never silently falls back to a global/other identity.
@@ -63,6 +79,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     assets: json.site.assets,
     sites,
     defaultSite,
+    sitePageOverrides,
     defaultLocale: json.i18n.defaultLocale,
     locales: json.i18n.locales,
     contact: json.contact,

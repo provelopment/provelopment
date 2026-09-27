@@ -324,16 +324,40 @@ export interface SiteAssetsConfig {
   readonly statusGraphic?: string;
 }
 
+/**
+ * S1E2 — THE PAGE-FACING CONCERNS ONE SITE MAY OVERRIDE.
+ *
+ * Each leaf points INTO a page tree (navigation destinations, footer group, legal documents, the
+ * Connect page's connection inventory), so it is the part of the configuration that legitimately
+ * varies per site — while theme, assets, identity, contact details and feature flags stay shared.
+ * An absent leaf inherits the deployment's shared value; a present leaf REPLACES it wholesale
+ * (there is no per-item merge: an independent page inventory differs as a whole, and a merge would
+ * make removing a shared entry impossible).
+ */
+export interface SitePageOverrides {
+  readonly navigation?: readonly NavigationItem[] | undefined;
+  readonly footerNavigation?: FooterNavGroup | undefined;
+  readonly legal?: readonly LegalConfigEntry[] | undefined;
+  readonly connect?: ConnectConfig | undefined;
+}
+
 export interface SiteConfig {
   /** Absolute origin of the deployed site, used for SEO (sitemap, canonical URLs). */
   readonly url: string;
   /**
-   * S1 — the deployment's RESOLVED sites, in configuration order, and the default site (the
-   * one whose prefix is empty, which answers the deployment's own URLs). A deployment with
-   * no `sites` block resolves to exactly one site: `main`.
+   * S1 — the deployment's RESOLVED sites, in configuration order, and the default site (the one
+   * `/` negotiates to). A deployment with no `sites` block resolves to exactly ONE site: the
+   * Worldwide site `ww`.
    */
   readonly sites: readonly ResolvedSite[];
   readonly defaultSite: ResolvedSite;
+  /**
+   * S1E2 — page-facing overrides per site CODE (`navigation`, `footerNavigation`, `legal`,
+   * `connect`). A code that is absent serves the SHARED values below; a leaf that is absent on a
+   * present entry is inherited. Read through `effectiveSitePageConfig` (see
+   * `@/config/site-page-config`), never by hand.
+   */
+  readonly sitePageOverrides: Readonly<Record<string, SitePageOverrides>>;
   /**
    * The deployment's default locale — the dictionary fallback and the locale the deployment
    * root negotiates to. Each SITE has its own default locale (`sites[].defaultLocale`).

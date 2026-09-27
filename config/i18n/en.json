@@ -33,6 +33,9 @@
   "language": {
     "label": "Language"
   },
+  "site": {
+    "label": "Site"
+  },
   "layout": {
     "label": "Layout",
     "sidebar": "Sidebar",

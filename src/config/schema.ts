@@ -1097,6 +1097,25 @@ const siteConfigEntrySchema = z
       .regex(LOCALE_PATH_KEY_PATTERN, "must be one of this site's locale path keys (lowercase)")
       .optional(),
     fallback: z.boolean().optional(),
+    /**
+     * S1E2 — THIS SITE'S PAGE-FACING OVERRIDES.
+     *
+     * A site owns an independent page tree, so the concerns that point INTO that tree may differ
+     * per site. Each leaf below is validated by the SAME schema as its shared counterpart, and an
+     * absent leaf simply inherits the shared value (`navigation`, `footerNavigation`, `legal`,
+     * `connect` at the top level) — a present leaf REPLACES it wholesale, which is what lets
+     * Canada and France expose genuinely different navigation over one shared configuration file.
+     *
+     * Nothing is duplicated: design/theme (`ui`), assets, contact details, feature flags and the
+     * deployment's identity stay SHARED, and a site entry never restates them.
+     */
+    navigation: z
+      .array(navigationItemSchema)
+      .min(1, "must list at least one item")
+      .optional(),
+    footerNavigation: footerNavigationSchema.optional(),
+    legal: z.array(legalEntrySchema).optional(),
+    connect: connectConfigSchema.optional(),
   })
   .strict();
 

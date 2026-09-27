@@ -23,6 +23,9 @@ function makeDictionary(overrides: Record<string, unknown> = {}) {
     notFound: { title: "n", message: "m", returnHome: "r" },
     error: { title: "e", message: "e", tryAgain: "e", returnHome: "e" },
     language: { label: "l" },
+    // S1E2 — the Site selector's accessible label is a required dictionary section, exactly like
+    // the language/location labels (a fixture that omits it is an incomplete dictionary).
+    site: { label: "s" },
     layout: { label: "l", sidebar: "s", menuBar: "m" },
     location: { label: "lo", unspecified: "u" },
     connect: { heading: "c", demoNotice: "c", demoBadge: "c", methods: { message: "m" } },

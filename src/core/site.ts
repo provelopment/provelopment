@@ -1,7 +1,7 @@
 import { pageRoutePath, pageRoutePathSegments } from "./page-route-path";
 import { isRegionBoundToLocale } from "./regional-pages";
 import type { PageRegionBinding } from "./region";
-import { defaultSiteLabel, normalizeSiteCode, siteCodeIssue, WORLDWIDE_SITE_CODE } from "./site-code";
+import { defaultSiteLabel, isSiteCode, normalizeSiteCode, siteCodeIssue, WORLDWIDE_SITE_CODE } from "./site-code";
 import {
   isLocalePathKey,
   resolveSiteLocale,
@@ -318,38 +318,64 @@ export function siteLocalePairs(
 }
 
 /**
- * The locale a visitor gets in another site: the SAME path key when the target serves it, else the
- * same language in its simple form, else any locale of that language, else the target's default.
- * Deterministic, and never another site's locale.
+ * S1E2 — THE LOCALE A VISITOR GETS WHEN THEY SWITCH TO ANOTHER SITE: one rule, no guessing.
+ *
+ *   1. the SAME locale path key, when the target serves it (`ca/fr` → `fr` site's `fr`);
+ *   2. otherwise a target locale with the same canonical LANGUAGE subtag, but ONLY when there is
+ *      exactly ONE such candidate: a target serving both `fr-ca` and `fr-fr` is a real choice the
+ *      visitor must make, so the switch never invents one of them;
+ *   3. otherwise the target site's default locale.
  */
-export function siteLocaleDestination(target: ResolvedSite, localePath: string): string {
+export function siteSwitchLocalePath(target: ResolvedSite, localePath: string): string {
   if (siteSupportsLocalePath(target, localePath)) return localePath;
+
   const [language] = localePath.split("-");
   if (language !== undefined && language !== "") {
-    const simple = target.locales.find((locale) => locale.path === language);
-    if (simple) return simple.path;
-    const sameLanguage = target.locales.find((locale) => locale.path.split("-")[0] === language);
-    if (sameLanguage) return sameLanguage.path;
+    const sameLanguage = target.locales.filter((locale) => locale.path.split("-")[0] === language);
+    if (sameLanguage.length === 1) return (sameLanguage[0] as ResolvedSiteLocale).path;
   }
+
   return target.defaultLocale;
 }
 
 /**
  * Where a visitor lands after switching to another site: keep the current route when the target
- * serves it (in the equivalent locale), otherwise the target's HOME in that locale — so an
- * independent page inventory never produces a meaningless 404, and never another site's page.
+ * serves it, otherwise the target's HOME in the chosen locale — so an independent page inventory
+ * never produces a meaningless 404, and never another site's page.
  */
 export function siteSwitchDestination(options: {
   readonly target: ResolvedSite;
   readonly localePath: string;
   readonly routePath: string;
-  /** Whether the target serves this route path in some locale (checked by the caller). */
+  /** Whether the target serves this route path (checked by the caller: page tree + regions). */
   readonly routeExists: boolean;
 }): string {
   const { target, localePath, routePath, routeExists } = options;
   if (!routeExists) return siteHomePath(target);
-  const destination = siteLocaleDestination(target, localePath);
+  const destination = siteSwitchLocalePath(target, localePath);
   return sitePath(target, destination, routePath) ?? siteHomePath(target);
+}
+
+/**
+ * S1E2 — A CONFIGURED DESTINATION, RESOLVED INSIDE ONE SITE+LOCALE.
+ *
+ * A SITE-RELATIVE href (`/`, `/about`, `/legal/privacy`) is a route path in the CURRENT site, so
+ * the site+locale prefix is added: `/<site>/<locale>/about`. The site is never guessed from the
+ * route string, which is what keeps two independent page trees with the same route names apart.
+ *
+ * A FULLY SITE-SCOPED href (`/ca/en/about`) already names its site — including another site — and
+ * is left exactly as written: linking across sites is a deliberate authoring choice, never an
+ * accident of a matching route string. External destinations (`https:`, `mailto:`, `tel:`, a bare
+ * fragment) are never rewritten.
+ */
+export function siteHref(site: ResolvedSite, localePath: string, href: string): string {
+  if (!href.startsWith("/")) return href;
+
+  const [first] = href.slice(1).split("/");
+  if (first !== undefined && isSiteCode(first)) return href;
+
+  const prefix = siteLocalePath(site, localePath);
+  return href === "/" ? prefix : `${prefix}${href}`;
 }
 
 /** The `SiteSet` view of a resolved site list and its default site. */

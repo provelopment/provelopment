@@ -157,7 +157,7 @@ export async function generateStaticParams(): Promise<{ segments: string[] }[]> 
 function siteAlternates(site: ResolvedSite, path = ""): Record<string, string> {
   return buildLanguageAlternates({
     baseUrl: siteConfig.url,
-    locales: site.locales.map((entry) => entry.path),
+    locales: site.locales,
     defaultLocale: site.defaultLocale,
     path,
     sitePrefix: sitePrefixPath(site),
@@ -168,9 +168,9 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   const request = requestOf((await params).segments);
   if (request === null) return {};
 
-  const { site, localePath: locale, routePath } = request;
+  const { site, locale: localeTag, localePath: locale, routePath } = request;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
-  // The OG alternate locales are STANDARDS tags (`fr-CA`), unlike the URL segment.
+  // The OG locale/alternate locales are STANDARDS tags (`fr-CA`), unlike the URL segment.
   const alternateLocales = site.locales
     .filter((entry) => entry.path !== locale)
     .map((entry) => entry.canonical);
@@ -184,7 +184,7 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
       openGraph: buildOpenGraphData({
         baseUrl: siteConfig.url,
         siteName: siteConfig.name,
-        locale,
+        locale: localeTag,
         title: siteConfig.name,
         fallbackDescription: siteConfig.description,
         url: canonical,
@@ -210,7 +210,7 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   const alternates = regional
     ? buildRegionalLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: site.locales.map((entry) => entry.path),
+        locales: site.locales,
         defaultLocale: site.defaultLocale,
         entries: bindingsForSite(siteConfig.pageBindings, site.code),
         region: regional.region,
@@ -229,7 +229,7 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
     openGraph: buildOpenGraphData({
       baseUrl: siteConfig.url,
       siteName: siteConfig.name,
-      locale,
+      locale: localeTag,
       title: page.title,
       fallbackDescription: siteConfig.description,
       url: canonical,
@@ -283,7 +283,7 @@ export default async function PageRoute({ params }: PageRouteProps) {
     return authoredHome ? (
       <Section as="article">{authoredContent(authoredHome, locale)}</Section>
     ) : (
-      <StarterHome locale={locale} />
+      <StarterHome locale={locale} siteId={site.code} />
     );
   }
 
@@ -291,8 +291,8 @@ export default async function PageRoute({ params }: PageRouteProps) {
   if (!page) notFound();
 
   // The two URLs with specialised chrome; their SOURCE is an ordinary page.
-  if (routePath === CONNECT_ROUTE_PATH) return <ConnectPageContent locale={locale} page={page} />;
-  if (routePath === CONTACT_ROUTE_PATH) return <ContactPageContent locale={locale} page={page} />;
+  if (routePath === CONNECT_ROUTE_PATH) return <ConnectPageContent locale={locale} page={page} siteId={site.code} />;
+  if (routePath === CONTACT_ROUTE_PATH) return <ContactPageContent locale={locale} page={page} siteId={site.code} />;
 
   const context = resolveRegionalPageContext(
     { regions: siteConfig.regions },

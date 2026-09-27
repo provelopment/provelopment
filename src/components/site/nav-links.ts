@@ -1,6 +1,7 @@
 import { siteConfig } from "@/config";
 import { availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
+import { effectiveSitePageConfig } from "@/config/site-page-config";
 
 import type { ContextNavLink } from "./context-nav-links";
 
@@ -38,10 +39,20 @@ export const navItemKey = (index: number): string => `nav:${index}`;
  * P5-6 position-derived `key` so duplicate destinations keep distinct React
  * identity everywhere the list is rendered (header, aside, disclosure,
  * bottom bar).
+ *
+ * S1E2 — the list belongs to ONE SITE. The inventory comes from that site's EFFECTIVE page-facing
+ * configuration (its own override when configured, else the shared list), the labels from that
+ * site's dictionary, and every INTERNAL destination is resolved inside that site+locale
+ * (`/about` → `/ca/fr/about`), so two sites with the same route names never point at each other.
+ * Omitting `siteId` means the default site — the single-site deployment, unchanged.
  */
-export function getSiteNavLinks(locale: string): readonly ContextNavLink[] {
-  const dictionary = getDictionary(locale);
-  return siteConfig.navigation.map((item, index) => ({
+export function getSiteNavLinks(locale: string, siteId?: string): readonly ContextNavLink[] {
+  const pageConfig = effectiveSitePageConfig(siteConfig, siteId ?? siteConfig.defaultSite.code);
+  const dictionary = getDictionary(locale, pageConfig.site.code);
+  return pageConfig.navigation.map((item, index) => ({
+    // S1E2 — the DESTINATION stays site-relative (`/about`); the site-aware client resolver
+    // (`@/core/regional-pages` → `resolveNavHref`, driven by the URL) puts the current site's
+    // prefix in front of it, so a navigation link can never point into another site's tree.
     href: item.href,
     key: navItemKey(index),
     label: dictionary.navigation.items[item.href] ?? item.label,

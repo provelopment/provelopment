@@ -30,7 +30,7 @@ export default async function OpengraphImage({ params }: OpengraphImageProps) {
     `/${(segments ?? []).join("/")}`,
     siteConfig.defaultSite.defaultLocale,
   );
-  const dictionary = getDictionary(request.locale);
+  const dictionary = getDictionary(request.localePath, request.site.code);
 
   return new ImageResponse(
     (

@@ -23,7 +23,7 @@ export default async function NotFound() {
     `/${(path ?? []).join("/")}`,
     siteConfig.defaultSite.defaultLocale,
   );
-  const dictionary = getDictionary(request.locale);
+  const dictionary = getDictionary(request.localePath, request.site.code);
 
   return (
     <Section className="py-24 text-center">

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 
 import { siteConfig } from "@/config";
-import { isInternalHref, resolveNavHref } from "@/core/regional-pages";
+import { isInternalHref, bindingsForSite, resolveNavHref } from "@/core/regional-pages";
 import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
 import { regionOrder, type NavRegion } from "@/core/ui";
 import { NavItem } from "@/components/ui/nav-item";
@@ -89,9 +89,12 @@ export function ContextNavLinks({
   // S1 — every resolved href belongs to the CURRENT site (its prefix is part of the URL),
   // so a navigation link can never leave the site it was composed for.
   const sitePrefix = sitePrefixPath(parsed.site);
+  // S1E2 — the bindings are THIS site's own: a region bound to another site must not make a nav
+  // item appear (or disappear) here, so the client resolver receives one site's inventory.
+  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.code);
 
   const resolved = links.flatMap((link) => {
-    const href = resolveNavHref(siteConfig.pageBindings, locale, parsed.region, link.href, sitePrefix);
+    const href = resolveNavHref(entries, locale, parsed.region, link.href, sitePrefix);
     if (href === null) return [];
     return [{ ...link, href, external: !isInternalHref(link.href) }];
   });

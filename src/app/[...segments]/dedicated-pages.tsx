@@ -34,12 +34,13 @@ const bookingActionResolver = createBookingActionResolver(siteConfig.bookingFeat
 /** The Connect page: the dictionary heading, the authored body, the configured methods. */
 export function ConnectPageContent({
   locale,
+  siteId,
   page,
 }: {
-  readonly locale: string;
+  readonly locale: string; readonly siteId?: string;
   readonly page: ResolvedPage;
 }) {
-  const dictionary = getDictionary(locale);
+  const dictionary = getDictionary(locale, siteId);
 
   return (
     <Section as="article">
@@ -96,12 +97,13 @@ export function ConnectPageContent({
 /** The Contact page: the dictionary heading, the authored body, the configured form. */
 export function ContactPageContent({
   locale,
+  siteId,
   page,
 }: {
-  readonly locale: string;
+  readonly locale: string; readonly siteId?: string;
   readonly page: ResolvedPage;
 }) {
-  const dictionary = getDictionary(locale);
+  const dictionary = getDictionary(locale, siteId);
   const config = siteConfig.contactFeature;
   const demoMode = config?.provider === "stub";
 
@@ -135,8 +137,8 @@ export function ContactPageContent({
  * The generic starter homepage: configuration + dictionary copy, rendered ONLY when the site
  * authors no home page of its own. Authoring one is optional and changes nothing else.
  */
-export function StarterHome({ locale }: { readonly locale: string }) {
-  const dictionary = getDictionary(locale);
+export function StarterHome({ locale, siteId }: { readonly locale: string; readonly siteId?: string }) {
+  const dictionary = getDictionary(locale, siteId);
 
   return (
     <>

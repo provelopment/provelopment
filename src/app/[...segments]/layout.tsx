@@ -1,5 +1,7 @@
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { createAnalyticsProvider } from "@/adapters/analytics";
+import { createPageAvailability } from "@/adapters/content/page-availability";
+import { siteSwitchOptions } from "@/application/site-switch";
 import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
 import { StatusGraphicProvider } from "@/components/site/status-graphic-context";
 import { StructuredData } from "@/components/site/structured-data";
@@ -50,7 +52,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const localeCodes = siteConfig.locales.map((locale) => locale.code);
 const siteSet = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
 
 // UI-04/UI-05/UI-06: the single resolved UI configuration (UI-02) drives the
@@ -142,7 +143,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       // hreflang link can never point at another site's tree.
       languages: buildLanguageAlternates({
         baseUrl: siteConfig.url,
-        locales: request.site.locales.map((entry) => entry.path),
+        locales: request.site.locales,
         defaultLocale: request.site.defaultLocale,
         sitePrefix: sitePrefixPath(request.site),
       }),
@@ -170,10 +171,31 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   // The chrome works in the locale PATH KEY: it names the content directory (`ca/fr`), the
   // dictionary entry and every URL this layout builds.
   const locale = request.localePath;
-  // The page source this site+locale's navigation/status surfaces belong to.
-  const localeCodesForSite = site.locales.map((entry) => entry.path);
-  const dictionary = getDictionary(locale);
-  const navLinks = getSiteNavLinks(locale);
+  // S1E2 — the STANDARDS-FACING tag for the same locale (`fr-CA` for `/ca/fr`): the document's
+  // `lang` and every hreflang alternate identify the language, while the URL stays lowercase.
+  const localeTag = request.locale;
+  const dictionary = getDictionary(locale, site.code);
+  const navLinks = getSiteNavLinks(locale, site.code);
+
+  // S1E2 — the Site selector's destinations, resolved ONCE per request by the application rule
+  // (same route when the target serves it, else the target's home). A deployment with a single
+  // site renders no selector and pays nothing.
+  const siteSwitch =
+    siteConfig.sites.length > 1
+      ? await siteSwitchOptions(
+          {
+            site,
+            localePath: request.localePath,
+            // The FULL route path: a region's namespace stays part of the page's path.
+            routePath: [request.region, request.routePath].filter(Boolean).join("/"),
+          },
+          {
+            sites: siteConfig.sites,
+            bindings: siteConfig.pageBindings,
+            availability: createPageAvailability({ sites: siteConfig.sites }),
+          },
+        )
+      : undefined;
   // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
   // is not composed (the responsive disclosure/`Show navigation` control remains
   // the way navigation is reached). Distinct from `compact` (rail present,
@@ -303,7 +325,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
 
   return (
     <html
-      lang={locale}
+      lang={localeTag}
       className={`${brandSans.variable} ${geistMono.variable} h-full antialiased`}
       style={htmlStyle}
       {...htmlPresentationAttrs}
@@ -319,7 +341,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         <PageBanner banners={bannerMap} regionIds={regionIds} />
         <ShellEngine
           resolved={resolvedUi}
-          header={<SiteHeader locale={locale} resolved={resolvedUi} />}
+          header={<SiteHeader locale={locale} resolved={resolvedUi} siteId={site.code} siteSwitch={siteSwitch} />}
           main={
             <ErrorMessagesProvider messages={dictionary.error}>
               <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>

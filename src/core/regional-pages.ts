@@ -25,6 +25,7 @@
  */
 
 import type { OperationalRegion, PageRegionBinding } from "./region";
+import { languageAlternate, type LanguageAlternateLocale } from "./locale";
 
 /** Whether the exact (locale, region, slug) combination is configured. */
 export function hasPageEntry(
@@ -334,14 +335,19 @@ export function parseRegionalPath(
 
 export interface RegionalLanguageAlternatesOptions {
   readonly baseUrl: string;
-  readonly locales: readonly string[];
+  /**
+   * S1E2 — the alternate locales of THIS site: a plain locale PATH KEY, or an entry carrying its
+   * canonical tag (`{ path: "fr", canonical: "fr-CA" }`), so the advertised `hreflang` is the
+   * standards-facing tag while the URL stays lowercase.
+   */
+  readonly locales: readonly (string | LanguageAlternateLocale)[];
   readonly defaultLocale?: string;
   readonly entries: readonly PageRegionBinding[];
   /** The current page's region (same region is preserved across locales). */
   readonly region: string;
   /** Current page slug; `null` for a regional landing. */
   readonly slug: string | null;
-  /** S1 — the current site's public prefix (`""` for the default site). */
+  /** S1 — the current site's public prefix (`/<site>` in the site-scoped URL model). */
   readonly sitePrefix?: string;
 }
 
@@ -357,10 +363,11 @@ export function buildRegionalLanguageAlternates(
   const { baseUrl, locales, defaultLocale, entries, region, slug, sitePrefix = "" } = options;
   const alternates: Record<string, string> = {};
 
-  for (const locale of locales) {
+  for (const entry of locales) {
+    const { path: locale, tag } = languageAlternate(entry);
     const destination = resolveLocaleDestination(entries, locale, region, slug);
     if (destination) {
-      alternates[locale] =
+      alternates[tag] =
         `${baseUrl}${regionalPath(locale, destination.region, destination.slug, sitePrefix)}`;
     }
   }
