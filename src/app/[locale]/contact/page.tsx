@@ -1,21 +1,28 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { ContactForm } from "@/components/site/contact-form";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
-import { MarkdownContent } from "@/components/site/markdown-content";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";
 import { buildLanguageAlternates } from "@/core/locale";
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
-const pageContentRepository = createFileSystemPageContentRepository({
-  defaultLocale: siteConfig.defaultLocale,
-});
-
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/**
+ * THE PAGE-SOURCE COMPOSITION for this route's page. `/contact` owns its URL, but its
+ * SOURCE is authored like every other page: safe Markdown under
+ * `config/pages-markdown/<locale>/contact.md`, or declarative JSON under
+ * `config/pages-json/<locale>/contact.json`.
+ */
+const pages = createPageSources({
+  defaultLocale: siteConfig.defaultLocale,
+  locales: localeCodes,
+});
 
 interface ContactPageProps {
   readonly params: Promise<{ readonly locale: string }>;
@@ -32,9 +39,9 @@ function languageAlternates(): Record<string, string> {
 
 export async function generateMetadata({ params }: ContactPageProps): Promise<Metadata> {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("contact", locale);
+  const page = await pages.resolve("contact", locale);
 
-  const title = content?.title ?? "Contact";
+  const title = page?.title ?? "Contact";
   const canonical = `${siteConfig.url}/${locale}/contact`;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
@@ -64,17 +71,15 @@ export async function generateMetadata({ params }: ContactPageProps): Promise<Me
 }
 
 /**
- * `/contact` (Phase B). Content-driven like other pages (the intro body comes
- * from `content/pages/<locale>/contact.md`, so the sitemap picks the route up
- * automatically); the form is config-driven via `features.contact`.
+ * `/contact` (Phase B). Content-driven like other pages — the intro body is an
+ * ordinary page source (`config/pages-markdown/<locale>/contact.md` or its JSON
+ * counterpart, so the sitemap picks the route up automatically) — and the form is
+ * config-driven via `features.contact`.
  */
 export default async function ContactPage({ params }: ContactPageProps) {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("contact", locale);
-
-  if (!content) {
-    notFound();
-  }
+  const page = await pages.resolve("contact", locale);
+  if (!page) notFound();
 
   const dictionary = getDictionary(locale);
   const config = siteConfig.contactFeature;
@@ -93,7 +98,7 @@ export default async function ContactPage({ params }: ContactPageProps) {
       ) : null}
 
       <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
+        <SafeMarkdownContent markdown={page.body} />
       </div>
       <div className="mt-8">
         <ContactForm

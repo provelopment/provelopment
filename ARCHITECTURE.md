@@ -123,11 +123,16 @@ Content should remain separate from application implementation.
 
 #### Content system
 
-Legacy page content lives as Markdown files under
-`content/pages/<locale>/<slug>.md` (one directory per locale); the first-class
-authoring modes described below are resolved BEFORE it. Offerings and
-legal documents use the same repository under `content/offerings/` and
-`content/legal/` respectively.
+**Pages** are authored in exactly two ways and live outside `content/`:
+`config/pages-markdown/<locale>/<slug>.md` (safe Markdown) and
+`config/pages-json/<locale>/<slug>.json` (declarative JSON) — see
+[Page authoring](#page-authoring--two-first-class-modes) below.
+
+`content/` hosts the platform's **non-page content collections**
+(`content/<collection>/<locale>/<slug>.md`: offerings, legal, testimonials,
+portfolio, posts) through one repository. There is no `pages` collection: no file
+under `content/pages` is a page source, and the adapter cannot even name such a
+collection.
 
 Each file begins with minimal frontmatter containing a `title`:
 
@@ -166,7 +171,7 @@ the same content/config seams the sitemap uses) with `dynamicParams = false`,
 so every canonical localized detail page is prerendered at build time and any
 other slug returns a 404 — no on-demand server rendering, no ISR.
 
-#### Page authoring — two first-class modes, and legacy compatibility
+#### Page authoring — two first-class modes, and no third
 
 A page is authored in exactly ONE of two first-class modes:
 
@@ -183,10 +188,10 @@ closed and refuses executable/unknown schemes); the generated HTML is then
 re-parsed against the allowlist in `src/core/markdown-policy.ts` by
 `sanitize-html`, so a mistake in the renderer cannot produce active markup either.
 
-`content/pages/**` is **legacy page-content compatibility**, not a third mode:
-existing adopters keep it, its trusted-raw-HTML behaviour is preserved exactly,
-and new sites are expected to use the two `config/pages-*` roots. It sits last in
-every locale.
+There is no third page-source kind. `content/**` hosts the platform's other content
+collections and is never consulted for a page: a file left under `content/pages`
+can neither answer nor shadow a page (the repository cannot even name a `pages`
+collection, so it is unreachable rather than merely unused).
 
 **Resolution order** (`src/core/page-source.ts` → `PAGE_RESOLUTION_ORDER`), applied
 by the ONE resolver (`src/application/page-source-resolution.ts`) through the ONE
@@ -194,8 +199,8 @@ composition the routes and the sitemap consume
 (`src/adapters/content/page-sources.ts`):
 
 ```text
-requested-locale JSON  →  requested-locale Markdown  →  requested-locale legacy content
-default-locale JSON    →  default-locale Markdown    →  default-locale legacy content
+requested-locale JSON    →  requested-locale Markdown
+default-locale JSON      →  default-locale Markdown     (only when fallback applies)
 ```
 
 The default-locale steps apply only when fallback is permitted. **JSON wins over
@@ -212,10 +217,16 @@ Rules that hold for both roots:
   publication** — and an unconfigured locale publishes nothing, because both the
   route generation and the sitemap iterate the site's configured locales;
 - the slug rule has ONE authority (`src/core/page-content.ts`), consumed by the
-  page-source contract, both authoring adapters, the legacy repository and the
+  page-source contract, both authoring adapters, the collection repository and the
   configuration schema;
 - discovery (`src/adapters/content/authoring-source-discovery.ts`) reports what
-  the tree holds and nothing else: it decides no precedence and parses nothing.
+  the tree holds and nothing else: it decides no precedence and parses nothing;
+- every page route — the locale root, `[item]`, `[item]/[slug]` and the dedicated
+  `/about`, `/resources`, `/connect`, `/contact` routes — resolves through this ONE
+  composition and renders through the safe page renderer
+  (`SafeMarkdownContent`). The trusted collection renderer (`MarkdownContent`) is
+  unreachable from a page route, so trusted raw HTML is not a page-authoring
+  capability.
 
 **Dependency note (why `sanitize-html`).** The allowlist guarantee cannot be made
 honestly with a hand-written regular expression; a real HTML parser applying an
@@ -342,7 +353,9 @@ back to the default locale's dictionary.
 
 ### Localized content
 
-Markdown content is organized per locale under `content/pages/<locale>/`.
+Pages are organized per locale under `config/pages-markdown/<locale>/` (and
+`config/pages-json/<locale>/`); the non-page collections are organized per locale
+under `content/<collection>/<locale>/`.
 The content port accepts a locale and falls back to the default locale when
 a translation has not been authored yet. Missing translations must not
 produce broken routes.

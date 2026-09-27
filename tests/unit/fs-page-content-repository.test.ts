@@ -11,6 +11,10 @@ import { siteConfig } from "@/config";
 
 const defaultLocale = siteConfig.defaultLocale;
 
+/**
+ * `parsePageFile` remains the parser of the collections that share the basic
+ * title + body contract (currently `legal`).
+ */
 describe("parsePageFile", () => {
   it("parses the title and body from frontmatter", () => {
     const page = parsePageFile(
@@ -61,11 +65,21 @@ describe("parsePageFile", () => {
   });
 });
 
+/**
+ * The content-collection repository (`content/<collection>/<locale>/<slug>.md`).
+ *
+ * This is NOT the page mechanism: pages are authored under `config/pages-*` and
+ * resolved by the page-source composition. The repository serves the platform's other
+ * collections — here `legal`, which shares the basic title + body contract — and its
+ * `collection` is always named explicitly, so no default can point at a directory that
+ * is not a collection.
+ */
 describe("createFileSystemPageContentRepository", () => {
   const repository = createFileSystemPageContentRepository({
     defaultLocale,
+    collection: "legal",
   });
-  const fixtureDir = path.join(process.cwd(), "content", "pages", defaultLocale);
+  const fixtureDir = path.join(process.cwd(), "content", "legal", defaultLocale);
   const fixtureSlug = "fs1-fixture-page";
   const fixturePath = path.join(fixtureDir, `${fixtureSlug}.md`);
 

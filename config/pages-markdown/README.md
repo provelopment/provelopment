@@ -1,31 +1,39 @@
-# Pages — Markdown (the simple, safe authoring mode)
+# Pages — Markdown (the simple, safe way to add a page)
 
-This directory holds **ordinary Markdown pages** for this site. It is the
-accessible authoring mode: if you can write a text file, you can add a page.
+This directory holds this site's **pages**. It is the everyday authoring mode: if
+you can write a text file, you can add a page. Nothing here is code, there are no
+commands to run, and no special syntax to learn.
 
-Nothing here is code. There are no commands to run, no components to know about
-and no special syntax to learn.
+**Markdown** is plain text with a few simple conventions: `# Heading` for a
+heading, blank lines between paragraphs, `**bold**`, `*italic*`, `- item` for a
+list, `[text](/link)` for a link. If you can write an email, you can write
+Markdown.
 
-## Where a page goes
+## Where a page file goes
 
 ```text
 config/pages-markdown/<locale>/<slug>.md
 ```
 
-For example:
+Two things decide the two parts of that path:
+
+- **`<locale>`** (the folder) — one of the site's languages, for example `en`.
+  Use the same codes the site is configured with.
+- **`<slug>`** (the filename) — becomes the end of the page's web address. Use
+  lowercase words joined by hyphens: `opening-hours.md` is the page
+  `/en/opening-hours`, and `about-us.md` is `/en/about-us`.
+
+So, to add a page in English:
 
 ```text
-config/pages-markdown/en/opening-hours.md   →   /en/opening-hours
+config/pages-markdown/en/opening-hours.md
 ```
 
-- `<locale>` is one of the site's configured languages (`en`, `de`, …) — the same
-  codes used in `site.config.json` and `config/i18n/`.
-- `<slug>` becomes the URL segment, so use lowercase words joined by hyphens
-  (`opening-hours`, not `Opening Hours`).
+…which the site serves at `/en/opening-hours`.
 
-## A page can be nothing but prose
+## The smallest complete page
 
-Frontmatter is **optional**. This file is a complete page:
+A file with nothing but a heading and a sentence is a complete page:
 
 ```markdown
 # Opening hours
@@ -33,9 +41,15 @@ Frontmatter is **optional**. This file is a complete page:
 We are open Monday to Friday, 9am to 5pm.
 ```
 
-If you write no heading and no frontmatter, the title is derived from the
-filename. If you prefer to be explicit, supply a title (and an optional summary
-used in search results and link previews):
+You do not need any other setup, and you do not need to tell the site about the
+file: it becomes a page (and appears in the sitemap) as soon as the file exists.
+If you write no heading, the page is named after the file.
+
+## Optional extras
+
+If you want to be explicit about the page's name, or give it a short summary for
+search results and link previews, start the file with a small block between two
+`---` lines:
 
 ```markdown
 ---
@@ -46,55 +60,54 @@ description: When we are open, including public holidays.
 We are open Monday to Friday, 9am to 5pm.
 ```
 
-`title` and `description` are the only supported keys — and neither is required.
-An unexpected key is reported as an error when the site is built, so a typo is
-never silently ignored.
+`title` and `description` are the only two settings, and **neither is required**.
+A misspelled setting is reported as an error when the site is built, so a typo can
+never be silently ignored.
 
-Ordinary Markdown is all there is: headings, paragraphs, lists, quotes, links,
-images, tables, fenced code blocks. There are no shortcodes, no embedded code and
-no secret commands.
+## What you can write
 
-## It is safe by design
+Ordinary Markdown, all of it: headings, paragraphs, **bold**, *italic*, lists,
+numbered lists, quotes, links, images, tables, horizontal rules and fenced code
+blocks (write the language after the opening ``` for a code block, e.g. ```js).
 
-Markdown written here cannot introduce active behaviour in the browser:
+There are deliberately **no** secret commands, shortcodes, embedded code or
+components to remember. If a page needs more than this, the advanced mode exists —
+but you almost never need it.
 
-- any raw HTML you type is shown as **text**, never as markup — `<script>` or
-  `<div onclick="...">` appears as the words you typed;
-- a link to an unsafe destination (anything other than a same-site path, a
-  fragment, a relative path, `https:`, `http:`, `mailto:` or `tel:`) keeps its
-  words and loses its link;
-- the rendered page is checked against a fixed list of allowed elements and
-  attributes before it is served.
+## Why this mode is safe
 
-That is why this is the recommended mode for day-to-day page authoring.
+Markdown written here cannot make the site do anything unexpected in a visitor's
+browser:
+
+- **anything that looks like a web page instruction is shown as text.** If you type
+  `<script>` or `<div onclick="...">`, a visitor sees those words — they do not
+  become part of the page;
+- **an unsafe link is not a link.** Links to same-site paths (`/contact`),
+  fragments (`#section`), relative paths (`./photo.jpg`) and `https:`, `http:`,
+  `mailto:` or `tel:` addresses work. Anything else keeps its words but loses its
+  destination;
+- **what a page may contain is a fixed list**, so a stray character cannot smuggle
+  in a form, a frame or an embedded document.
 
 ## Two things that are deliberate, not mistakes
 
-- **This README is never a page.** Only files *inside* a language directory are
-  pages. The same is true of any other file that is not a well-formed slug, such
-  as `.gitkeep`.
-- **An empty language directory publishes nothing.** You may create
-  `config/pages-markdown/de/` before you have anything to put in it. A directory
-  is a place to prepare content; it is not a published page, a route or a sitemap
-  entry. What the public site serves is decided by the site's configured
-  languages in `site.config.json`.
+- **This README is never a page.** Only files *inside* a language folder are
+  pages; the same is true of any differently-named file, such as `.gitkeep`.
+- **An empty language folder publishes nothing.** You may create
+  `config/pages-markdown/de/` before you have anything to put in it. A folder is a
+  place to prepare content; by itself it publishes no page, no address and no
+  sitemap entry. What the public site serves is decided by the site's configured
+  languages.
 
-## What happens to a file you add
+## The home page, and the menu
 
-A page file becomes a real page the next time the site is built: it is served at
-`/<locale>/<slug>`, it is listed in the sitemap, and it appears in the
-site's own metadata (`title`, `description`) if you supplied them. Adding a page
-does not change the navigation menu — put a link to it wherever you want it, or
-add it to `navigation` in `site.config.json` if it belongs in the menu.
+- `home.md` is special: it is served at the site's front page for that language
+  rather than at `/en/home`.
+- Adding a page does **not** change the menu. Put links to the page wherever you
+  want them, or add an entry to `navigation` in `site.config.json`.
 
-The reserved filename `home.md` is special: it is served at the locale root
-(`/<locale>`) instead of at `/<locale>/home`.
+## The other authoring mode
 
-## Where the advanced mode lives
-
-If a page needs more than Markdown can express, the advanced declarative mode
-lives in `config/pages-json/` — see its README for its current status.
-
-If you already have pages under `content/pages/`, they keep working exactly as
-before: that is the **legacy compatibility** mechanism, and this directory does
-not replace or modify them.
+For the rare page that needs more than Markdown can express, there is an advanced
+mode using structured data — see `../pages-json/README.md`. It is for developers,
+it is not finished yet, and you do not need it to write ordinary pages.

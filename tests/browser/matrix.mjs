@@ -760,11 +760,12 @@ async function runAdaptiveMobile(rows, cdp) {
 
 /**
  * P1-4 (template scope) — the `/en/contact` route renders only when the adopter
- * supplies `content/pages/contact.md`; the generic template ships no content, so
- * that route is a 404 here. The Section/Button primitives keep their unit-level
- * proof in `tests/unit/ui-primitives.test.ts`, and the shell-composition proof
- * below still runs against the shipped landing page. The on-page form proof for
- * this route lives with the private reference site, which does ship the page.
+ * supplies the page's source (`config/pages-markdown/<locale>/contact.md`, or its
+ * JSON counterpart); the generic template ships no pages, so that route is a 404
+ * here. The Section/Button primitives keep their unit-level proof in
+ * `tests/unit/ui-primitives.test.ts`, and the shell-composition proof below still
+ * runs against the shipped landing page. The on-page form proof for this route
+ * lives with the private reference site, which does ship the page.
  */
 
 /**
@@ -2118,11 +2119,11 @@ async function runConnectivityIconScenario(chrome) {
   );
   const expectedMethods = config.connect.methods.length;
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
-  // FS1 — the generic template ships NO content, so this fixture also supplies the
-  // Connect page's markdown for the duration of the run (removed in `finally`).
-  // The seam under test is the connectivity contract, not whether a fresh clone
-  // has written its own pages yet.
-  const connectContentPath = join(ROOT, "content", "pages", "en", "connect.md");
+  // FS1 — the generic template ships NO pages, so this fixture also supplies the
+  // Connect page's safe Markdown source for the duration of the run (removed in
+  // `finally`). The seam under test is the connectivity contract, not whether a fresh
+  // clone has written its own pages yet.
+  const connectContentPath = join(ROOT, "config", "pages-markdown", "en", "connect.md");
   await mkdir(dirname(connectContentPath), { recursive: true });
   await writeFile(
     connectContentPath,
@@ -2390,6 +2391,12 @@ async function runConnectivityIconScenario(chrome) {
     stopServer(server);
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(connectContentPath, { force: true });
+    // Remove the locale directory ONLY if the fixture left it empty.
+    try {
+      await rmdir(dirname(connectContentPath));
+    } catch {
+      /* not empty (or already gone): leave it exactly as it is */
+    }
   }
   return rows;
 }
@@ -2444,6 +2451,32 @@ const NAV_PROBE_HELPERS = `
  * no content) with ONE in-page fragment target, so a fragment navigation has
  * somewhere below the fold to land. Written for the duration of the run only.
  */
+/**
+ * The tall fixture is authored as SAFE Markdown, so the raw HTML it contains stays
+ * INERT text: an author-written construct can never create an `id` (the Markdown
+ * allowlist has no `id`, by design). The fragment TARGET is therefore planted by the
+ * harness, and the contract under test is the shell's clearance — which applies to ANY
+ * in-page target: the jump must leave the target below the sticky chrome, and the
+ * clearance is removed where the rail persists. Planting also asserts the safe-mode
+ * property itself: the authored anchor must NOT exist as an element while its source
+ * is still visible as text.
+ */
+async function plantAnchorTarget(cdp) {
+  return cdp.evaluate(`(() => {
+    const authored = document.getElementById('zz-nav-anchor');
+    const text = document.body.textContent || '';
+    const main = document.querySelector('main') || document.body;
+    const target = document.createElement('div');
+    target.id = 'zz-nav-anchor';
+    // Mid-document, so the browser has room to scroll it below the sticky chrome.
+    const paragraphs = [...main.querySelectorAll('p')];
+    const after = paragraphs[Math.floor(paragraphs.length / 2)];
+    if (after && after.parentElement) after.parentElement.insertBefore(target, after.nextSibling);
+    else main.appendChild(target);
+    return { authoredInert: authored === null, rawHtmlAsText: text.includes('zz-nav-anchor') };
+  })()`);
+}
+
 function tallPageFixture() {
   const paragraph = (n) =>
     `Paragraph ${n}. The rail stays reachable while this page scrolls, so a visitor never has to travel back to the top of the document to navigate elsewhere.`;
@@ -2478,9 +2511,9 @@ async function runPersistentNavigationScenario(chrome) {
   config.navigation = NAV_FIXTURE;
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
 
-  // FS1 — the generic template ships NO content, so this fixture supplies the tall
-  // page the scroll assertions need (removed in `finally`).
-  const tallPath = join(ROOT, "content", "pages", "en", "zz-nav-tall.md");
+  // FS1 — the generic template ships NO pages, so this fixture supplies the tall
+  // safe Markdown page the scroll assertions need (removed in `finally`).
+  const tallPath = join(ROOT, "config", "pages-markdown", "en", "zz-nav-tall.md");
   await mkdir(dirname(tallPath), { recursive: true });
   await writeFile(tallPath, tallPageFixture(), "utf8");
 
@@ -2648,6 +2681,15 @@ async function runPersistentNavigationScenario(chrome) {
     await cdp.setViewport(VIEWPORTS.tablet.width, VIEWPORTS.tablet.height);
     await cdp.navigate(tallUrl);
     await waitReady(cdp);
+    // The fixture's own raw-HTML anchor is INERT (safe Markdown has no `id`), so the
+    // harness supplies the in-page target and asserts that property at the same time.
+    const planted = await plantAnchorTarget(cdp);
+    check(
+      rows,
+      "persist.authoredAnchor.inert",
+      !!planted.authoredInert && !!planted.rawHtmlAsText,
+      `element=${!planted.authoredInert} asText=${planted.rawHtmlAsText}`,
+    );
     // A fragment navigation on the SAME document fires no load event, so the
     // harness sets the hash exactly as the skip link / an in-page anchor does.
     await cdp.evaluate("location.hash = '#zz-nav-anchor'");
@@ -2710,6 +2752,8 @@ async function runPersistentNavigationScenario(chrome) {
     check(rows, "persist.mobile.noDialogWhileScrolling", mob.dialogs === 0);
 
     // ── MOBILE: a fragment target is not hidden beneath the sticky header ────
+    // (the same harness-supplied target as the rail band; the fixture is safe Markdown)
+    await plantAnchorTarget(cdp);
     await cdp.evaluate("location.hash = '#zz-nav-anchor'");
     await sleep(400);
     const anchor = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
@@ -2835,6 +2879,12 @@ async function runPersistentNavigationScenario(chrome) {
     stopServer(server);
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(tallPath, { force: true });
+    // Remove the locale directory ONLY if the fixture left it empty.
+    try {
+      await rmdir(dirname(tallPath));
+    } catch {
+      /* not empty (or already gone): leave it exactly as it is */
+    }
   }
   return rows;
 }

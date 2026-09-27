@@ -733,34 +733,36 @@ token mechanism — no components need to change. Invalid values (a non-hex
 string, wrong length) fail the build with an actionable message.
 ## 2. Content — Markdown Pages
 
-A page is authored in one of **two first-class modes**, or through the **legacy
-content** mechanism existing sites already use.
+A page is authored in one of **two first-class modes**:
 
 | Where | What it is |
 | --- | --- |
 | `config/pages-markdown/<locale>/<slug>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
-| `config/pages-json/<locale>/<slug>.json` | **Declarative JSON** — the advanced mode, for a page that needs presentation Markdown cannot express. Its vocabulary is not implemented yet: adding a JSON page file currently stops the build with an error naming the file. |
-| `content/pages/<locale>/<slug>.md` | **Legacy content** — supported exactly as before, including trusted raw HTML. It is resolved last, and new pages should use the Markdown mode instead. |
+| `config/pages-json/<locale>/<slug>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
+
+Those are the *only* two page-authoring paths. The `content/**` tree holds the
+platform's **other content collections** (offerings, legal, testimonials, portfolio,
+posts) and is never a page source: a file left under `content/pages` publishes
+nothing and shadows nothing.
 
 Each root's own `README.md` explains its mode in plain language, and is never
 itself a page. A page becomes a route and a sitemap entry as soon as its file
 exists for a configured language — publishing the route needs no configuration
 change; `navigation` in `site.config.json` controls the menu, not existence.
 
-If the same slug exists in more than one place, the order is: JSON, then safe
-Markdown, then legacy content — within the requested language first, and only then
-falling back to the default language. A legacy page always keeps its frontmatter
-`title` and its raw-HTML treatment; a safe Markdown page needs nothing but prose (a
-title comes from frontmatter, then the first `# heading`, then the filename).
+If the same slug exists in both modes, the order is: JSON, then safe Markdown —
+within the requested language first, and only then falling back to the default
+language. A safe Markdown page needs nothing but prose (a title comes from
+frontmatter, then the first `# heading`, then the filename).
 
 ### The home page is OPTIONAL, and may be authored as content (`home.md`)
 
 The locale root (`/{locale}`) renders the generic, configuration-driven starter homepage
 **unless you author it as content**: add `config/pages-markdown/<locale>/home.md` (or
-`config/pages-json/<locale>/home.json`, or the legacy `content/pages/<locale>/home.md`)
+`config/pages-json/<locale>/home.json`)
 and the locale-root route renders THAT, through the same page-source composition as every
-other page — same precedence, same per-locale fallback, and the trust regime of whichever
-kind answered.
+other page — same precedence, same per-locale fallback, and the same safe Markdown
+policy.
 
 ```markdown
 ---
@@ -1744,7 +1746,8 @@ change:
    file* fails the build with an actionable error — it never silently falls
    back to English. (`getDictionary()` falls back to the default locale only
    for locales that are NOT configured.)
-4. Optionally translate pages under `content/pages/<code>/`.
+4. Optionally translate pages: add `config/pages-markdown/<code>/<slug>.md` (or the
+   JSON counterpart) beside the default language's file.
 
 Every locale is statically rendered and included in the sitemap with
 hreflang alternates.
@@ -1845,7 +1848,7 @@ Key rules:
 - **Deterministic modal precedence.** `business.regions` non-empty → regional
   mode (legacy footer NAP + global JSON-LD are suppressed). `business.regions`
   absent → the legacy global model renders exactly as before. The two never mix.
-- **Pages are independent.** Create `content/pages/<locale>/<slug>.md` for each
+- **Pages are independent.** Create `config/pages-markdown/<locale>/<slug>.md` for each
   page (its existence makes the route real), add a `pages` binding to attach a
   region, and add navigation entries for discoverability. Locales may have
   different page sets; one locale may host several regional pages; one region
@@ -2265,7 +2268,8 @@ output), plus Vercel's own product description where noted:
 ### Contact inquiries (`features.contact` + `/contact`)
 
 The `/contact` page and contact form are the inquiry capability. It is
-**content-driven** (`content/pages/<locale>/contact.md` — the sitemap picks the
+**content-driven** (`config/pages-markdown/<locale>/contact.md`, or its JSON
+counterpart — the sitemap picks the
 route up automatically) and **config-driven**:
 
 ```jsonc

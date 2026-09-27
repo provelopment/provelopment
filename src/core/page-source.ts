@@ -16,16 +16,15 @@ import { isWellFormedLocale, type Locale } from "./locale";
  *               `@/core/markdown-policy` + `@/core/safe-url`.
  *   `json`      the advanced mode: validated declarative data under
  *               `config/pages-json/<locale>/<slug>.json`, for an author who needs
- *               presentation the Markdown mode does not offer. The vocabulary
- *               that interprets it is a later increment; this contract declares
- *               the mode, its root and its place in the order.
+ *               presentation the Markdown mode does not offer. It is schema-
+ *               validated and non-executable, and the vocabulary that interprets
+ *               it is a later increment; this contract declares the mode, its root
+ *               and its place in the order.
  *
- * Those are the TWO modes. The historical `content/pages/**` mechanism is
- * **legacy compatibility**, not a third mode: existing adopters keep it, its
- * trusted-raw-HTML behaviour is preserved unchanged, and new sites are expected
- * to use the two `config/pages-*` roots. It appears in the resolution order
- * because a request must still be answerable from it — it does not appear in
- * `PAGE_AUTHORING_MODES`.
+ * Those are the ONLY page-source kinds. There is no third kind and no
+ * compatibility kind: `content/**` still hosts the platform's OTHER content
+ * collections (offerings, legal, portfolio, posts, testimonials), but it is not a
+ * page-authoring path at all — no file under it can name, answer or shadow a page.
  *
  * A ROOT HOLDS DOCUMENTATION BESIDE ITS LOCALE DIRECTORIES
  * -------------------------------------------------------
@@ -45,11 +44,10 @@ import { isWellFormedLocale, type Locale } from "./locale";
  *
  * RESOLUTION POLICY (the rule a resolver must implement)
  * -----------------------------------------------------
- *   1. requested-locale JSON        4. default-locale JSON
- *   2. requested-locale Markdown    5. default-locale Markdown
- *   3. requested-locale content     6. default-locale content
- *                                   7. not found
- * Steps 4–6 apply ONLY when fallback is permitted. Two consequences must never
+ *   1. requested-locale JSON        3. default-locale JSON
+ *   2. requested-locale Markdown    4. default-locale Markdown
+ *                                   5. not found
+ * Steps 3–4 apply ONLY when fallback is permitted. Two consequences must never
  * be "simplified": **JSON wins over Markdown within one locale** (the more
  * capable declaration is served when a slug exists in both), and **an
  * exact-locale page beats a fallback-locale page** (a German Markdown page
@@ -73,8 +71,8 @@ import { isWellFormedLocale, type Locale } from "./locale";
 export type PageAuthoringMode = "json" | "markdown";
 
 /**
- * The first-class modes, in precedence order. The legacy content mechanism is
- * deliberately absent — it is compatibility, not a mode.
+ * The authoring modes, in precedence order — the ONLY page-source kinds. There is
+ * no third entry and no compatibility entry: a page source is always one of these.
  */
 export const PAGE_AUTHORING_MODES: readonly PageAuthoringMode[] = ["json", "markdown"];
 
@@ -90,18 +88,12 @@ export const PAGE_AUTHORING_EXTENSIONS: Readonly<Record<PageAuthoringMode, strin
   markdown: "md",
 };
 
-/**
- * Every kind a request can be answered from. `content` is the legacy
- * compatibility mechanism: it is a kind, never a first-class authoring mode.
- */
-export type PageSourceKind = PageAuthoringMode | "content";
-
 /** Which locale a precedence step names: the one that was requested, or the default one. */
 export type PageSourceLocaleRole = "requested" | "default";
 
 /** One step of the resolution policy. */
 export interface PageSourceStep {
-  readonly kind: PageSourceKind;
+  readonly kind: PageAuthoringMode;
   readonly locale: PageSourceLocaleRole;
 }
 
@@ -113,20 +105,9 @@ export interface PageSourceStep {
 export const PAGE_RESOLUTION_ORDER: readonly PageSourceStep[] = [
   { kind: "json", locale: "requested" },
   { kind: "markdown", locale: "requested" },
-  { kind: "content", locale: "requested" },
   { kind: "json", locale: "default" },
   { kind: "markdown", locale: "default" },
-  { kind: "content", locale: "default" },
 ];
-
-/**
- * The AUTHORING projection of the resolution order — the two first-class modes,
- * in order, with the compatibility kind removed. A test asserts that the two
- * agree, so the declared policy cannot drift from the applied one.
- */
-export function authoringPrecedenceOfResolutionOrder(): readonly PageSourceStep[] {
-  return PAGE_RESOLUTION_ORDER.filter((step) => step.kind !== "content");
-}
 
 /** A resolution request: what is being asked for, and whether fallback is permitted. */
 export interface PageSourceRequest {
@@ -146,7 +127,7 @@ export interface PageSourceRequest {
  * restates a filesystem layout.
  */
 export interface PageResolutionCandidate {
-  readonly kind: PageSourceKind;
+  readonly kind: PageAuthoringMode;
   readonly locale: Locale;
   /**
    * True when this candidate's locale is the DEFAULT locale standing in for a

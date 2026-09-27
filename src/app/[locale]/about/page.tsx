@@ -1,18 +1,27 @@
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { MarkdownContent } from "@/components/site/markdown-content";
+
+import { createPageSources } from "@/adapters/content/page-sources";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { siteConfig } from "@/config";
 import { buildLanguageAlternates } from "@/core/locale";
 import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
 
-const pageContentRepository = createFileSystemPageContentRepository({
-  defaultLocale: siteConfig.defaultLocale,
-});
-
 const localeCodes = siteConfig.locales.map((locale) => locale.code);
+
+/**
+ * THE PAGE-SOURCE COMPOSITION for this route's page. `/about` owns its URL, but its
+ * SOURCE is authored like every other page: safe Markdown under
+ * `config/pages-markdown/<locale>/about.md`, or declarative JSON under
+ * `config/pages-json/<locale>/about.json`. A site that authors neither has no
+ * About page, and the URL is a proper 404.
+ */
+const pages = createPageSources({
+  defaultLocale: siteConfig.defaultLocale,
+  locales: localeCodes,
+});
 
 interface PageParams {
   readonly params: Promise<{ readonly locale: string }>;
@@ -31,9 +40,9 @@ export async function generateMetadata({
   params,
 }: PageParams): Promise<Metadata> {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("about", locale);
+  const page = await pages.resolve("about", locale);
 
-  const title = content?.title ?? "About";
+  const title = page?.title ?? "About";
   const canonical = `${siteConfig.url}/${locale}/about`;
   const ogImage = resolveOgImageUrl(siteConfig.assets?.ogImage, siteConfig.url, locale);
 
@@ -64,17 +73,14 @@ export async function generateMetadata({
 
 export default async function AboutPage({ params }: PageParams) {
   const { locale } = await params;
-  const content = await pageContentRepository.findBySlug("about", locale);
-
-  if (!content) {
-    notFound();
-  }
+  const page = await pages.resolve("about", locale);
+  if (!page) notFound();
 
   return (
     <Section as="article">
-      <Heading level={1} tone="title">{content.title}</Heading>
+      <Heading level={1} tone="title">{page.title}</Heading>
       <div className="mt-6">
-        <MarkdownContent markdown={content.body} />
+        <SafeMarkdownContent markdown={page.body} />
       </div>
     </Section>
   );

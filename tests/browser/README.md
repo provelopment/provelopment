@@ -69,7 +69,10 @@ tree stays clean.
   target clears the sticky header (and the clearance is removed where the rail is
   persistent), the bottom-bar More disclosure keeps its focus/inert/Escape/scroll
   behaviour while scrolled, the primary CTA stays in normal flow, and the
-  configured destinations are unchanged.
+  configured destinations are unchanged. The tall fixture is authored as **safe
+  Markdown**, so the raw HTML it contains is inert — the fragment target is planted
+  by the harness (an authored page cannot create an `id`), and the scenario asserts
+  that inertness alongside the shell's clearance.
 - **safe Markdown** (`safe-markdown` scenario): an authored page under
   `config/pages-markdown/en/` is served through the normal route with its authored
   title, its ordinary Markdown rendered, and no active markup anywhere — no author

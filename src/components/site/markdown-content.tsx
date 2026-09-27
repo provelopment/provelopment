@@ -5,12 +5,19 @@ interface MarkdownContentProps {
 }
 
 /**
- * Renders raw Markdown as HTML.
+ * Renders raw Markdown as HTML for the platform's NON-PAGE content collections
+ * (offerings, legal, portfolio, posts, testimonials).
  *
  * Trust boundary: the Markdown (including any raw HTML it contains) is rendered
- * as-is. Page bodies are adopter-authored content (`content/pages/<locale>/`),
- * NOT untrusted user input — see CUSTOMIZING.md. Do not pipe visitor-supplied
- * text through this component.
+ * as-is. Those collection files are adopter-authored content under
+ * `content/<collection>/<locale>/`, reviewed like source code — NOT untrusted user
+ * input — see CUSTOMIZING.md. Do not pipe visitor-supplied text through this
+ * component.
+ *
+ * PAGE bodies are deliberately NOT rendered here: a page comes from one of the two
+ * first-class authoring modes (`config/pages-markdown`, `config/pages-json`) and is
+ * rendered under an explicit safety policy by `SafeMarkdownContent`. A page never
+ * reaches this component, so trusted raw HTML is not a page-authoring capability.
  *
  * Presentation-only concern: the Markdown arrives already loaded through an
  * application port; this component knows nothing about where it came from.

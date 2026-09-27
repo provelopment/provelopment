@@ -6,7 +6,6 @@ import {
   PAGE_AUTHORING_ROOTS,
   PAGE_RESOLUTION_ORDER,
   authoringLocaleDirectories,
-  authoringPrecedenceOfResolutionOrder,
   pageResolutionCandidates,
   pageSlugsInLocaleDirectory,
   pageSourceDirectory,
@@ -14,12 +13,11 @@ import {
 } from "@/core/page-source";
 
 /**
- * THE PAGE-SOURCE CONTRACT (FOUNDATION-PAGES-A1).
+ * THE PAGE-SOURCE CONTRACT (FOUNDATION-PAGES-A1/A1C).
  *
- * The rule the whole authoring architecture rests on: TWO first-class modes, in
- * ONE declared order, with the legacy content mechanism as compatibility rather
- * than a third mode. These assertions are policy, not implementation: the
- * resolver, the routes and the sitemap all consume this contract.
+ * The rule the whole authoring architecture rests on: TWO first-class modes and no
+ * third kind, in ONE declared order. These assertions are policy, not implementation:
+ * the resolver, the routes and the sitemap all consume this contract.
  */
 describe("exactly two first-class authoring modes", () => {
   it("declares the two modes, JSON first", () => {
@@ -30,13 +28,18 @@ describe("exactly two first-class authoring modes", () => {
     expect(Object.keys(PAGE_AUTHORING_ROOTS).sort()).toEqual(["json", "markdown"]);
   });
 
-  it("represents the legacy content mechanism as a KIND, never as a mode", () => {
-    expect(PAGE_AUTHORING_MODES).not.toContain("content");
-    expect(PAGE_RESOLUTION_ORDER.some((step) => step.kind === "content")).toBe(true);
+  it("declares NO third kind and no compatibility kind", () => {
+    // The two modes are the complete set of page-source kinds: every step names one
+    // of them, and nothing in the order can answer from a path outside the two roots.
+    for (const step of PAGE_RESOLUTION_ORDER) {
+      expect(PAGE_AUTHORING_MODES, step.kind).toContain(step.kind);
+    }
+    expect(PAGE_RESOLUTION_ORDER.some((step) => (step.kind as string) === "content")).toBe(false);
+    expect(PAGE_AUTHORING_MODES).toHaveLength(2);
   });
 
-  it("keeps the authoring projection equal to the declared order (drift guard)", () => {
-    expect(authoringPrecedenceOfResolutionOrder()).toEqual([
+  it("declares the order as exactly the two-mode expansion, requested locale first", () => {
+    expect(PAGE_RESOLUTION_ORDER).toEqual([
       { kind: "json", locale: "requested" },
       { kind: "markdown", locale: "requested" },
       { kind: "json", locale: "default" },
@@ -46,14 +49,18 @@ describe("exactly two first-class authoring modes", () => {
 });
 
 describe("the resolution order", () => {
-  it("is JSON → Markdown → legacy content, requested locale before default", () => {
-    expect(PAGE_RESOLUTION_ORDER).toEqual([
-      { kind: "json", locale: "requested" },
-      { kind: "markdown", locale: "requested" },
-      { kind: "content", locale: "requested" },
-      { kind: "json", locale: "default" },
-      { kind: "markdown", locale: "default" },
-      { kind: "content", locale: "default" },
+  it("is JSON → Markdown, requested locale before default, with no third source", () => {
+    expect(PAGE_RESOLUTION_ORDER.map((step) => step.kind)).toEqual([
+      "json",
+      "markdown",
+      "json",
+      "markdown",
+    ]);
+    expect(PAGE_RESOLUTION_ORDER.map((step) => step.locale)).toEqual([
+      "requested",
+      "requested",
+      "default",
+      "default",
     ]);
   });
 
@@ -61,10 +68,8 @@ describe("the resolution order", () => {
     expect(pageResolutionCandidates({ slug: "about", locale: "de", defaultLocale: "en" })).toEqual([
       { kind: "json", locale: "de", fallback: false },
       { kind: "markdown", locale: "de", fallback: false },
-      { kind: "content", locale: "de", fallback: false },
       { kind: "json", locale: "en", fallback: true },
       { kind: "markdown", locale: "en", fallback: true },
-      { kind: "content", locale: "en", fallback: true },
     ]);
   });
 
@@ -75,7 +80,7 @@ describe("the resolution order", () => {
       defaultLocale: "en",
       fallback: false,
     });
-    expect(candidates).toHaveLength(3);
+    expect(candidates).toHaveLength(2);
     expect(candidates.every((candidate) => candidate.fallback === false)).toBe(true);
   });
 
@@ -85,7 +90,7 @@ describe("the resolution order", () => {
       locale: "en",
       defaultLocale: "en",
     });
-    expect(candidates.map((candidate) => candidate.locale)).toEqual(["en", "en", "en"]);
+    expect(candidates.map((candidate) => candidate.locale)).toEqual(["en", "en"]);
     expect(candidates.every((candidate) => candidate.fallback === false)).toBe(true);
   });
 
@@ -93,7 +98,7 @@ describe("the resolution order", () => {
     const exact = pageResolutionCandidates({ slug: "about", locale: "de", defaultLocale: "en" })
       .filter((candidate) => !candidate.fallback)
       .map((candidate) => candidate.kind);
-    expect(exact).toEqual(["json", "markdown", "content"]);
+    expect(exact).toEqual(["json", "markdown"]);
   });
 
   it("makes an exact-locale page beat a default-locale one, whatever the format", () => {

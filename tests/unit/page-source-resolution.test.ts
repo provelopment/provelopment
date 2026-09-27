@@ -28,7 +28,6 @@ function providersOf(
     providers: {
       json: provider("json"),
       markdown: provider("markdown"),
-      content: provider("content"),
     },
   };
 }
@@ -50,18 +49,22 @@ describe("the page-source resolver", () => {
     });
   });
 
-  it("prefers JSON over Markdown within the requested locale, and Markdown over legacy", async () => {
+  it("prefers JSON over Markdown within the requested locale", async () => {
     const markdownOnly = await resolvePageSource(
       { slug: "about", locale: "de", defaultLocale: "en" },
-      providersOf({ markdown: ["de"], content: ["de"] }).providers,
+      providersOf({ markdown: ["de"] }).providers,
     );
     expect(markdownOnly?.kind).toBe("markdown");
+    expect(markdownOnly?.source).toBe("markdown:de");
+  });
 
-    const legacyOnly = await resolvePageSource(
-      { slug: "about", locale: "de", defaultLocale: "en" },
-      providersOf({ content: ["de"] }).providers,
-    );
-    expect(legacyOnly?.kind).toBe("content");
+  it("consults ONLY the two modes, in the declared order", async () => {
+    const { providers, asked } = providersOf({});
+    await resolvePageSource({ slug: "about", locale: "de", defaultLocale: "en" }, providers);
+
+    expect(asked).toEqual(["json:de", "markdown:de", "json:en", "markdown:en"]);
+    // There is no third source: every consultation names one of the two modes.
+    expect(asked.every((entry) => /^(json|markdown):/.test(entry))).toBe(true);
   });
 
   it("prefers an exact-locale page over a default-locale one, whatever the format", async () => {
@@ -94,7 +97,6 @@ describe("the page-source resolver", () => {
     expect(asked).toEqual([
       "json:de",
       "markdown:de",
-      "content:de",
       "json:en",
       "markdown:en",
     ]);
@@ -121,7 +123,6 @@ describe("the page-source resolver", () => {
       markdown: () => {
         throw new Error('Invalid metadata in authored page "about"');
       },
-      content: () => null,
     };
 
     await expect(

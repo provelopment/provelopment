@@ -6,12 +6,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createPageSources } from "@/adapters/content/page-sources";
 
 /**
- * THE COMPOSITION, END TO END (FOUNDATION-PAGES-A1).
+ * THE COMPOSITION, END TO END (FOUNDATION-PAGES-A1; two-mode contract, A1C).
  *
- * These fixtures live under a test-only locale directory (`zz-test`) in the REAL
- * roots — and, for the legacy cases, in the real `content/pages` collection — so the
- * declared precedence is proven on the real layout, not on stubs. They are removed
- * afterwards.
+ * These fixtures live under a test-only locale directory (`zz-sources`) in the REAL
+ * authoring roots, so the declared precedence is proven on the real layout, not on
+ * stubs. A fixture is ALSO planted under `content/pages/<locale>/` to prove the
+ * collection path is not a page source at all: it can neither serve a page nor shadow
+ * one. Everything is removed afterwards.
  */
 const root = process.cwd();
 // A locale UNIQUE to this suite: vitest runs test FILES in parallel, so two suites
@@ -56,18 +57,16 @@ describe("the page-sources composition", () => {
     // JSON (first-class) fixtures: one shadowing the Markdown page, one alone.
     write(path.join(root, "config", "pages-json", SOURCES_LOCALE, "both.json"), "{}\n");
     write(path.join(root, "config", "pages-json", SOURCES_LOCALE, "json-only.json"), "{}\n");
-    // Legacy content fixtures.
-    write(
-      path.join(root, "content", "pages", SOURCES_LOCALE, "legacy-only.md"),
-      '---\ntitle: Legacy page\ndescription: "legacy summary"\n---\n\nLegacy body\n',
-    );
+    // NOT page sources: files planted under `content/pages`, one with a slug that also
+    // exists as a real page (it must not shadow it) and one with a slug that exists
+    // nowhere else (it must publish nothing at all).
     write(
       path.join(root, "content", "pages", SOURCES_LOCALE, "about.md"),
-      "---\ntitle: Legacy about\n---\n\nLegacy body\n",
+      "---\ntitle: Collection-path about\n---\n\nThis must never be served.\n",
     );
     write(
-      path.join(root, "content", "pages", SOURCES_LOCALE, "legacy-html.md"),
-      "---\ntitle: Legacy HTML\n---\n\n<div id=\"raw\">trusted markup</div>\n",
+      path.join(root, "content", "pages", SOURCES_LOCALE, "zz-shadow.md"),
+      "---\ntitle: Collection-path only\n---\n\nThis must never be served.\n",
     );
     // An EMPTY locale directory must publish nothing.
     write(path.join(root, "config", "pages-markdown", EMPTY_LOCALE_NAME, ".gitkeep"), "");
@@ -82,6 +81,13 @@ describe("the page-sources composition", () => {
       recursive: true,
       force: true,
     });
+    // Never leave the page-specific collection directory behind: `content/pages` is
+    // not a collection, so no run should make it look like one.
+    try {
+      rmdirSync(path.join(root, "content", "pages"));
+    } catch {
+      /* not empty, or already gone: leave it exactly as it is */
+    }
     const fallbackFile = path.join(root, "config", "pages-markdown", "en", "zz-fallback.md");
     rmSync(fallbackFile, { force: true });
     // Remove the locale directory ONLY if the fixture left it empty — never a
@@ -104,26 +110,16 @@ describe("the page-sources composition", () => {
     expect(page?.body).toContain("A safe Markdown page.");
   });
 
-  it("prefers a first-class Markdown page over the legacy content mechanism", async () => {
+  it("publishes NOTHING from `content/pages`, and lets it shadow no page", async () => {
+    // The same slug exists under `content/pages/<locale>/`; the real page still wins,
+    // and the collection path is never consulted.
     const page = await sources.resolve("about", SOURCES_LOCALE);
-    // The same slug exists in `content/pages/<locale>/about.md`; Markdown wins.
-    expect(page?.kind).toBe("markdown");
     expect(page?.title).toBe("About");
-  });
+    expect(page?.body).toContain("A safe Markdown page.");
+    expect(page?.body).not.toContain("This must never be served.");
 
-  it("still serves the legacy content mechanism, with its own behaviour preserved", async () => {
-    const page = await sources.resolve("legacy-only", SOURCES_LOCALE);
-    expect(page?.kind).toBe("content");
-    expect(page?.title).toBe("Legacy page");
-    // The legacy parser's behaviour is untouched: its `description` is NOT adopted
-    // as page metadata, so no existing adopter's page changes shape.
-    expect(page?.description).toBeUndefined();
-
-    const html = await sources.resolve("legacy-html", SOURCES_LOCALE);
-    expect(html?.kind).toBe("content");
-    // Legacy bodies keep their trusted markup, passed through unchanged — the
-    // renderer choice happens in ONE place (`PageBody`).
-    expect(html?.body).toContain('<div id="raw">trusted markup</div>');
+    // A slug that exists ONLY under `content/pages` is not a page at all.
+    expect(await sources.resolve("zz-shadow", SOURCES_LOCALE)).toBeNull();
   });
 
   it("falls back to the default locale last, and marks it", async () => {
@@ -142,14 +138,11 @@ describe("the page-sources composition", () => {
   });
 
   it("lists every publishable slug for a configured locale, and nothing for an empty one", async () => {
-    expect(await sources.listSlugs(SOURCES_LOCALE)).toEqual([
-      "about",
-      "both",
-      "json-only",
-      "legacy-html",
-      "legacy-only",
-    ]);
-    // README is never listed; an empty locale directory publishes nothing.
+    expect(await sources.listSlugs(SOURCES_LOCALE)).toEqual(["about", "both", "json-only"]);
+    // A README, a `.gitkeep`-only directory and anything under `content/pages` are
+    // never listed.
+    expect(await sources.listSlugs(SOURCES_LOCALE)).not.toContain("zz-shadow");
+    expect(await sources.listSlugs(SOURCES_LOCALE)).not.toContain("README");
     expect(await sources.listSlugs(EMPTY_LOCALE_NAME)).toEqual([]);
   });
 
