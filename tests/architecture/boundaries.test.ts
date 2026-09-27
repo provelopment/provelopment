@@ -107,11 +107,13 @@ describe("error UX boundaries (Phase E)", () => {
   });
 
   it("known missing routes stay on the 404 (not-found) path, not a generic error", () => {
-    // The catch-all must call next/navigation notFound() so an unknown
-    // in-locale route renders the localized 404 rather than throwing.
-    const catchAll = readAppFile(path.join("[locale]", "[...rest]", "page.tsx"));
-    expect(catchAll).toMatch(/from\s+["']next\/navigation["']/);
-    expect(catchAll).toMatch(/\bnotFound\(\)\s*;/);
+    // The ONE page route must call next/navigation notFound() so an unknown in-locale
+    // route renders the localized 404 rather than throwing — and it serves only the
+    // routes the build discovered, so an unknown path is never rendered on demand.
+    const pageRoute = readAppFile(path.join("[locale]", "[...path]", "page.tsx"));
+    expect(pageRoute).toMatch(/from\s+["']next\/navigation["']/);
+    expect(pageRoute).toMatch(/\bnotFound\(\)\s*;/);
+    expect(pageRoute).toContain("export const dynamicParams = false");
 
     // not-found preserves locale via the root-params contract rather than
     // hard-coding or falling back to an error page.
@@ -399,15 +401,15 @@ describe("Phase L — regional page-context boundaries", () => {
   }
 
   it("regional pages resolve their page context centrally (never in components)", () => {
-    const pages = ["[locale]/[item]/page.tsx", "[locale]/[item]/[slug]/page.tsx"];
-    for (const relative of pages) {
-      const page = readFileSync(path.join(APP_DIRECTORY, relative), "utf8");
-      expect(page).toContain("resolveRegionalPageContext");
-      // The pages must not resolve timezones or read the global business block.
-      expect(page).not.toContain("resolveTimezone");
-      expect(page).not.toContain(".business.timezone");
-      expect(page).not.toContain("business.locations");
-    }
+    // ONE page route now serves flat, nested AND regional pages, so the regional
+    // context contract is asserted there — the region still comes from the URL
+    // (authoritative), never re-derived inside a component.
+    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    expect(page).toContain("resolveRegionalPageContext");
+    // The route must not resolve timezones or read the global business block.
+    expect(page).not.toContain("resolveTimezone");
+    expect(page).not.toContain(".business.timezone");
+    expect(page).not.toContain("business.locations");
   });
 
   it("region components and switchers never read the global business block or another region", () => {
@@ -450,13 +452,14 @@ describe("Phase L — regional page-context boundaries", () => {
     }
   });
 
-  it("the dynamic regional page owns the [item]/[slug] routes and excludes static-route slugs", () => {
-    const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "[item]", "page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("STATIC_ROUTE_SLUGS");
-    expect(page).toContain('"about"');
+  it("the one page route serves regional landings and excludes reserved first segments", () => {
+    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    // The reserved list keeps the home slug (and any future reserved segment) out of
+    // the generic route, so it can never double-route.
+    expect(page).toContain("RESERVED_FIRST_SEGMENTS");
+    expect(page).toContain("HOME_CONTENT_SLUG");
+    // Regional landings come from the configured bindings, not from a literal list.
+    expect(page).toContain("regionsForLocale");
   });
 });
 
@@ -517,13 +520,13 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
     expect(JSON.stringify(config)).not.toContain("/toronto");
   });
 
-  it("the dynamic [item] route excludes the static Connect route slug", () => {
-    const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "[item]", "page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("STATIC_ROUTE_SLUGS");
+  it("the one page route excludes the static Connect and Contact route slugs", () => {
+    const page = readFileSync(path.join(APP_DIRECTORY, "[locale]", "[...path]", "page.tsx"), "utf8");
+    // The dedicated route files own those URLs; the generic route names them as
+    // reserved so exactly one route serves each.
+    expect(page).toContain("DEDICATED_ROUTE_SEGMENTS");
     expect(page).toContain('"connect"');
+    expect(page).toContain('"contact"');
   });
 
   it("the Connect page and switchers never read global business contact location data", () => {
@@ -675,15 +678,10 @@ describe("Phase D — design-system boundaries", () => {
     }
   });
 
-  it("P1-7 — Grid + Stack collection/header consumers delegate to the shared primitives", () => {
-    // The collection listings (offering/portfolio/post/testimonial) + the
-    // connect method grid + the header alignment stacks must compose the shared
+  it("P1-7 — Grid + Stack consumers delegate to the shared primitives", () => {
+    // The connect method grid and the header alignment stack must compose the shared
     // `<Grid>`/`<Stack>` primitives instead of inlining the raw layout classes.
     const gridConsumers = [
-      path.join(srcDirectory, "components", "site", "offering-list.tsx"),
-      path.join(srcDirectory, "components", "site", "portfolio-list.tsx"),
-      path.join(srcDirectory, "components", "site", "post-list.tsx"),
-      path.join(srcDirectory, "components", "site", "testimonial-list.tsx"),
       path.join(APP_DIRECTORY, "[locale]", "connect", "page.tsx"),
     ];
     const stackConsumers = [
@@ -695,8 +693,8 @@ describe("Phase D — design-system boundaries", () => {
         /from "@\/components\/ui\/(grid|stack)"/,
       );
     }
-    // No raw `grid gap-… sm:grid-cols-…` collection-listing class string remains
-    // in any app page or site component (the grid.tsx doc-comment is excluded).
+    // No raw `grid gap-… sm:grid-cols-…` listing class string remains in any app page
+    // or site component (the grid.tsx doc-comment is excluded).
     const collectionGrid = /<ul className="(mt-8 )?grid gap-[0-9]+ sm:grid-cols-/;
     for (const directory of [APP_DIRECTORY, path.join(srcDirectory, "components", "site")]) {
       for (const file of listTypeScriptFiles(directory)) {
@@ -709,25 +707,6 @@ describe("Phase D — design-system boundaries", () => {
     }
   });
 
-  it("P1-8 — the collection-list empty states delegate to the shared Empty primitive", () => {
-    // portfolio/testimonial/post lists must compose the shared `<Empty>` instead
-    // of inlining the raw `text-muted-foreground` empty-message paragraph.
-    const emptyConsumers = [
-      path.join(srcDirectory, "components", "site", "portfolio-list.tsx"),
-      path.join(srcDirectory, "components", "site", "testimonial-list.tsx"),
-      path.join(srcDirectory, "components", "site", "post-list.tsx"),
-    ];
-    for (const file of emptyConsumers) {
-      const source = readFileSync(file, "utf8");
-      expect(source, `${path.relative(process.cwd(), file)} must use <Empty>`).toMatch(
-        /from "@\/components\/ui\/empty"/,
-      );
-      expect(source, `${path.relative(process.cwd(), file)} must not inline the raw empty-message class`).not.toMatch(
-        /<p className="text-muted-foreground">\{emptyLabel\}<\/p>/,
-      );
-    }
-  });
-
   it("P2-8 — the contact-form field errors delegate to the shared FieldError primitive", () => {
     // The contact form must compose the shared `<FieldError>` instead of
     // inlining the raw `mt-1 text-sm text-destructive` error paragraph.
@@ -737,25 +716,6 @@ describe("Phase D — design-system boundaries", () => {
     );
     expect(source).toMatch(/from "@\/components\/ui\/field-error"/);
     expect(source).not.toMatch(/<p className="mt-1 text-sm text-destructive">/);
-  });
-
-  it("P2-10 — the collection-card images delegate to the shared CardImage primitive", () => {
-    // offering-card + portfolio-card must compose the shared `<CardImage>`
-    // instead of inlining the raw `fill + object-cover` card image block.
-    const cardConsumers = [
-      path.join(srcDirectory, "components", "site", "offering-card.tsx"),
-      path.join(srcDirectory, "components", "site", "portfolio-card.tsx"),
-    ];
-    for (const file of cardConsumers) {
-      const source = readFileSync(file, "utf8");
-      expect(source, `${path.relative(process.cwd(), file)} must use <CardImage>`).toMatch(
-        /from "@\/components\/ui\/card-image"/,
-      );
-      expect(source, `${path.relative(process.cwd(), file)} must not inline the card-image wrapper`).not.toMatch(
-        /relative mb-4 h-40 w-full overflow-hidden rounded/,
-      );
-    }
-    // The offering-detail HERO (h-64 / sizes=100vw / non-link) stays local by design.
   });
 
   it("P2-11 — NavItem composes the shared NavBadge for its badge chip", () => {
@@ -786,59 +746,8 @@ describe("Phase D — design-system boundaries", () => {
         `${path.relative(process.cwd(), file)} must not inline the raw page-title h1 classes`,
       ).not.toContain('<h1 className="text-3xl font-bold tracking-tight"');
     }
-    expect(composing).toBeGreaterThanOrEqual(10);
+    expect(composing).toBeGreaterThanOrEqual(4);
     expect(raw).toBe(0);
-  });
-});
-describe("Phase C — offerings boundaries", () => {
-  const COMPONENTS_DIRECTORY = path.join(process.cwd(), "src", "components", "site");
-
-  function readOfferingsComponent(name: string): string {
-    return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
-  }
-
-  it("offering presentation components are provider- and config-neutral", () => {
-    // They receive resolved actions + localized labels as props; they must not
-    // import adapters, read validated config, or know provider names.
-    for (const name of [
-      "offering-card.tsx",
-      "offering-list.tsx",
-      "offering-detail.tsx",
-      "offering-action-label.ts",
-    ]) {
-      const source = readOfferingsComponent(name);
-      expect(source, name).not.toMatch(/from "@\/adapters/);
-      expect(source, name).not.toMatch(/siteConfig/);
-      expect(source, name).not.toMatch(/external-url|webhook|createBooking/i);
-    }
-  });
-
-  it("the action-label helper localizes at the presentation boundary only (defaults + override)", () => {
-    const helper = readOfferingsComponent("offering-action-label.ts");
-    expect(helper).toContain("dictionary.booking?.book");
-    expect(helper).toContain("dictionary.connect.methods?.message");
-    expect(helper).toContain("dictionary.offerings.externalCta");
-    expect(helper).not.toContain("siteConfig");
-  });
-
-  it("the core offering resolver is locale- and provider-independent", () => {
-    const core = readFileSync(path.join(process.cwd(), "src", "core", "offerings.ts"), "utf8");
-    expect(core).toContain("export function resolveOfferingAction");
-    expect(core).toContain("interface OfferingActionResolution");
-    expect(core).not.toContain("@/config");
-    expect(core).not.toContain("@/adapters");
-    expect(core).not.toMatch(/locale:/);
-  });
-
-  it("the offerings detail page composes the booking seam + core resolver at the boundary", () => {
-    const page = readFileSync(
-      path.join(APP_DIRECTORY, "[locale]", "offerings", "[slug]", "page.tsx"),
-      "utf8",
-    );
-    expect(page).toContain("createBookingActionResolver");
-    expect(page).toContain("resolveOfferingAction");
-    expect(page).toContain("offeringActionLabel");
-    expect(page).toContain("contactHref");
   });
 });
 describe("Phase S — SEO & structured-data boundaries", () => {
@@ -867,63 +776,50 @@ describe("Phase S — SEO & structured-data boundaries", () => {
     expect(globalData).toContain("resolveBusinessForLocale");
     expect(businessInfo).toContain("resolveBusinessForLocale");
   });
-
-  it("offering structured data is provider-neutral and never implies commerce", () => {
-    const source = readFileSync(
-      path.join(srcDirectory, "components", "site", "offering-structured-data.tsx"),
-      "utf8",
-    );
-    expect(source).not.toMatch(/from ["']@\/adapters/);
-    expect(source).not.toContain("siteConfig");
-    // The emitted `offers` object never carries a `priceCurrency` assignment.
-    expect(source).not.toMatch(/priceCurrency\s*:/);
-    expect(source).not.toMatch(/cart|checkout|payment/i);
-  });
 });
 
-describe("Phase T — trust & publishing primitive boundaries", () => {
-  const CORE_DIRECTORY = path.join(srcDirectory, "core");
-  const COMPONENTS_DIRECTORY = path.join(srcDirectory, "components", "site");
-  const NEW_CORE_MODULES = ["testimonials.ts", "portfolio.ts", "posts.ts"];
-  const NEW_PRESENTATION_COMPONENTS = [
-    "testimonial-card.tsx",
-    "testimonial-list.tsx",
-    "portfolio-card.tsx",
-    "portfolio-list.tsx",
-    "portfolio-detail.tsx",
-    "post-card.tsx",
-    "post-list.tsx",
-    "post-detail.tsx",
-  ];
-
-  it("new core modules are framework-, config-, and adapter-free", () => {
-    for (const name of NEW_CORE_MODULES) {
-      const source = readFileSync(path.join(CORE_DIRECTORY, name), "utf8");
-      expect(source, name).not.toMatch(/from ["']next/);
-      expect(source, name).not.toMatch(/from ["']react/);
-      expect(source, name).not.toMatch(/from ["']@\/adapters/);
-      expect(source, name).not.toMatch(/from ["']@\/config/);
-      expect(source, name).not.toContain("siteConfig");
+describe("Phase T — trust & publishing primitive boundaries (A1E: now PAGES)", () => {
+  it("keeps the retired collection modules and components out of the tree", () => {
+    // The trust/publishing collections are GONE: testimonials, portfolio, posts and
+    // offerings are authored as PAGES, so a returning core module, presentation
+    // component or adapter would be a second, competing content model.
+    for (const name of ["testimonials.ts", "portfolio.ts", "posts.ts", "offerings.ts"]) {
+      expect(existsSync(path.join(srcDirectory, "core", name)), name).toBe(false);
     }
-  });
-
-  it("trust/publishing presentation components are provider- and config-neutral", () => {
-    for (const name of NEW_PRESENTATION_COMPONENTS) {
-      const source = readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
-      expect(source, name).not.toMatch(/from ["']@\/adapters/);
-      expect(source, name).not.toContain("siteConfig");
-      expect(source, name).not.toMatch(/provider\s*===/);
+    for (const name of [
+      "testimonial-card.tsx",
+      "testimonial-list.tsx",
+      "portfolio-card.tsx",
+      "portfolio-list.tsx",
+      "portfolio-detail.tsx",
+      "post-card.tsx",
+      "post-list.tsx",
+      "post-detail.tsx",
+      "offering-card.tsx",
+      "offering-list.tsx",
+      "offering-detail.tsx",
+      "offering-structured-data.tsx",
+      "offering-action-label.ts",
+    ]) {
+      expect(existsSync(path.join(srcDirectory, "components", "site", name)), name).toBe(false);
     }
-  });
-
-  it("portfolio and blog detail render the Markdown body through the shared trust boundary", () => {
-    const portfolioDetail = readFileSync(
-      path.join(COMPONENTS_DIRECTORY, "portfolio-detail.tsx"),
-      "utf8",
+    // …and the collection STORE that served them, with its port.
+    expect(existsSync(path.join(srcDirectory, "adapters", "content", "fs-page-content-repository.ts"))).toBe(
+      false,
     );
-    expect(portfolioDetail).toContain("<MarkdownContent");
-    const postDetail = readFileSync(path.join(COMPONENTS_DIRECTORY, "post-detail.tsx"), "utf8");
-    expect(postDetail).toContain("<MarkdownContent");
+    expect(existsSync(path.join(srcDirectory, "application", "page-content-repository.ts"))).toBe(
+      false,
+    );
+  });
+
+  it("renders every page through the ONE safe renderer", () => {
+    // A page body is always rendered by `SafeMarkdownContent`: the trusted collection
+    // renderer exists for reviewed source content, and no page route may reach it.
+    for (const route of ["page.tsx", "[...path]/page.tsx", "connect/page.tsx", "contact/page.tsx"]) {
+      const source = readFileSync(path.join(APP_DIRECTORY, "[locale]", route), "utf8");
+      expect(source, route).toContain("SafeMarkdownContent");
+      expect(source, route).not.toContain('from "@/components/site/markdown-content"');
+    }
   });
 });
 

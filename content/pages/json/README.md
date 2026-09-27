@@ -23,25 +23,32 @@ not support fails loudly instead of being guessed at.
 ## Where a page goes
 
 ```text
-config/pages-json/<locale>/<slug>.json
+content/pages/json/<language>/<page-name>.json
 ```
 
 For example:
 
 ```text
-config/pages-json/en/services.json   →   /en/services
+content/pages/json/en/services.json                →   /en/services
+content/pages/json/en/services/web-design.json     →   /en/services/web-design
 ```
+
+A JSON page's address comes from its folders exactly as a Markdown page's does, and a
+second language mirrors the same structure (`content/pages/json/de/services.json` →
+`/de/services`).
 
 The same rules as the Markdown mode apply:
 
-- `<locale>` is one of the site's configured languages;
-- `<slug>` becomes the URL segment (lowercase words joined by hyphens);
-- **this README is never a page** — only files inside a language directory are
-  pages, and `README` is not a well-formed slug;
+- `<language>` is one of the site's configured languages;
+- `<page-name>` becomes the last part of the URL (lowercase words joined by hyphens),
+  and folders are allowed up to four deep;
+- **this README is never a page** — neither is any other README, at any level; only
+  files with a well-formed page name are pages;
 - an **empty language directory publishes nothing**; creating
-  `config/pages-json/de/` prepares a language and creates no route.
+  `content/pages/json/de/` prepares a language and creates no route;
 - a JSON page **takes precedence** over a Markdown page for the same language and
-  slug, because it is the more capable declaration.
+  route, because it is the more capable declaration — and that applies to a nested
+  route exactly as to a top-level one.
 
 ## Status — the vocabulary is still to come
 
@@ -57,11 +64,12 @@ will define and validate:
 
 **No components are documented here yet, because none of them exist.** Do not invent
 a JSON page in the meantime: until the vocabulary lands, author pages in
-`../pages-markdown/`.
+[`../markdown/`](../markdown/README.md).
 
 Because a JSON page takes precedence over a Markdown page for the same language and
-slug, a JSON file that WOULD be served **stops the build with an error naming the
-file**. It is never silently ignored, and it never quietly disappears from the site.
+route, a JSON file that WOULD be served **stops the build with an error naming the
+file** — whether it sits at a top-level route or inside a folder. It is never silently
+ignored, and it never quietly disappears from the site.
 
 ## What will not change when it lands
 

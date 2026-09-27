@@ -1,4 +1,4 @@
-import { isContentSlug } from "./page-content";
+import { isPageRoutePath } from "./page-route-path";
 import { isWellFormedLocale, type Locale } from "./locale";
 
 /**
@@ -11,36 +11,42 @@ import { isWellFormedLocale, type Locale } from "./locale";
  * nothing and renders nothing: it is a `@/core` rule.
  *
  *   `markdown`  the accessibility-first mode: ordinary Markdown under
- *               `content/pages/markdown/<locale>/<slug>.md`, for an author who
+ *               `content/pages/markdown/<locale>/<route-path>.md`, for an author who
  *               should need nothing but a text editor. Its safety policy lives in
  *               `@/core/markdown-policy` + `@/core/safe-url`.
  *   `json`      the advanced mode: validated declarative data under
- *               `content/pages/json/<locale>/<slug>.json`, for an author who needs
- *               presentation the Markdown mode does not offer. It is schema-
- *               validated and non-executable, and the vocabulary that interprets
- *               it is a later increment; this contract declares the mode, its root
- *               and its place in the order.
+ *               `content/pages/json/<locale>/<route-path>.json`, for an author who
+ *               needs presentation the Markdown mode does not offer. It is
+ *               schema-validated and non-executable, and the vocabulary that
+ *               interprets it is a later increment; this contract declares the mode,
+ *               its root and its place in the order.
  *
- * Those are the ONLY page-source kinds. There is no third kind and no
- * compatibility kind: `content/**` still hosts the platform's OTHER content
- * collections (offerings, legal, portfolio, posts, testimonials), but it is not a
- * page-authoring path at all — no file under it can name, answer or shadow a page.
+ * A `<route-path>` is one segment (`about`) or several (`offerings/website-design`),
+ * because a page's URL is built from folders as well as files: see
+ * `@/core/page-route-path` for the ONE rule, which refuses traversal, empty segments
+ * and anything that is not a safe slug.
+ *
+ * Those are the ONLY page-source kinds. There is no third kind and no compatibility
+ * kind: `content/` holds this platform's pages and assets and NOTHING else — there
+ * are no separate author-facing collections to compete with the page model, so no
+ * file outside the two roots can name, answer or shadow a page.
  *
  * A ROOT HOLDS DOCUMENTATION BESIDE ITS LOCALE DIRECTORIES
  * -------------------------------------------------------
- * Only files INSIDE a locale directory are page candidates, so every path built
- * here has exactly three segments — `<root>/<locale>/<slug>.<ext>`. A root-level
- * file has no locale segment, and `README` is not a well-formed slug either (see
- * `isContentSlug`), so an authoring root's documentation can never become a page
- * — for two independent reasons. `.gitkeep` is refused by the same rule.
+ * Only files INSIDE a locale directory are page candidates, so a root-level file has
+ * no locale segment, and `README` is not a well-formed slug either (see
+ * `isContentSlug`) — so an authoring root's documentation can never become a page,
+ * for two independent reasons. `.gitkeep` is refused by the same rule, and because
+ * the rule applies at EVERY level, a README beside nested pages is equally inert.
  *
  * A DIRECTORY'S EXISTENCE IS NOT PUBLICATION
  * ------------------------------------------
- * A locale directory MAY BE EMPTY: a site may prepare a language before it has
- * anything to put in it, and an empty directory is an ordinary state rather than
- * a fault. Creating `content/pages/markdown/de/` publishes nothing, creates no
- * route and adds no sitemap entry — what the public site serves is decided by
- * the site's own locale configuration, never by the authoring tree.
+ * A locale directory — or any folder inside it — MAY BE EMPTY: a site may prepare a
+ * language or a section before it has anything to put in it, and an empty directory
+ * is an ordinary state rather than a fault. Creating `content/pages/markdown/de/`
+ * publishes nothing, creates no route and adds no sitemap entry — what the public
+ * site serves is decided by the site's own locale configuration, never by the
+ * authoring tree.
  *
  * RESOLUTION POLICY (the rule a resolver must implement)
  * -----------------------------------------------------
@@ -49,11 +55,12 @@ import { isWellFormedLocale, type Locale } from "./locale";
  *                                   5. not found
  * Steps 3–4 apply ONLY when fallback is permitted. Two consequences must never
  * be "simplified": **JSON wins over Markdown within one locale** (the more
- * capable declaration is served when a slug exists in both), and **an
+ * capable declaration is served when a route exists in both), and **an
  * exact-locale page beats a fallback-locale page** (a German Markdown page
  * answers a German URL even when an English JSON page exists, because the
  * visitor asked for German — fallback is a last resort, never a preference of
- * format over language).
+ * format over language). Both rules apply to the COMPLETE route path: a nested page
+ * is resolved exactly as a top-level one is.
  *
  * SECURITY POSTURE (recorded with the contract)
  * --------------------------------------------
@@ -111,7 +118,8 @@ export const PAGE_RESOLUTION_ORDER: readonly PageSourceStep[] = [
 
 /** A resolution request: what is being asked for, and whether fallback is permitted. */
 export interface PageSourceRequest {
-  readonly slug: string;
+  /** The page's route path: one segment (`about`) or several (`offerings/website-design`). */
+  readonly routePath: string;
   /** The locale the visitor asked for. */
   readonly locale: Locale;
   /** The site's default locale — the only locale a fallback may come from. */
@@ -143,16 +151,16 @@ export interface PageResolutionCandidate {
  * not permitted (or when the requested locale IS the default locale, in which
  * case a fallback step would merely repeat the exact-locale ones).
  *
- * Returns an empty list for a malformed request — a slug that cannot be a page,
- * or a locale that is not a well-formed language tag. Fallback answers a VALID
- * language that has no page; it must never answer a request that names no
- * language at all.
+ * Returns an empty list for a malformed request — a route path that could not name
+ * a page (a traversal attempt, an empty segment, too deep), or a locale that is not
+ * a well-formed language tag. Fallback answers a VALID language that has no page; it
+ * must never answer a request that names no language at all.
  */
 export function pageResolutionCandidates(
   request: PageSourceRequest,
 ): readonly PageResolutionCandidate[] {
-  const { slug, locale, defaultLocale, fallback = true } = request;
-  if (!isContentSlug(slug) || !isWellFormedLocale(locale) || !isWellFormedLocale(defaultLocale)) {
+  const { routePath, locale, defaultLocale, fallback = true } = request;
+  if (!isPageRoutePath(routePath) || !isWellFormedLocale(locale) || !isWellFormedLocale(defaultLocale)) {
     return [];
   }
 
@@ -192,26 +200,6 @@ export function authoringLocaleDirectories(
 }
 
 /**
- * The page slugs one locale directory's listing contains, for one mode.
- *
- * Only files carrying that mode's extension AND a well-formed slug count, so a
- * README, a placeholder (`.gitkeep`) or an unrelated file is ignored even when it
- * sits inside a locale directory. An empty directory yields no slugs and no
- * error.
- */
-export function pageSlugsInLocaleDirectory(
-  mode: PageAuthoringMode,
-  entries: readonly string[],
-): readonly string[] {
-  const suffix = `.${PAGE_AUTHORING_EXTENSIONS[mode]}`;
-  const slugs = entries
-    .filter((entry) => entry.endsWith(suffix))
-    .map((entry) => entry.slice(0, -suffix.length))
-    .filter((slug) => isContentSlug(slug));
-  return [...new Set(slugs)].sort();
-}
-
-/**
  * One authoring locale directory, repository-relative (POSIX) — for example
  * `content/pages/markdown/de`. Returns `null` for a malformed mode or locale, so a
  * caller can never build a path from a string it has not validated.
@@ -223,15 +211,17 @@ export function pageSourceDirectory(mode: PageAuthoringMode, locale: Locale): st
 
 /**
  * One page source file, repository-relative (POSIX) — for example
- * `content/pages/markdown/de/ueber-uns.md`. `null` for a malformed mode, locale or
- * slug, so an arbitrary string can never address a file.
+ * `content/pages/markdown/de/ueber-uns.md`, or
+ * `content/pages/markdown/de/offerings/web-design.md` for a nested page. `null` for a
+ * malformed mode, locale or route path, so an arbitrary string can never address a
+ * file — and a traversal attempt can never leave the authoring root.
  */
 export function pageSourceFile(
   mode: PageAuthoringMode,
   locale: Locale,
-  slug: string,
+  routePath: string,
 ): string | null {
-  if (!isContentSlug(slug)) return null;
+  if (!isPageRoutePath(routePath)) return null;
   const directory = pageSourceDirectory(mode, locale);
-  return directory === null ? null : `${directory}/${slug}.${PAGE_AUTHORING_EXTENSIONS[mode]}`;
+  return directory === null ? null : `${directory}/${routePath}.${PAGE_AUTHORING_EXTENSIONS[mode]}`;
 }

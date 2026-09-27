@@ -47,7 +47,8 @@ import {
  */
 export interface ResolvedPageSource<TSource> {
   readonly kind: PageAuthoringMode;
-  readonly slug: string;
+  /** The page's route path inside its locale directory, e.g. `offerings/website-design`. */
+  readonly routePath: string;
   /** The locale the winning source came from. */
   readonly locale: string;
   /** True when the winning source is the default locale answering for another locale. */
@@ -88,7 +89,7 @@ export async function resolvePageSource<TSource>(
     if (source !== null && source !== undefined) {
       return {
         kind: candidate.kind,
-        slug: request.slug,
+        routePath: request.routePath,
         locale: candidate.locale,
         fallback: candidate.fallback,
         source,

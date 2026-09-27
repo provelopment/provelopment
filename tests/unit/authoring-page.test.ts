@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   AUTHORING_METADATA_KEYS,
-  authoringTitleFromSlug,
+  authoringTitleFromRoutePath,
   parseAuthoringPageFile,
 } from "@/adapters/content/authoring-page";
 
@@ -22,14 +22,14 @@ describe("the authoring page reader", () => {
     const page = parseAuthoringPageFile("We are open Monday to Friday.\n", "opening-hours", "en");
 
     expect(page.title).toBe("Opening hours");
-    expect(page.titleSource).toBe("slug");
+    expect(page.titleSource).toBe("route-path");
     expect(page.body).toBe("We are open Monday to Friday.\n");
     expect(page.description).toBeUndefined();
   });
 
   it("derives a readable title from the filename", () => {
-    expect(authoringTitleFromSlug("make-your-own-business")).toBe("Make your own business");
-    expect(authoringTitleFromSlug("about")).toBe("About");
+    expect(authoringTitleFromRoutePath("make-your-own-business")).toBe("Make your own business");
+    expect(authoringTitleFromRoutePath("about")).toBe("About");
   });
 
   it("takes the title from metadata, else the first heading, else the slug", () => {
@@ -47,13 +47,13 @@ describe("the authoring page reader", () => {
 
     const fromSlug = parseAuthoringPageFile("Body only\n", "about-us", "en");
     expect(fromSlug.title).toBe("About us");
-    expect(fromSlug.titleSource).toBe("slug");
+    expect(fromSlug.titleSource).toBe("route-path");
   });
 
   it("ignores a heading that is inside a fenced code block", () => {
     const page = parseAuthoringPageFile("```\n# not a title\n```\n", "about", "en");
     expect(page.title).toBe("About");
-    expect(page.titleSource).toBe("slug");
+    expect(page.titleSource).toBe("route-path");
   });
 
   it("keeps the body exactly as authored, and strips only the frontmatter block", () => {
@@ -104,9 +104,18 @@ describe("the authoring page reader", () => {
     ).toThrow(/Invalid "description"/);
   });
 
-  it("refuses a filename that cannot be a page", () => {
-    expect(() => parseAuthoringPageFile("Body\n", "README", "en")).toThrow(
-      /not a usable page slug/,
-    );
+  it("refuses a route path that cannot be a page", () => {
+    for (const routePath of ["README", ".gitkeep", "Not A Slug", "../escape", "blog/../../escape"]) {
+      expect(() => parseAuthoringPageFile("Body\n", routePath, "en"), routePath).toThrow(
+        /not a usable page route path/,
+      );
+    }
+  });
+
+  it("derives a nested page's title from its OWN name, never its folder", () => {
+    const page = parseAuthoringPageFile("We build sites.\n", "offerings/website-design", "en");
+    expect(page.title).toBe("Website design");
+    expect(page.titleSource).toBe("route-path");
+    expect(page.routePath).toBe("offerings/website-design");
   });
 });

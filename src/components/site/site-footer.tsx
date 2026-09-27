@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
 import { assetPathFromUrl, availableFooterGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import type { DirectionLinkResolver } from "@/application/direction-link";
-import { legalLabel, resolveLegalDocs } from "@/core/legal";
+import { configuredLegalDocs, legalLabel, legalPageRoutePath } from "@/core/legal";
 import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
 import { connectivityIcon, socialConnectivityLinks } from "./connectivity-links";
@@ -27,15 +27,21 @@ export async function SiteFooter({ locale, directionLinkResolver }: SiteFooterPr
     // identity, and the global block must never leak into them.
     const hasRegions = Object.keys(siteConfig.regions).length > 0;
 
-    // Legal documents: exposed only at the intersection of the `legal[]`
-    // config block and canonical (default-locale) content. Resolved with the
-    // same content repository used everywhere else.
-    const legalRepository = createFileSystemPageContentRepository({
+    // Legal documents: surfaced only where a document is BOTH listed in the
+    // `legal[]` config block AND authored as a page (`content/pages/.../legal/<slug>.md`
+    // or its JSON counterpart). Existence is decided by the SAME page-source
+    // composition every page route resolves through — never a second content store.
+    const pages = createPageSources({
         defaultLocale: siteConfig.defaultLocale,
-        collection: "legal",
+        locales: siteConfig.locales.map((entry) => entry.code),
     });
-    const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
-    const legalLinks = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs);
+    const legalLinks: { slug: string; label: string }[] = [];
+    for (const doc of configuredLegalDocs(siteConfig.legal)) {
+        // Canonical existence (the default locale) — the same rule as before, so a
+        // document that only exists in a translation is not advertised everywhere.
+        const page = await pages.resolve(legalPageRoutePath(doc.slug), siteConfig.defaultLocale);
+        if (page) legalLinks.push(doc);
+    }
 
     // P5-6 — the footer nav list uses the same position-derived identity as the
     // header/aside/disclosure so duplicate destinations keep distinct React

@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
+import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
+import { HOME_CONTENT_SLUG } from "@/core/page-content";
+import { regionsForLocale } from "@/core/regional-pages";
 
 describe("Phase S — sitemap & robots contract (deterministic, config/content-derived)", () => {
   it("robots references the configured absolute sitemap URL", () => {
@@ -45,16 +48,22 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
     }
   });
 
-  it("emits every canonical offering detail route across all locales when enabled", async () => {
-    if (!siteConfig.offeringsFeature) return;
-
+  it("emits no collection route: every route it publishes is an authored page or a region", async () => {
+    // A1E: there is no offerings/blog/portfolio/testimonials collection. A route in the
+    // sitemap is therefore always the locale root, an authored page route (which is the
+    // ONLY thing that can produce `/offerings/...`, `/blog/...` and so on) or a
+    // configured regional landing/page. Nothing is invented by a feature flag.
     const urls = (await sitemap()).map((entry) => entry.url);
-    for (const { code } of siteConfig.locales) {
-      for (const slug of ["starter-package", "consultation"]) {
-        expect(urls, `${code}/offerings/${slug}`).toContain(
-          `${siteConfig.url}/${code}/offerings/${slug}`,
-        );
-      }
+    const regionIds = new Set(Object.keys(siteConfig.regions));
+
+    for (const url of urls) {
+      const segments = url.slice(siteConfig.url.length + 1).split("/").filter(Boolean);
+      const isRegionRoute = segments.length >= 2 && regionIds.has(segments[1]);
+      if (isRegionRoute) continue;
+      // Non-regional: the root, or a page the site actually authored.
+      const routePath = segments.slice(1).join("/");
+      if (routePath.length === 0) continue;
+      expect(routePath, url).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*$/);
     }
   });
 
@@ -73,17 +82,36 @@ describe("Phase S — sitemap & robots contract (deterministic, config/content-d
   });
 });
 describe("Phase T — trust/publishing sitemap contract (derived inventory)", () => {
-  it("publishes exactly the config-derived inventory the site actually serves", async () => {
+  it("publishes exactly the inventory the site actually serves", async () => {
     const urls = (await sitemap()).map((entry) => entry.url);
+    const pages = createPageSources({
+      defaultLocale: siteConfig.defaultLocale,
+      locales: siteConfig.locales.map((locale) => locale.code),
+    });
 
-    // FS1 — the generic template ships NO content collections, no regions and no
-    // legal entries, so the sitemap is exactly the configuration-derived part: the
-    // root entry plus one route per configured locale. A clone publishes what it
-    // really serves — never phantom routes for content that does not exist.
-    expect(urls).toEqual([
-      siteConfig.url,
-      ...siteConfig.locales.map(({ code }) => `${siteConfig.url}/${code}`),
-    ]);
+    // The expected set is derived from the SAME composition the routes use, so the
+    // assertion is "the sitemap advertises what the site serves" rather than a frozen
+    // list: no phantom route for content that does not exist, and no missing entry for
+    // content that does.
+    const expected = new Set<string>([siteConfig.url]);
+    for (const { code } of siteConfig.locales) {
+      expected.add(`${siteConfig.url}/${code}`);
+      for (const routePath of await pages.listRoutes(code)) {
+        // The home page's real URL is the locale root, never `/{locale}/home`.
+        if (routePath === HOME_CONTENT_SLUG) continue;
+        expected.add(`${siteConfig.url}/${code}/${routePath}`);
+      }
+      for (const region of regionsForLocale(siteConfig.pageBindings, code)) {
+        expected.add(`${siteConfig.url}/${code}/${region}`);
+      }
+    }
+    for (const binding of siteConfig.pageBindings) {
+      if (binding.slug !== null) {
+        expected.add(`${siteConfig.url}/${binding.locale}/${binding.region}/${binding.slug}`);
+      }
+    }
+
+    expect(new Set(urls)).toEqual(expected);
     expect(new Set(urls).size, "no duplicate URLs").toBe(urls.length);
   });
 

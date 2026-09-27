@@ -45,10 +45,9 @@ src/adapters    # Concrete integrations (filesystem content, analytics, booking,
 src/config      # Site configuration schema and loaders
 config/i18n     # Localized JSON dictionaries (one shipped locale: en)
 content         # EVERYTHING you author lives here — start at content/README.md
-  pages/markdown #   Safe Markdown pages — content/pages/markdown/<locale>/<slug>.md  (see its README)
-  pages/json     #   Declarative JSON pages — content/pages/json/<locale>/<slug>.json  (see its README)
+  pages/markdown #   Safe Markdown pages — content/pages/markdown/<locale>/<route>.md  (see its README)
+  pages/json     #   Declarative JSON pages — content/pages/json/<locale>/<route>.json  (see its README)
   assets         #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
-  legal · offerings · posts · testimonials · portfolio   # the other content collections (empty by default)
 public/assets   # GENERATED mirror of content/assets/** — never edit by hand (scripts/sync-runtime-assets.mjs)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
 tests           # Architecture-boundary, unit, integration and CDP browser-matrix tests
@@ -57,17 +56,29 @@ tests           # Architecture-boundary, unit, integration and CDP browser-matri
 ## Where your content lives
 
 **One folder holds everything you write or upload:** [`content/`](content/README.md).
-Pages, your logo and images, legal documents, services, reviews — all of it.
+Pages and the artwork they use — all of it.
 
 ```text
 content/
 ├── README.md            ← the map: "where do I edit my website?"
 ├── pages/
-│   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<locale>/<slug>.md)
-│   └── json/            ← advanced pages      (content/pages/json/<locale>/<slug>.json)
-├── assets/              ← logos, favicons, icons, graphics  (you edit here)
-├── legal/ · offerings/ · posts/ · testimonials/ · portfolio/
+│   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<locale>/<route>.md)
+│   └── json/            ← advanced pages      (content/pages/json/<locale>/<route>.json)
+└── assets/              ← logos, favicons, icons, graphics  (you edit here)
 ```
+
+**If authored content has its own URL, it is a page.** A services page, one service, a
+blog article, a portfolio project, a privacy policy and "About" are all pages: they
+differ only in where you put the file, and a page's address comes from its folders.
+
+```text
+content/pages/markdown/en/services.md               →  /en/services
+content/pages/markdown/en/services/web-design.md    →  /en/services/web-design
+content/pages/markdown/en/legal/privacy.md          →  /en/legal/privacy
+```
+
+Content that only ever appears *inside* another page — customer quotes, cards,
+statistics, FAQ rows — is written in that page. It needs no file of its own.
 
 Everything else is **configuration**, not content: `site.config.json` and `config/`
 change how the site *behaves* (business name, contact details, languages, menu
@@ -109,11 +120,27 @@ file under `content/`.
 > reference site will be published at **`foundation-template.provelopment.com`**.
 > It does not exist yet; this repository is the product, and the reference
 > deployment will be announced here once it is available.
+>
+> Two things are already decided for that reference site and are recorded here so no
+> increment invents its own answer:
+>
+> 1. **An unobtrusive, configurable link to `https://foundation.provelopment.com/`**
+>    will appear in the shipped reference pages/site chrome. It is a
+>    reference-site/configuration concern — generic platform runtime logic must not
+>    hard-code it — and the starter content that carries it lands with the reference
+>    work, not before.
+> 2. **A presentation switcher.** The reference site will let a visitor switch between
+>    the **Sidebar** and **Menu-bar** presentations from a simple dropdown, without
+>    changing the page, the locale or the content: same content authority, same current
+>    route, presentation only. An adopter can disable or configure it, the reference
+>    deployment ships with it enabled, and it receives its own bounded
+>    navigation/presentation increment after the JSON vocabulary (A2). It is not
+>    implemented yet.
 
 The Foundation ships **one authored page** (the configuration-driven landing page)
-and **no page files**: the two authoring roots hold their documentation only, and
-every content collection is empty until you add Markdown. Technical
-routes (`/sitemap.xml`, `/robots.txt`) and generated metadata are not content pages.
+and **no page files**: the two authoring roots hold their documentation only, so a
+fresh clone has no authored content to delete. Technical routes (`/sitemap.xml`,
+`/robots.txt`) and generated metadata are not content pages.
 
 ## Customize identity
 
@@ -142,12 +169,20 @@ Create one file under the human-facing content area (see
 [Where your content lives](#where-your-content-lives) for the two modes):
 
 ```text
-content/pages/markdown/<locale>/<slug>.md
+content/pages/markdown/<locale>/<page>.md
+```
+
+Put it in a folder and the folder becomes part of its URL, so a section and its pages
+sit together:
+
+```text
+content/pages/markdown/en/services.md              →  /en/services
+content/pages/markdown/en/services/web-design.md   →  /en/services/web-design
 ```
 
 Ordinary Markdown is enough — frontmatter is optional, and a file that is nothing
 but prose is a complete page (the title comes from frontmatter, then the first
-`# heading`, then the filename). The page is served at `/<locale>/<slug>` and
+`# heading`, then the filename). The page is served at `/<locale>/<page>` and
 listed in the sitemap as soon as the file exists for a configured language; no
 configuration change is needed to publish the route — only committing and pushing it
 (see [Publishing your changes](#publishing-your-changes)).
@@ -155,25 +190,32 @@ configuration change is needed to publish the route — only committing and push
 It is **safe by design**: raw HTML you type is shown as text, unsafe link
 destinations are dropped, and the rendered page is checked against a fixed
 element/attribute allowlist. `## Opening hours` also gains the predictable fragment
-`#opening-hours`, so an author can link to their own sections. The author-facing
-guide is [`content/pages/markdown/README.md`](content/pages/markdown/README.md); the
-advanced mode is [`content/pages/json/README.md`](content/pages/json/README.md) (a
+`#opening-hours`, so an author can link to their own sections — at any depth. The
+author-facing guide is [`content/pages/markdown/README.md`](content/pages/markdown/README.md);
+the advanced mode is [`content/pages/json/README.md`](content/pages/json/README.md) (a
 JSON page file currently stops the build with an error naming the file rather than
 being ignored, because nothing yet interprets it).
 
-## Add content (collections)
+## Sections, listings and embedded content
 
-The `content/**` tree holds the **non-page** collections: create
-`content/<collection>/<locale>/<slug>.md` with `title` frontmatter — e.g.
-`content/legal/en/privacy.md`. The collections are `legal`, `offerings`, `posts`,
-`testimonials` and `portfolio`; a page whose file is absent returns a proper 404
-rather than an empty shell. Navigation entries are configuration
-(`navigation[]`), and their labels come from
-`config/i18n/en.json` → `navigation.items`.
+There is no separate "collection" to configure. A section is a folder, a listing is a
+page, and the items are pages inside that folder:
 
-These files are reviewed like source code and are rendered by the trusted
-collection renderer (raw HTML passes through), which is why they are distinct from
-the two page-authoring modes above.
+```text
+content/pages/markdown/en/offerings.md                 ← the offerings overview (a page)
+content/pages/markdown/en/offerings/website-design.md  ← one offering (a page)
+content/pages/markdown/en/blog.md                      ← the index of your articles
+content/pages/markdown/en/blog/choosing-a-domain.md    ← one article
+```
+
+Quotes, cards, statistics and FAQ rows are **embedded**: you write them in the page
+that shows them, because they have no URL of their own. (The declarative JSON mode is
+where structured page sections for those will live, once its vocabulary lands in A2.)
+
+Navigation entries are configuration (`navigation[]`), their labels come from
+`config/i18n/en.json` → `navigation.items`, and a policy document is surfaced in the
+footer by listing it in `legal[]` while authoring it as a page
+(`content/pages/markdown/en/legal/privacy.md`).
 
 ### Author your home page (optional)
 
@@ -191,10 +233,11 @@ the sitemap, because the home page's real URL is the locale root.
 
 Optional capabilities are off in the starter and are enabled purely by
 configuration: analytics (`vercel`), maps directions links (`google`), booking
-(`external-url`), the contact inquiry provider (`stub` or `webhook`), and the
-`offerings` / `testimonials` / `portfolio` / `blog` collections. Their routes,
+(`external-url`) and the contact inquiry provider (`stub` or `webhook`). Their
 adapters and components ship with the template — see
 [`CUSTOMIZING.md`](CUSTOMIZING.md).
+
+Content needs no enablement: a page exists because its file exists.
 
 ## Validate
 

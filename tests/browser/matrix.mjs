@@ -769,10 +769,10 @@ async function runAdaptiveMobile(rows, cdp) {
  */
 
 /**
- * P1-7 (template scope) — the `/en/offerings` collection `<Grid>` renders only
- * once offerings content exists (the generic template ships none), so the grid
- * half of this proof lives with the private reference site. The `<Stack>` half is
- * generic and runs on the shipped landing page.
+ * P1-7 (template scope) — the shipped template authors NO pages, so a section listing
+ * `<Grid>` has nothing to render here; the grid half of this proof lives with the
+ * private reference site, which authors those pages. The `<Stack>` half is generic and
+ * runs on the shipped landing page.
  */
 async function runGridStack(rows, cdp, label) {
   await cdp.navigate(`${BASE_URL}/en`);
@@ -3129,6 +3129,136 @@ async function runSafeMarkdownScenario(chrome) {
   return rows;
 }
 
+/**
+ * NESTED PAGES, IN A REAL BROWSER (FOUNDATION-PAGES-A1E).
+ *
+ * A page's URL is built from the folders it is authored in, so the acceptance this
+ * scenario adds is exactly that: a page under a FOLDER is served at its nested URL
+ * through the ONE page route — with the authoring capability intact (its generated
+ * heading fragment is a real target the browser can reach) — while documentation
+ * beside it stays inert and a URL that no longer names content is a proper 404.
+ */
+const NESTED_SECTION = "zz-nested";
+const NESTED_SLUG = "web-design";
+const NESTED_HEADING_ID = "what-we-build";
+
+const NESTED_PAGE_FIXTURE = `---
+title: Nested fixture page
+description: A page authored in a folder.
+---
+
+# Nested fixture page
+
+See [what we build](#${NESTED_HEADING_ID}) below.
+
+| Plan | From |
+| ---- | ---- |
+| Starter | 500 |
+
+## What we build
+
+Nested body copy.
+`;
+
+/**
+ * Waits for a URL that MUST NOT exist to settle on the localized 404. The 404 page is
+ * not the shell-hydration surface `waitReady` requires (it has no navigation chrome to
+ * hydrate), so readiness here is the document completing AND saying "not found".
+ */
+async function waitForNotFound(cdp) {
+  const t0 = Date.now();
+  let last = { notFound: false, ready: false, text: "" };
+  while (Date.now() - t0 < 20000) {
+    last = await cdp.evaluate(
+      `(() => { const t = document.body ? document.body.textContent || '' : ''; return { notFound: /not found|404/i.test(t), ready: document.readyState === 'complete', text: t.slice(0, 120) }; })()`,
+    );
+    if (last.ready && last.notFound) return last;
+    await sleep(200);
+  }
+  return last;
+}
+
+async function runNestedPageScenario(chrome) {
+  const port = BASE_PORT + 270;
+  BASE_URL = `http://localhost:${port}`;
+  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "en", NESTED_SECTION);
+  const pagePath = join(sectionDirectory, `${NESTED_SLUG}.md`);
+  const readmePath = join(sectionDirectory, "README.md");
+  const url = `${BASE_URL}/en/${NESTED_SECTION}/${NESTED_SLUG}`;
+  const rows = [];
+  await mkdir(sectionDirectory, { recursive: true });
+  await writeFile(pagePath, NESTED_PAGE_FIXTURE, "utf8");
+  // Documentation BESIDE a nested page: inert at every level.
+  await writeFile(readmePath, "# Not a page\n", "utf8");
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(`${BASE_URL}/en`);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    const page = await cdp.evaluate(`(() => {
+      const text = document.body.textContent || '';
+      return {
+        heading: (document.querySelector('h1') || {}).textContent || '',
+        body: text.includes('Nested body copy.'),
+        tableCells: document.querySelectorAll('main table th, main table td').length,
+        target: (document.getElementById('${NESTED_HEADING_ID}') || {}).tagName || null,
+        fragmentHref: (() => {
+          const link = document.querySelector('main a[href="#${NESTED_HEADING_ID}"]');
+          return link ? link.getAttribute('href') : null;
+        })(),
+      };
+    })()`);
+
+    check(rows, "nested.route.served", !!page && page.body, `body=${page && page.body}`);
+    check(rows, "nested.title.authored", !!page && page.heading === "Nested fixture page", page && page.heading);
+    check(rows, "nested.capability.table", !!page && page.tableCells === 4, `cells=${page && page.tableCells}`);
+    check(rows, "nested.fragment.headingId", !!page && page.target === "H2", `tag=${page && page.target}`);
+    check(
+      rows,
+      "nested.fragment.linkPointsAtIt",
+      !!page && page.fragmentHref === `#${NESTED_HEADING_ID}`,
+      page && page.fragmentHref,
+    );
+
+    // The author's fragment link must actually reach the target on a NESTED page too.
+    await cdp.evaluate(`location.hash = '#${NESTED_HEADING_ID}'`);
+    await sleep(400);
+    const jump = await cdp.evaluate(`(() => {
+      const target = document.getElementById('${NESTED_HEADING_ID}');
+      const rect = target ? target.getBoundingClientRect() : null;
+      return { top: rect ? Math.round(rect.top) : null };
+    })()`);
+    check(rows, "nested.fragment.reached", jump.top != null && jump.top >= 0, `top=${jump.top}`);
+
+    // Documentation beside nested pages is NOT a route, and a URL that names no page
+    // (the retired collection URLs included) is a proper 404 — never an empty shell.
+    for (const missing of [`/en/${NESTED_SECTION}/README`, "/en/offerings", "/en/blog", "/en/testimonials"]) {
+      await cdp.navigate(`${BASE_URL}${missing}`);
+      const status = await waitForNotFound(cdp);
+      check(rows, `nested.noRoute${missing.split("/").join(".")}`, !!status && status.notFound, JSON.stringify(status));
+    }
+  } catch (error) {
+    check(rows, "nested-pages.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    stopServer(server);
+    await rm(pagePath, { force: true });
+    await rm(readmePath, { force: true });
+    // Remove the section directory ONLY if the fixture left it empty.
+    try {
+      await rmdir(sectionDirectory);
+    } catch {
+      /* not empty (or already gone): leave it exactly as it is */
+    }
+  }
+  return rows;
+}
+
 async function runMatrix(chrome) {
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -3164,6 +3294,13 @@ async function runMatrix(chrome) {
     allRows = allRows.concat(safeRows.map((r) => ({ presentation: "safe-markdown", ...r })));
     const safeFails = safeRows.filter((r) => !r.ok).length;
     console.log(`[matrix] safe-markdown: ${safeRows.length - safeFails}/${safeRows.length} checks passed${safeFails ? ` FAIL=${safeFails}` : ""}`);
+    // FOUNDATION-PAGES-A1E — NESTED PAGES: a page authored in a FOLDER is served at
+    // its nested URL, with its fragment target and its inert documentation (own server
+    // + fixtures, both restored).
+    const nestedRows = await runNestedPageScenario(chrome);
+    allRows = allRows.concat(nestedRows.map((r) => ({ presentation: "nested-pages", ...r })));
+    const nestedFails = nestedRows.filter((r) => !r.ok).length;
+    console.log(`[matrix] nested-pages: ${nestedRows.length - nestedFails}/${nestedRows.length} checks passed${nestedFails ? ` FAIL=${nestedFails}` : ""}`);
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }

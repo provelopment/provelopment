@@ -31,7 +31,6 @@ import {
   BottomNavigation,
   Button,
   Drawer,
-  Empty,
   Grid,
   NavBadge,
   NavCta,
@@ -43,7 +42,6 @@ import {
   Sidebar,
   Stack,
   FieldError,
-  CardImage,
   Heading,
 } from "@/components/ui";
 
@@ -410,24 +408,6 @@ describe("P1-7 — Stack (shared alignment layout primitive)", () => {
   });
 });
 
-describe("P1-8 — Empty (shared collection empty-state message primitive)", () => {
-  it("renders the demonstrated muted-foreground paragraph", () => {
-    const html = renderToStaticMarkup(Empty({ label: "Nothing here yet." }));
-    expect(html).toContain('<p class="text-muted-foreground">Nothing here yet.</p>');
-  });
-
-  it("forwards an optional className (e.g. a top-margin rhythm)", () => {
-    const html = renderToStaticMarkup(Empty({ label: "Empty", className: "mt-4" }));
-    expect(html).toContain('<p class="text-muted-foreground mt-4">Empty</p>');
-  });
-
-  it("does NOT inject ARIA (a static empty message is not an async status/live region)", () => {
-    const html = renderToStaticMarkup(Empty({ label: "Empty" }));
-    expect(html).not.toContain("role=");
-    expect(html).not.toContain("aria-live");
-  });
-});
-
 describe("P2-8 — FieldError (shared field-level validation-error presentation primitive)", () => {
   it("renders <p> with the demonstrated mt-1 text-sm text-destructive classes when show", () => {
     const html = renderToStaticMarkup(
@@ -451,24 +431,6 @@ describe("P2-8 — FieldError (shared field-level validation-error presentation 
     );
     expect(html).not.toContain("role=");
     expect(html).not.toContain("aria-live");
-  });
-});
-
-describe("P2-10 — CardImage (shared collection-card image primitive)", () => {
-  it("renders the demonstrated fill + object-cover wrapper and Image at card sizing", () => {
-    const html = renderToStaticMarkup(CardImage({ src: "/images/photo.jpg", alt: "Consultation" }));
-    expect(html).toContain(
-      '<div class="relative mb-4 h-40 w-full overflow-hidden rounded">',
-    );
-    expect(html).toContain('alt="Consultation"');
-    expect(html).toContain('data-nimg="fill"');
-    expect(html).toContain('sizes="(max-width: 640px) 100vw, 320px"');
-    expect(html).toContain('class="object-cover"');
-  });
-
-  it("passes alt through verbatim (caller owns accessible copy; the primitive never invents alt)", () => {
-    const html = renderToStaticMarkup(CardImage({ src: "/a.png", alt: "My Portfolio Item" }));
-    expect(html).toContain('alt="My Portfolio Item"');
   });
 });
 

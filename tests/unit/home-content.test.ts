@@ -27,18 +27,8 @@ const root = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
 
 const homeRouteSource = read("src", "app", "[locale]", "page.tsx");
-const itemRouteSource = read("src", "app", "[locale]", "[item]", "page.tsx");
+const pageRouteSource = read("src", "app", "[locale]", "[...path]", "page.tsx");
 const sitemapSource = read("src", "app", "sitemap.ts");
-
-const EMPTY_FEATURES = {
-  offeringsEnabled: false,
-  canonicalOfferings: [],
-  testimonialsEnabled: false,
-  portfolioEnabled: false,
-  canonicalPortfolio: [],
-  blogEnabled: false,
-  publishedBlogSlugs: [],
-} as const;
 
 describe("the reserved home slug has ONE authority", () => {
   it("is declared once, in the content model", () => {
@@ -51,7 +41,7 @@ describe("the reserved home slug has ONE authority", () => {
   it("is imported everywhere it is needed, never re-typed as a literal", () => {
     for (const [name, source] of [
       ["the home route", homeRouteSource],
-      ["the [item] route", itemRouteSource],
+      ["the page route", pageRouteSource],
       ["route discovery", read("src", "application", "route-discovery.ts")],
     ] as const) {
       expect(source, name).toContain("HOME_CONTENT_SLUG");
@@ -65,8 +55,7 @@ describe("the reserved home slug has ONE authority", () => {
 describe("/home is never a route and never a sitemap entry", () => {
   it("excludes the reserved slug from the derived route set", () => {
     const routes = buildSitemapRoutes({
-      ...EMPTY_FEATURES,
-      pages: ["about", HOME_CONTENT_SLUG, "resources"],
+            pages: ["about", HOME_CONTENT_SLUG, "resources"],
     });
 
     expect(routes).toEqual(["", "/about", "/resources"]);
@@ -76,8 +65,7 @@ describe("/home is never a route and never a sitemap entry", () => {
 
   it("keeps every other content slug, including one that merely starts with 'home'", () => {
     const routes = buildSitemapRoutes({
-      ...EMPTY_FEATURES,
-      pages: [HOME_CONTENT_SLUG, "home-maintenance", "about"],
+            pages: [HOME_CONTENT_SLUG, "home-maintenance", "about"],
     });
 
     expect(routes).toEqual(["", "/home-maintenance", "/about"]);
@@ -88,8 +76,7 @@ describe("/home is never a route and never a sitemap entry", () => {
     // locale's page inventory), so the exclusion must hold for ANY inventory.
     for (const locale of siteConfig.locales) {
       const routes = buildSitemapRoutes({
-        ...EMPTY_FEATURES,
-        pages: [HOME_CONTENT_SLUG],
+                pages: [HOME_CONTENT_SLUG],
       });
       for (const route of routes) {
         expect(`${locale.code}${route}`).not.toBe(`${locale.code}/home`);
@@ -98,8 +85,8 @@ describe("/home is never a route and never a sitemap entry", () => {
     }
   });
 
-  it("reserves the slug on the [item] route so it can never double-route", () => {
-    expect(itemRouteSource).toMatch(/STATIC_ROUTE_SLUGS[\s\S]*HOME_CONTENT_SLUG/);
+  it("reserves the slug on the page route so it can never double-route", () => {
+    expect(pageRouteSource).toMatch(/RESERVED_FIRST_SEGMENTS[\s\S]*HOME_CONTENT_SLUG/);
   });
 
   it("is not filtered ad hoc in the sitemap route itself", () => {

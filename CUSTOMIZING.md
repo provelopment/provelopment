@@ -58,7 +58,7 @@ The boundary between "Foundation-owned" and "downstream/user-owned" is:
 | Foundation-owned (do not edit for customization) | Downstream/user-owned (edit freely) |
 | --- | --- |
 | `src/**` — application code, components, framework wiring | `site.config.json` — site identity, navigation, features, UI composition, theme, assets |
-| configuration **schema + loaders** (`src/config/`) | `content/**` — Markdown pages, offerings, portfolio, posts, testimonials, legal |
+| configuration **schema + loaders** (`src/config/`) | `content/**` — your Markdown/JSON pages and the artwork they use |
 | UI engine (`src/core/ui/`, `src/components/ui/`) | `config/i18n/<locale>.json` — localized interface strings |
 | design-system implementation (`src/app/globals.css` tokens) | `content/assets/**` — the source asset tree; `public/assets/*` is its mirrored runtime derivative |
 | localization infrastructure + dictionary schema | asset URL values you supply through `site.assets.*` |
@@ -737,14 +737,18 @@ A page is authored in one of **two first-class modes**:
 
 | Where | What it is |
 | --- | --- |
-| `content/pages/markdown/<locale>/<slug>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
-| `content/pages/json/<locale>/<slug>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
+| `content/pages/markdown/<locale>/<route>.md` | **Safe Markdown** — ordinary Markdown, for anyone who can write a text file. Frontmatter is optional; raw HTML is shown as text and unsafe link destinations are dropped. **Start here.** |
+| `content/pages/json/<locale>/<route>.json` | **Declarative JSON** — the advanced/developer mode: validated structured data for a page that needs presentation Markdown cannot express. Its component vocabulary is still to come, so adding a JSON page file currently stops the build with an error naming the file. |
+
+`<route>` is the page's path inside its locale folder — one name (`about`) or a folder
+path (`services/web-design`), because a page's URL is built from the folders it is
+authored in (see the sections table below).
 
 Those are the *only* two page-authoring paths. `content/` is the single
-human-facing content area — pages, assets and the other collections all live there —
-and [`content/README.md`](content/README.md) is the map to hand to whoever edits the
-site. Each mode root's own `README.md` explains its mode in plain language, and is
-never itself a page.
+human-facing content area — pages and the artwork they use — and
+[`content/README.md`](content/README.md) is the map to hand to whoever edits the
+site. Each mode root's own `README.md` explains its mode in plain language, and a
+README is never itself a page, at any level.
 
 A page becomes a route and a sitemap entry as soon as its file exists for a
 configured language — publishing the *route* needs no configuration change;
@@ -795,13 +799,13 @@ Your homepage body, in Markdown.
 
 - Wire new pages into `navigation` in `site.config.json`.
 - Missing translations fall back to the default locale automatically.
-- The sitemap is derived from the **content model** (every page that has a
-  `<slug>.md` file in the default locale, plus the locale root), not from
-  `navigation`. Navigation controls exposure and order; a page joins the
-  sitemap as soon as its content file exists.
-- Markdown (including any raw HTML in the file) is rendered as-is. These are
-  authored, site-owner files — treat them like source code, never as
-  untrusted user input.
+- The sitemap is derived from the **content model** (every page route the site
+  actually authors, plus the locale root), not from `navigation`. Navigation controls
+  exposure and order; a page joins the sitemap as soon as its file exists.
+- Markdown is rendered under the **safe authoring policy** (raw HTML is shown as text,
+  unsafe link destinations are dropped, the output is allowlisted), so a page body is
+  never trusted markup. The trusted renderer is reserved for the platform's own
+  reviewed content.
 - Wide Markdown **tables** scroll locally, inside their own region, instead of
   forcing the whole page to scroll sideways on a narrow viewport. The table stays
   real tabular markup (`<table>/<thead>/<th>/<td>`) and the scroll region is
@@ -810,20 +814,20 @@ Your homepage body, in Markdown.
   dictionaries under `config/i18n/<locale>.json` (see §4).
 
 > **Navigation is deliberate, not derived.** `navigation[]` may legally point
-> at a route whose feature is disabled or whose content is missing — the link
-> simply leads to a 404. Navigation never filters itself against feature or
-> content state, so when you disable a feature (e.g. `features.offerings`)
-> or remove content, remove (or leave) the matching navigation entry yourself.
+> at a route whose content is missing — the link simply leads to a 404. Navigation
+> never filters itself against content state, so when you remove a page, remove (or
+> leave) the matching navigation entry yourself.
 
-All content bodies (pages, offerings, legal) are localized the same way: a
-locale-specific file at `content/<type>/<locale>/<slug>.md` is served when
-present; otherwise the repository falls back to the default-locale body.
+All page bodies are localized the same way: the requested locale's file at
+`content/pages/markdown/<locale>/<route>.md` is served when present; otherwise the
+composition falls back to the default locale's file. No per-kind rule exists — a page
+is a page.
 
 The shipped template is intentionally minimal: it declares **one** locale (`en`) and
 ships **no content files at all**, so a fresh clone renders the configuration-driven
-starter homepage with every collection empty. Adding a locale is data work — add
-`config/i18n/<locale>.json` and the matching `content/**/<locale>/` files; no platform
-code changes are required.
+starter homepage with no authored pages. Adding a locale is data work — add
+`config/i18n/<locale>.json` and the matching `content/pages/**/<locale>/` files; no
+platform code changes are required.
 
 > **Fallback is intentional, not a bug.** A localized URL (e.g.
 > `/de/legal/privacy`) with a missing translation serves the default-locale
@@ -831,203 +835,66 @@ code changes are required.
 > That is the documented behavior — localize the file when you want a
 > true per-locale page.
 
-### Offerings catalog (`content/offerings/`)
+### Sections, listings and items: folders ARE the model
 
-Offerings (services, products, packages, programs, consultations — one
-type-agnostic model) live at `content/offerings/<locale>/<slug>.md`:
+There is no catalogue, blog, portfolio or testimonials system to configure. **If
+authored content has its own URL, it is a page**, and a page's URL comes from the
+folders it is authored in. A section is a folder; a listing is a page; an item is a
+page inside that folder.
 
-```markdown
----
-title: "Web design"               # required
-blurb: "A short one-liner."       # required
-order: 1                          # optional, listing sort
-featured: true                    # optional, listed first
-price: "From $180"                # optional display-only text (no currency math)
-image: "/images/offerings/x.jpg"  # optional, file under public/
-deliverables:                     # optional "What's included" checklist
-  - "Wireframe"
-  - "Design review"
-faq:                              # optional Q&A (native <details> disclosure)
-  - question: "How long does it take?"
-    answer: "Outcome summary."
-action:                           # optional single call-to-action
-  intent: book                    # book | contact | external
-  # label: "Book a call"          # optional label override
-  # href: "https://.../book"    # required ONLY for intent: external
----
-Long-form detail body.
+| What you want | Where it goes | URL |
+| --- | --- | --- |
+| A services overview | `content/pages/markdown/en/services.md` | `/en/services` |
+| One service | `content/pages/markdown/en/services/web-design.md` | `/en/services/web-design` |
+| A blog index | `content/pages/markdown/en/blog.md` | `/en/blog` |
+| One article | `content/pages/markdown/en/blog/choosing-a-domain.md` | `/en/blog/choosing-a-domain` |
+| A portfolio project | `content/pages/markdown/en/portfolio/rebrand.md` | `/en/portfolio/rebrand` |
+| A privacy policy | `content/pages/markdown/en/legal/privacy.md` | `/en/legal/privacy` |
+
+- **Folders may be up to four deep**, and every folder and file name follows the same
+  rule as a page name (lowercase words joined by hyphens). The rule is declared once
+  (`src/core/page-route-path.ts`), so a URL is always readable and always predictable.
+- **A listing is just a page.** Write your own links to the items in it — an ordinary
+  Markdown list of links is the listing. Nothing generates it for you, and nothing
+  needs to.
+- **Quotes, cards, statistics and FAQ rows are embedded**: they have no URL, so they
+  are written in the page that shows them. (Structured page sections for those are the
+  declarative JSON mode's job, once its vocabulary lands in `A2`.)
+- **There is no content feature flag.** A page exists because a file exists; a
+  deployment hides a page by not linking to it.
+
+> **Why this replaced the collections.** The Foundation used to ship separate
+> `content/offerings/`, `content/posts/`, `content/portfolio/`, `content/testimonials/`
+> and `content/legal/` directories, each with its own feature flag, route, parser and
+> presentation components. There are no adopters that need compatibility, and one
+> authoring model is far easier to learn than five, so those systems were removed in
+> `FOUNDATION-PAGES-A1E`. Nothing was lost that a page cannot express.
+
+### Legal documents — configuration plus a page
+
+A legal document is a page **plus one line of configuration** so the footer can link
+to it:
+
+```text
+content/pages/markdown/en/legal/privacy.md   →   /en/legal/privacy
 ```
 
-**An Offering is descriptive visitor-facing content, not an operational
-entity.** Prices are display-only strings (no currency math); ordering is
-display ordering; actions are outbound provider-neutral links — never booking,
-scheduling, cart, checkout, payment, inventory, ordering/fulfillment, CRM, or
-account logic.
-
-**The `action` block (Phase C) is strict:**
-
-- `book` → the platform's booking seam (`features.booking`). Never set `href`;
-  the platform resolves the destination. When booking is disabled the detail
-  page shows no CTA (never a broken link).
-- `contact` → the Foundation contact route. Never set `href`; the platform
-  resolves `/{locale}/contact`.
-- `external` → an explicit external/deep link; `href` is **required** and is
-  validated syntactically only (an internal `/route`, or a scheme link such as
-  `https:`, `mailto:`, `viber:`). No ownership/reachability checks are made.
-- `label` is an optional override; the default comes from the localized
-  dictionary (`booking.book`, `connect.methods.message`,
-  `offerings.externalCta`).
-
-The frontmatter parser accepts a deliberately constrained block subset
-(string lists, `question`/`answer` object lists, and the fixed `action` object)
-and fails the build with an actionable message naming the offering/field for
-anything outside it — malformed content never silently misparses.
-
-Offering interfaces are localized in `config/i18n/<locale>.json` under
-`offerings` (`heading`, `emptyState`, `backToOfferings`, plus the Phase C keys
-`featured`, `deliverables`, `faq`, `externalCta` — all required across every
-configured locale).
-
-Three independent controls:
-
-1. **Content** decides which offerings exist — the canonical set is the
-   default-locale slugs. A slug that exists only in a non-default locale is not
-   listed and its URL returns a 404 (no ambiguous English fallback).
-2. **`features.offerings`** decides whether the catalog is exposed: `true`
-   enables `/offerings` (+ each detail page, and sitemap coverage); `false` or
-   missing disables it entirely — the routes return a 404.
-3. **`navigation[]`** decides whether the catalog is linked, e.g.
-   `{ "label": "Offerings", "href": "/offerings" }` (plus the localized label
-   in `config/i18n/<locale>.json` under `navigation.items["/offerings"]`).
-   Navigation is never generated from content automatically.
-
-With the feature on and no offerings yet, the page shows a friendly empty
-state. Images for the catalog go in `public/` (e.g. `public/images/offerings/`).
-
-### Testimonials (`features.testimonials` + `content/testimonials/`)
-
-Customer quotes live at `content/testimonials/<locale>/<slug>.md` and render as a
-listing-only grid at `/testimonials` (no per-testimonial detail routes):
-
-```markdown
----
-author: "Demo Client"               # required
-role: "Founder"                     # optional
-company: "Example"                  # optional
-rating: 5                           # optional integer 1-5 (loud build failure if invalid)
-featured: true                      # optional badge
-order: 1                            # optional listing sort (ascending, then slug)
-quote: "…"                          # required — the canonical quote (body unused)
----
+```json
+"legal": [
+  { "slug": "privacy", "label": "Privacy Policy" },
+  { "slug": "terms",   "label": "Terms of Service" }
+]
 ```
 
-- Enabled by `features.testimonials: true`; content existence, exposure, and
-  `navigation[]` discoverability are separate, exactly like offerings.
-- Demo content ships on (clearly-worded template quotes with `Demo Client` /
-  `Demo Partner` authors). **Replace it with real, attributable reviews before
-  publishing** — the template never fabricates customer evidence.
-- The listed set is the default-locale slugs; each locale reads its own
-  translation or falls back to the default locale.
-- Chrome (heading/emptyState/featured/ratingAria) is localized under
-  `testimonials` in `config/i18n/<locale>.json` and is REQUIRED in every
-  configured locale while the feature is on (F1-style build lock).
-
-### Portfolio / case studies (`features.portfolio` + `content/portfolio/`)
-
-Projects live at `content/portfolio/<locale>/<slug>.md`; the body is the
-long-form case study rendered through the standard Markdown renderer:
-
-```markdown
----
-title: "Brand refresh for a growing studio"  # required
-summary: "A short card description."          # required
-year: 2026                                    # optional
-tags:
-  - "Branding"                                # optional display-only tags
-featured: true                                # optional badge
-order: 1                                      # optional listing sort
-image: "/images/portfolio/x.jpg"              # optional, file under public/
----
-Case-study body (Markdown).
-```
-
-- Routes: `/portfolio` listing + `/portfolio/[slug]` detail. Canonical-slug
-  enforcement matches offerings exactly (a non-default-locale-only slug 404s).
-- Demo content ships on and is clearly marked **template**; replace before
-  publishing. `year`/`tags`/`featured`/`order` are descriptive/presentation
-  metadata only (no tag-index routes).
-- Chrome (`portfolio` block: heading, emptyState, featured, tags,
-  backToPortfolio) is localized in every configured locale while enabled.
-
-### Blog & RSS (`features.blog` + `content/posts/`)
-
-Articles live at `content/posts/<locale>/<slug>.md`; the app routes are
-`/blog`, `/blog/[slug]`, and `/blog/rss.xml`:
-
-```markdown
----
-title: "Getting started"             # required
-excerpt: "Short card/feed summary."   # required
-date: "2026-08-15"                    # required ISO YYYY-MM-DD
-tags:
-  - "Foundation"                      # optional display-only
-draft: false                          # optional — true EXCLUDES the post
----
-Article body (Markdown).
-```
-
-- **Drafts** (`draft: true`) are excluded completely from routes, the sitemap,
-  and the RSS feed.
-- Listing sorts date-descending; reading time is a deterministic pure helper
-  (latin words + CJK characters, ~200 tokens/min).
-- **RSS**: a static, per-locale feed is generated at build time
-  (`/blog/rss.xml`, linked from `/blog` via `<link rel="alternate">`). Feeds
-  contain published posts only, excerpt-based descriptions, fully escaped XML.
-  RSS is part of the publishing primitive, not an SEO architecture.
-- Chrome (`blog` block: heading, emptyState, backToBlog, readingTime, rss) is
-  localized in every configured locale while enabled.
-### Legal documents (`legal` + `content/legal/`)
-
-Optional legal pages (privacy policy, terms, etc.) are reached from the footer.
-
-1. **Author content** at `content/legal/<locale>/<slug>.md` (frontmatter `title`
-   + Markdown body). Documents only exist for the slugs in your default
-   (e.g. `en`) content folder; other locales fall back to it automatically.
-2. **List them in `site.config.json`** to expose them:
-   ```jsonc
-   "legal": [
-     { "slug": "privacy", "label": "Privacy Policy" },
-     { "slug": "terms",   "label": "Terms of Service" }
-   ]
-   ```
-   A document appears in the footer (and its `/legal/<slug>` route responds)
-   only when it is **both** in `legal` **and** has content. Missing content → the
-   entry is hidden and the URL returns a 404.
-3. **Localize the footer labels** in `config/i18n/<locale>.json` under
-   `legal.labels["<slug>"]` (falls back to the config `label`).
-
-### Legal document bodies vs. footer labels
-
-Legal **bodies** are localized independently of the footer **labels**:
-
-- **Footer labels** come from `dictionary.legal.labels["<slug>"]`
-  (`config/i18n/<locale>.json`), falling back to the `label` in `site.config.json`.
-  They only affect the text of the footer links.
-- **Document bodies** come from the content files. A locale-specific body at
-  `content/legal/<locale>/<slug>.md` is served when present; otherwise the
-  repository falls back to the default-locale body (`content/legal/en/<slug>.md`)
-  automatically — exactly the same fallback used everywhere else. So an adopter
-  who has translated the footer but not a document's body still gets a working
-  page until they add the translation.
-- The shipped demo docs include translated bodies for all 9 locales, all
-  preserving the same generic, **replaceable-template / not legal advice**
-  nature as the English originals. There is no separate translation system and
-  no per-locale schema — just the standard content files and the standard
-  repository fallback.
-
-The demo `privacy.md`, `terms.md`, and `cookies.md` shipped with the template
-are clearly marked **placeholders — not legal advice**. Replace them before
-going live.
+- **Configuration decides exposure; the page decides existence.** A slug that has no
+  page is never linked, and a page that is not listed is never advertised. The footer
+  renders its legal group only when at least one configured document exists.
+- **Labels** come from `config/i18n/<locale>.json` → `legal.labels.<slug>`, falling back
+  to the configured `label`.
+- **Localization is the page's own fallback** (see above): author
+  `content/pages/markdown/<locale>/legal/<slug>.md` for a translated document.
+- There is **no legal index page** and no legal-specific chrome: the document is an
+  ordinary page with an ordinary page's presentation.
 
 ## 3. Branding, Design Tokens & Visual Identity
 
@@ -1726,11 +1593,11 @@ preconditions P-1…P-4). Note that platform brand rules sometimes require a
 particular colour variant for a particular surface, and the engine applies **no**
 recolouring or filter — see *Precondition P-1* for the two black variants.
 
-**Content-level images are separate:** images referenced inside Markdown
-content (offerings, portfolio, posts — e.g. an `image:` frontmatter value)
-come from the content itself and are rendered by the card/detail image
-primitives. They are distinct from the global site-asset registry above; an
-adopter supplies content imagery through the same `content/**` files that hold
+**Content-level images are separate:** an image inside a page comes from the content
+itself — an ordinary Markdown image (`![description](/assets/photo.png)`) in a page
+body. It is distinct from the global site-asset registry above; an adopter supplies page
+imagery in the same `content/**` files that hold the words, and it is served from
+`public/assets/` like any other runtime graphic (see §1.1 in `BRAND_ASSETS.md`).
 the text.
 
 User-facing interface strings (nav labels, hero copy, section headings, 404
@@ -1778,10 +1645,10 @@ Current feature flags:
 - `maps` — directions-deep-link provider for business locations (e.g. `google`).
 - `booking` — static external booking action (e.g. `external-url`).
 - `contact` — contact inquiry provider (`webhook` or the `stub` demo default).
-- `offerings` — enables the offerings catalog routes.
-- `testimonials` — enables the `/testimonials` listing (content-driven). *(Phase T)*
-- `portfolio` — enables the `/portfolio` listing + `/portfolio/[slug]` case studies. *(Phase T)*
-- `blog` — enables `/blog`, `/blog/[slug]`, and the static per-locale `/blog/rss.xml` feed. *(Phase T)*
+
+> **Content has no flag.** Adding or removing a page is adding or removing a file —
+> there is no switch that could hide a page that exists, and no flag whose state could
+> disagree with the content tree.
 
 ### Business profile, locations & hours (`business` in `site.config.json`)
 
@@ -1895,22 +1762,21 @@ main menu.
 Key points:
 
 - **URL model:** `/{locale}` (home), `/{locale}/{region}` (regional landing),
-  `/{locale}/{region}/{page}` (regional page). Static routes (About/Contact/
-  Resources/Offerings/Legal) stay where they are; a region whose id collides
-  with a static route is rejected at build time.
+  `/{locale}/{region}/{page}` (regional page). A page authored for a region is served
+  there with the region's operational identity; a region whose id collides with a
+  reserved first segment is rejected at build time.
 - **Every bound `(locale, region)` needs a landing entry** (the bare `{
   locale, region }` line). A page entry without its landing fails the build.
   The Phase K `{ locale, slug: "toronto", region: "toronto" }` form is still
   accepted and migrated automatically.
-- **Standardized 4-page layout & inventories:** The shipped template binds
-  `Home` (landing), `About`, `Connect`, and `Offerings` for every configured operating city.
-  Downstream adopters may configure different page inventories per locale × region;
-  one region may exist in several locales.
-- **Regional currency & offerings presentation:** Each region in `business.regions` can configure
-  an ISO 4217 `currency` (e.g. `"AUD"`, `"GBP"`, `"EUR"`, `"JPY"`) and `currencySymbol` (e.g. `"A$"`,
-  `"£"`, `"€"`, `"¥"`). The offerings catalog (`/{locale}/{region}/offerings`) automatically displays
-  amounts in the selected city's currency, with an explicit demonstration disclaimer banner clarifying
-  that the catalog items are template placeholders.
+- **What a region exposes is CONFIG + PAGES:** a regional page exists exactly when it
+  is bound for that `(locale, region)` AND authored as a page. Downstream adopters
+  configure whatever page inventory they want per locale × region; one region may
+  exist in several locales.
+- **Regional currency values** (`currency`, `currencySymbol`) remain part of a region's
+  identity data. Nothing in the platform renders a catalogue price today: with the
+  offerings collection gone (A1E), a deployment that shows prices states them in the
+  page's own text, in whatever currency it chooses.
 - **Switching behavior (deterministic, pure core):**
   - Location: keep the language; go to the same page in the target region, or
     its landing, or (as a defensive fallback) its first configured page.
@@ -2272,9 +2138,10 @@ output), plus Vercel's own product description where noted:
 
 - **Adopter responsibility.** When you change providers, add tracking or marketing
   integrations, or operate in a jurisdiction with specific rules, **you** determine
-  whatever privacy/consent requirements apply to your configuration. The shipped
-  template Cookie Policy (`content/legal/<locale>/cookies.md`) is replaceable template
-  content, not legal advice—and `features.analytics: { "provider": "none" }`
+  whatever privacy/consent requirements apply to your configuration. If you publish a
+  cookie policy, author it as a page
+  (`content/pages/markdown/<locale>/legal/cookies.md`) and list it in `legal[]` — page
+  content is not legal advice — and `features.analytics: { "provider": "none" }`
   disables analytics entirely if you prefer.
 
 ### Contact inquiries (`features.contact` + `/contact`)
@@ -2386,7 +2253,7 @@ platform code unless you deliberately changed it.
 | Surface | On a future `git merge upstream/main` |
 | --- | --- |
 | `site.config.json` (your values) | **Preserved** — your versions win in a conflict |
-| `content/**` (your pages/collections) | **Preserved** |
+| `content/**` (your pages and assets) | **Preserved** |
 | `config/i18n/*` (your translations) | **Preserved** |
 | `public/assets/*` (your replaced files) | **Preserved** |
 | `src/**`, `tests/**`, build/deploy files | **Replaced** by the template's implementation |

@@ -4,29 +4,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { RegionStructuredData } from "@/components/site/region-structured-data";
-import { OfferingStructuredData } from "@/components/site/offering-structured-data";
 import { StructuredData } from "@/components/site/structured-data";
 import { siteConfig } from "@/config";
 import { resolveRegion } from "@/core/region";
-import type { OfferingsContent } from "@/core/offerings";
 
 /** Extracts the first JSON-LD payload from a rendered `<script>` block. */
 function jsonLd(html: string): Record<string, unknown> {
   const match = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/.exec(html);
   if (!match) throw new Error("no JSON-LD script found");
   return JSON.parse(match[1]) as Record<string, unknown>;
-}
-
-function offering(overrides: Partial<OfferingsContent> = {}): OfferingsContent {
-  return {
-    slug: "starter-package",
-    locale: "en",
-    title: "Starter package",
-    blurb: "A practical package of essentials.",
-    body: "Body.\n",
-    price: "$150",
-    ...overrides,
-  };
 }
 
 describe("StructuredData — global organization/local-business JSON-LD (Phase S)", () => {
@@ -126,80 +112,5 @@ describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () =>
       expect(html).toContain("Monday");
       expect(html).toContain('"@type":"LocalBusiness"');
     });
-  });
-});
-describe("OfferingStructuredData — Service JSON-LD (Phase S)", () => {
-  const canonicalUrl = `${siteConfig.url}/en/offerings/starter-package`;
-
-  it("emits a Service with name, description, canonical url and provider", () => {
-    const html = renderToStaticMarkup(
-      OfferingStructuredData({
-        offering: offering(),
-        canonicalUrl,
-        providerName: "Example",
-        providerType: "Organization",
-      }),
-    );
-    const node = jsonLd(html);
-
-    expect(node["@type"]).toBe("Service");
-    expect(node["@id"]).toBe(canonicalUrl);
-    expect(node.name).toBe("Starter package");
-    expect(node.description).toBe("A practical package of essentials.");
-    expect(node.url).toBe(canonicalUrl);
-    expect(node.provider).toEqual({ "@type": "Organization", name: "Example" });
-  });
-
-  it("emits offers.price for a parseable price WITHOUT priceCurrency", () => {
-    const html = renderToStaticMarkup(
-      OfferingStructuredData({
-        offering: offering({ price: "$150" }),
-        canonicalUrl,
-        providerName: "Example",
-        providerType: "Organization",
-      }),
-    );
-    const node = jsonLd(html);
-
-    expect(node.offers).toEqual({ "@type": "Offer", price: "150" });
-    expect(JSON.stringify(node)).not.toContain("priceCurrency");
-  });
-
-  it("omits offers for a range/descriptive price (From $150)", () => {
-    const html = renderToStaticMarkup(
-      OfferingStructuredData({
-        offering: offering({ price: "From $150" }),
-        canonicalUrl,
-        providerName: "Example",
-        providerType: "Organization",
-      }),
-    );
-    expect(jsonLd(html).offers).toBeUndefined();
-  });
-
-  it("omits offers when the price is absent", () => {
-    const html = renderToStaticMarkup(
-      OfferingStructuredData({
-        offering: offering({ price: undefined }),
-        canonicalUrl,
-        providerName: "Example",
-        providerType: "Organization",
-      }),
-    );
-    expect(jsonLd(html).offers).toBeUndefined();
-  });
-
-  it("omits offers for suffixed or verbose prices (150 USD / Custom Quote)", () => {
-    for (const price of ["150 USD", "Custom Quote"]) {
-      const html = renderToStaticMarkup(
-        OfferingStructuredData({
-          offering: offering({ price }),
-          canonicalUrl,
-          providerName: "Example",
-          providerType: "Organization",
-        }),
-      );
-      expect(jsonLd(html).offers, price).toBeUndefined();
-    }
   });
 });

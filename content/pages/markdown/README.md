@@ -42,6 +42,23 @@ is served at `/en/opening-hours`. You do not register the page anywhere else, yo
 not add it to a list, and you do not change any configuration: the file existing
 *is* the page, and it appears in the site's sitemap automatically.
 
+### Pages inside a section (folders)
+
+Put a page in a folder and the folder becomes part of its address — that is how you
+build a section:
+
+```text
+content/pages/markdown/en/services.md                 →  /en/services
+content/pages/markdown/en/services/web-design.md      →  /en/services/web-design
+content/pages/markdown/en/services/hosting.md         →  /en/services/hosting
+content/pages/markdown/en/blog/choosing-a-domain.md   →  /en/blog/choosing-a-domain
+```
+
+The section's own page and its pages live side by side: `services.md` is the
+overview, the `services/` folder holds the rest. Folders may be up to four deep, and
+every folder name follows the same rule as a file name (lowercase words joined by
+hyphens), so a URL is always readable and always predictable.
+
 ## The smallest complete page
 
 This is a whole page. Nothing else is required:
@@ -188,16 +205,25 @@ enough: an unstaged, uncommitted or unpushed change is invisible to the live sit
 - **One folder per language**: `content/pages/markdown/en/…`, `…/de/…`.
 - The folder name must be a language code your site is configured to serve
   (`site.config.json`). A folder for an unconfigured language publishes nothing.
+- **Another language mirrors the same structure**, so a translated section keeps the
+  same URLs under its own language:
+
+  ```text
+  content/pages/markdown/en/services/web-design.md   →  /en/services/web-design
+  content/pages/markdown/de/services/web-design.md   →  /de/services/web-design
+  ```
+
 - **You may create an empty language folder** before you have anything to put in it.
   An empty folder is not a page, creates no address and adds nothing to the sitemap.
 - **A missing translation falls back**: if a visitor asks for a page in German and
   you have not written it, the site's default language answers instead of showing an
-  error.
+  error — for a nested page exactly as for a top-level one.
 
 ## Two things that are deliberate, not mistakes
 
-- **This README is never a page** — nor is any other file that is not inside a
-  language folder. Documentation cannot end up on your website by accident.
+- **A `README.md` is never a page** — at the top level *or* beside your pages inside a
+  folder. Only files whose names are ordinary lowercase page names can become pages,
+  so documentation cannot end up on your website by accident.
 - **Adding a page does not change your menu.** Put a link to the page wherever you
   want it, or add an entry to `navigation` in `site.config.json` if it belongs in the
   menu. The page itself is live either way.
@@ -207,6 +233,7 @@ enough: an unstaged, uncommitted or unpushed change is invisible to the live sit
 - **Logo, favicon, images and icons:** [`../../assets/README.md`](../../assets/README.md)
 - **Everything you can author, in one map:** [`../../README.md`](../../README.md)
 - **The advanced, structured page format:** [`../json/README.md`](../json/README.md)
-- **Legal documents, services, portfolio, reviews, articles:** the other folders
-  under `content/`, and `CUSTOMIZING.md` at the repository root.
+- **Your website's settings** (name, contact details, languages, menu):
+  `site.config.json` at the top of the project, and `CUSTOMIZING.md` beside it.
+
 

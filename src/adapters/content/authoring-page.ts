@@ -33,27 +33,41 @@
  * be reported, never ignored.
  */
 import type { Locale } from "@/core/locale";
-import { isContentSlug, type PageContent } from "@/core/page-content";
+import { isPageRoutePath, pageRouteLeaf } from "@/core/page-route-path";
+import type { PageContent } from "@/core/page-content";
 import { hasFrontmatter, parseFrontmatter } from "./frontmatter";
 
 /** The metadata keys the Markdown authoring mode supports. None of them is required. */
 export const AUTHORING_METADATA_KEYS = ["title", "description"] as const;
 
 /** Where a page's title came from. */
-export type AuthoringTitleSource = "metadata" | "heading" | "slug";
+export type AuthoringTitleSource = "metadata" | "heading" | "route-path";
 
-/** One authored page, ready to be resolved and rendered. */
+/**
+ * One authored page, ready to be resolved and rendered.
+ */
 export interface AuthoringPage extends PageContent {
   /** Which rule produced the title. */
   readonly titleSource: AuthoringTitleSource;
 }
 
-/** `make-your-own-business` → `Make your own business`. Sentence case, matching the site's voice. */
-export function authoringTitleFromSlug(slug: string): string {
-  if (!isContentSlug(slug)) {
-    throw new Error(`"${slug}" is not a usable page slug (lowercase words joined by hyphens).`);
+/**
+ * The last segment of a nested page, made readable:
+ * `make-your-own-business` → `Make your own business`, and
+ * `offerings/website-design` → `Website design`.
+ *
+ * The page's OWN name decides the title, not the folder it lives in, so a nested
+ * page is never named after its section. Sentence case, matching the site's voice.
+ */
+export function authoringTitleFromRoutePath(routePath: string): string {
+  const leaf = pageRouteLeaf(routePath);
+  if (leaf.length === 0) {
+    throw new Error(
+      `"${routePath}" is not a usable page route path (lowercase words joined by hyphens, ` +
+        "folders allowed).",
+    );
   }
-  const words = slug.split("-");
+  const words = leaf.split("-");
   return words.join(" ").replace(/^./, (character) => character.toUpperCase());
 }
 
@@ -76,11 +90,11 @@ function firstHeadingTitle(body: string): string | null {
 }
 
 /** The optional `title:` value. */
-function metadataTitleOf(values: Readonly<Record<string, unknown>>, slug: string): string | null {
+function metadataTitleOf(values: Readonly<Record<string, unknown>>, routePath: string): string | null {
   const raw = values.title;
   if (raw === undefined) return null;
   if (typeof raw !== "string" || raw.trim().length === 0) {
-    throw new Error(`Invalid "title" in authored page "${slug}": expected non-empty text.`);
+    throw new Error(`Invalid "title" in authored page "${routePath}": expected non-empty text.`);
   }
   return raw.trim();
 }
@@ -88,25 +102,25 @@ function metadataTitleOf(values: Readonly<Record<string, unknown>>, slug: string
 /** The optional `description:` value. Absent is valid — the site's fallback then applies. */
 function metadataDescriptionOf(
   values: Readonly<Record<string, unknown>>,
-  slug: string,
+  routePath: string,
 ): string | undefined {
   const raw = values.description;
   if (raw === undefined) return undefined;
   if (typeof raw !== "string") {
-    throw new Error(`Invalid "description" in authored page "${slug}": expected text.`);
+    throw new Error(`Invalid "description" in authored page "${routePath}": expected text.`);
   }
   const description = raw.trim();
   return description.length > 0 ? description : undefined;
 }
 
 /** Metadata this mode does not support is an error — a typo must be reported, never ignored. */
-function assertSupportedMetadata(values: Readonly<Record<string, unknown>>, slug: string): void {
+function assertSupportedMetadata(values: Readonly<Record<string, unknown>>, routePath: string): void {
   const unsupported = Object.keys(values).filter(
     (key) => !(AUTHORING_METADATA_KEYS as readonly string[]).includes(key),
   );
   if (unsupported.length > 0) {
     throw new Error(
-      `Unsupported metadata "${unsupported[0]}" in authored page "${slug}": ` +
+      `Unsupported metadata "${unsupported[0]}" in authored page "${routePath}": ` +
         `the supported keys are ${AUTHORING_METADATA_KEYS.join(", ")} — and none of them is required.`,
     );
   }
@@ -116,27 +130,33 @@ function assertSupportedMetadata(values: Readonly<Record<string, unknown>>, slug
  * One authored Markdown file → one page. Frontmatter is optional; a file that is
  * nothing but prose is a complete page, and its title comes from its own heading
  * or its own filename.
+ *
+ * `routePath` may include folders (`offerings/website-design`); it is the page's
+ * identity, and the derived-title fallback uses its last segment.
  */
-export function parseAuthoringPageFile(raw: string, slug: string, locale: Locale): AuthoringPage {
-  if (!isContentSlug(slug)) {
-    throw new Error(`"${slug}" is not a usable page slug (lowercase words joined by hyphens).`);
+export function parseAuthoringPageFile(raw: string, routePath: string, locale: Locale): AuthoringPage {
+  if (!isPageRoutePath(routePath)) {
+    throw new Error(
+      `"${routePath}" is not a usable page route path (lowercase words joined by hyphens, ` +
+        "folders allowed).",
+    );
   }
-  const parsed = hasFrontmatter(raw) ? parseFrontmatter(raw, slug) : { values: {}, body: raw };
-  assertSupportedMetadata(parsed.values, slug);
+  const parsed = hasFrontmatter(raw) ? parseFrontmatter(raw, routePath) : { values: {}, body: raw };
+  assertSupportedMetadata(parsed.values, routePath);
 
-  const metadataTitle = metadataTitleOf(parsed.values, slug);
+  const metadataTitle = metadataTitleOf(parsed.values, routePath);
   const headingTitle = metadataTitle === null ? firstHeadingTitle(parsed.body) : null;
-  const title = metadataTitle ?? headingTitle ?? authoringTitleFromSlug(slug);
+  const title = metadataTitle ?? headingTitle ?? authoringTitleFromRoutePath(routePath);
   const titleSource: AuthoringTitleSource = metadataTitle !== null
     ? "metadata"
     : headingTitle !== null
       ? "heading"
-      : "slug";
+      : "route-path";
 
-  const description = metadataDescriptionOf(parsed.values, slug);
+  const description = metadataDescriptionOf(parsed.values, routePath);
 
   return {
-    slug,
+    routePath,
     locale,
     title,
     titleSource,

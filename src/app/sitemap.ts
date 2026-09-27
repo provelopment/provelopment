@@ -1,104 +1,56 @@
 import type { MetadataRoute } from "next";
 
-import { createFileSystemPageContentRepository } from "@/adapters/content/fs-page-content-repository";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
-import { resolveLegalDocs } from "@/core/legal";
-import { isDraft } from "@/core/posts";
-import type { PostContent } from "@/core/posts";
 import { regionsForLocale, regionalPath } from "@/core/regional-pages";
 
+/**
+ * The site's XML sitemap.
+ *
+ * Route ownership: routes derive from the CONTENT MODEL + configured regional page
+ * inventory per locale — never from navigation config. The inventory is the page
+ * composition itself (`@/adapters/content/page-sources`), the SAME one every page
+ * route resolves through, so a newly authored file at ANY depth becomes a route and
+ * a sitemap entry in the same step. Because page inventories differ per locale and
+ * region, every locale's routes are its own: a page that only exists in one
+ * locale/region is only emitted there.
+ *
+ * There is no second inventory to combine: `content/` holds pages (and assets), so a
+ * page-shaped file published from anywhere else cannot make the sitemap advertise a
+ * URL the site does not serve.
+ */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // The page inventory is the UNION of both first-class authoring modes, per
-  // configured locale — the SAME composition every page route resolves through, so a
-  // newly authored file becomes a route and a sitemap entry in the same step. The
-  // non-page collections below are read from `content/**`, which is never a page
-  // source.
   const pages = createPageSources({
     defaultLocale: siteConfig.defaultLocale,
     locales: siteConfig.locales.map((locale) => locale.code),
   });
-  const offeringsRepository = createFileSystemPageContentRepository({
-    defaultLocale: siteConfig.defaultLocale,
-    collection: "offerings",
-  });
-  const legalRepository = createFileSystemPageContentRepository({
-    defaultLocale: siteConfig.defaultLocale,
-    collection: "legal",
-  });
-  const portfolioRepository = createFileSystemPageContentRepository({
-    defaultLocale: siteConfig.defaultLocale,
-    collection: "portfolio",
-  });
-  const postsRepository = createFileSystemPageContentRepository<PostContent>({
-    defaultLocale: siteConfig.defaultLocale,
-    collection: "posts",
-  });
-
-  // Route ownership: routes derive from the CONTENT MODEL + configured page
-  // inventory per locale — never from navigation config. Because page
-  // inventories differ per locale/region (Phase K/L regional pages), every
-  // locale's routes are its own: a page that only exists in one locale/region
-  // is only emitted there.
-  const canonicalOfferings = siteConfig.offeringsFeature
-    ? await offeringsRepository.listSlugs(siteConfig.defaultLocale)
-    : [];
-  const canonicalLegalSlugs = await legalRepository.listSlugs(siteConfig.defaultLocale);
-  const legalSlugs = resolveLegalDocs(siteConfig.legal, canonicalLegalSlugs).map(
-    (doc) => doc.slug,
-  );
-
-  // Phase T: canonical portfolio slugs + PUBLISHED blog slugs (drafts excluded).
-  const canonicalPortfolio = siteConfig.portfolioFeature
-    ? await portfolioRepository.listSlugs(siteConfig.defaultLocale)
-    : [];
-  const publishedBlogSlugs = new Array<string>();
-  if (siteConfig.blogFeature) {
-    for (const slug of await postsRepository.listSlugs(siteConfig.defaultLocale)) {
-      const post = await postsRepository.findBySlug(slug, siteConfig.defaultLocale);
-      if (post && !isDraft(post)) {
-        publishedBlogSlugs.push(slug);
-      }
-    }
-  }
 
   const lastModified = new Date();
-
   const rootEntry: MetadataRoute.Sitemap = [{ url: siteConfig.url, lastModified }];
-
   const localizedEntries: MetadataRoute.Sitemap = [];
+
   for (const { code } of siteConfig.locales) {
-    // Content slugs that are regional landings for this locale are emitted by
-    // the regional loop below, not as flat `/locale/slug` routes.
+    // Content route paths that are regional landings for this locale are emitted by
+    // the regional loop below, not as flat `/{locale}/{route}` routes.
     const regional = regionsForLocale(siteConfig.pageBindings, code);
-    const pageSlugs = (await pages.listSlugs(code)).filter(
-      (slug) => !regional.includes(slug),
+    const routePaths = (await pages.listRoutes(code)).filter(
+      (routePath) => !regional.includes(routePath),
     );
-    const routes = buildSitemapRoutes({
-      offeringsEnabled: siteConfig.offeringsFeature === true,
-      pages: pageSlugs,
-      canonicalOfferings,
-      legalSlugs,
-      testimonialsEnabled: siteConfig.testimonialsFeature === true,
-      portfolioEnabled: siteConfig.portfolioFeature === true,
-      canonicalPortfolio,
-      blogEnabled: siteConfig.blogFeature === true,
-      publishedBlogSlugs,
-    });
+    const routes = buildSitemapRoutes({ pages: routePaths });
 
     for (const route of routes) {
       localizedEntries.push({ url: `${siteConfig.url}/${code}${route}`, lastModified });
     }
 
     // Regional landings `/{locale}/{region}` (only configured for this locale).
-    for (const region of regionsForLocale(siteConfig.pageBindings, code)) {
+    for (const region of regional) {
       localizedEntries.push({
         url: `${siteConfig.url}${regionalPath(code, region, null)}`,
         lastModified,
       });
     }
-    // Regional pages `/{locale}/{region}/{slug}` (only configured combos).
+    // Regional pages `/{locale}/{region}/{page}` (only configured combinations).
     for (const binding of siteConfig.pageBindings) {
       if (binding.locale === code && binding.slug !== null) {
         localizedEntries.push({
