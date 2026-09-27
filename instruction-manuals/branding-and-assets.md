@@ -1,8 +1,9 @@
 # Branding & Assets — runtime roles vs business files
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-25.1`
+> **Manual revision:** `2026-09-27.3`
 > **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
+> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
 > **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
@@ -37,15 +38,19 @@ destroyed by platform reproduction.
 | **Page banners** | an optional per-page banner above the header | configuration: a page-slug → asset-URL map |
 | **Sidebar toggle assets** | the sidebar show/hide control icons | configuration: plain asset filenames for open/close |
 | **Navigation-item icons** | per-item icons in the sidebar | configuration: default open/closed pairs, or per-item overrides |
-| **Business imagery** | offerings, portfolio, project and other content photography | the adopter's own business image area, referenced from content |
+| **Business imagery** | photography, illustrations and graphics used inside pages | the adopter's own artwork under `content/assets/` (by convention `content/assets/branding/`), referenced from the page that shows it |
 | **Social / OpenGraph art** | the social sharing image | configuration, or the platform's generated per-locale route |
 
 ## Where adopter artwork belongs
 
-Put **business artwork** in the adopter's own asset area (by convention a
-`business/` directory under the site's public assets), and reference it from
-configuration or content. That area is **adopter-owned**: platform reproduction
-must never touch it.
+Put **business artwork** in the adopter's own artwork area — by convention
+`content/assets/branding/` — and reference it from configuration or content. That area
+is **adopter-owned**: platform reproduction must never touch it.
+
+> **`public/assets/` is a generated mirror of `content/assets/**`.** The framework can
+> only serve files under `public/`, so a script copies your artwork there
+> (`pnpm assets:sync`). Never edit `public/assets/` by hand: the next sync overwrites the
+> edit, and the automated check fails until the two agree again.
 
 > **Do not park business artwork inside a platform-defined runtime asset
 > directory unless you are deliberately overriding that role.** Doing so creates
