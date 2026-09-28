@@ -91,7 +91,10 @@ Adapters may depend on external technologies.
 
 ### `src/config`
 
-Application and site configuration, loaded from `site.config.json`.
+Application and site configuration, loaded from the deployment's
+`site.config.json` — the configuration file at the DEPLOYMENT ROOT (see
+[The deployment root](#the-deployment-root) below). In this repository that is
+the capsule's `deployment/site.config.json`.
 
 The JSON file is the primary customization boundary for downstream website
 clones: branding, languages, navigation, contact details, and feature flags
@@ -106,9 +109,27 @@ Rules:
   `siteConfig`; importing the JSON directly elsewhere bypasses validation.
 - Optional functionality is expressed as feature flags under `features`
   and consumed by adapters (for example `features.analytics.provider`).
-- UI-string dictionaries live in `config/i18n/<locale>.json`; they are
+- UI-string dictionaries live in the deployment's `config/i18n/<locale>.json`; they are
   content, not settings — edited as JSON and validated against the Zod
   `dictionarySchema` at load time.
+
+#### The deployment root
+
+ONE authority — `src/config/deployment-root.ts` — resolves every DEPLOYMENT-OWNED
+filesystem location: the configuration file, the `config/i18n/` dictionaries, the
+`content/pages/` authoring roots and the `content/assets/` source tree. Foundation core
+never spells those locations itself, and `tests/architecture/deployment-root-guard.test.ts`
+keeps it that way. Three layouts are resolved once per build:
+
+| Layout | Deployment root | When it applies |
+| --- | --- | --- |
+| **capsule** | `<repo>/deployment/` | a real deployment capsule exists. It is the accepted long-term write boundary for one deployment — the layout THIS repository uses, and the one `deployment/README.md` and `deployment/AGENTS.md` describe |
+| **repository** | `<repo>/` | the transitional compatibility layout, where those locations sit at the repository root |
+| **override** | `FOUNDATION_DEPLOYMENT_ROOT` | the dev/test escape hatch that points a dev server at a synthetic deployment. Never a production mechanism |
+
+`public/assets/**` is NOT deployment-owned: Next.js serves static files from `public/`
+only, so it is GENERATED build output (`pnpm assets:sync`, byte-verified by
+`tests/unit/asset-taxonomy-mirror.test.ts`).
 
 ### `content`
 
@@ -124,13 +145,16 @@ Content should remain separate from application implementation.
 #### Content system
 
 **One human-facing content area.** Everything a normal user authors as website
-content has ONE obvious home under `content/`, and `content/README.md` is the map
+content has ONE obvious home: the deployment's `content/` tree (relative to the
+deployment root — the capsule's `deployment/content/` in this repository), and
+`content/README.md` is the map
 that answers "where do I edit my website?". Content is never authored under
 `config/` (configuration changes how the site *behaves*; content is what it *says*),
 and unrelated technical configuration is never moved into `content/` to make the tree
 look uniform. The layout is:
 
 ```text
+                            every path below is relative to the deployment root
 content/README.md      the human-facing map
 content/pages/markdown/<site>/<locale>/<route-path>.md   simple, safe pages
 content/pages/json/<site>/<locale>/<route-path>.json     advanced, declarative pages
@@ -161,7 +185,7 @@ hoc, so discovery, routing and the sitemap cannot disagree about what exists.
 **Pages** are authored in exactly two ways — safe Markdown and declarative JSON — see
 [Page authoring](#page-authoring--two-first-class-modes) below.
 
-**Assets** are authored under `content/assets/**` and mirrored byte-for-byte into
+**Assets** are authored under the deployment's `content/assets/**` and mirrored byte-for-byte into
 `public/assets/**` by `scripts/sync-runtime-assets.mjs` (`pnpm assets:sync` /
 `assets:check`). `content/assets/**` is the source of truth a human edits;
 `public/assets/**` is a GENERATED derivative that is never edited by hand, and a test

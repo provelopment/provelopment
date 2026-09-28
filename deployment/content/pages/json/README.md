@@ -382,7 +382,9 @@ edit the file
 - **The simple mode, for ordinary pages:** [`../markdown/README.md`](../markdown/README.md)
 - **Your logo, favicon, images and icons:** [`../../assets/README.md`](../../assets/README.md)
 - **Your website's settings** (name, contact details, languages, menu): `site.config.json`
-  at the top of the project, and `CUSTOMIZING.md` beside it.
+  at the top of this deployment — the folder that contains the `content/` tree these pages
+  live in — and `CUSTOMIZING.md`, the Foundation's configuration reference, at the
+  repository root.
 
 
 
