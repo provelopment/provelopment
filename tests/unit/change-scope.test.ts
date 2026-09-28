@@ -343,6 +343,26 @@ describe("the classifier's command line explains its decision", () => {
     expect(written).toMatch(/^head=HEAD$/m);
   });
 
+  it("reports NO range when it could not measure the change at all", () => {
+    // A revision this checkout does not have (a fork pull request's head, say) must still be SAFE: the
+    // complete gate is selected, and the workflow is never handed a pair it cannot resolve.
+    const payload = path.join(scratch, "unresolvable.json");
+    writeFileSync(
+      payload,
+      JSON.stringify({ before: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", after: "HEAD" }),
+      "utf8",
+    );
+    const output = path.join(scratch, "fallback-output.txt");
+    const { status, stdout } = runClassifier(["--event-file", payload, "--github-output", output]);
+    expect(status).toBe(0);
+    expect(stdout).toMatch(/change scope: full/);
+    expect(stdout).toMatch(/could not be measured/);
+    const written = readFileSync(output, "utf8");
+    expect(written).toMatch(/^scope=full$/m);
+    expect(written).toMatch(/^base=$/m);
+    expect(written).toMatch(/^head=$/m);
+  });
+
   it("refuses an option it does not understand, and a value it was not given", () => {
     const unknown = runClassifier(["--scope", "deployment"]);
     expect(unknown.status).toBe(2);

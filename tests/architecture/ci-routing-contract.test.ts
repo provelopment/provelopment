@@ -131,6 +131,14 @@ describe("the workflow is orchestration of ONE classification authority", () => 
       }
     }
   });
+
+  it("never hands a range it could not measure to a command", () => {
+    // A fallback selects the complete gate AND reports no range, so the two steps that inspect a range
+    // are guarded: skipping is visible, while a failure would be blamed on the wrong thing entirely.
+    for (const jobId of ["documentation", "full"]) {
+      expect(jobLines(jobId).join("\n"), jobId).toContain("if: needs.classify.outputs.base != ''");
+    }
+  });
 });
 
 describe("each route runs exactly its declared contract", () => {

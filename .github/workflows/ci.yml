@@ -58,6 +58,9 @@ jobs:
           fetch-depth: 0
 
       - name: Repository hygiene — whitespace errors and conflict markers
+        # The range comes from the classifier. A FALLBACK reports none at all, in which case this step
+        # is skipped (visibly) rather than handed revisions this checkout might not contain.
+        if: needs.classify.outputs.base != ''
         env:
           BASE: ${{ needs.classify.outputs.base }}
           HEAD: ${{ needs.classify.outputs.head }}
@@ -168,6 +171,11 @@ jobs:
           cache: pnpm
 
       - name: Repository hygiene — whitespace errors and conflict markers
+        # A classifier FALLBACK reports no range at all (it could not measure the change), so this step
+        # is not handed a revision pair this checkout might not contain — a fork pull request's head, or
+        # a new branch's all-zero `before`. It then shows as SKIPPED in the run instead of failing the
+        # complete gate for a reason that has nothing to do with the change.
+        if: needs.classify.outputs.base != ''
         env:
           BASE: ${{ needs.classify.outputs.base }}
           HEAD: ${{ needs.classify.outputs.head }}

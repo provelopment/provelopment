@@ -637,6 +637,12 @@ function main(argv, environment = process.env) {
     // Every unmeasurable or unsupported case lands on the complete gate. It is written as an explicit
     // override so no later edit can quietly make "we could not tell" mean "run almost nothing".
     result = { ...result, scope: "full", conservative: true, reason: fallback };
+    // …and a change we could not MEASURE has no range to report either. The workflow must never be
+    // handed a revision pair it cannot resolve (a fork pull request's head, the all-zero `before` of a
+    // new branch): a range-dependent step would fail the complete gate for a reason that has nothing to
+    // do with the change, turning a safe fallback into a red build.
+    range.base = undefined;
+    range.head = undefined;
   }
 
   if (options.githubOutput !== undefined) {
