@@ -73,12 +73,19 @@ function plant(file: string, contents: string): void {
   writeFileSync(file, contents, "utf8");
 }
 
-/** Remove a file, then only the directories this suite created while they are empty. */
+/**
+ * Remove a file, then only the directories this suite created while they are empty.
+ *
+ * The comparison is NORMALISED, for the same reason as the deployment suite's own cleanup
+ * (ISO-C1): `deploymentPaths()` publishes its paths with forward slashes while `path.join`
+ * composes them with the platform separator, so the raw `startsWith` never matched on
+ * Windows and the walk pruned nothing.
+ */
 function removeFile(file: string): void {
   rmSync(file, { force: true });
-  const boundary = path.dirname(deploymentPaths().markdownPagesRoot);
-  let directory = path.dirname(file);
-  while (directory.startsWith(boundary) && directory !== boundary) {
+  const boundary = path.resolve(path.dirname(deploymentPaths().markdownPagesRoot));
+  let directory = path.resolve(path.dirname(file));
+  while (directory.startsWith(boundary + path.sep)) {
     try {
       rmdirSync(directory);
     } catch {
