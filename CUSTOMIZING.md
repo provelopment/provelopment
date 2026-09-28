@@ -2436,5 +2436,43 @@ refused** with the file named, and **another site's override is never used**.
 
 Each control is a plain, labelled form control (keyboard-usable, with its current value exposed),
 and each one only ever offers destinations that exist — a control never invents a page, a language
-or a location.
+or a location. They are composed in one documented order:
+
+```text
+Site → Location → Language → Layout
+```
+
+### What the reference deployment demonstrates
+
+The public reference deployment (<https://foundation-template.provelopment.com>) is configured as a
+worked example of that model:
+
+```text
+Global  (ww)                     Germany (de)
+├── English                      ├── Languages
+└── Deutsch                      │   ├── Deutsch
+    (no locations)               │   └── English
+                                 ├── Locations
+                                 │   ├── Berlin
+                                 │   └── Frankfurt
+                                 └── Pages (independent of Global)
+```
+
+The configuration behind it is `site.config.json` → `sites` (the two sites, `ww` labelled
+**Global** and `de` labelled **Germany**), `i18n.locales` (the languages each site serves) and
+`business.regions` + `business.pages` (the locations and the locale + region combinations that
+exist). Its pages are ordinary content files under `content/pages/`, one tree per site.
+
+Two things the example deliberately shows:
+
+- **the Location control appears only where locations exist** — Global configures none, so its
+  header shows Site, Language and Layout; Germany's shows all four;
+- **languages belong to the site, not to a single location** — Germany offers German and English and
+  both locations are readable in both. This model has no per-location language restriction.
+
+**Germany, Berlin and Frankfurt are demonstration data.** They are not statements about
+Provelopment's own offices, addresses or markets, the configured addresses are placeholders, and no
+opening hours are claimed. Replace them with your own sites, languages and locations — the
+capability is configuration, not code.
+
 

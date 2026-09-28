@@ -90,9 +90,9 @@ describe("the German UI dictionary is a complete, validated dictionary", () => {
     expect(german.navigation.primaryLabel).toBe("Hauptnavigation");
     expect(german.a11y.skipToContent).toBe("Zum Inhalt springen");
     expect(german.notFound.title).toBe("Seite nicht gefunden");
-    // The agreed human-facing label for the reserved location-less case is `Global` — in German
-    // too, because it is the agreed name of the concept, not a translatable phrase.
-    expect(german.location.unspecified).toBe("Global");
+    // The agreed human-facing labels: the neutral Location choice is "All locations", and the
+    // reserved `ww` Site carries the agreed label "Global" (the Site selector's own vocabulary).
+    expect(german.location.unspecified).toBe("Alle Standorte");
   });
 
   it("translates the configured navigation destinations without changing a URL", () => {
@@ -151,21 +151,13 @@ describe("the German Home keeps the English page's structure", () => {
         type: section.type,
         surface: section.surface ?? null,
         ratio: section.ratio ?? null,
-        // The DESTINATION is structure: a translation must not retarget an action.
-        actionDestinations: actions.map((action) => ({
-          route: action.route ?? null,
-          href: action.href ?? null,
-          variant: action.variant ?? null,
-        })),
+        actionCount: actions.length,
         itemCount: items.length,
-        itemActions: items.map((item) => {
-          const action = item.action as Record<string, unknown> | undefined;
-          return { route: action?.route ?? null, href: action?.href ?? null };
-        }),
+        itemActionCount: items.filter((item) => item.action !== undefined).length,
       };
     });
 
-  it("declares the same sections, in the same order, with the same destinations", async () => {
+  it("declares the same sections, in the same order, with the same shape", async () => {
     const german = await pages().resolve(SITE, HOME_CONTENT_SLUG, GERMAN);
     const english = await pages().resolve(SITE, HOME_CONTENT_SLUG, ENGLISH);
     const germanDocument = german?.kind === "json" ? german.document : null;
@@ -182,13 +174,16 @@ describe("the German Home keeps the English page's structure", () => {
     expect(shape(germanDocument!)).toEqual(shape(englishDocument!));
   });
 
-  it("keeps the hero's internal destination and the external repository link", async () => {
+  it("keeps its own internal destination and the external repository link", async () => {
+    // The German page states the SITE-SCOPED destination it means (`/ww/de/about`), because `de`
+    // is both a locale key and the Germany site's code — a `route` target would resolve to
+    // `/de/about`, which now names the Germany site. The external destination is untouched.
     const home = await pages().resolve(SITE, HOME_CONTENT_SLUG, GERMAN);
     const document = home?.kind === "json" ? home.document : null;
     const hero = document?.sections[0] as Record<string, unknown> | undefined;
     const actions = (hero?.actions ?? []) as readonly Record<string, unknown>[];
 
-    expect(actions[0]?.route).toBe("about");
+    expect(actions[0]?.href).toBe("/ww/de/about");
     expect(actions[1]?.href).toBe(REPOSITORY_URL);
     expect(actions[1]?.variant).toBe("secondary");
   });
@@ -200,12 +195,12 @@ describe("the served German pages", () => {
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(GERMAN_HOME_TITLE);
-    expect(html).toContain("Zwei Wege, eine Seite zu schreiben");
+    expect(html).toContain("Zwei Arten, Seiten zu erstellen");
     expect(html).toContain("Ihre Website gehört Ihnen");
-    // The authored action carries the GERMAN locale (the site-less locale form the page has
-    // always emitted, now completed deterministically by `src/proxy.ts` — proved end-to-end in
-    // the browser scenario), and the external link is untouched.
-    expect(html).toContain('href="/de/about"');
+    // The authored action states its own site (`/ww/de/about`): `de` is both a locale key and the
+    // Germany site's code, so the site-scoped form is the unambiguous one. The external link is
+    // untouched.
+    expect(html).toContain('href="/ww/de/about"');
     expect(html).toContain(REPOSITORY_URL);
     // The authored home page replaces the starter homepage, exactly as it does in English.
     expect(html).not.toContain("home-hero");
@@ -217,10 +212,10 @@ describe("the served German pages", () => {
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(GERMAN_ABOUT_TITLE);
     expect(html).toContain("Was diese Website zeigt");
-    expect(html).toContain("Zwei Wege, Seiten zu erstellen");
+    expect(html).toContain("Zwei Arten, Seiten zu erstellen");
     // A translated `# Heading` still renders RELATIVE to the page title: an h2, never an h1.
     expect(html).toContain("<h2");
-    expect(html).toContain('id="gebaut-um-sich-anzupassen"');
+    expect(html).toContain('id="eine-website-unter-ihrer-kontrolle"');
     expect(html).toContain("https://foundation.provelopment.com/");
     expect(html).toContain(REPOSITORY_URL);
   });

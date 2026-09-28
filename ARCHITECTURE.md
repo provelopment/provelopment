@@ -1540,12 +1540,32 @@ Two locale keys of ONE site that resolve to the same canonical tag (`en` and `en
 | --- | --- | --- |
 | **Site** | which independent website (own pages, chrome, languages, locations) | the first URL segment |
 | **Language** | the locale used *inside* the active site | the second URL segment |
-| **Location** | the office/city/region context *inside* the active site | `business.regions` + `business.pages` bindings |
+| **Location** | the office/city/region context *inside* the active site | `business.regions` + that site's `business.pages` bindings |
 | **Layout** | presentation only (Sidebar / Menu bar) | the visitor's own preference, never part of a URL |
 
-A control that has nothing to choose disappears: one site → no Site selector; one language → no
-Language selector; no configured locations → no Location selector; the Layout switcher disabled →
-no Layout control.
+A control that has nothing to choose disappears: one site → no Site selector; the active site
+serving one language → no Language selector; no locations bound to the ACTIVE site → no Location
+selector; the Layout switcher disabled → no Layout control. The Location inventory is **the active
+site's** (`regionsForSite`): a location belongs to one site's page tree, so a site that binds none
+never offers another site's locations — and never a destination that does not exist.
+
+### The reference deployment demonstrates the full model
+
+The public reference deployment is configured as the worked example, so the architecture above has a
+running counterpart:
+
+```text
+Global  (ww)  English + Deutsch, no locations, its own Home/About
+Germany (de)  Deutsch + English, Locations Berlin and Frankfurt,
+              an INDEPENDENT page tree (never a Global fallback)
+```
+
+Consequences it makes visible: the Site selector appears because two sites exist; Germany's
+`de`/`en` path keys derive the canonical tags `de-DE`/`en-DE` because it is a COUNTRY site; the
+Location control appears only on Germany and its neutral choice is *All locations* / *Alle
+Standorte* (never the word used for a Site); Location switches stay inside Germany and change
+neither the site nor the language; and Layout is untouched by all of them. **Germany, Berlin and
+Frankfurt are demonstration data** — placeholders an adopter replaces, not claims about Provelopment.
 
 ### Site-scoped configuration and dictionaries
 

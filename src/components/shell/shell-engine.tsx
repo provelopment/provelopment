@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { AppShell } from "@/components/ui/app-shell";
 import { Cta, isCtaRenderable } from "@/components/ui/cta";
+import { ShellTopClearance } from "./shell-top-clearance";
 import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
@@ -236,6 +237,10 @@ export function ShellEngine({
         .join(" ")}
     >
       {header}
+      {/* R1C — the persistent top region's REAL height is published as the clearance every
+          fragment target leaves for it (the static stylesheet allowance is only the no-JS/
+          pre-hydration fallback). It is a sibling of the header, adds no DOM and no visual. */}
+      <ShellTopClearance />
     </div>
   );
 

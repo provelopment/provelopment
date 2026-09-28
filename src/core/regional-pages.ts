@@ -62,11 +62,14 @@ export function regionsForLocale(
 }
 
 /**
- * Phase M — the LOCATION SELECTOR's inventory: every CONFIGURED operating
- * location, in `business.regions` insertion (configuration) order, regardless
- * of locale or page bindings. `business.regions` answers "which operating
- * locations exist"; `business.pages` answers "which locale + region + page
- * combinations exist" — two separate concerns that must not be merged.
+ * Phase M — every CONFIGURED operating location, in `business.regions` insertion (configuration)
+ * order, regardless of locale or page bindings. `business.regions` answers "which operating
+ * locations exist"; `business.pages` answers "which locale + region + page combinations exist" —
+ * two separate concerns that must not be merged.
+ *
+ * This is the DEPLOYMENT-WIDE list (asset roles, build-time validation, fixtures). What the
+ * Location SELECTOR offers is the ACTIVE SITE's subset (`regionsForSite`), because a location
+ * belongs to one site's page tree.
  *
  * A region may legitimately have only a landing (or no bindings yet) and still
  * be selectable.
@@ -105,6 +108,32 @@ export function bindingsForSite(
   siteId: string,
 ): readonly PageRegionBinding[] {
   return entries.filter((entry) => (entry.site ?? siteId) === siteId);
+}
+
+/**
+ * R1C — THE LOCATIONS OF ONE SITE: the regions that site's own bindings mention, in binding
+ * (configuration) order.
+ *
+ * This is what answers "does this site have Locations at all?" — the question the Location
+ * selector's PRESENCE depends on. It is deliberately SITE-scoped rather than deployment-wide:
+ * a location belongs to one site's page tree (S1 — no cross-site resolution), so a site that
+ * binds no region must not be offered another site's locations, and a deployment with several
+ * sites shows the Location control exactly where locations exist. Within a site the rule stays
+ * the Phase M one — the inventory is configuration, never "locations compatible with my
+ * language" — so it is NOT scoped by locale.
+ */
+export function regionsForSite(
+  entries: readonly PageRegionBinding[],
+  siteId: string,
+): readonly string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of bindingsForSite(entries, siteId)) {
+    if (seen.has(entry.region)) continue;
+    seen.add(entry.region);
+    ordered.push(entry.region);
+  }
+  return ordered;
 }
 
 /** Whether an href is a site-internal route (starts with `/`). */

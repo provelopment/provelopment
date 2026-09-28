@@ -117,6 +117,31 @@ You change your text and images in `content/`. You change settings — including
 language is the default, and what appears in the navigation — in
 `site.config.json`.
 
+## Sites and locations
+
+A **site** is an independent website: its own pages, its own languages, its own locations. The
+folder directly under `pages/<mode>/` is the site code, so `ww` (Global) and `de` (Germany) are
+two separate page trees in this repository — nothing is shared between them, and neither one
+answers for the other.
+
+A **location** is a physical or service place *inside* one site. It shares that site's page tree:
+its landing page is authored exactly like any other page, with the location's name as the file
+name and folder:
+
+```text
+content/pages/markdown/de/de/berlin.md          →  /de/de/berlin
+content/pages/markdown/de/de/frankfurt.md       →  /de/de/frankfurt
+content/pages/markdown/de/en/berlin.md          →  /de/en/berlin
+```
+
+The locations themselves (their name, time zone, address) are configured in `site.config.json`
+under `business.regions`, and which site + language each one is reachable in is declared under
+`business.pages`. A location does **not** get its own languages: languages belong to the site, so
+every location in a site is readable in every language that site offers.
+
+The reference deployment's Germany site, its Berlin and Frankfurt locations and their placeholder
+addresses are **demonstration data** for you to replace with your own.
+
 ## Saving is not publishing
 
 Editing a file on your own computer does not change the live website. A change
