@@ -36,7 +36,7 @@
  * DEPLOYMENT-SCOPED SOURCE (FOUNDATION-DEPLOYMENT-ISO-H1)
  * ------------------------------------------------------
  * The source tree is DEPLOYMENT state, so this script spells no location of its own: it asks the
- * ONE build/deployment seam (`src/config/deployment-build.ts`) which deployment this run serves —
+ * ONE build/deployment seam (`src/config/deployment-build.mjs`) which deployment this run serves —
  * the same answer `next.config.ts` and `vitest.config.mts` receive — and mirrors from whichever
  * root that deployment owns:
  *
