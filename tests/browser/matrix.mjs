@@ -243,7 +243,7 @@ function stopServer(server) {
   } catch { /* noop */ }
 }
 
-async function waitForServer(url, timeoutMs = 240000) {
+async function waitForServer(url, timeoutMs = 300000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
     try {
@@ -940,7 +940,14 @@ async function runDuplicateNavScenario(chrome) {
     const server = startDevServer(port);
     let cdp = null;
     try {
-      await waitForServer(url);
+      try {
+        await waitForServer(url);
+      } catch (error) {
+        // A dev server that never answers is only diagnosable from its OWN output, so the capture
+        // is included instead of discarded (this scenario hung once on a CI runner for 4 minutes
+        // with nothing to read).
+        throw new Error(`${String(error)}\n--- dev server output ---\n${server.log()}`);
+      }
       cdp = await Cdp.connect(chrome);
       await cdp.send("Page.enable");
       await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: HOOK });
