@@ -4,6 +4,7 @@ import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import { deploymentPaths } from "@/config/deployment-root";
 import { dictionarySchema } from "@/config/i18n/dictionary";
 import { loadDictionaryRegistry } from "@/config/i18n/registry";
 
@@ -27,9 +28,11 @@ afterAll(() => {
   for (const directory of directories) rmSync(directory, { recursive: true, force: true });
 });
 
-/** The shared baseline: the deployment's own dictionary, so every fixture is schema-valid. */
+/** The shared baseline: the SELECTED deployment's own dictionary, so every fixture is schema-valid. */
 const template = JSON.parse(
-  readFileSync(path.join(process.cwd(), "config", "i18n", "en.json"), "utf8"),
+  // ISO-H2 — asked of the deployment authority, never spelled here: in the generic project that is the
+  // synthetic deployment, so this contract reads no real deployment's dictionary.
+  readFileSync(path.join(deploymentPaths().dictionaryDirectory, "en.json"), "utf8"),
 ) as Record<string, unknown>;
 
 function withTagline(tagline: string): Record<string, unknown> {

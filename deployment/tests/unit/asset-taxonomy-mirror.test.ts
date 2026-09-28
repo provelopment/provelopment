@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { deploymentPaths } from "@/config/deployment-root";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors } from "../../scripts/sync-runtime-assets.mjs";
+import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
 
 /**
  * ASSET LIBRARY TAXONOMY + RUNTIME MIRROR (owner-directed, 2026-09).
@@ -26,7 +27,7 @@ import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors }
  */
 
 const ROOT = process.cwd();
-const dir = (...segments: string[]) => path.join(ROOT, "content", "assets", ...segments);
+const dir = (...segments: string[]) => path.join(deploymentPaths().assetSourceRoot, ...segments);
 const names = (...segments: string[]) =>
   readdirSync(dir(...segments), { withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -205,9 +206,9 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
   it("takes authored assets from content/assets, beside the rest of the content", () => {
     // The human-facing rule: everything a normal user authors as website content has
     // one obvious home under `content/`.
-    expect(existsSync(path.join(ROOT, "content", "assets", "placeholders"))).toBe(true);
+    expect(existsSync(path.join(deploymentPaths().assetSourceRoot, "placeholders"))).toBe(true);
     expect(names("placeholders").length).toBeGreaterThan(0);
-    expect(existsSync(path.join(ROOT, "content", "assets", "README.md"))).toBe(true);
+    expect(existsSync(path.join(deploymentPaths().assetSourceRoot, "README.md"))).toBe(true);
   });
 
   it("leaves NO second user-editable asset authority at the repository root", () => {
@@ -224,7 +225,7 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     expect(script).toContain("content/assets/**");
     expect(script).toContain("the SOURCE OF TRUTH");
 
-    const readme = readFileSync(path.join(ROOT, "content", "assets", "README.md"), "utf8");
+    const readme = readFileSync(path.join(deploymentPaths().assetSourceRoot, "README.md"), "utf8");
     expect(readme).toContain("public/assets");
     expect(readme).toMatch(/never edit `public\/assets\/` by hand/i);
   });

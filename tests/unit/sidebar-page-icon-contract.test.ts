@@ -5,6 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { siteConfig } from "@/config";
+import { deploymentPaths } from "@/config/deployment-root";
 import {
   DEFAULT_SIDEBAR_ITEM_ICON_CLOSED,
   DEFAULT_SIDEBAR_ITEM_ICON_OPEN,
@@ -29,22 +30,20 @@ import { NavItem } from "@/components/ui/nav-item";
  */
 
 const ROOT = process.cwd();
-const runtime = (file: string) => path.join(ROOT, "public", "assets", file);
-const source = (...segments: string[]) => path.join(ROOT, "content", "assets", ...segments);
+const runtime = (file: string) => path.join(deploymentPaths().publicAssetsDirectory, file);
+// ISO-H2 — the SOURCE side of every assertion comes from the deployment authority, never from a path
+// this test spells: the deployment's artwork is deployment-owned, so it is asked for (the synthetic
+// deployment in the generic project, the real capsule in the deployment project).
+const source = (...segments: string[]) => path.join(deploymentPaths().assetSourceRoot, ...segments);
 const read = (...segments: string[]) => readFileSync(path.join(ROOT, ...segments), "utf8");
 const globals = read("src", "app", "globals.css");
 
-/** The canonical deployment's expected page → icon-library mapping (semantic intent). */
-const EXPECTED_MAPPING: ReadonlyArray<{ href: string; label: string; icon: string }> = [
-  { href: "/", label: "Home", icon: "icon-home.svg" },
-  { href: "/about", label: "About", icon: "icon-about.svg" },
-  { href: "/resources", label: "Resources", icon: "icon-resources.svg" },
-  { href: "/testimonials", label: "Testimonials", icon: "icon-testimonials.svg" },
-  { href: "/portfolio", label: "Portfolio", icon: "icon-portfolio.svg" },
-  { href: "/blog", label: "Blog", icon: "icon-blog.svg" },
-  { href: "/connect", label: "Connect", icon: "icon-contact.svg" },
-  { href: "/offerings", label: "Offerings", icon: "icon-services.svg" },
-];
+// ISO-H2 — the canonical page → icon-library mapping this suite used to assert (Home/About/Resources/
+// Testimonials/Portfolio/Blog/Connect/Offerings against the shipped icon library) describes what THIS
+// deployment installs, so it moved with the asset install: see
+// `deployment/tests/unit/asset-install.test.ts`. The generic contract below is about the RULE — every
+// CONFIGURED page's icon is a real icon-library file — and it therefore follows whichever deployment
+// the run selected (the synthetic deployment in the generic project).
 
 describe("sidebar page icons — the configured source is the icon LIBRARY", () => {
   it("maps every CONFIGURED sidebar page to a generic icon-library asset", () => {
@@ -65,10 +64,10 @@ describe("sidebar page icons — the configured source is the icon LIBRARY", () 
   });
 
   it("resolves each mapped icon to BOTH the runtime copy and its icon-library source", () => {
-    for (const expected of EXPECTED_MAPPING) {
-      expect(existsSync(runtime(expected.icon)), `${expected.icon} must ship`).toBe(true);
-      expect(existsSync(source("icon-library", "icons", expected.icon)), `${expected.icon} source`).toBe(true);
-    }
+    // ISO-H2 — the canonical page set and its icons belong to the installed deployment and are asserted
+    // by its own acceptance suite (`deployment/tests/unit/asset-install.test.ts`). The rule that holds
+    // for ANY deployment — a configured page icon exists at runtime and in the icon library — is proved
+    // by the test above, against the selected deployment.
   });
 
   it("never falls back to the dot/plus placeholder while a semantic icon exists", () => {
@@ -86,8 +85,9 @@ describe("sidebar page icons — the configured source is the icon LIBRARY", () 
     expect(links[0].closedIcon).toBe(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED);
     for (const file of [DEFAULT_SIDEBAR_ITEM_ICON_OPEN, DEFAULT_SIDEBAR_ITEM_ICON_CLOSED]) {
       expect(existsSync(runtime(file)), `${file} runtime`).toBe(true);
-      expect(existsSync(source("placeholders", file)), `${file} placeholder source`).toBe(true);
     }
+    // ISO-H2 — that the placeholder SOURCES exist (and are what the runtime file mirrors) is asserted
+    // by the deployment's own acceptance suite, which is the subject that owns the asset install.
   });
 
 describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", () => {

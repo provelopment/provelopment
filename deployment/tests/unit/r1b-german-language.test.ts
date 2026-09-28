@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-// DEPLOYMENT SCOPE — this test asserts THIS deployment, so it lives in the deployment capsule
-// (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and opts out of the generic synthetic-config
-// default: its subject is the real deployment, never a fixture.
-vi.unmock("@/config");
+// DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so
+// it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
+// the `deployment` Vitest project, whose setup selects the REAL installed deployment
+// (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { renderToStaticMarkup } from "react-dom/server";
 
 import PageRoute, { generateMetadata } from "@/app/[...segments]/page";

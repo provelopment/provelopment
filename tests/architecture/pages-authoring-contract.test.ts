@@ -53,14 +53,14 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       json: "content/pages/json",
       markdown: "content/pages/markdown",
     });
-    for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
-      expect(readdirSync(path.join(deploymentPaths().root, root))).toContain("README.md");
-    }
-    // One human-facing content area: every authored page root lives under
-    // `content/`, and the `content/` README is the obvious entry point.
+    // One human-facing content area: every authored page root lives under `content/`.
     for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
       expect(root.startsWith("content/")).toBe(true);
     }
+    // Each mode root ships its own documentation, and the `content/` README is the obvious entry
+    // point — facts about the SHIPPED content, asserted by the deployment's own acceptance suite
+    // (`deployment/tests/**`). This contract stays about the declared roots, so it holds for a
+    // synthetic deployment, a capsule and the repository layout alike.
     expect(readdirSync(deploymentPaths().root)).toContain("content");
   });
 
@@ -73,15 +73,10 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     for (const retired of ["config/pages-markdown", "config/pages-json", "assets"]) {
       expect(existsSync(path.join(deploymentPaths().root, retired)), `${retired} must not exist`).toBe(false);
     }
-    // The documentation a user needs is present, in the content area itself.
-    for (const readme of [
-      "content/README.md",
-      "content/pages/markdown/README.md",
-      "content/pages/json/README.md",
-      "content/assets/README.md",
-    ]) {
-      expect(existsSync(path.join(projectRoot, readme)), readme).toBe(true);
-    }
+    // The documentation a user needs (the content map and each root's own README) is a fact about the
+    // SHIPPED content, so it is asserted by the deployment's own acceptance suite
+    // (`deployment/tests/unit/asset-install.test.ts`). This contract stays about the code's roots and
+    // the retired paths above, so it holds for a synthetic deployment and a capsule alike.
   });
 
   it("keeps the retired `config/pages-*` roots out of the source entirely", () => {
@@ -125,11 +120,23 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       expect(source, file).not.toContain("ContentCollection");
     }
 
-    // The human-facing area holds ONE page tree, the artwork beside it, the map README and the
-    // country-code reference — no historical collection directories, empty or otherwise.
-    expect(readdirSync(path.join(deploymentPaths().root, "content")).filter((entry) => entry !== "assets").sort()).toEqual(
-      ["COUNTRY-CODES.md", "README.md", "pages"],
-    );
+    // The human-facing area holds the two authored page roots, the artwork beside them and the map
+    // README — and NO historical collection directory (empty or otherwise): a page is a page, and
+    // there is never a second place to look for one. The deployment's exact content inventory (which
+    // documents and artwork an install ships) is asserted by its own acceptance suite
+    // (`deployment/tests/**`), never here: this contract is about the SHAPE of the content area, and
+    // it must hold for the synthetic deployment, the capsule and the repository layout alike.
+    // ISO-H2 — the root comes from the deployment authority, so this test follows the selected
+    // deployment instead of assuming the repository layout.
+    const contentRoot = path.join(deploymentPaths().root, "content");
+    expect(existsSync(path.join(contentRoot, "README.md")), "the content map ships").toBe(true);
+    expect(existsSync(path.join(contentRoot, "pages")), "the authored pages root ships").toBe(true);
+    for (const retiresCollection of ["offerings", "portfolio", "posts", "testimonials", "legal"]) {
+      expect(
+        existsSync(path.join(contentRoot, retiresCollection)),
+        `${retiresCollection}/ must not be a collection root`,
+      ).toBe(false);
+    }
   });
 
   it("keeps every page route on ONE decision point, and off any other store", () => {

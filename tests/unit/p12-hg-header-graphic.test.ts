@@ -120,19 +120,14 @@ describe("P12-HG — schema / backward compatibility", () => {
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
     expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBeUndefined();
     expect(existsSync(path.join(root, "public", "assets", "header-graphic.svg"))).toBe(true);
-    // The shipped default draws NOTHING (no paths, no shapes, no raster) and is
-    // byte-identical to its declared placeholder source.
+    // The shipped default draws NOTHING (no paths, no shapes, no raster). ISO-H2 — that the runtime file
+    // is the byte-identical MIRROR of its declared placeholder source, and that the template installs no
+    // deployment-specific brand artwork for the role, are facts about the INSTALLED deployment's asset
+    // install: asserted by its own acceptance suite (`deployment/tests/unit/asset-install.test.ts`).
     const shipped = readFileSync(path.join(root, "public", "assets", "header-graphic.svg"), "utf8");
-    const source = readFileSync(
-      path.join(root, "content", "assets", "placeholders", "header-graphic.svg"),
-      "utf8",
-    );
-    expect(shipped).toBe(source);
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|image|text)\b/i);
     expect(shipped).toMatch(/viewBox="0 0 4096 512"/);
     expect(shipped).not.toMatch(/#4F7CAC/i);
-    // …and no deployment-specific artwork ships for this role in the template.
-    expect(existsSync(path.join(root, "content", "assets", "branding"))).toBe(false);
   });
 });
 

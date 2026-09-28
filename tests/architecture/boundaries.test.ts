@@ -1,6 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+
+import { deploymentPaths } from "@/config/deployment-root";
+
 import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 
 const srcDirectory = path.join(process.cwd(), "src");
@@ -309,8 +312,12 @@ describe("outbound server-action & isolation boundaries (Phase I)", () => {
   const appDirectory = path.join(srcDirectory, "app");
   const configDirectory = path.join(srcDirectory, "config");
   const coreDirectory = path.join(srcDirectory, "core");
-  const contentDirectory = path.join(process.cwd(), "content");
-  const siteConfigPath = path.join(process.cwd(), "site.config.json");
+  const contentDirectory = path.join(deploymentPaths().root, "content");
+  // ISO-H2 — the deployment-owned surfaces come from the ONE authority, so this scan follows whichever
+  // deployment is selected (the synthetic deployment in the generic project, the real capsule in the
+  // deployment project, `<repo>` in the repository layout). A scan hard-coded to `<repo>/content` would
+  // silently stop covering anything the moment the deployment moved into its capsule (B2B).
+  const siteConfigPath = deploymentPaths().siteConfigFile;
 
   function listTextFiles(directory: string): string[] {
     // FS1 — the generic template ships no `content/` tree (and git cannot track
