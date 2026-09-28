@@ -1,59 +1,60 @@
 ---
 title: About this Foundation website
-description: What this live site demonstrates, who it is for, what an owner can change, and how the open-source Foundation relates to optional Provelopment services.
+description: What this live reference site demonstrates, how its pages are created, what an owner can change, and how Foundation relates to optional Provelopment services.
 ---
 
-This website is a working deployment of the open-source Provelopment Foundation
-template. The same public code used to build this site can be downloaded, changed
-and deployed by anyone.
+This website is a live deployment of the open-source Provelopment Foundation template. The code used to build it is publicly available and can be downloaded, changed and deployed in your own repository.
 
 # What this site demonstrates
 
-This is the template's own reference deployment, not a client website. It shows the
-parts you would use on your own site: a Home page written in the JSON mode, this
-About page written in Markdown, the shared navigation and the two layout
-presentations, and the settings in one configuration file.
+This is Foundation's reference deployment, not a client website. It shows the main parts available when building a Foundation site:
+
+- a Home page created with the declarative JSON page format
+- this About page created with Markdown
+- shared navigation and site configuration
+- Sidebar and Menu-bar layouts
+- a Layout control that switches presentation without changing the page or its content
+
+The purpose is simple: you can see the template working before deciding how you want to use or change it.
 
 # A website you control
 
-Foundation is intended to give the website owner a real, usable starting point
-rather than a platform they cannot leave. Your pages, your images and your settings
-are ordinary files in your own repository, and the website is built from them.
-Nothing about the site is locked inside an account you cannot reach.
+Foundation is designed so that the website remains under the owner's control.
+
+Your pages, images and other site content are files in your repository. Site behaviour and settings are defined through configuration files. The website is built from those files rather than being stored inside a closed website-building account.
+
+You can maintain the site yourself, ask someone else to maintain it, or use Provelopment services. The underlying website remains yours.
 
 # Two ways to create pages
 
-Straightforward content can be written in **Markdown** — plain text with a few
-simple marks for headings, lists and links. More structured pages can use
-Foundation's **declarative JSON page format**, where you list the sections of a page
-instead of writing prose.
+Foundation provides two page-authoring methods.
 
-This page is the Markdown example; the Home page is the JSON example. Both are
-pages: they are authored the same way, published by the same route, and appear in
-the site's sitemap automatically.
+**Markdown** is intended for straightforward content. It is close to plain text, with simple notation for headings, lists, links and emphasis.
 
-# Designed to grow with the site
+**Declarative JSON** is intended for pages that need more structure. Instead of writing the whole page as prose, you define sections such as heroes, columns, cards, tables and questions.
 
-A Foundation site can serve more than one country, more than one language and more
-than one physical Location, and a visitor can switch between the Sidebar and the
-Menu-bar presentations.
+This page is the Markdown example. The Home page is the JSON example.
 
-This deployment configures one site, one language and no Locations, so Foundation
-offers only the Layout control here. The other controls appear when a site
-configures the languages and Locations it actually serves — they are never faked
-for appearance.
+Both are ordinary pages. Their files determine their content, their location determines their route, and published pages are included in the site's sitemap automatically.
+
+# Designed to adapt
+
+Foundation is designed to support websites that grow beyond a single page, language or market.
+
+A site can be configured for multiple languages, country-specific sites and physical locations. It can also allow visitors to switch between the Sidebar and Menu-bar layouts without changing the page they are viewing.
+
+This reference deployment uses one language and no physical locations, so only the Layout control is needed here. Other controls appear when the corresponding options are actually configured.
 
 # Open source first
 
-Foundation — **Free and open source: Download it. Deploy it. Modify it. Own it.**
+**Foundation is free and open source: download it, deploy it, modify it and make it your own.**
 
-Provelopment's help is optional. It is a way to have the site built, extended and
-maintained, not a condition for keeping access to it: the same site, in your own
-repository, is yours to run and to take with you.
+Using Provelopment services is optional. Provelopment can build, extend or maintain a Foundation site, but those services are not required to keep using the website.
+
+Your repository remains the source of the site, so you can continue running it yourself or move it elsewhere.
 
 # Learn more
 
-The Foundation project, its documentation and its instruction manuals are at
-[foundation.provelopment.com](https://foundation.provelopment.com/). The code behind
-this website is in the
-[public repository](https://github.com/provelopment/provelopment-foundation).
+Visit [foundation.provelopment.com](https://foundation.provelopment.com/) to learn more about the Foundation project and its documentation.
+
+The template source code, technical documentation and instruction manuals are available in the [public Provelopment Foundation repository](https://github.com/provelopment/provelopment-foundation).

@@ -28,8 +28,14 @@ import { resolveUiConfig } from "@/core/ui";
  * browser against the shipped configuration.
  */
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
-const REFERENCE_HOME_TITLE = "Build a website you can own.";
+const REFERENCE_HOME_TITLE = "Build a website you own.";
 const REFERENCE_ABOUT_TITLE = "About this Foundation website";
+/**
+ * R1A1 — the reference site's content is OWNER-AUTHORED and FINAL, so the assertions
+ * below quote the owner's current files. If the owner edits the copy again, these
+ * needles move with it: the content is never adjusted to satisfy a test.
+ */
+const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
 const root = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
@@ -124,7 +130,7 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const about = await pages.resolve(siteCode, "about", localePath);
     expect(about?.kind).toBe("markdown");
     expect(about?.title).toBe(REFERENCE_ABOUT_TITLE);
-    expect(about?.description).toContain("What this live site demonstrates");
+    expect(about?.description).toContain("What this live reference site demonstrates");
   });
 
   it("publishes each page's own URL and never /home", async () => {
@@ -149,10 +155,11 @@ describe("the served reference pages", () => {
     // The declarative sections the file declares are the sections that render.
     expect(html).toContain("You own your website");
     expect(html).toContain("Two ways to write a page");
-    // The hero action that names the About page, and the external project link.
+    // The hero action that names the About page, and the owner's external destination
+    // (the public repository, per the owner-final copy).
     expect(html).toContain("See how this site works");
     expect(html).toContain("/about");
-    expect(html).toContain("https://foundation.provelopment.com/");
+    expect(html).toContain(REFERENCE_REPOSITORY_URL);
     // An authored home page REPLACES the configuration-driven starter homepage.
     expect(html).not.toContain("home-hero");
   });
@@ -164,8 +171,12 @@ describe("the served reference pages", () => {
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(REFERENCE_ABOUT_TITLE);
-    expect(html).toContain("Free and open source: Download it. Deploy it. Modify it. Own it.");
+    // The owner-final open-source statement, exactly as authored.
+    expect(html).toContain(
+      "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
+    );
     expect(html).toContain("https://foundation.provelopment.com/");
+    expect(html).toContain(REFERENCE_REPOSITORY_URL);
     // The authored `# Heading` renders RELATIVE to the page title — an h2, never an h1.
     expect(html).toContain('id="a-website-you-control"');
     expect(html).toContain("<h2");

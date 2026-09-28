@@ -4037,9 +4037,15 @@ async function runMultisiteScenario(chrome) {
  * transparent with no border (no pill) while keeping its hit target, its
  * accessible name and the shared keyboard focus ring.
  */
-const REFERENCE_HOME_TITLE = "Build a website you can own.";
+const REFERENCE_HOME_TITLE = "Build a website you own.";
 const REFERENCE_ABOUT_TITLE = "About this Foundation website";
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
+/**
+ * R1A1 — the reference site's copy is OWNER-AUTHORED and FINAL, so the expectations
+ * below quote the owner's current files. The content is never adjusted to satisfy a
+ * check; a copy-dependent expectation moves when the owner edits the page.
+ */
+const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
 const DISCLOSURE_PROBE = `(() => {
   const r2 = (v) => Math.round(v * 100) / 100;
@@ -4100,7 +4106,7 @@ const REFERENCE_PROBE = `(() => {
     headings: [...document.querySelectorAll('main h2, main h3')].map((h) => (h.textContent || '').trim()),
     text,
     aboutAnchors: [...document.querySelectorAll('main a[href*="about"]')].map((a) => (a.getAttribute('href') || '') + ' :: ' + a.textContent.trim()),
-    projectLink: !!document.querySelector('main a[href*="foundation.provelopment.com"]'),
+    repositoryLink: !!document.querySelector('main a[href*="${REFERENCE_REPOSITORY_URL}"]'),
     canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
     ogUrl: (document.querySelector('meta[property="og:url"]') || {}).content || null,
     visibleNav: [...document.querySelectorAll('nav a')]
@@ -4276,17 +4282,22 @@ async function runReferenceContentScenario(chrome) {
         "You own your website",
         "About this website",
         "Built to adapt",
-        "Everything here is in the public repository",
+        "The complete site is public",
       ].every((heading) => home.headings.includes(heading)),
       JSON.stringify(home.headings),
     );
     check(
       rows,
       "reference.home.ownershipPrinciple",
-      home.text.includes("not a technical hostage situation"),
+      home.text.includes("Using Provelopment services is a choice, not a requirement."),
       "the portability statement is delivered on Home",
     );
-    check(rows, "reference.home.linksTheProject", home.projectLink === true, "Home links the Foundation project");
+    check(
+      rows,
+      "reference.home.linksTheRepository",
+      home.repositoryLink === true,
+      "Home links the public repository (the owner-final hero action)",
+    );
     check(
       rows,
       "reference.home.aboutTeaserLinksToAbout",
@@ -4339,18 +4350,30 @@ async function runReferenceContentScenario(chrome) {
     check(
       rows,
       "reference.about.markdownSectionsRender",
-      ["A website you control", "Two ways to create pages", "Open source first", "Learn more", "Designed to grow with the site"].every(
-        (heading) => about.headings.includes(heading),
-      ),
+      [
+        "What this site demonstrates",
+        "A website you control",
+        "Two ways to create pages",
+        "Designed to adapt",
+        "Open source first",
+        "Learn more",
+      ].every((heading) => about.headings.includes(heading)),
       JSON.stringify(about.headings),
     );
     check(
       rows,
       "reference.about.deliversThePrinciples",
-      about.text.includes("Free and open source") && about.text.includes("Provelopment's help is optional"),
-      "the open-source and optional-services statements are delivered",
+      about.text.includes(
+        "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
+      ) && about.text.includes("Using Provelopment services is optional."),
+      "the owner-final open-source and optional-services statements are delivered",
     );
-    check(rows, "reference.about.linksTheProject", about.projectLink === true, "About links the Foundation project");
+    check(
+      rows,
+      "reference.about.linksTheRepository",
+      about.repositoryLink === true,
+      "About links the public repository",
+    );
     check(
       rows,
       "reference.nav.aboutMarksCurrentPage",
