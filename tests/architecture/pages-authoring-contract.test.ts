@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { deploymentPaths } from "@/config/deployment-root";
 
 import { isHeadingAnchor } from "@/core/heading-anchor";
 import { CONTENT_SLUG_PATTERN, isContentSlug } from "@/core/page-content";
@@ -53,14 +54,14 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       markdown: "content/pages/markdown",
     });
     for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
-      expect(readdirSync(path.join(projectRoot, root))).toContain("README.md");
+      expect(readdirSync(path.join(deploymentPaths().root, root))).toContain("README.md");
     }
     // One human-facing content area: every authored page root lives under
     // `content/`, and the `content/` README is the obvious entry point.
     for (const root of Object.values(PAGE_AUTHORING_ROOTS)) {
       expect(root.startsWith("content/")).toBe(true);
     }
-    expect(readdirSync(projectRoot)).toContain("content");
+    expect(readdirSync(deploymentPaths().root)).toContain("content");
   });
 
   it("keeps the documented authoring roots, and leaves the retired ones absent", () => {
@@ -70,7 +71,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       json: "content/pages/json",
     });
     for (const retired of ["config/pages-markdown", "config/pages-json", "assets"]) {
-      expect(existsSync(path.join(projectRoot, retired)), `${retired} must not exist`).toBe(false);
+      expect(existsSync(path.join(deploymentPaths().root, retired)), `${retired} must not exist`).toBe(false);
     }
     // The documentation a user needs is present, in the content area itself.
     for (const readme of [
@@ -126,7 +127,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
 
     // The human-facing area holds ONE page tree, the artwork beside it, the map README and the
     // country-code reference — no historical collection directories, empty or otherwise.
-    expect(readdirSync(path.join(projectRoot, "content")).filter((entry) => entry !== "assets").sort()).toEqual(
+    expect(readdirSync(path.join(deploymentPaths().root, "content")).filter((entry) => entry !== "assets").sort()).toEqual(
       ["COUNTRY-CODES.md", "README.md", "pages"],
     );
   });

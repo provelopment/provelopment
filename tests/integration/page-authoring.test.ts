@@ -4,6 +4,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment's authored pages; moves to
+// deployment/tests/**.
+vi.unmock("@/config");
+
+
+
 // A page route signals "nothing answers this URL" through `notFound()`. In a node
 // test that is a controlled signal, so it is stubbed — which also lets the
 // not-found path be asserted directly.

@@ -1,7 +1,23 @@
 import { mkdirSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// GENERIC ISOLATION (ISO-B1C): deployment-owned state (dictionaries, authored pages, deployment
+// configuration) comes from the SYNTHETIC test deployment, never from the repository's own
+// deployment. See tests/support/synthetic-deployment.ts — the copy is disposable and the committed
+// fixture is only ever its source.
+vi.mock("@/config/deployment-root", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/deployment-root")>();
+  const { syntheticDeploymentPaths } = await import("../support/synthetic-deployment");
+  return {
+    ...actual,
+    deploymentLayout: () => "override" as const,
+    deploymentPaths: () => syntheticDeploymentPaths(),
+  };
+});
+
+import { deploymentPaths } from "@/config/deployment-root";
 
 import { createPageSources } from "@/adapters/content/page-sources";
 import { resolveSites, sitePath } from "@/core/site";
@@ -24,11 +40,10 @@ import { resolveSites, sitePath } from "@/core/site";
  * The fixture sites are recognized-but-synthetic country codes (`aq`, `tf`, `bv`), so no real
  * authoring tree can collide with a run, and everything created here is removed afterwards.
  */
-const root = process.cwd();
 
 const md = (...parts: string[]): string =>
-  path.join(root, "content", "pages", "markdown", ...parts);
-const json = (...parts: string[]): string => path.join(root, "content", "pages", "json", ...parts);
+  path.join(deploymentPaths().markdownPagesRoot, ...parts);
+const json = (...parts: string[]): string => path.join(deploymentPaths().jsonPagesRoot, ...parts);
 
 const AQ = "aq";
 const TF = "tf";
@@ -70,7 +85,7 @@ function plant(file: string, contents: string): void {
 /** Remove a file, then only the directories this suite created while they are empty. */
 function removeFile(file: string): void {
   rmSync(file, { force: true });
-  const boundary = path.join(root, "content", "pages");
+  const boundary = path.dirname(deploymentPaths().markdownPagesRoot);
   let directory = path.dirname(file);
   while (directory.startsWith(boundary) && directory !== boundary) {
     try {

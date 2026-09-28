@@ -48,10 +48,10 @@
  * `tests/unit/asset-taxonomy-mirror.test.ts`). It is exposed here so that even the one platform path
  * is spelled in one place, but it is never part of a deployment agent's write boundary.
  */
-// The REPOSITORY-layout config is BUNDLED, not read at runtime: it is the shipped deployment's own
-// configuration, and keeping it an import is what guarantees the file is present in a production
-// build — and it is what makes `siteConfig` usable from client components without a filesystem.
-import bundledRepositorySiteConfig from "../../site.config.json";
+// NOTE (ISO-B1C) — there is deliberately NO `import … from "../../site.config.json"` here. The build
+// selects the deployment and INLINES its configuration (`src/config/deployment-build.ts` ←
+// `next.config.ts` / `vitest.config.mts`), so no application module depends on a file's physical
+// location and B2 can move `site.config.json` into a capsule without a module-resolution change.
 
 /** Which layout the deployment root resolved to. */
 export type DeploymentLayout = "capsule" | "repository" | "override";
@@ -88,17 +88,23 @@ export function deploymentLayout(): DeploymentLayout {
 }
 
 /**
- * The raw deployment configuration. Pure and client-safe:
- *
- *   · the build inlined the capsule's/override's config (`next.config.ts`) → parse it;
- *   · otherwise the bundled repository config (unchanged behaviour, no filesystem at all).
+ * The raw deployment configuration. Pure and client-safe: the build selected ONE deployment and
+ * INLINED its configuration (`next.config.ts` → Next's `env`; `vitest.config.mts` → `test.env`), so
+ * this reads an already-selected value and never a file. A missing value means the build seam did not
+ * run — a loud failure, never a silent fallback to some other deployment.
  *
  * The value is validated ONCE by `parseSiteConfig` in `./loader`.
  */
 export function readDeploymentConfig(): unknown {
   const inlined = process.env[CONFIG_ENV];
-  if (inlined !== undefined && inlined !== "") return JSON.parse(inlined) as unknown;
-  return bundledRepositorySiteConfig;
+  if (inlined === undefined || inlined === "") {
+    throw new Error(
+      "FOUNDATION-DEPLOYMENT-ISO-B1C: no deployment configuration was inlined into this build. " +
+        "The build must resolve the deployment (next.config.ts) or the test run must " +
+        "(vitest.config.mts) — both use src/config/deployment-build.ts.",
+    );
+  }
+  return JSON.parse(inlined) as unknown;
 }
 
 /**

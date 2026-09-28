@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+import { deploymentPaths } from "@/config/deployment-root";
 
 import { COUNTRY_SITE_CODES, WORLDWIDE_SITE_CODE, isSiteCode } from "@/core/site-code";
 
@@ -17,8 +18,7 @@ import { COUNTRY_SITE_CODES, WORLDWIDE_SITE_CODE, isSiteCode } from "@/core/site
  * The reserved Worldwide value is checked SEPARATELY: `ww` is Foundation-defined, not an ISO country,
  * and it must not appear in the country list.
  */
-const projectRoot = process.cwd();
-const referencePath = path.join(projectRoot, "content", "COUNTRY-CODES.md");
+const referencePath = path.join(deploymentPaths().root, "content", "COUNTRY-CODES.md");
 const document = readFileSync(referencePath, "utf8");
 
 const START = "<!-- CODES:START -->";
@@ -81,13 +81,13 @@ describe("the country-code reference matches the runtime authority", () => {
 
 describe("the reference is published where an author looks", () => {
   it("is linked from the content map", () => {
-    const map = readFileSync(path.join(projectRoot, "content", "README.md"), "utf8");
+    const map = readFileSync(path.join(deploymentPaths().root, "content", "README.md"), "utf8");
     expect(map).toContain("COUNTRY-CODES.md");
   });
 
   it("is linked from both authoring roots", () => {
     for (const root of ["content/pages/markdown/README.md", "content/pages/json/README.md"]) {
-      expect(readFileSync(path.join(projectRoot, root), "utf8"), root).toContain(
+      expect(readFileSync(path.join(deploymentPaths().root, root), "utf8"), root).toContain(
         "COUNTRY-CODES.md",
       );
     }
