@@ -56,27 +56,45 @@ another deployment
 
 ## Working rules
 
-1. **Scratch work goes in `deployment/.test/`.** It is never version controlled (`deployment/.gitignore`).
-   Create the directory locally when you first need it — with your normal file tools, not by committing
-   a placeholder. Use it for temporary fixtures, screenshots, generated reports, browser artifacts,
-   probes, throwaway copies and your own notes. Do not use repository-global scratch space for
-   deployment-specific work, and do not commit anything inside `.test/`.
-2. **Durable deployment tests live in `deployment/tests/**`.** A test belongs here when it answers a
+1. **Scratch work goes in `deployment/.test/` — and it is EPHEMERAL.**
+   `deployment/.test/**` is the only normal deployment-local work area, so create it locally the first
+   time you need it, with your normal file tools — never by committing a placeholder (no `.gitkeep`,
+   no sample, no report, no screenshot: nothing inside it is ever committed). Use it for temporary
+   fixtures, screenshots, browser artifacts, generated reports, throwaway copies, probes, temporary
+   transformations and your own scratch notes.
+   **Before you report a task complete, delete every file and directory you created beneath
+   `deployment/.test/**`.** The state you leave behind is:
+
+   ```text
+   deployment/.test/    empty
+   ```
+
+   or `.test/` itself absent — also fine, because the directory is ignored and can be recreated.
+   Git ignoring a file is never permission to abandon it: do not leave task artifacts behind because
+   they would not be committed, and do not solve the problem by putting scratch material somewhere
+   else in the repository.
+2. **Clean up only your own scratch.** That cleanup covers exactly this deployment's
+   `deployment/.test/**` and nothing more. Do not perform broad repository cleanup, do not use a
+   command capable of deleting arbitrary ignored files elsewhere, and never remove another
+   deployment's files, a Foundation cache, project-global scratch, user files or any ignored path you
+   did not create. If it is not beneath this capsule's `.test/`, it is not yours to delete — leave it
+   and, if it looks wrong, report it.
+3. **Durable deployment tests live in `deployment/tests/**`.** A test belongs here when it answers a
    question about *this* deployment: its own sites, languages, locations, routes, copy, assets,
    structured data and acceptance.
-3. **Never copy a generic Foundation test into `deployment/tests/**`,** and never restate a platform
+4. **Never copy a generic Foundation test into `deployment/tests/**`,** and never restate a platform
    contract here. Platform behaviour is proved once, by the Foundation. A deployment test that merely
    repeats a generic assertion adds maintenance, not confidence.
-4. **Author content in the content system; never change production content to satisfy a stale test.**
+5. **Author content in the content system; never change production content to satisfy a stale test.**
    When an assertion and the owner's file disagree, the file wins: update the assertion. Copy is
    never adjusted so that a check passes.
-5. **A change to this deployment must not require editing Foundation.** Configuration, dictionaries,
+6. **A change to this deployment must not require editing Foundation.** Configuration, dictionaries,
    content and this capsule's tests are the levers.
-6. **If you find a genuine Foundation defect, STOP and report it.** Name the file, the behaviour and
+7. **If you find a genuine Foundation defect, STOP and report it.** Name the file, the behaviour and
    the evidence. Do not repair the platform from inside this deployment — and never "fix" a platform
    defect by escaping this write boundary (a copy of platform code, a patched import, a local fork of
    a shared module).
-7. **Record nothing outside your boundary.** Provenance, decisions and notes about this deployment
+8. **Record nothing outside your boundary.** Provenance, decisions and notes about this deployment
    belong in this capsule.
 
 ## Provenance

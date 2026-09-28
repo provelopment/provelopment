@@ -15,7 +15,7 @@ each other.
 | `tests/unit/` | This deployment's durable unit-level acceptance: its real configuration, dictionaries, routes, copy and structured data. |
 | `tests/integration/` | This deployment's durable integration acceptance: its authored pages served through the real application. |
 | `tests/browser/` | This deployment's browser acceptance scenario, run by the Foundation's browser harness. |
-| `.test/` | **Local scratch, never committed.** Temporary fixtures, screenshots, generated reports, browser artifacts, probes. An agent or a test creates it locally when it needs it: `deployment/.gitignore` keeps it out of version control, including any file inside it. |
+| `.test/` | **Ignored ephemeral workspace, never committed.** Temporary fixtures, screenshots, generated reports, browser artifacts, probes, throwaway copies. It is created locally when needed (`deployment/.gitignore` keeps it and everything inside it out of version control) and it must be **empty — or removed — again when the work is finished**: nothing is left behind for the owner to tidy. |
 | `foundation-baseline.json` | The Foundation version this deployment was established from (see below). |
 | `AGENTS.md` | The contract for an agent working on this deployment. |
 
@@ -33,7 +33,9 @@ exactly as they always were; only its *tests* have moved into the capsule so far
 - **Durable tests for this deployment belong in `tests/**`.** They answer questions about *this* site:
   its own origin, sites, languages, locations, routes, copy and assets. Reusable platform behaviour is
   already proved once by the Foundation's own tests — do not copy those here.
-- **Temporary work belongs in `.test/**`.** Do not scatter scratch files through this repository.
+- **Temporary work belongs in `.test/**` and is ephemeral.** Do not scatter scratch files through this
+  repository, and delete everything you created there before you finish: the workspace is empty (or
+  gone) when the task is done.
 - **If a change seems to need a platform edit, stop and escalate.** A Foundation defect is reported,
   not patched from inside this capsule.
 
