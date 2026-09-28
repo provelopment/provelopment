@@ -9,7 +9,10 @@
 //    reduced-motion and dark-scheme emulation) and asserts the shared behavioral
 //    contract,
 //  - emits a machine-readable report and exits non-zero on any failure.
-// Run: `pnpm test:browser` (requires a local Chrome/Chromium/Edge binary).
+// Run: `pnpm test:browser` — ALL scenarios (the conservative superset: Foundation + deployment).
+//      `pnpm test:browser:foundation` / `pnpm test:browser:deployment` — ONE owner's scenarios.
+//      Scope semantics live in `tests/browser/scope.mjs` (one harness, one discovery policy).
+// (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { readFile, writeFile, mkdir, readdir, rm, rmdir } from "node:fs/promises";
@@ -19,6 +22,19 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { Cdp, findChrome } from "./cdp.mjs";
+// ONE AUTHORITY, ONE DISCOVERY POLICY (FOUNDATION-DEPLOYMENT-ISO-B3A)
+// The deployment this harness describes is resolved by the platform's deployment seam — never by a
+// second capsule rule here — and WHICH family of scenarios a run executes is decided by the harness's
+// one ownership module, which a generic test can import and prove without starting a browser.
+import { resolveDeploymentForBuild } from "../../src/config/deployment-build.mjs";
+import {
+  SCENARIO_SUFFIX,
+  browserScopePlan,
+  describeBrowserScope,
+  deploymentBrowserDirectory,
+  deploymentScenarioFiles,
+  parseBrowserScope,
+} from "./scope.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -43,18 +59,38 @@ cpSync(join(ROOT, "tests", "fixtures", "synthetic-deployment"), SYNTHETIC_DEPLOY
 /** The deployment root the GENERIC scenarios mutate (a disposable copy). */
 const DEPLOYMENT_ROOT = SYNTHETIC_DEPLOYMENT_ROOT;
 /**
- * THE SHIPPED DEPLOYMENT'S ROOT, resolved exactly as the BUILD resolves it
- * (`src/config/deployment-build.mjs`): a capsule at `<repo>/deployment/` owns the deployment when it
- * holds a `site.config.json`, otherwise the repository itself does. A deployment's own scenario is
- * handed the configuration path this produces, so nothing but this one rule decides where the
- * deployment lives — and moving its data into the capsule needs no change here.
+ * THE INSTALLED DEPLOYMENT, ASKED OF THE ONE AUTHORITY (FOUNDATION-DEPLOYMENT-ISO-B3A)
+ * -----------------------------------------------------------------------------------
+ * The deployment a deployment-owned scenario describes is whichever deployment the BUILD selects, so
+ * this harness no longer restates that rule: it asks `src/config/deployment-build.mjs` — the module
+ * `next.config.ts`, `vitest.config.mts` and `scripts/sync-runtime-assets.mjs` ask — and therefore
+ * follows the deployment through the repository, capsule and override layouts alike.
+ *
+ * Resolution is LAZY and TOLERANT on purpose. The generic scenarios prove platform behaviour against
+ * the synthetic copy and must keep running in a repository with no real deployment installed, so the
+ * absence of a deployment is reported where it matters — the `deployment` SCOPE — rather than at the
+ * harness's import.
  */
-const DEPLOYMENT_CAPSULE_ROOT = join(ROOT, "deployment");
-const SHIPPED_DEPLOYMENT_ROOT = existsSync(join(DEPLOYMENT_CAPSULE_ROOT, "site.config.json"))
-  ? DEPLOYMENT_CAPSULE_ROOT
-  : ROOT;
-/** The SHIPPED reference deployment's config — READ ONLY, for the deployment's own scenarios. */
-const SHIPPED_CONFIG_PATH = join(SHIPPED_DEPLOYMENT_ROOT, "site.config.json");
+let installedDeployment;
+/** The deployment the build would serve, or `null` when this repository has none installed. */
+function selectedDeployment() {
+  if (installedDeployment === undefined) {
+    try {
+      const { layout, root } = resolveDeploymentForBuild(process.env, ROOT);
+      installedDeployment = { layout, root };
+    } catch {
+      // The authority's own message is the diagnostic a BUILD needs; here it only means "this
+      // repository has no deployment-owned browser surface to discover".
+      installedDeployment = null;
+    }
+  }
+  return installedDeployment;
+}
+/** The installed deployment's config — READ ONLY, for the deployment's own scenarios. */
+function shippedConfigPath() {
+  const deployment = selectedDeployment();
+  return deployment === null ? null : join(deployment.root, "site.config.json");
+}
 /** Generic scenarios' config target: the disposable copy, never the shipped file. */
 const CONFIG_PATH = join(DEPLOYMENT_ROOT, "site.config.json");
 /** Generic scenarios' content + dictionary roots (inside the disposable copy). */
@@ -337,20 +373,24 @@ async function waitForServer(url, timeoutMs = 300000) {
 }
 
 /**
- * DEPLOYMENT-OWNED BROWSER ACCEPTANCE (FOUNDATION-DEPLOYMENT-ISO-B2A)
- * -------------------------------------------------------------------
- * A deployment's browser acceptance belongs to the deployment, so it lives inside that deployment's
- * capsule — `deployment/tests/browser/*.scenario.mjs` — and REUSES this harness rather than shipping a
- * second CDP framework. Discovery is a directory convention plus one small contract:
+ * DEPLOYMENT-OWNED BROWSER ACCEPTANCE (FOUNDATION-DEPLOYMENT-ISO-B2A / ISO-B3A)
+ * ---------------------------------------------------------------------------
+ * A deployment's browser acceptance belongs to the deployment, so it lives in that deployment's OWN
+ * tree — `<deployment root>/tests/browser/*.scenario.mjs`, i.e. the capsule's
+ * `deployment/tests/browser/` in THIS repository — and REUSES this harness rather than shipping a
+ * second CDP framework.
+ *
+ * Ownership is FILESYSTEM-DRIVEN (`tests/browser/scope.mjs`): the directory comes from the deployment
+ * the authority selected, so repository, capsule and override deployments each discover their own
+ * scenarios, a deployment that ships none discovers none, and adding a deployment never edits a list.
+ * Discovery is a directory convention plus one small contract:
  *
  *     export const id = "…";                        // the report's `presentation` label
  *     export async function run(chrome, harness) {} // returns the same check rows as a scenario here
  *
- * The platform therefore never imports a deployment file statically, and a repository with no capsule
- * simply discovers nothing.
+ * The platform therefore never imports a deployment file statically, and a repository with no
+ * deployment simply discovers nothing.
  */
-const DEPLOYMENT_BROWSER_DIRECTORY = join(ROOT, "deployment", "tests", "browser");
-const DEPLOYMENT_SCENARIO_SUFFIX = ".scenario.mjs";
 
 /** The generic pieces of THIS harness a deployment scenario is given. */
 function deploymentHarness() {
@@ -363,22 +403,48 @@ function deploymentHarness() {
     waitForServer,
     waitReady,
     chooseLayout,
-    configFile: SHIPPED_CONFIG_PATH,
+    configFile: shippedConfigPath(),
   };
 }
 
-/** Runs every deployment-owned scenario, labelled and summarised exactly like a scenario here. */
-async function runDeploymentScenarios(chrome) {
-  const rows = [];
-  if (!existsSync(DEPLOYMENT_BROWSER_DIRECTORY)) return rows;
+/**
+ * The deployment-owned scenarios the SELECTED deployment ships.
+ *
+ * `names` is empty when nothing owns scenarios — either no deployment is installed at all, or the
+ * installed deployment ships none. That is exactly what an `all` run tolerates and what a
+ * `deployment`-scoped run refuses, loudly, in `runMatrix`.
+ */
+async function discoverDeploymentScenarios() {
+  const deployment = selectedDeployment();
+  if (deployment === null) return { deployment, directory: null, names: [] };
+  const directory = deploymentBrowserDirectory(deployment.root);
+  if (!existsSync(directory)) return { deployment, directory, names: [] };
+  return { deployment, directory, names: deploymentScenarioFiles(await readdir(directory)) };
+}
 
-  const files = (await readdir(DEPLOYMENT_BROWSER_DIRECTORY))
-    .filter((entry) => entry.endsWith(DEPLOYMENT_SCENARIO_SUFFIX))
-    .sort();
-  for (const file of files) {
-    const loaded = await import(pathToFileURL(join(DEPLOYMENT_BROWSER_DIRECTORY, file)).href);
+/** Why a `--scope deployment` run cannot proceed, as one explicit message. */
+function deploymentScopeFailure({ deployment, directory }) {
+  if (deployment === null) {
+    return (
+      "--scope deployment was asked for, but no deployment is installed: the deployment authority " +
+      "found no site.config.json in the capsule (<repo>/deployment/) and none at the repository " +
+      "root. Select a deployment (or set FOUNDATION_DEPLOYMENT_ROOT) and run it again."
+    );
+  }
+  return (
+    `--scope deployment was asked for, but the ${deployment.layout} deployment at ${deployment.root} ` +
+    `ships no ${SCENARIO_SUFFIX} scenario in ${directory}. The deployment scope runs the deployment's ` +
+    "OWN acceptance and nothing else, so an empty scope is reported rather than silently passed."
+  );
+}
+
+/** Runs every deployment-owned scenario, labelled and summarised exactly like a scenario here. */
+async function runDeploymentScenarios(chrome, directory, names) {
+  const rows = [];
+  for (const file of names) {
+    const loaded = await import(pathToFileURL(join(directory, file)).href);
     const scenario = loaded.default ?? loaded;
-    const label = scenario.id ?? file.slice(0, -DEPLOYMENT_SCENARIO_SUFFIX.length);
+    const label = scenario.id ?? file.slice(0, -SCENARIO_SUFFIX.length);
     const scenarioRows = await scenario.run(chrome, deploymentHarness());
     rows.push(...scenarioRows.map((row) => ({ presentation: label, ...row })));
     const failures = scenarioRows.filter((row) => !row.ok).length;
@@ -4172,7 +4238,7 @@ async function runMultisiteScenario(chrome) {
   return rows;
 }
 
-async function runMatrix(chrome) {
+async function runMatrix(chrome, scope) {
 /**
  * MULTISITE / MULTILINGUAL, IN A REAL BROWSER (FOUNDATION-S1).
  *
@@ -4247,72 +4313,85 @@ const multisiteChoose = (name, value) => `(() => {
   return true;
 })()`;
 
+  const scopePlan = browserScopePlan(scope);
+  console.log(`[matrix] scope ${scope} — ${describeBrowserScope(scope)}`);
+  // Discovery happens ONCE, before anything runs, so a `deployment`-scoped run refuses an empty
+  // deployment surface instead of reporting success for having executed nothing.
+  const discovery = await discoverDeploymentScenarios();
+  if (scopePlan.deployment && discovery.names.length === 0) {
+    throw new Error(deploymentScopeFailure(discovery));
+  }
+
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
   try {
-    // THE DEPLOYMENT'S OWN ACCEPTANCE (R1A — now sourced from `deployment/tests/browser/`). It runs
-    // FIRST, against `site.config.json` exactly as the repository ships it (it never writes the
-    // file): every scenario below mutates the configuration, so the shipped values must be observed
-    // before any of them does.
-    const referenceRows = await runDeploymentScenarios(chrome);
-    allRows = allRows.concat(referenceRows);
-    // ONE canonical presentation (the retired feature's five-preset loop is gone).
-    const config = JSON.parse(original);
-    config.ui = { ...config.ui, ...CANONICAL.ui };
-    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
-    const rows = await runCanonical(chrome);
-    allRows = allRows.concat(rows);
-    const fails = rows.filter((r) => !r.ok).length;
-    console.log(`[matrix] ${CANONICAL.name}: ${rows.length - fails}/${rows.length} checks passed${fails ? ` FAIL=${fails}` : ""}`);
-    // P5-6 — duplicate-destination acceptance (own server, config restored below).
-    const dupRows = await runDuplicateNavScenario(chrome);
-    allRows = allRows.concat(dupRows.map((r) => ({ presentation: "dup-nav", ...r })));
-    const dupFails = dupRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] dup-nav: ${dupRows.length - dupFails}/${dupRows.length} checks passed${dupFails ? ` FAIL=${dupFails}` : ""}`);
-    // CONNECTIVITY ICON SEAM — browser-real acceptance of the optional
-    // connectivity icon contract (own server, config restored by the scenario).
-    const connectivityRows = await runConnectivityIconScenario(chrome);
-    allRows = allRows.concat(connectivityRows.map((r) => ({ presentation: "connectivity-icons", ...r })));
-    const connectivityFails = connectivityRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] connectivity-icons: ${connectivityRows.length - connectivityFails}/${connectivityRows.length} checks passed${connectivityFails ? ` FAIL=${connectivityFails}` : ""}`);
-    // FOUNDATION-N1 — PERSISTENT NAVIGATION (own server + fixtures, config and
-    // content restored by the scenario).
-    const persistRows = await runPersistentNavigationScenario(chrome);
-    allRows = allRows.concat(persistRows.map((r) => ({ presentation: "persistent-navigation", ...r })));
-    const persistFails = persistRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] persistent-navigation: ${persistRows.length - persistFails}/${persistRows.length} checks passed${persistFails ? ` FAIL=${persistFails}` : ""}`);
-    // FOUNDATION-PAGES-A1 — SAFE MARKDOWN: the served page under the real route
-    // carries no active markup (own server + fixture, both restored).
-    const safeRows = await runSafeMarkdownScenario(chrome);
-    allRows = allRows.concat(safeRows.map((r) => ({ presentation: "safe-markdown", ...r })));
-    const safeFails = safeRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] safe-markdown: ${safeRows.length - safeFails}/${safeRows.length} checks passed${safeFails ? ` FAIL=${safeFails}` : ""}`);
-    // FOUNDATION-PAGES-A1E — NESTED PAGES: a page authored in a FOLDER is served at
-    // its nested URL, with its fragment target and its inert documentation (own server
-    // + fixtures, both restored).
-    const nestedRows = await runNestedPageScenario(chrome);
-    allRows = allRows.concat(nestedRows.map((r) => ({ presentation: "nested-pages", ...r })));
-    const nestedFails = nestedRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] nested-pages: ${nestedRows.length - nestedFails}/${nestedRows.length} checks passed${nestedFails ? ` FAIL=${nestedFails}` : ""}`);
-    // FOUNDATION-PAGES-A2 — ADVANCED JSON: a declarative document is served and rendered
-    // by the real application (own server + fixture, both restored).
-    const jsonRows = await runAdvancedJsonScenario(chrome);
-    allRows = allRows.concat(jsonRows.map((r) => ({ presentation: "advanced-json", ...r })));
-    const jsonFails = jsonRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] advanced-json: ${jsonRows.length - jsonFails}/${jsonRows.length} checks passed${jsonFails ? ` FAIL=${jsonFails}` : ""}`);
-    // FOUNDATION-N2 — SHELL LAYOUT PRESENTATION: the optional visitor switcher between
-    // the Sidebar and Menu-bar layouts (own server + fixtures, all restored).
-    const layoutRows = await runLayoutSwitcherScenario(chrome);
-    allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
-    const layoutFails = layoutRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
-    // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
-    // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
-    // deployment (own server + fixtures, configuration and content all restored).
-    const multisiteRows = await runMultisiteScenario(chrome);
-    allRows = allRows.concat(multisiteRows.map((r) => ({ presentation: "multisite", ...r })));
-    const multisiteFails = multisiteRows.filter((r) => !r.ok).length;
-    console.log(`[matrix] multisite: ${multisiteRows.length - multisiteFails}/${multisiteRows.length} checks passed${multisiteFails ? ` FAIL=${multisiteFails}` : ""}`);
+    if (scopePlan.deployment) {
+      // THE DEPLOYMENT'S OWN ACCEPTANCE (R1A — sourced from the deployment's OWN browser tree, which
+      // the authority located). It runs FIRST, against `site.config.json` exactly as the deployment
+      // ships it (it never writes the file): every generic scenario below mutates the synthetic
+      // configuration, so the shipped values must be observed before any of them does.
+      const referenceRows = await runDeploymentScenarios(chrome, discovery.directory, discovery.names);
+      allRows = allRows.concat(referenceRows);
+    }
+    if (scopePlan.foundation) {
+      // ONE canonical presentation (the retired feature's five-preset loop is gone).
+      const config = JSON.parse(original);
+      config.ui = { ...config.ui, ...CANONICAL.ui };
+      await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+      const rows = await runCanonical(chrome);
+      allRows = allRows.concat(rows);
+      const fails = rows.filter((r) => !r.ok).length;
+      console.log(`[matrix] ${CANONICAL.name}: ${rows.length - fails}/${rows.length} checks passed${fails ? ` FAIL=${fails}` : ""}`);
+      // P5-6 — duplicate-destination acceptance (own server, config restored below).
+      const dupRows = await runDuplicateNavScenario(chrome);
+      allRows = allRows.concat(dupRows.map((r) => ({ presentation: "dup-nav", ...r })));
+      const dupFails = dupRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] dup-nav: ${dupRows.length - dupFails}/${dupRows.length} checks passed${dupFails ? ` FAIL=${dupFails}` : ""}`);
+      // CONNECTIVITY ICON SEAM — browser-real acceptance of the optional
+      // connectivity icon contract (own server, config restored by the scenario).
+      const connectivityRows = await runConnectivityIconScenario(chrome);
+      allRows = allRows.concat(connectivityRows.map((r) => ({ presentation: "connectivity-icons", ...r })));
+      const connectivityFails = connectivityRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] connectivity-icons: ${connectivityRows.length - connectivityFails}/${connectivityRows.length} checks passed${connectivityFails ? ` FAIL=${connectivityFails}` : ""}`);
+      // FOUNDATION-N1 — PERSISTENT NAVIGATION (own server + fixtures, config and
+      // content restored by the scenario).
+      const persistRows = await runPersistentNavigationScenario(chrome);
+      allRows = allRows.concat(persistRows.map((r) => ({ presentation: "persistent-navigation", ...r })));
+      const persistFails = persistRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] persistent-navigation: ${persistRows.length - persistFails}/${persistRows.length} checks passed${persistFails ? ` FAIL=${persistFails}` : ""}`);
+      // FOUNDATION-PAGES-A1 — SAFE MARKDOWN: the served page under the real route
+      // carries no active markup (own server + fixture, both restored).
+      const safeRows = await runSafeMarkdownScenario(chrome);
+      allRows = allRows.concat(safeRows.map((r) => ({ presentation: "safe-markdown", ...r })));
+      const safeFails = safeRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] safe-markdown: ${safeRows.length - safeFails}/${safeRows.length} checks passed${safeFails ? ` FAIL=${safeFails}` : ""}`);
+      // FOUNDATION-PAGES-A1E — NESTED PAGES: a page authored in a FOLDER is served at
+      // its nested URL, with its fragment target and its inert documentation (own server
+      // + fixtures, both restored).
+      const nestedRows = await runNestedPageScenario(chrome);
+      allRows = allRows.concat(nestedRows.map((r) => ({ presentation: "nested-pages", ...r })));
+      const nestedFails = nestedRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] nested-pages: ${nestedRows.length - nestedFails}/${nestedRows.length} checks passed${nestedFails ? ` FAIL=${nestedFails}` : ""}`);
+      // FOUNDATION-PAGES-A2 — ADVANCED JSON: a declarative document is served and rendered
+      // by the real application (own server + fixture, both restored).
+      const jsonRows = await runAdvancedJsonScenario(chrome);
+      allRows = allRows.concat(jsonRows.map((r) => ({ presentation: "advanced-json", ...r })));
+      const jsonFails = jsonRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] advanced-json: ${jsonRows.length - jsonFails}/${jsonRows.length} checks passed${jsonFails ? ` FAIL=${jsonFails}` : ""}`);
+      // FOUNDATION-N2 — SHELL LAYOUT PRESENTATION: the optional visitor switcher between
+      // the Sidebar and Menu-bar layouts (own server + fixtures, all restored).
+      const layoutRows = await runLayoutSwitcherScenario(chrome);
+      allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
+      const layoutFails = layoutRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
+      // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
+      // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
+      // deployment (own server + fixtures, configuration and content all restored).
+      const multisiteRows = await runMultisiteScenario(chrome);
+      allRows = allRows.concat(multisiteRows.map((r) => ({ presentation: "multisite", ...r })));
+      const multisiteFails = multisiteRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] multisite: ${multisiteRows.length - multisiteFails}/${multisiteRows.length} checks passed${multisiteFails ? ` FAIL=${multisiteFails}` : ""}`);
+    }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }
@@ -4322,13 +4401,30 @@ const multisiteChoose = (name, value) => `(() => {
 }
 
 async function main() {
+  // An unknown or absent scope is refused BEFORE anything runs: a validation surface must never
+  // quietly execute more — or less — than it was told.
+  let scope;
+  try {
+    scope = parseBrowserScope();
+  } catch (error) {
+    console.error(`[matrix] ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(2);
+  }
   const chrome = findChrome();
   if (!chrome) {
     console.error("No Chrome/Chromium/Edge binary found. Install one or set CHROME_PATH.");
     process.exit(2);
   }
   process.exitCode = 0;
-  const failed = await runMatrix(chrome);
+  let failed;
+  try {
+    failed = await runMatrix(chrome, scope);
+  } catch (error) {
+    console.error(
+      `[matrix] ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+    );
+    process.exit(2);
+  }
   if (failed) process.exitCode = 1;
 }
 

@@ -157,14 +157,19 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     expect(applicationImporters.map((file) => path.relative(ROOT, file))).toEqual([]);
 
     // Every other consumer is a NON-bundled boundary: the build (`next.config.ts`), the Foundation's
-    // own Node tooling (`scripts/sync-runtime-assets.mjs`) and the test-context setup/support modules
-    // that select a deployment for the two Vitest projects (ISO-H2). Nothing else may join the list —
-    // in particular not `vitest.config.mts`, which deliberately resolves NO deployment: the generic
-    // suite must run in a repository where no real deployment exists.
+    // own Node tooling — the asset mirror AND the country-code reference generator (`scripts/**`,
+    // ISO-H1C / ISO-B3A) — the browser harness, which must discover the SELECTED deployment's own
+    // scenarios in whatever root that deployment owns (`tests/browser/matrix.mjs`, ISO-B3A), and the
+    // test-context setup/support modules that select a deployment for the two Vitest projects
+    // (ISO-H2). Nothing else may join the list — in particular not `vitest.config.mts`, which
+    // deliberately resolves NO deployment: the generic suite must run in a repository where no real
+    // deployment exists.
     const approved = [
       "next.config.ts",
+      "scripts/generate-country-code-reference.mjs",
       "scripts/sync-runtime-assets.mjs",
       "tests/architecture/deployment-root-guard.test.ts",
+      "tests/browser/matrix.mjs",
       "tests/setup/real-deployment.ts",
       "tests/support/synthetic-deployment-root.ts",
     ];

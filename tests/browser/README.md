@@ -17,19 +17,31 @@ committed, reproducible version).
 ## Run
 
 ```sh
-pnpm test:browser
+pnpm test:browser              # everything: the Foundation's generic scenarios + the deployment's own
+pnpm test:browser:foundation   # the Foundation's generic scenarios ONLY
+pnpm test:browser:deployment   # the SELECTED deployment's own scenarios ONLY
 ```
+
+Every command runs this ONE harness with one ownership scope; the scope semantics live in
+`tests/browser/scope.mjs` (`--scope foundation|deployment|all`, default `all`). An unknown or
+malformed scope is refused — never silently widened — and `--scope deployment` is honest about an
+empty surface: a repository with no deployment, or a deployment that ships no scenario, fails with an
+explicit message instead of reporting success for having run nothing.
 
 ### Two owners, one framework
 
 This harness is **Foundation-owned**: the runner, the CDP client (`cdp.mjs`), the dev-server
 mechanics and every **generic** scenario, which runs against a disposable copy of the committed
 synthetic deployment (`tests/fixtures/synthetic-deployment`) so no generic contract depends on — or
-writes — the repository's own deployment.
+writes — the repository's own deployment. The generic scenarios are defined INSIDE this harness, so
+they are never discoverable as deployment scenarios and a deployment-scoped run can never execute
+one.
 
-A **deployment's** own browser acceptance belongs to that deployment and lives in its capsule at
-`deployment/tests/browser/`. This harness discovers every `*.scenario.mjs` there and runs it, so a
-deployment ships expectations rather than a second browser framework:
+A **deployment's** own browser acceptance belongs to that deployment and lives in that deployment's
+own tree — `tests/browser/` inside the root the deployment authority selected, i.e. the capsule's
+`deployment/tests/browser/` in this repository. Ownership is FILESYSTEM-DRIVEN: this harness
+discovers every `*.scenario.mjs` there and runs it, so a deployment ships expectations rather than a
+second browser framework, and adding a deployment edits no list.
 
 ```js
 export const id = "reference-content";           // the report's `presentation` label

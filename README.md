@@ -92,7 +92,7 @@ content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
 
 - **site** — a recognized lowercase country code (`ca`, `fr`, `ch`…) or `ww` for a
   worldwide/global site. The complete list is in
-  [`content/COUNTRY-CODES.md`](../COUNTRY-CODES.md); a folder that is not one of those
+  [`content/COUNTRY-CODES.md`](deployment/content/COUNTRY-CODES.md); a folder that is not one of those
   codes is not a site, and its pages are never published.
 - **language** — `en`, `fr`, `fr-ca`… (lowercase).
 
@@ -295,9 +295,13 @@ pnpm assets:check            # runtime mirror is byte-identical to its sources
 pnpm exec tsc --noEmit       # types
 pnpm lint                    # eslint
 pnpm test                    # unit + architecture-boundary tests (vitest)
+pnpm test:foundation         # Foundation generic suite ONLY (`tests/**`)
+pnpm test:deployment         # the installed deployment's suite ONLY (its own `tests/**`)
 pnpm build                   # production build
 pnpm audit                   # dependency audit
 pnpm test:browser            # headless-Chrome CDP browser matrix (needs Chrome)
+pnpm test:browser:foundation # generic Chrome scenarios ONLY (`tests/browser/**`)
+pnpm test:browser:deployment # the installed deployment's OWN Chrome scenarios ONLY
 ```
 
 ## Deploy
