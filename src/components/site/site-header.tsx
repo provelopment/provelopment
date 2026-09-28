@@ -4,7 +4,7 @@ import { siteConfig } from "@/config";
 import { assetPathFromUrl, availableHeaderGraphicPath, availableIconName } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
-import { configuredRegionIds } from "@/core/regional-pages";
+import { regionsForSite } from "@/core/regional-pages";
 import {
     headerNavigationLayouts,
     layoutScopeAttributes,
@@ -110,11 +110,14 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
                 : desktopSlot === "header"
                     ? "hidden lg:block"
                     : "hidden md:block lg:hidden";
-    // Phase M: the selector inventory is every CONFIGURED operating location
-    // (`business.regions` is authoritative), so once any region is configured
-    // the Location selector is available for every locale.
-    const hasLocations = configuredRegionIds(siteConfig.regions).length > 0;
-    const configuredRegionIdsList = configuredRegionIds(siteConfig.regions);
+    // R1C — the selector's inventory is the ACTIVE SITE's own locations, so a deployment with
+    // several sites shows the Location control exactly where locations exist: Global (which binds
+    // none) renders no Location control at all, and Germany's Berlin/Frankfurt can never be
+    // offered on another site. Within a site the rule is unchanged — configuration, never
+    // "locations compatible with my language" (Phase M).
+    const siteRegionIds = regionsForSite(siteConfig.pageBindings, siteId ?? siteConfig.defaultSite.code);
+    const hasLocations = siteRegionIds.length > 0;
+    const configuredRegionIdsList = siteRegionIds;
     // Phase M refinement — localized + English display names (pure helper).
     const regionLabels = Object.fromEntries(
         configuredRegionIdsList.map((regionId) => [

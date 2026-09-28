@@ -475,11 +475,14 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
     return readFileSync(path.join(COMPONENTS_DIRECTORY, name), "utf8");
   }
 
-  it("the Location selector derives its inventory from configured regions, never by locale", () => {
+  it("the Location selector derives its inventory from the ACTIVE SITE's configured regions", () => {
     const source = readComponent("location-switcher.tsx");
-    expect(source).toContain("configuredRegionIds");
-    // The inventory must NOT be page-binding/locale-scoped for the selector.
+    expect(source).toContain("regionsForSite");
+    // The inventory must NOT be locale/page-scoped (Phase M: never "locations compatible with my
+    // language") — and must NOT be the deployment-wide region list either, because a location
+    // belongs to ONE site's page tree (S1: no cross-site resolution).
     expect(source).not.toContain("regionsForLocale");
+    expect(source).not.toContain("configuredRegionIds");
   });
 
   it("the Location selector delegates routing to the pure core resolver (locale jump + unspecified)", () => {

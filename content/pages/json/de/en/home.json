@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+
+  "title": "Germany: one site, two languages, two locations.",
+
+  "description": "The demonstration site for Germany in this Foundation reference deployment: an independent site with German and English and the demonstration locations Berlin and Frankfurt.",
+
+  "sections": [
+
+    {
+      "type": "hero",
+
+      "lede": "This page belongs to the Germany site. It is part of the Foundation reference deployment and shows how a country keeps its own website: its own pages, its own languages and its own locations — independent of the Global site.",
+
+      "actions": [
+
+        { "label": "Read about this site", "href": "/de/en/about" },
+
+        {
+          "label": "View the Foundation repository",
+          "href": "https://github.com/provelopment/provelopment-foundation",
+          "variant": "secondary"
+        }
+
+      ]
+    },
+
+    {
+      "type": "columns",
+
+      "heading": "Two languages on one site",
+
+      "ratio": "equal",
+
+      "items": [
+
+        {
+          "title": "English",
+          "body": "You are reading this page in English. Inside this site the **Language** control switches between German and English at any time, and the page you are on stays the same."
+        },
+
+        {
+          "title": "Deutsch",
+          "body": "The German version belongs to the same site. Both languages are created from the same pages, so the site does not need a second set of pages to be readable in two languages."
+        }
+
+      ]
+    },
+
+    {
+      "type": "callout",
+
+      "heading": "Berlin and Frankfurt are demonstration data",
+
+      "body": "The locations Berlin and Frankfurt are part of this reference configuration. They are not statements about any real Provelopment office. Replace them with your own locations.",
+
+      "surface": "muted"
+    },
+
+    {
+      "type": "cards",
+
+      "heading": "What this site demonstrates",
+
+      "items": [
+
+        {
+          "title": "An independent site",
+          "body": "This site shares no pages with the Global site. It has its own page tree — the same structure, its own content.",
+          "action": { "label": "About this site", "href": "/de/en/about" }
+        }
+
+      ]
+    },
+
+    {
+      "type": "prose",
+
+      "heading": "Locations extend a site instead of multiplying it",
+
+      "body": "**Berlin** and **Frankfurt** are locations *inside* this site. Choosing one in the **Location** control keeps the site, keeps the language and keeps your Layout preference: a location describes a physical or service context and does not create a second page tree."
+    },
+
+    {
+      "type": "prose",
+
+      "heading": "This configuration is an example",
+
+      "body": "Sites, languages and locations are configuration. A business can add sites for further countries, add languages or remove locations as its website develops. Languages are configured for the whole site and are therefore available to every one of its locations."
+    }
+
+  ]
+}

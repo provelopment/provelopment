@@ -1087,10 +1087,14 @@ html[data-ui-hero="showcase"] .home-hero {
  */
 :root {
   /* The clearance a fragment target leaves for the persistent top region
-   * (`html { scroll-padding-top }` below). The shipped top region is a >=44px
-   * brand/navigation row inside the header's own block padding plus its 1px
-   * hairline, so this is that height with a small allowance for a brand row that
-   * wraps at the narrowest supported width. */
+   * (`html { scroll-padding-top }` below). This value is the NO-JS / pre-hydration
+   * fallback: the shell measures the region it actually composed and republishes the
+   * same property with the real height (`@/components/shell/shell-top-clearance`),
+   * because the region's height depends on the chrome a deployment configures — a
+   * row of visitor controls wraps differently at different widths and label lengths.
+   * The shipped top region is a >=44px brand/navigation row inside the header's own
+   * block padding plus its 1px hairline, so this is that height with a small
+   * allowance for a brand row that wraps at the narrowest supported width. */
   --ui-shell-top-clearance: 6rem;
 }
 

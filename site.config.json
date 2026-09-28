@@ -25,11 +25,54 @@
   },
   "sites": [
     {
-      "code": "ww"
+      "code": "ww",
+      "label": "Global"
+    },
+    {
+      "code": "de",
+      "label": "Germany",
+      "locales": [
+        "de",
+        "en"
+      ],
+      "defaultLocale": "de"
     }
   ],
+  "defaultSite": "ww",
   "contact": {
     "email": "hello@example.com"
+  },
+  "business": {
+    "regions": {
+      "berlin": {
+        "timezone": "Europe/Berlin",
+        "name": "Berlin",
+        "label": "Berlin",
+        "address": {
+          "street": "Example Street 1",
+          "city": "Berlin",
+          "country": "Germany"
+        },
+        "hours": {}
+      },
+      "frankfurt": {
+        "timezone": "Europe/Berlin",
+        "name": "Frankfurt",
+        "label": "Frankfurt",
+        "address": {
+          "street": "Example Street 1",
+          "city": "Frankfurt",
+          "country": "Germany"
+        },
+        "hours": {}
+      }
+    },
+    "pages": [
+      { "site": "de", "locale": "de", "region": "berlin" },
+      { "site": "de", "locale": "en", "region": "berlin" },
+      { "site": "de", "locale": "de", "region": "frankfurt" },
+      { "site": "de", "locale": "en", "region": "frankfurt" }
+    ]
   },
   "socialLinks": [],
   "navigation": [

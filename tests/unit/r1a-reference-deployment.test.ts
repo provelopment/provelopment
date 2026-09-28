@@ -154,7 +154,7 @@ describe("the served reference pages", () => {
     expect(html).toContain(REFERENCE_HOME_TITLE);
     // The declarative sections the file declares are the sections that render.
     expect(html).toContain("You own your website");
-    expect(html).toContain("Two ways to write a page");
+    expect(html).toContain("Two ways to create a page");
     // The hero action that names the About page, and the owner's external destination
     // (the public repository, per the owner-final copy).
     expect(html).toContain("See how this site works");

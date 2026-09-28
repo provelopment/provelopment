@@ -2810,7 +2810,16 @@ async function runPersistentNavigationScenario(chrome) {
         headerBottom: hr ? Math.round(hr.bottom) : null,
       };
     })()`);
-    check(rows, "persist.mobile.anchor.clearance", anchor.clearance === "96px", `scrollPaddingTop=${anchor.clearance}`);
+    // The clearance is the top region's real height (measured and republished by the shell), so it
+    // must COVER the header rather than equal a fixed token.
+    check(
+      rows,
+      "persist.mobile.anchor.clearance",
+      anchor.clearance != null &&
+        anchor.headerBottom != null &&
+        Number.parseFloat(anchor.clearance) >= anchor.headerBottom - 1,
+      `scrollPaddingTop=${anchor.clearance} headerBottom=${anchor.headerBottom}`,
+    );
     check(rows, "persist.mobile.anchor.reached", !!anchor.scrolled, `scrollY>0=${anchor.scrolled}`);
     check(
       rows,
@@ -4102,6 +4111,9 @@ const REFERENCE_PROBE = `(() => {
   const text = main ? (main.textContent || '').replace(/\\s+/g, ' ').trim() : '';
   return JSON.stringify({
     path: location.pathname,
+    // The visitor's own presentation choice (never part of a URL) — read from the document, where
+    // the shell records it.
+    shellLayout: document.documentElement.getAttribute('data-ui-shell-layout'),
     h1s: [...document.querySelectorAll('h1')].map((h) => (h.textContent || '').trim()),
     headings: [...document.querySelectorAll('main h2, main h3')].map((h) => (h.textContent || '').trim()),
     text,
@@ -4124,18 +4136,49 @@ const REFERENCE_SELECTORS_PROBE = `(() => {
   const select = (name) => document.querySelector('select[data-selector="' + name + '"]');
   const shown = (el) => !!el && el.getClientRects().length > 0;
   const language = select('language');
+  const site = select('site');
   return JSON.stringify({
     languagePresent: shown(language),
     languageLabel: language ? language.getAttribute('aria-label') : null,
     languageValue: language ? language.value : null,
     languageOptions: language ? [...language.options].map((option) => option.textContent.trim()) : [],
-    sitePresent: shown(select('site')),
+    sitePresent: shown(site),
+    siteValue: site ? site.value : null,
+    siteLabel: site ? site.getAttribute('aria-label') : null,
+    siteOptions: site ? [...site.options].map((option) => option.textContent.trim()) : [],
     locationPresent: shown(select('location')),
+    locationValue: (() => { const el = select('location'); return el ? el.value : null; })(),
+    locationOptions: (() => {
+      const el = select('location');
+      return el ? [...el.options].map((option) => option.textContent.trim()) : [];
+    })(),
     layoutPresent: shown(select('layout')),
+    // The controls in DOCUMENT order — the documented Site → Location → Language → Layout rule.
+    selectorOrder: [...document.querySelectorAll('select[data-selector]')].map((el) =>
+      el.getAttribute('data-selector'),
+    ),
     lang: document.documentElement.lang,
     canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
     description: (document.querySelector('meta[name="description"]') || {}).content || null,
   });
+})()`;
+
+/** Choose a SITE exactly as a visitor does (value + change event on the control). */
+const chooseSite = (code) => `(() => {
+  const control = document.querySelector('select[data-selector="site"]');
+  if (!control) return false;
+  control.value = ${JSON.stringify(code)};
+  control.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
+})()`;
+
+/** Choose a LOCATION exactly as a visitor does (value + change event on the control). */
+const chooseLocation = (region) => `(() => {
+  const control = document.querySelector('select[data-selector="location"]');
+  if (!control) return false;
+  control.value = ${JSON.stringify(region)};
+  control.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
 })()`;
 
 /** Choose a language exactly as a visitor does (value + change event on the control). */
@@ -4268,12 +4311,13 @@ async function runReferenceContentScenario(chrome) {
     );
     // Keyboard: the collapsed control keeps the shared focus ring. The sweep starts
     // from the SKIP LINK — a deterministic sequential-focus origin — because the click
-    // above left focus ON the control, so the next Tab would step PAST it.
+    // above left focus ON the control, so the next Tab would step PAST it. The budget is
+    // generous because the header now carries up to four visitor controls before the rail.
     await cdp.evaluate(
       `(() => { const skip = document.querySelector('a[href="#main"]'); if (skip) skip.focus(); return !!skip; })()`,
     );
     let ring = null;
-    for (let step = 0; step < 4 && ring === null; step += 1) {
+    for (let step = 0; step < 14 && ring === null; step += 1) {
       await cdp.pressKey("Tab");
       ring = await cdp.evaluate(`(() => {
         const el = document.activeElement;
@@ -4310,10 +4354,10 @@ async function runReferenceContentScenario(chrome) {
       rows,
       "reference.home.jsonSectionsRender",
       [
-        "Two ways to write a page",
+        "Two ways to create a page",
         "You own your website",
         "About this website",
-        "Built to adapt",
+        "Built for different needs",
         "The complete site is public",
       ].every((heading) => home.headings.includes(heading)),
       JSON.stringify(home.headings),
@@ -4321,7 +4365,7 @@ async function runReferenceContentScenario(chrome) {
     check(
       rows,
       "reference.home.ownershipPrinciple",
-      home.text.includes("Using Provelopment services is a choice, not a requirement."),
+      home.text.includes("Using Provelopment services is optional."),
       "the portability statement is delivered on Home",
     );
     check(
@@ -4386,8 +4430,9 @@ async function runReferenceContentScenario(chrome) {
         "What this site demonstrates",
         "A website you control",
         "Two ways to create pages",
-        "Designed to adapt",
-        "Open source first",
+        "Sites, languages, locations and layout",
+        "This configuration is an example",
+        "Open source as the foundation",
         "Learn more",
       ].every((heading) => about.headings.includes(heading)),
       JSON.stringify(about.headings),
@@ -4397,7 +4442,7 @@ async function runReferenceContentScenario(chrome) {
       "reference.about.deliversThePrinciples",
       about.text.includes(
         "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
-      ) && about.text.includes("Using Provelopment services is optional."),
+      ) && about.text.includes("Provelopment services are optional."),
       "the owner-final open-source and optional-services statements are delivered",
     );
     check(
@@ -4419,21 +4464,85 @@ async function runReferenceContentScenario(chrome) {
       String(about.canonical),
     );
 
-    // ── GERMAN: the second language, added by configuration + content alone (R1B) ───
-    // The shipped deployment declares `en` + `de`, so the EXISTING Language control appears on its
-    // own — `site-header` renders it whenever the deployment serves more than one locale. Nothing
-    // in the shell was changed to make it visible, and the Site/Location controls stay ABSENT
-    // because there is still one site and no Location.
+    // ── THE FOUR DIMENSIONS, ON THE SHIPPED CONFIGURATION (R1C) ─────────────
+    // The deployment now declares TWO sites: `ww` (Global) and `de` (Germany, a country site with
+    // the demonstration locations Berlin and Frankfurt). The EXISTING controls appear because that
+    // configuration is real: the Site selector because two sites exist, and the Location selector
+    // only on Germany, which is the one that binds locations.
     const germanConfig = (reference.i18n?.locales ?? []).find((locale) => locale.code === "de");
+    const declaredSites = reference.sites ?? [];
+    check(
+      rows,
+      "reference.sites.declaresGlobalAndGermany",
+      declaredSites.length === 2 &&
+        declaredSites[0]?.code === "ww" &&
+        declaredSites[0]?.label === "Global" &&
+        declaredSites[1]?.code === "de" &&
+        declaredSites[1]?.label === "Germany" &&
+        reference.defaultSite === "ww",
+      JSON.stringify(declaredSites),
+    );
+    check(
+      rows,
+      "reference.sites.germanyServesGermanAndEnglish",
+      JSON.stringify(declaredSites[1]?.locales ?? null) === JSON.stringify(["de", "en"]) &&
+        declaredSites[1]?.defaultLocale === "de",
+      JSON.stringify(declaredSites[1] ?? null),
+    );
+    check(
+      rows,
+      "reference.locations.berlinAndFrankfurtBoundToGermanyOnly",
+      JSON.stringify(Object.keys(reference.business?.regions ?? {})) ===
+        JSON.stringify(["berlin", "frankfurt"]) &&
+        JSON.stringify(reference.business?.pages ?? null) ===
+          JSON.stringify([
+            { site: "de", locale: "de", region: "berlin" },
+            { site: "de", locale: "en", region: "berlin" },
+            { site: "de", locale: "de", region: "frankfurt" },
+            { site: "de", locale: "en", region: "frankfurt" },
+          ]),
+      JSON.stringify(reference.business ?? null),
+    );
     check(
       rows,
       "reference.german.configDeclaresGermanOnTheDefaultLocale",
       germanConfig?.label === "Deutsch" && reference.i18n?.defaultLocale === "en",
       JSON.stringify(reference.i18n ?? null),
     );
+    check(
+      rows,
+      "reference.dictionaries.useDistinctNeutralLocationLabel",
+      reference.i18n?.locales?.length === 2,
+      "the neutral Location label is the dictionary's All locations / Alle Standorte",
+    );
 
-    // At English About: present, labelled in English, offering exactly the configured languages.
+    // At Global's English About: the Site selector appeared; Location did NOT (Global has none),
+    // and the documented order is Site → Language → Layout.
     const englishSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.sites.haveOwnSiteSelector",
+      englishSelectors.sitePresent === true,
+      JSON.stringify(englishSelectors),
+    );
+    check(
+      rows,
+      "reference.sites.exactVisibleChoices",
+      (englishSelectors.siteOptions ?? []).join(" | ") === "Global | Germany",
+      String(englishSelectors.siteOptions),
+    );
+    check(
+      rows,
+      "reference.sites.globalIsCurrentOnGlobal",
+      englishSelectors.siteValue === "ww",
+      String(englishSelectors.siteValue),
+    );
+    check(
+      rows,
+      "reference.locations.absentOnGlobal",
+      englishSelectors.locationPresent === false,
+      JSON.stringify(englishSelectors),
+    );
     check(
       rows,
       "reference.german.languageControlAppeared",
@@ -4454,9 +4563,59 @@ async function runReferenceContentScenario(chrome) {
     );
     check(
       rows,
-      "reference.german.siteAndLocationSelectorsStayAbsent",
-      englishSelectors.sitePresent === false && englishSelectors.locationPresent === false,
-      JSON.stringify(englishSelectors),
+      "reference.selectors.orderOnGlobal",
+      JSON.stringify(englishSelectors.selectorOrder ?? null) ===
+        JSON.stringify(["site", "language", "layout"]),
+      JSON.stringify(englishSelectors.selectorOrder ?? null),
+    );
+
+    // ── SITE SWITCHING: Global ↔ Germany keeps the page where the target serves it ──
+    await cdp.navigate(`${BASE_URL}/ww/en/about`);
+    await waitReady(cdp);
+    check(rows, "reference.sites.switchToGermanyApplies", await cdp.evalBool(chooseSite("de")));
+    await sleep(1000);
+    await waitReady(cdp);
+    const germanyEnglishAbout = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    check(
+      rows,
+      "reference.sites.englishRoutePreservedAcrossSites",
+      germanyEnglishAbout.path === "/de/en/about",
+      String(germanyEnglishAbout.path),
+    );
+    check(
+      rows,
+      "reference.sites.germanyServesItsOwnPage",
+      germanyEnglishAbout.h1s[0] === "About the Germany site",
+      JSON.stringify(germanyEnglishAbout.h1s),
+    );
+    await cdp.navigate(`${BASE_URL}/ww/de/about`);
+    await waitReady(cdp);
+    check(rows, "reference.sites.switchFromGermanGlobalToGermany", await cdp.evalBool(chooseSite("de")));
+    await sleep(1000);
+    await waitReady(cdp);
+    const germanyGermanAbout = await cdp.evaluate("location.pathname");
+    check(
+      rows,
+      "reference.sites.germanRoutePreservedAcrossSites",
+      germanyGermanAbout === "/de/de/about",
+      String(germanyGermanAbout),
+    );
+    check(rows, "reference.sites.switchBackToGlobal", await cdp.evalBool(chooseSite("ww")));
+    await sleep(1000);
+    await waitReady(cdp);
+    const backOnGlobal = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    check(
+      rows,
+      "reference.sites.backToGlobalPreservesRoute",
+      backOnGlobal.path === "/ww/de/about",
+      String(backOnGlobal.path),
+    );
+    check(
+      rows,
+      "reference.sites.noCrossSiteContent",
+      backOnGlobal.text.includes("Zwei Arten, Seiten zu erstellen") &&
+        !backOnGlobal.text.includes("Berlin und Frankfurt sind Demonstrationsdaten"),
+      "Global's German About is Global's own page, not Germany's",
     );
 
     // English About → Deutsch: the SAME page, in German. The route is preserved.
@@ -4483,10 +4642,10 @@ async function runReferenceContentScenario(chrome) {
       "reference.german.aboutSectionsRender",
       [
         "Was diese Website zeigt",
-        "Eine Website, die Sie steuern",
-        "Zwei Wege, Seiten zu erstellen",
-        "Gebaut, um sich anzupassen",
-        "Open Source zuerst",
+        "Eine Website unter Ihrer Kontrolle",
+        "Zwei Arten, Seiten zu erstellen",
+        "Sites, Sprachen, Standorte und Layout",
+        "Diese Konfiguration ist ein Beispiel",
         "Mehr erfahren",
       ].every((heading) => germanAbout.headings.includes(heading)),
       JSON.stringify(germanAbout.headings),
@@ -4564,10 +4723,10 @@ async function runReferenceContentScenario(chrome) {
       rows,
       "reference.german.homeSectionsRender",
       [
-        "Zwei Wege, eine Seite zu schreiben",
+        "Zwei Arten, Seiten zu erstellen",
         "Ihre Website gehört Ihnen",
         "Über diese Website",
-        "Gebaut, um sich anzupassen",
+        "Für unterschiedliche Anforderungen ausgelegt",
         "Die vollständige Website ist öffentlich",
       ].every((heading) => germanHome.headings.includes(heading)),
       JSON.stringify(germanHome.headings),
@@ -4586,15 +4745,16 @@ async function runReferenceContentScenario(chrome) {
       germanHome.repositoryLink === true,
       "the owner-final external destination is preserved in German",
     );
-    // The internal action carries the German locale and must LAND in German even when the
-    // visitor's cookie says English — the site-less locale form is completed by `src/proxy.ts`
-    // with the language the URL names, never with the visitor's stored preference.
+    // The internal action states the SITE-SCOPED destination it means (`/ww/de/about`), because
+    // `de` is now BOTH a locale key and the Germany site's code: the site-less locale form
+    // (`/de/about`) would be read as the Germany site. The destination is therefore unambiguous,
+    // needs no redirect, and keeps its language whatever the visitor's cookie says.
     await cdp.evaluate(`document.cookie = "NEXT_LOCALE=en; path=/"; true`);
     const germanAction = germanHome.aboutAnchors[0]?.split(" :: ")[0];
     check(
       rows,
-      "reference.german.homeActionCarriesGerman",
-      String(germanAction).startsWith("/de/"),
+      "reference.german.homeActionCarriesItsOwnSite",
+      String(germanAction) === "/ww/de/about",
       String(germanAction),
     );
     await cdp.navigate(`${BASE_URL}${germanAction}`);
@@ -4608,28 +4768,207 @@ async function runReferenceContentScenario(chrome) {
       `landed ${landedInGerman} (the cookie said en)`,
     );
 
-    // German text is longer than English: the layout must absorb it at every width.
+    // ── GERMANY: locations inside ONE site ──────────────────────────────────
+    await cdp.navigate(`${BASE_URL}/de/de`);
+    await waitReady(cdp);
+    await sleep(300);
+    const germanyHomeSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.germany.hasAllFourControls",
+      germanyHomeSelectors.sitePresent === true &&
+        germanyHomeSelectors.locationPresent === true &&
+        germanyHomeSelectors.languagePresent === true &&
+        germanyHomeSelectors.layoutPresent === true,
+      JSON.stringify(germanyHomeSelectors),
+    );
+    check(
+      rows,
+      "reference.germany.selectors.orderOnGermany",
+      JSON.stringify(germanyHomeSelectors.selectorOrder ?? null) ===
+        JSON.stringify(["site", "location", "language", "layout"]),
+      JSON.stringify(germanyHomeSelectors.selectorOrder ?? null),
+    );
+    check(
+      rows,
+      "reference.germany.currentSiteAndLanguage",
+      germanyHomeSelectors.siteValue === "de" &&
+        germanyHomeSelectors.languageValue === "de" &&
+        germanyHomeSelectors.locationValue === "",
+      JSON.stringify(germanyHomeSelectors),
+    );
+    check(
+      rows,
+      "reference.germany.locationVocabulary",
+      JSON.stringify(germanyHomeSelectors.locationOptions ?? null) ===
+        JSON.stringify(["Alle Standorte", "Berlin", "Frankfurt"]),
+      JSON.stringify(germanyHomeSelectors.locationOptions ?? null),
+    );
+    check(
+      rows,
+      "reference.germany.siteVocabulary",
+      JSON.stringify(germanyHomeSelectors.siteOptions ?? null) ===
+        JSON.stringify(["Global", "Germany"]),
+      JSON.stringify(germanyHomeSelectors.siteOptions ?? null),
+    );
+    // The Layout choice is the visitor's: set it once, then change location and site around it.
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(500);
+
+    check(
+      rows,
+      "reference.germany.locationBerlinApplies",
+      await cdp.evalBool(chooseLocation("berlin")),
+    );
+    await sleep(900);
+    await waitReady(cdp);
+    const inBerlin = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    const berlinSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.germany.locationStaysInsideGermany",
+      inBerlin.path === "/de/de/berlin",
+      String(inBerlin.path),
+    );
+    check(
+      rows,
+      "reference.germany.locationKeepsSiteLanguageAndLayout",
+      berlinSelectors.siteValue === "de" &&
+        berlinSelectors.languageValue === "de" &&
+        berlinSelectors.locationValue === "berlin" &&
+        inBerlin.shellLayout === "menu-bar",
+      JSON.stringify({ ...berlinSelectors, shellLayout: inBerlin.shellLayout }),
+    );
+    check(
+      rows,
+      "reference.germany.locationRendersItsOwnPage",
+      inBerlin.h1s.length === 1 && inBerlin.h1s[0] === "Berlin",
+      JSON.stringify(inBerlin.h1s),
+    );
+
+    check(
+      rows,
+      "reference.germany.locationFrankfurtApplies",
+      await cdp.evalBool(chooseLocation("frankfurt")),
+    );
+    await sleep(900);
+    await waitReady(cdp);
+    const inFrankfurt = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    const frankfurtSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.germany.secondLocationIsReachable",
+      inFrankfurt.path === "/de/de/frankfurt" && frankfurtSelectors.locationValue === "frankfurt",
+      `${inFrankfurt.path} / ${frankfurtSelectors.locationValue}`,
+    );
+    check(
+      rows,
+      "reference.germany.locationNeverChangesTheLanguage",
+      frankfurtSelectors.languageValue === "de" && inFrankfurt.shellLayout === "menu-bar",
+      JSON.stringify({ language: frankfurtSelectors.languageValue, layout: inFrankfurt.shellLayout }),
+    );
+
+    // The neutral choice returns to the site's own pages — still inside Germany.
+    check(
+      rows,
+      "reference.germany.neutralChoiceReturnsToTheSite",
+      await cdp.evalBool(chooseLocation("")),
+    );
+    await sleep(900);
+    await waitReady(cdp);
+    const backToAllLocations = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    const allLocationsPath = await cdp.evaluate("location.pathname");
+    check(
+      rows,
+      "reference.germany.allLocationsIsNonRegional",
+      allLocationsPath === "/de/de" && backToAllLocations.locationValue === "",
+      `${allLocationsPath} / ${backToAllLocations.locationValue}`,
+    );
+    check(
+      rows,
+      "reference.germany.allLocationsUsesTheNeutralWording",
+      (backToAllLocations.locationOptions ?? [])[0] === "Alle Standorte",
+      String((backToAllLocations.locationOptions ?? [])[0]),
+    );
+
+    // ── A LOCATION NEVER LEAKS ACROSS A SITE SWITCH ─────────────────────────
+    await cdp.navigate(`${BASE_URL}/de/en/berlin`);
+    await waitReady(cdp);
+    await sleep(300);
+    const englishBerlin = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.germany.locationIsReadableInEnglishToo",
+      englishBerlin.locationValue === "berlin" &&
+        englishBerlin.languageValue === "en" &&
+        JSON.stringify(englishBerlin.locationOptions ?? null) ===
+          JSON.stringify(["All locations", "Berlin", "Frankfurt"]),
+      JSON.stringify(englishBerlin),
+    );
+    check(rows, "reference.germany.leaveForGlobal", await cdp.evalBool(chooseSite("ww")));
+    await sleep(1000);
+    await waitReady(cdp);
+    const afterLeaving = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    const afterLeavingPath = await cdp.evaluate("location.pathname");
+    check(
+      rows,
+      "reference.germany.locationDoesNotLeakIntoGlobal",
+      afterLeaving.locationPresent === false &&
+        !afterLeavingPath.includes("berlin") &&
+        afterLeaving.siteValue === "ww",
+      `${afterLeavingPath} / location=${afterLeaving.locationPresent}`,
+    );
+    check(
+      rows,
+      "reference.germany.layoutSurvivesSiteAndLocationChanges",
+      (await cdp.evaluate(`document.documentElement.getAttribute('data-ui-shell-layout')`)) ===
+        "menu-bar",
+      "the visitor's Layout choice outlives a location and a site switch",
+    );
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── FOUR CONTROLS AT EVERY WIDTH, IN BOTH PRESENTATIONS AND LANGUAGES ───
+    // German text is longer than English, and this is the first reference state with four controls
+    // at once: the row must wrap rather than overflow, in either Layout, on Germany's site.
     for (const [name, viewport] of [
       ["desktop", VIEWPORTS.desktop],
       ["tablet", VIEWPORTS.tablet],
       ["mobile", VIEWPORTS.mobile],
     ]) {
       await cdp.setViewport(viewport.width, viewport.height);
-      await cdp.navigate(`${BASE_URL}/ww/de`);
-      await waitReady(cdp);
-      await sleep(250);
-      const state = JSON.parse(
-        await cdp.evaluate(
-          `JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth })`,
-        ),
-      );
-      check(
-        rows,
-        `reference.german.noHorizontalOverflow.${name}`,
-        state.scrollWidth <= state.clientWidth + 1,
-        `scrollW=${state.scrollWidth} clientW=${state.clientWidth}`,
-      );
+      for (const surface of ["sidebar", "menu-bar"]) {
+        for (const localePath of ["de", "en"]) {
+          await cdp.navigate(`${BASE_URL}/de/${localePath}`);
+          await waitReady(cdp);
+          await cdp.evaluate(chooseLayout(surface));
+          await sleep(250);
+          const state = JSON.parse(
+            await cdp.evaluate(`JSON.stringify({
+              scrollWidth: document.documentElement.scrollWidth,
+              clientWidth: document.documentElement.clientWidth,
+              shellLayout: document.documentElement.getAttribute('data-ui-shell-layout'),
+              selectors: [...document.querySelectorAll('select[data-selector]')].map((el) => el.getAttribute('data-selector')),
+            })`),
+          );
+          check(
+            rows,
+            `reference.germany.noHorizontalOverflow.${name}.${surface}.${localePath}`,
+            state.scrollWidth <= state.clientWidth + 1,
+            `scrollW=${state.scrollWidth} clientW=${state.clientWidth}`,
+          );
+          check(
+            rows,
+            `reference.germany.fourControlsAt.${name}.${surface}.${localePath}`,
+            JSON.stringify(state.selectors) ===
+              JSON.stringify(["site", "location", "language", "layout"]) &&
+              state.shellLayout === surface,
+            JSON.stringify({ selectors: state.selectors, shellLayout: state.shellLayout }),
+          );
+        }
+      }
     }
+    await cdp.evaluate(`document.cookie = "NEXT_LOCALE=; path=/; max-age=0"; true`);
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await cdp.navigate(url);
     await waitReady(cdp);

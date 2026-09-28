@@ -1,0 +1,93 @@
+{
+  "schemaVersion": 1,
+
+  "title": "Deutschland: eine Website, zwei Sprachen, zwei Standorte.",
+
+  "description": "Die Demonstrations-Website für Deutschland in dieser Foundation-Referenzinstallation: eine eigenständige Website mit Deutsch und Englisch sowie den Demonstrations-Standorten Berlin und Frankfurt.",
+
+  "sections": [
+
+    {
+      "type": "hero",
+
+      "lede": "Diese Seite gehört zur Website für Deutschland. Sie ist Teil der Foundation-Referenzinstallation und zeigt, wie ein Land eine eigene Website erhält: mit eigenen Seiten, eigenen Sprachen und eigenen Standorten — unabhängig von der Website Global.",
+
+      "actions": [
+
+        { "label": "Mehr über diese Website erfahren", "href": "/de/de/about" },
+
+        {
+          "label": "Zum Foundation-Repository",
+          "href": "https://github.com/provelopment/provelopment-foundation",
+          "variant": "secondary"
+        }
+
+      ]
+    },
+
+    {
+      "type": "columns",
+
+      "heading": "Zwei Sprachen auf einer Website",
+
+      "ratio": "equal",
+
+      "items": [
+
+        {
+          "title": "Deutsch",
+          "body": "Sie lesen diese Seite auf Deutsch. Innerhalb dieser Website wechselt das Bedienelement **Sprache** jederzeit zwischen Deutsch und Englisch, und die Seite, auf der Sie sich befinden, bleibt dieselbe."
+        },
+
+        {
+          "title": "English",
+          "body": "Die englische Fassung gehört zur selben Website. Beide Sprachen entstehen aus denselben Seiten, sodass für zwei Sprachen kein zweiter Satz Seiten nötig ist."
+        }
+
+      ]
+    },
+
+    {
+      "type": "callout",
+
+      "heading": "Berlin und Frankfurt sind Demonstrationsdaten",
+
+      "body": "Die Standorte Berlin und Frankfurt gehören zu dieser Referenzkonfiguration. Sie sind keine Angaben über tatsächliche Geschäftsstellen von Provelopment. Ersetzen Sie sie durch Ihre eigenen Standorte.",
+
+      "surface": "muted"
+    },
+
+    {
+      "type": "cards",
+
+      "heading": "Was diese Website zeigt",
+
+      "items": [
+
+        {
+          "title": "Eine eigenständige Website",
+          "body": "Diese Website teilt keine Seiten mit der Website Global. Sie besitzt einen eigenen Seitenbaum — die gleiche Struktur, eigene Inhalte.",
+          "action": { "label": "Über diese Website", "href": "/de/de/about" }
+        }
+
+      ]
+    },
+
+    {
+      "type": "prose",
+
+      "heading": "Standorte erweitern eine Website, statt sie zu vervielfachen",
+
+      "body": "**Berlin** und **Frankfurt** sind Standorte *innerhalb* dieser Website. Wenn Sie im Bedienelement **Standort** einen davon auswählen, bleiben die Website, die Sprache und Ihre Layout-Einstellung erhalten: Ein Standort beschreibt einen physischen oder organisatorischen Kontext und erzeugt keinen zweiten Seitenbaum."
+    },
+
+    {
+      "type": "prose",
+
+      "heading": "Diese Konfiguration ist ein Beispiel",
+
+      "body": "Sites, Sprachen und Standorte sind Konfiguration. Ein Unternehmen kann mit wachsender Website weitere Sites für weitere Länder hinzufügen, Sprachen ergänzen oder Standorte entfernen. Sprachen werden für die gesamte Website festgelegt und stehen daher jedem ihrer Standorte zur Verfügung."
+    }
+
+  ]
+}

@@ -5,9 +5,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { siteConfig } from "@/config";
 import {
   bindingsForSite,
-  configuredRegionIds,
   regionDefaultLocale,
   regionalPath,
+  regionsForSite,
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
@@ -65,7 +65,11 @@ export function LocationSwitcher({
   // never answer here, even when the two sites share a locale).
   const sitePrefix = sitePrefixPath(parsed.site);
   const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.code);
-  const availableRegions = [...configuredRegionIds(siteConfig.regions)].sort((a, b) => {
+  // R1C — the inventory is THIS SITE's own locations (never another site's, and never the
+  // deployment's full region list), exactly as this component's contract already stated: the
+  // selector picks a place whose pages are shared with THIS site's tree, so a Location can never
+  // be offered where it has no destination. Displayed order stays alphabetical by label.
+  const availableRegions = [...regionsForSite(siteConfig.pageBindings, parsed.site.code)].sort((a, b) => {
     const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
     const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;
     return labelA.localeCompare(labelB, "en", { sensitivity: "base" });

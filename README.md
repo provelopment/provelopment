@@ -326,6 +326,47 @@ configuration, content, assets and branding.
 - [`instruction-manuals/README.md`](instruction-manuals/README.md) — the operating manuals: adoption, upgrade, customization, branding, content, validation, deployment, troubleshooting
 - [`AGENTS.md`](AGENTS.md) — the operating contract for AI coding agents
 
+## What the reference deployment demonstrates
+
+This repository also runs a **public reference deployment** — <https://foundation-template.provelopment.com> —
+which exists to show the full site model working, with nothing invented beyond the template's own
+configuration. It currently demonstrates every visitor dimension at once:
+
+```text
+Global  (ww)
+├── English
+└── Deutsch
+    (no locations, and its own Home/About pages)
+
+Germany (de)
+├── Languages
+│   ├── Deutsch
+│   └── English
+├── Locations
+│   ├── Berlin
+│   └── Frankfurt
+└── Pages
+    ├── Home
+    ├── About
+    └── a page per location (Berlin, Frankfurt)
+```
+
+| Concept | What another one of it means |
+| --- | --- |
+| another **country/global page tree** | another **Site** (`sites` in `site.config.json`) |
+| another **language of that site** | another **Locale** (`i18n.locales`, served per site) |
+| another **physical/service place sharing that page tree** | another **Location** (`business.regions` + `business.pages`) |
+
+Languages are configured **for the site**, not for each location: Germany offers German and English,
+and both Berlin and Frankfurt operate inside that same language set. The **Layout** control (Sidebar /
+Menu bar) belongs to no site at all — it is the visitor's own presentation preference.
+
+**Germany, Berlin and Frankfurt are demonstration data**, not statements about Provelopment's real
+offices, addresses, languages or markets; the addresses are placeholders and no opening hours are
+claimed. An adopter replaces them with their own sites, languages and locations — see
+[`CUSTOMIZING.md`](CUSTOMIZING.md) for the configuration and [`content/README.md`](content/README.md)
+for where the pages live.
+
 ## The live Foundation site
 
 The real-world example is **<https://foundation.provelopment.com>** — the Provelopment

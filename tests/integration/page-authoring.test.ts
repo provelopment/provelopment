@@ -341,7 +341,7 @@ describe("the one page model, through the real application", () => {
     );
     expect(html).not.toContain("home-hero");
     // A section only the DECLARATIVE vocabulary can produce (the starter has none).
-    expect(html).toContain("Two ways to write a page");
+    expect(html).toContain("Two ways to create a page");
     // …and the reserved home slug never becomes its own URL.
     const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
     expect(paths).not.toContain(`${SITE}/en/${HOME_CONTENT_SLUG}`);
@@ -360,7 +360,7 @@ describe("the one page model, through the real application", () => {
       );
       expect(html).not.toContain("Markdown home fixture");
       expect(html).not.toContain("home-hero");
-      expect(html).toContain("Two ways to write a page");
+      expect(html).toContain("Two ways to create a page");
     } finally {
       cleanUp(fixture);
     }

@@ -44,7 +44,7 @@
   },
   "location": {
     "label": "Location",
-    "unspecified": "Global"
+    "unspecified": "All locations"
   },
   "business": {
     "open": "Open now",

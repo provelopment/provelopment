@@ -75,14 +75,13 @@ describe("StructuredData — global organization/local-business JSON-LD (Phase S
 });
 
 describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () => {
-  // FS1 — the generic template configures NO operating regions (regions are
-  // adopter data; the private reference site is the one that ships them). The
-  // absence case is asserted unconditionally, and the regional rendering contract
-  // keeps its coverage whenever a region IS configured.
-  const region = resolveRegion(siteConfig.regions, "toronto");
+  // R1C — the reference deployment configures exactly the two DEMONSTRATION locations of its
+  // Germany site. (A deployment that configures none is the ordinary adopter case; the resolution
+  // contract below keeps its coverage whenever a region IS configured.)
+  const region = resolveRegion(siteConfig.regions, "berlin");
 
-  it("configures no operating regions by default", () => {
-    expect(Object.keys(siteConfig.regions)).toEqual([]);
+  it("configures the reference deployment's two demonstration locations", () => {
+    expect(Object.keys(siteConfig.regions)).toEqual(["berlin", "frankfurt"]);
   });
 
   describe.runIf(Boolean(region))("with a configured region", () => {
@@ -90,13 +89,13 @@ describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () =>
 
     it("emits @id/url from the regional canonical URL plus sameAs (both branches)", () => {
       const html = renderToStaticMarkup(
-        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/en/toronto` }),
+        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/de/de/berlin` }),
       );
       const node = jsonLd(html);
 
       expect(node["@type"]).toBe("LocalBusiness");
-      expect(node["@id"]).toBe(`${siteConfig.url}/en/toronto`);
-      expect(node.url).toBe(`${siteConfig.url}/en/toronto`);
+      expect(node["@id"]).toBe(`${siteConfig.url}/de/de/berlin`);
+      expect(node.url).toBe(`${siteConfig.url}/de/de/berlin`);
       if (siteConfig.socialLinks.length > 0) {
         expect(node.sameAs).toEqual(siteConfig.socialLinks.map((link) => link.href));
       } else {
@@ -106,11 +105,13 @@ describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () =>
 
     it("keeps the pre-existing operational fields intact", () => {
       const html = renderToStaticMarkup(
-        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/en/toronto` }),
+        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/de/de/berlin` }),
       );
       expect(html).toContain(configured.address.street);
-      expect(html).toContain("Monday");
       expect(html).toContain('"@type":"LocalBusiness"');
+      // The demonstration locations state NO opening hours in configuration, so the schedule is
+      // empty rather than invented — the same honesty the rendered region block shows.
+      expect(configured.hours.monday).toHaveLength(0);
     });
   });
 });

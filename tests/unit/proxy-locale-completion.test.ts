@@ -19,6 +19,8 @@ import { proxy } from "@/proxy";
  * deployment default).
  */
 const REFERENCE = siteConfig.defaultSite.code;
+/** R1C — the reference deployment's second site (Germany), whose code is also a locale name. */
+const GERMANY = siteConfig.sites.find((candidate) => candidate.code !== REFERENCE)?.code as string;
 
 /** The `Location` a request is redirected to, or `null` when it is served as-is. */
 function redirectFor(path: string, headers: Record<string, string> = {}): string | null {
@@ -28,21 +30,27 @@ function redirectFor(path: string, headers: Record<string, string> = {}): string
 }
 
 describe("an explicit locale in the path is authoritative", () => {
-  it("keeps German when the visitor's cookie says English", () => {
-    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=en", "accept-language": "en-US,en" })).toBe(
-      `/${REFERENCE}/de/about`,
-    );
-  });
-
   it("keeps English when the visitor's cookie says German", () => {
+    // `en` is a locale, not a site code, so `/en/about` is the site-less locale form of the
+    // DEFAULT site — and the URL's language wins over the stored preference.
     expect(
       redirectFor("/en/about", { cookie: "NEXT_LOCALE=de", "accept-language": "de-DE,de" }),
     ).toBe(`/${REFERENCE}/en/about`);
   });
 
   it("completes a bare locale path to that locale's root", () => {
-    expect(redirectFor("/de", { cookie: "NEXT_LOCALE=en" })).toBe(`/${REFERENCE}/de`);
     expect(redirectFor("/en", { "accept-language": "de-DE,de" })).toBe(`/${REFERENCE}/en`);
+  });
+
+  it("treats a SITE code as a site, not as a locale (R1C: `de` is the Germany site)", () => {
+    // The first segment wins as a site code, so `/de/about` is the Germany site's About page
+    // missing its locale. Which locale completes it is GERMANY's own policy — its default when the
+    // visitor expresses no preference, or the visitor's cookie WHEN THAT SITE SERVES IT. What must
+    // never happen is the visitor landing in another site.
+    expect(redirectFor("/de/about")).toBe(`/${GERMANY}/de/about`);
+    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=en" })).toBe(`/${GERMANY}/en/about`);
+    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=fr" })).toBe(`/${GERMANY}/de/about`);
+    expect(redirectFor("/de")).toBe(`/${GERMANY}/de`);
   });
 });
 

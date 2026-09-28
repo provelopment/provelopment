@@ -1,81 +1,63 @@
 {
-
   "schemaVersion": 1,
 
   "title": "Eine Website, die Ihnen gehört.",
 
-  "description": "Die laufende Referenzseite für Provelopment Foundation: wie Seiten geschrieben werden, wie sich die Website anpasst und wie Sie sie zu Ihrer eigenen machen.",
+  "description": "Die Live-Referenz für Provelopment Foundation: wie Seiten erstellt werden, wie eine Installation mehrere Sites, Sprachen und Standorte bedient und wie Sie daraus Ihre eigene Website machen.",
 
   "sections": [
 
     {
-
       "type": "hero",
 
-      "lede": "Foundation ist eine Open-Source-Website-Vorlage, die verständlich, bearbeitbar und einsatzbereit sein soll. Sie können sie selbst nutzen, nach Bedarf anpassen und mitnehmen, wohin Sie möchten.",
+      "lede": "Foundation ist eine Open-Source-Websitevorlage, die verständlich aufgebaut, einfach anpassbar und direkt einsetzbar ist. Sie können sie selbst betreiben, nach Ihren Anforderungen verändern und auf der Infrastruktur Ihrer Wahl bereitstellen.",
 
       "actions": [
 
-        { "label": "So funktioniert diese Website", "route": "about" },
+        { "label": "So funktioniert diese Website", "href": "/ww/de/about" },
 
         {
-
-          "label": "Foundation-Repository ansehen",
-
+          "label": "Zum Foundation-Repository",
           "href": "https://github.com/provelopment/provelopment-foundation",
-
           "variant": "secondary"
-
         }
 
       ]
-
     },
 
     {
-
       "type": "columns",
 
-      "heading": "Zwei Wege, eine Seite zu schreiben",
+      "heading": "Zwei Arten, Seiten zu erstellen",
 
       "ratio": "equal",
 
       "items": [
 
         {
-
           "title": "Markdown",
-
-          "body": "Für unkomplizierte Seiten bleibt der Inhalt mit Markdown nah am reinen Text, mit einfacher Notation für Überschriften, Listen und Links. Die Seite **Über uns** dieser Website ist so geschrieben."
-
+          "body": "Für einfache Inhaltsseiten ist Markdown meist der direkteste Weg. Der Inhalt bleibt gut lesbarer Text und verwendet nur wenige einfache Zeichen für Überschriften, Listen und Links. Die Seite **Über diese Website** ist auf diese Weise erstellt."
         },
 
         {
-
           "title": "JSON",
-
-          "body": "Für strukturierte Seiten definiert JSON Abschnitte wie Heroes, Spalten, Karten, Tabellen und Fragen über einen dokumentierten Satz von Optionen. **Diese Seite** ist so geschrieben."
-
+          "body": "Für stärker strukturierte Seiten können Sie mit JSON festlegen, aus welchen Bereichen eine Seite besteht — zum Beispiel aus einem Hero-Bereich, Spalten, Kacheln, Tabellen oder Frage-und-Antwort-Bereichen. **Diese Seite** ist auf diese Weise erstellt."
         }
 
       ]
-
     },
 
     {
-
       "type": "callout",
 
       "heading": "Ihre Website gehört Ihnen",
 
-      "body": "Die Nutzung von Provelopment-Leistungen ist eine Entscheidung, keine Voraussetzung. Ihre Website, ihre Inhalte und ihr Code bleiben Ihre.",
+      "body": "Ob Sie Provelopment-Dienstleistungen nutzen, entscheiden Sie selbst. Ihre Website, ihre Inhalte und ihr Code bleiben unter Ihrer Kontrolle.",
 
       "surface": "muted"
-
     },
 
     {
-
       "type": "cards",
 
       "heading": "Über diese Website",
@@ -83,39 +65,29 @@
       "items": [
 
         {
-
-          "title": "Eine funktionierende Foundation-Website",
-
-          "body": "Diese Website ist die laufende Referenzinstallation der Vorlage Foundation. Sie führt den öffentlichen Code aus und enthält Beispielseiten in beiden unterstützten Autorenverfahren.",
-
-          "action": { "label": "Mehr über diese Website", "route": "about" }
-
+          "title": "Eine echte Foundation-Website",
+          "body": "Diese Website ist die Live-Referenz für Foundation. Sie basiert auf dem öffentlich verfügbaren Code und zeigt beide unterstützten Arten der Seitenerstellung zusammen mit den Möglichkeiten von Foundation für mehrere Sites, Sprachen, Standorte und Layoutdarstellungen — hier mit der Website Global, die Sie gerade lesen, und einer Demonstrations-Website für Deutschland.",
+          "action": { "label": "Mehr über diese Website erfahren", "href": "/ww/de/about" }
         }
 
       ]
-
     },
 
     {
-
       "type": "prose",
 
-      "heading": "Gebaut, um sich anzupassen",
+      "heading": "Für unterschiedliche Anforderungen ausgelegt",
 
-      "body": "Das Bedienelement **Layout** in der Kopfzeile wechselt zwischen den Darstellungen Seitenleiste und Menüleiste, ohne die Seite, ihre Adresse oder ihre Inhalte zu ändern. Foundation kann außerdem mehrere Sprachen, physische Standorte und Länder unterstützen. Wenn diese Optionen konfiguriert sind, erscheinen ihre Bedienelemente im selben Bereich. Diese Referenzseite verwendet eine Sprache und keine Standorte, daher wird hier nur das Layout-Bedienelement angezeigt."
-
+      "body": "Mit dem Bedienelement **Layout** in der Kopfzeile wechseln Sie zwischen Seitenleisten- und Menüleistenansicht, ohne dass sich die Seite, ihre Adresse oder ihr Inhalt ändern.\n\nDie Referenzinstallation zeigt nun alle vier Besucher-Bedienelemente gemeinsam. **Site** wählt, welche Website Sie lesen — hier **Global** oder die Demonstrations-Website **Germany** (Deutschland). **Sprache** wählt, in welcher Sprache die Website gelesen wird: auf Global sind das Deutsch und Englisch. **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb einer Website, und eine Website bietet nur die Standorte, die sie tatsächlich hat — Global besitzt keine eigenen Standorte, während die Website für Deutschland die Standorte **Berlin** und **Frankfurt** zeigt. Jedes Bedienelement erscheint nur, wenn die entsprechende Konfiguration vorhanden ist.\n\nDiese Demonstrationswerte sind ein Beispiel und kein fester Bestandteil der Vorlage: Wer Foundation einsetzt, ersetzt sie mit wachsender Website durch die eigenen Sites, Sprachen und Standorte."
     },
 
     {
-
       "type": "prose",
 
       "heading": "Die vollständige Website ist öffentlich",
 
-      "body": "Diese Seite gehört zur Website selbst und ist kein Entwurf. Ihr Inhalt stammt aus einer einzigen Datei — `home.json` — im Repository Provelopment Foundation. Die Seite „Über uns“, das Styling und die Website-Einstellungen liegen ebenfalls dort. Ändern Sie die Dateien, committen und pushen Sie die Änderungen, und die Website kann aus der aktualisierten Quelle neu erstellt werden. Der Code bleibt Ihr Eigentum und kann genutzt, geändert und anderswo eingesetzt werden."
-
+      "body": "Diese Seite ist Bestandteil der tatsächlich laufenden Website und kein Entwurf oder Vorschaumodell. Ihr Inhalt stammt aus einer einzigen Datei — `home.json` — im [öffentlichen Provelopment Foundation Repository](https://github.com/provelopment/provelopment-foundation). Dort befinden sich auch die Seite **Über diese Website**, das Styling und die Website-Konfiguration. Ändern Sie die Dateien, übernehmen Sie die Änderungen mit Git und übertragen Sie sie in Ihr Repository, kann die Website aus dem aktualisierten Stand neu erstellt werden. Der Code bleibt Ihnen erhalten und kann von Ihnen genutzt, angepasst und an anderer Stelle bereitgestellt werden."
     }
 
   ]
-
 }
