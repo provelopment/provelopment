@@ -2362,7 +2362,7 @@ pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build
 
 One Foundation repository can serve several **independent websites**. Each site is named by a
 recognized lowercase country code (or `ww` for a worldwide site — see
-[`content/COUNTRY-CODES.md`](content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
+[`content/COUNTRY-CODES.md`](deployment/content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
 
 ```json
 {

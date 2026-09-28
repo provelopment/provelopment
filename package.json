@@ -8,9 +8,15 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:foundation": "vitest run --project foundation",
+    "test:deployment": "vitest run --project deployment",
     "test:browser": "node tests/browser/matrix.mjs",
+    "test:browser:foundation": "node tests/browser/matrix.mjs --scope foundation",
+    "test:browser:deployment": "node tests/browser/matrix.mjs --scope deployment",
     "assets:sync": "node scripts/sync-runtime-assets.mjs",
-    "assets:check": "node scripts/sync-runtime-assets.mjs --check"
+    "assets:check": "node scripts/sync-runtime-assets.mjs --check",
+    "country-codes:sync": "node scripts/generate-country-code-reference.mjs",
+    "country-codes:check": "node scripts/generate-country-code-reference.mjs --check"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
