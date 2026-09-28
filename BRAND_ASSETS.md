@@ -83,8 +83,12 @@ public/assets/            GENERATED — the ONLY directory the running site fetc
 
 The source tree lives **inside the one human-facing content area**
 (`content/`, beside `pages/` and the other content collections), because it is
-authored content: artwork a site owner replaces. The short guide for someone asking
-"where do I change my logo?" is [`content/assets/README.md`](content/assets/README.md).
+authored content: artwork a site owner replaces. Those paths are relative to the
+**deployment root** — this repository's deployment is the capsule, so its asset authority is
+`deployment/content/assets/**` and its runtime mirror is `public/assets/**`. The short guide
+for someone asking
+"where do I change my logo?" is
+[`content/assets/README.md`](deployment/content/assets/README.md).
 
 | Rule | Detail |
 | --- | --- |

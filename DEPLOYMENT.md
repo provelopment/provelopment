@@ -69,7 +69,8 @@ Vercel deployments can additionally be gated on the same checks in
 
 ## Configuration Alignment
 
-Before go-live, verify that `site.config.json` matches reality:
+Before go-live, verify that the deployment's `site.config.json` matches reality — in this
+repository that is the capsule's `deployment/site.config.json`:
 
 - `site.url` must be the final production origin (`https://…`, no trailing
   slash). It drives the sitemap, hreflang alternates, canonical URLs, and
@@ -107,8 +108,9 @@ Run against the live domain:
       as the LinkedIn Post Inspector or Facebook Sharing Debugger).
 - [ ] Social preview image renders correctly — `/<site>/<language>/opengraph-image`
       is generated with no configuration.
-- [ ] Favicon renders correctly **once configured**: set `site.assets.favicon` in
-      `site.config.json`. The template ships no favicon, so a browser's implicit
+- [ ] Favicon renders correctly **once configured**: set `site.assets.favicon` in the
+      deployment's `site.config.json` (`deployment/site.config.json` in this
+      repository). The template ships no favicon, so a browser's implicit
       `/favicon.ico` request returns 404 until then.
 - [ ] Dark mode renders correctly (emulate `prefers-color-scheme: dark`).
 

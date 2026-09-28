@@ -45,7 +45,8 @@ header, hero, density, content width, radius) applied through `data-ui-*`
 attributes onto **one** content model — never a per-presentation fork.
 
 There is **one** content model and **one** configuration set
-(`site.config.json`, `content/`, `config/i18n/`, `public/assets/`); the canonical
+(`site.config.json`, `content/`, `config/i18n/`, `public/assets/`) — all of it inside the
+deployment (this repository's deployment is the capsule at `deployment/`); the canonical
 presentation is what the shipped config resolves to. No other presentation is
 selectable, so nothing can diverge.
 
@@ -53,6 +54,9 @@ selectable, so nothing can diverge.
 
 `CUSTOMIZING.md` is the downstream user guide: everything you are expected to
 customize lives in **config, content, and assets** — never in platform code.
+Every path below is **deployment-relative**: those files live at the DEPLOYMENT ROOT —
+the capsule `deployment/` in this repository, and the repository root in a deployment
+hosted there.
 The boundary between "Foundation-owned" and "downstream/user-owned" is:
 
 | Foundation-owned (do not edit for customization) | Downstream/user-owned (edit freely) |
@@ -804,7 +808,7 @@ authored in (see the sections table below).
 
 Those are the *only* two page-authoring paths. `content/` is the single
 human-facing content area — pages and the artwork they use — and
-[`content/README.md`](content/README.md) is the map to hand to whoever edits the
+[`content/README.md`](deployment/content/README.md) is the map to hand to whoever edits the
 site. Each mode root's own `README.md` explains its mode in plain language, and a
 README is never itself a page, at any level.
 
@@ -821,7 +825,7 @@ blockquotes, links, images, inline code, fenced code blocks, horizontal rules,
 autolinks, task-list marks and **tables**. Each heading also receives a deterministic
 fragment id, so `## Opening hours` is linkable as `#opening-hours` (case and accents
 ignored; repeats become `-2`, `-3`; documentation:
-[`content/pages/markdown/README.md`](content/pages/markdown/README.md)). A capability
+[`content/pages/markdown/README.md`](deployment/content/pages/markdown/README.md)). A capability
 not listed here is deliberately not part of the mode.
 
 Every rendered page has exactly ONE top-level heading — its **page title**. A heading

@@ -3,6 +3,10 @@
 **Everything you write or upload for your website lives in this folder.** If you are
 asking *"where do I edit my website?"*, you are in the right place.
 
+Every path written in this folder is relative to **this deployment**: `content/…` means
+the deployment's own content folder — in the repository that hosts this reference
+deployment that is `deployment/content/…`.
+
 ```text
 content/
 ├── README.md            ← this file: the map

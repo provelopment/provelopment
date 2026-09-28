@@ -267,6 +267,8 @@ enough: an unstaged, uncommitted or unpushed change is invisible to the live sit
 - **Everything you can author, in one map:** [`../../README.md`](../../README.md)
 - **The advanced, structured page format:** [`../json/README.md`](../json/README.md)
 - **Your website's settings** (name, contact details, languages, menu):
-  `site.config.json` at the top of the project, and `CUSTOMIZING.md` beside it.
+  `site.config.json` at the top of this deployment — the folder that contains the
+  `content/` tree these pages live in — and `CUSTOMIZING.md`, the Foundation's
+  configuration reference, at the repository root.
 
 

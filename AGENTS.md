@@ -46,7 +46,7 @@ The major application boundaries are:
 - `src/application`
 - `src/adapters`
 - `src/config`
-- `content`
+- `content` (deployment-owned: the capsule's `deployment/content/**` in this repository)
 - `public`
 - `tests`
 
@@ -142,9 +142,11 @@ Keep those concerns separate.
 Human-authored content should remain separate from application implementation.
 
 **One human-facing content area.** Everything a normal user authors as website
-content lives under `content/` — pages (`content/pages/markdown`,
-`content/pages/json`) and the artwork a site owner replaces (`content/assets`) — and
-`content/README.md` is the map that answers "where do I edit my website?". Authored
+content lives in the deployment's content tree (`content/`, relative to the deployment
+root — the capsule's `deployment/content/` in this repository): pages
+(`content/pages/markdown`, `content/pages/json`) and the artwork a site owner replaces
+(`content/assets`) — and `content/README.md` is the map that answers
+"where do I edit my website?". Authored
 content is never placed under `config/`: configuration changes how the site *behaves*,
 content is what it *says*. Equally, unrelated technical configuration is not moved into
 `content/` merely to make the tree uniform.
@@ -479,12 +481,14 @@ configured default locale.
 Rules:
 
 - Never hard-code user-facing copy in components. Interface strings belong
-  in `config/i18n/<locale>.json` and must validate against the Zod dictionary
-  schema.
+  in the deployment's `config/i18n/<locale>.json` (the capsule's
+  `deployment/config/i18n/` in this repository) and must validate against the Zod
+  dictionary schema.
 - New routes must be added under `src/app/[...segments]` (the ONE catch-all route); a
   static metadata segment may NOT sit under a catch-all (Next.js requires the catch-all to be
   last), which is why the generated social image lives at `src/app/[site]/[locale]/`.
-- Markdown content belongs under `content/pages/markdown/<site>/<locale>/<slug>.md` (the
+- Markdown content belongs under the deployment's
+  `content/pages/markdown/<site>/<locale>/<slug>.md` (the
   declarative mode under `content/pages/json/<site>/<locale>/<slug>.json`). When a
   translation is missing, the default locale's content is served instead.
 - Locale negotiation and related pure logic belong in `src/core` and must be
@@ -499,14 +503,15 @@ content alone.
 
 ## 25. JSON Configuration
 
-`site.config.json` is the single source of truth for site settings:
+The deployment's `site.config.json` (the capsule's `deployment/site.config.json` in this
+repository) is the single source of truth for site settings:
 branding, languages, contact details, social links, navigation, and
 feature flags under `features`.
 
 Rules:
 
 - Read configuration only through the validated loader exports from
-  `src/config`. Never import `site.config.json` directly elsewhere.
+  `src/config`. Never import the deployment's `site.config.json` directly elsewhere.
 - Every new configuration field requires a matching entry in
   `src/config/schema.ts` and unit coverage in the loader tests.
 - New optional functionality should be expressed as a feature flag under
@@ -536,7 +541,8 @@ In practice:
   and never promise a capability that is not implemented;
 - **lead with the reader's goal**, then the mechanism: "where do I edit my website?"
   is answered by a map, not by an architecture description;
-- **keep the human-facing entry points honest**: `content/README.md` is the map for
+- **keep the human-facing entry points honest**: the deployment's `content/README.md`
+  (`deployment/content/README.md` in this repository) is the map for
   authored content, and each authoring root explains its own mode in plain language.
 
 When a change adds or alters a user-facing capability, update the documentation in the
