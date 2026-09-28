@@ -49,7 +49,8 @@ import { resolveSites } from "@/core/site";
  *
  * Every fixture here is created and removed by THIS suite, and the repository's own
  * authored reference pages are left exactly as they are: a run fixture may add a file
- * beside them, but never overwrites or deletes shipped content.
+ * beside them, but never overwrites or deletes shipped content. Removal is then ASSERTED,
+ * not assumed (ISO-C1A1): a run that leaves a fixture file or directory behind FAILS.
  */
 /**
  * WHERE THESE FIXTURES GO (FOUNDATION-DEPLOYMENT-ISO-B2A)
@@ -79,6 +80,14 @@ const EMPTY_LOCALE_NAME = "zz-empty";
 // A well-formed language tag that the site does NOT configure (subtags are 2–8
 // characters), holding a page that must therefore never be published.
 const UNCONFIGURED_LOCALE_NAME = "zz-unconf";
+// Fixture identities a `finally`-cleaned probe needs again as a PATH, so the residue
+// postcondition below and the probe itself name the same file (never two literals).
+// `gs` is a recognized country code no other suite uses.
+const HOME_FIXTURE_SITE = "gs";
+const HOME_FIXTURE_LOCALE = "zz-home";
+const UNCONFIGURED_LOCALE_PAGE = "a-page.md";
+// A declarative document that does NOT satisfy the vocabulary: refused by name.
+const INVALID_JSON_SLUG = "zz-invalid";
 
 const MARKDOWN_LOCALE_DIRECTORY = path.join(MARKDOWN_PAGES_ROOT, SITE, "en");
 const EMPTY_LOCALE_DIRECTORY = path.join(MARKDOWN_PAGES_ROOT, SITE, EMPTY_LOCALE_NAME);
@@ -95,6 +104,38 @@ const createdPaths = [
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_JSON_SLUG}.md`),
   path.join(JSON_PAGES_ROOT, SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
   path.join(PAGES_ROOT, SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
+];
+
+/**
+ * EVERY PATH THIS SUITE CREATES, and therefore every path it must leave nothing of
+ * (ISO-C1A1). The fixture files first, then the directory chains only these fixtures ever
+ * made — including the C1 residue chains `markdown/gs`, `markdown/ww/en/zz-section`,
+ * `json/ww/en/zz-section` and `pages/ww`.
+ *
+ * Directories the DEPLOYMENT itself ships are deliberately NOT listed: `markdown/ww/en`
+ * holds `about.md`, so this list is a claim about this suite's residue only. Every entry is
+ * derived from the fixture identities above with `path.join`, so no machine-specific path
+ * (and no second copy of a fixture name) appears here.
+ */
+const TEST_OWNED_PATHS = [
+  ...createdPaths,
+  path.join(MARKDOWN_LOCALE_DIRECTORY, `${HOME_CONTENT_SLUG}.md`),
+  path.join(JSON_PAGES_ROOT, SITE, "en", `${INVALID_JSON_SLUG}.json`),
+  path.join(UNCONFIGURED_LOCALE_DIRECTORY, UNCONFIGURED_LOCALE_PAGE),
+  path.join(
+    MARKDOWN_PAGES_ROOT,
+    HOME_FIXTURE_SITE,
+    HOME_FIXTURE_LOCALE,
+    `${HOME_CONTENT_SLUG}.md`,
+  ),
+  path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION),
+  path.join(JSON_PAGES_ROOT, SITE, "en", NESTED_SECTION),
+  path.join(PAGES_ROOT, SITE),
+  path.join(PAGES_ROOT, SITE, "en"),
+  EMPTY_LOCALE_DIRECTORY,
+  UNCONFIGURED_LOCALE_DIRECTORY,
+  path.join(MARKDOWN_PAGES_ROOT, HOME_FIXTURE_SITE),
+  path.join(MARKDOWN_PAGES_ROOT, HOME_FIXTURE_SITE, HOME_FIXTURE_LOCALE),
 ];
 
 function write(file: string, contents: string): void {
@@ -207,7 +248,7 @@ describe("the one page model, through the real application", () => {
     );
     // An EMPTY locale directory, and a locale the site does not configure.
     mkdirSync(EMPTY_LOCALE_DIRECTORY, { recursive: true });
-    write(path.join(UNCONFIGURED_LOCALE_DIRECTORY, "a-page.md"), "# Not published\n");
+    write(path.join(UNCONFIGURED_LOCALE_DIRECTORY, UNCONFIGURED_LOCALE_PAGE), "# Not published\n");
   });
 
   afterAll(() => {
@@ -216,6 +257,23 @@ describe("the one page model, through the real application", () => {
   rmSync(EMPTY_LOCALE_DIRECTORY, { recursive: true, force: true });
   rmSync(UNCONFIGURED_LOCALE_DIRECTORY, { recursive: true, force: true });
   for (const file of createdPaths) cleanUp(file);
+
+  // THE POSTCONDITION (ISO-C1A1). The cleanup above prunes directory by directory and stops
+  // at the first parent that is not empty, swallowing the error that says so — which is
+  // exactly how C1's path-comparison bug failed SILENTLY: the files went, the directories
+  // stayed, every assertion in this file still passed, and residue accumulated in the real
+  // deployment's page tree.
+  //
+  // So the suite now OBSERVES the result instead of trusting the walk: direct existence
+  // checks on the paths it owns, deliberately not a rerun of `cleanUp`'s own arithmetic
+  // (which would inherit any future bug in it). A leftover fixture file — or the smallest
+  // leftover fixture directory — fails this file, whatever the cause, even though cleanup
+  // itself reported success.
+  const residue = TEST_OWNED_PATHS.filter((candidate) => existsSync(candidate));
+  expect(
+    residue,
+    `fixture residue left in the deployment's page tree: ${residue.join(", ")}`,
+  ).toEqual([]);
 });
 
   it("generates a real static route for a flat AND a nested page", async () => {
@@ -291,14 +349,14 @@ describe("the one page model, through the real application", () => {
 
   it("stops the build when a JSON document is invalid, naming the file and the property", async () => {
     write(
-      path.join(JSON_PAGES_ROOT, SITE, "en", "zz-invalid.json"),
+      path.join(JSON_PAGES_ROOT, SITE, "en", `${INVALID_JSON_SLUG}.json`),
       `${JSON.stringify({ schemaVersion: 2, title: "Wrong version", sections: [] }, null, 2)}\n`,
     );
     try {
-      await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/zz-invalid\.json/);
-      await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/schemaVersion/);
+      await expect(PageRoute(params(INVALID_JSON_SLUG))).rejects.toThrow(/zz-invalid\.json/);
+      await expect(PageRoute(params(INVALID_JSON_SLUG))).rejects.toThrow(/schemaVersion/);
     } finally {
-      cleanUp(path.join(JSON_PAGES_ROOT, SITE, "en", "zz-invalid.json"));
+      cleanUp(path.join(JSON_PAGES_ROOT, SITE, "en", `${INVALID_JSON_SLUG}.json`));
     }
   });
 
@@ -392,23 +450,25 @@ describe("the one page model, through the real application", () => {
     // The Markdown-home capability, proved on the SAME composition the locale root
     // uses, with a fixture site (a recognized country code no other suite uses) whose
     // tree holds only `home.md`: the reserved slug resolves to that Markdown page.
-    const fixtureSite = "gs";
-    const fixtureLocale = "zz-home";
     const file = path.join(
       MARKDOWN_PAGES_ROOT,
-      fixtureSite,
-      fixtureLocale,
+      HOME_FIXTURE_SITE,
+      HOME_FIXTURE_LOCALE,
       `${HOME_CONTENT_SLUG}.md`,
     );
     write(file, `# ${HOME_FIXTURE}\n\nA safe Markdown home page.\n`);
     try {
       const sites = resolveSites({
-        input: [{ code: fixtureSite }],
+        input: [{ code: HOME_FIXTURE_SITE }],
         defaultLocale: "en",
-        locales: ["en", fixtureLocale],
+        locales: ["en", HOME_FIXTURE_LOCALE],
       }).sites;
       const pages = createPageSources({ sites });
-      const home = await pages.resolve(fixtureSite, HOME_CONTENT_SLUG, fixtureLocale);
+      const home = await pages.resolve(
+        HOME_FIXTURE_SITE,
+        HOME_CONTENT_SLUG,
+        HOME_FIXTURE_LOCALE,
+      );
       expect(home?.kind).toBe("markdown");
       expect(home?.title).toBe(HOME_FIXTURE);
     } finally {
