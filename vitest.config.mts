@@ -2,10 +2,10 @@ import { fileURLToPath } from "node:url";
 
 import { defineConfig } from "vitest/config";
 
-import { deploymentEnvironment, resolveDeploymentForBuild } from "./src/config/deployment-build";
+import { deploymentEnvironment, resolveDeploymentForBuild } from "./src/config/deployment-build.mjs";
 
 /**
- * The TEST RUN resolves its deployment the same way the build does (`src/config/deployment-build.ts`)
+ * The TEST RUN resolves its deployment the same way the build does (`src/config/deployment-build.mjs`)
  * and hands it to the suite through `test.env`, because `@/config` is imported without a build step
  * here. Generic tests still compose against the synthetic test deployment (`tests/setup/
  * synthetic-config.ts`); the explicitly marked DEPLOYMENT SCOPE tests opt out and receive THIS

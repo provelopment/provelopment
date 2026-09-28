@@ -49,7 +49,7 @@
  * is spelled in one place, but it is never part of a deployment agent's write boundary.
  */
 // NOTE (ISO-B1C) — there is deliberately NO `import … from "../../site.config.json"` here. The build
-// selects the deployment and INLINES its configuration (`src/config/deployment-build.ts` ←
+// selects the deployment and INLINES its configuration (`src/config/deployment-build.mjs` ←
 // `next.config.ts` / `vitest.config.mts`), so no application module depends on a file's physical
 // location and B2 can move `site.config.json` into a capsule without a module-resolution change.
 
@@ -101,7 +101,7 @@ export function readDeploymentConfig(): unknown {
     throw new Error(
       "FOUNDATION-DEPLOYMENT-ISO-B1C: no deployment configuration was inlined into this build. " +
         "The build must resolve the deployment (next.config.ts) or the test run must " +
-        "(vitest.config.mts) — both use src/config/deployment-build.ts.",
+        "(vitest.config.mts) — both use src/config/deployment-build.mjs.",
     );
   }
   return JSON.parse(inlined) as unknown;

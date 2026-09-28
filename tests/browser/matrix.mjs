@@ -44,7 +44,7 @@ cpSync(join(ROOT, "tests", "fixtures", "synthetic-deployment"), SYNTHETIC_DEPLOY
 const DEPLOYMENT_ROOT = SYNTHETIC_DEPLOYMENT_ROOT;
 /**
  * THE SHIPPED DEPLOYMENT'S ROOT, resolved exactly as the BUILD resolves it
- * (`src/config/deployment-build.ts`): a capsule at `<repo>/deployment/` owns the deployment when it
+ * (`src/config/deployment-build.mjs`): a capsule at `<repo>/deployment/` owns the deployment when it
  * holds a `site.config.json`, otherwise the repository itself does. A deployment's own scenario is
  * handed the configuration path this produces, so nothing but this one rule decides where the
  * deployment lives — and moving its data into the capsule needs no change here.
