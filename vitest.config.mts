@@ -31,8 +31,8 @@ export default defineConfig({
       // FOUNDATION-DEPLOYMENT-ISO-B1 — a DEPLOYMENT's own tests live inside its write boundary
       // (`deployment/tests/**`, see `src/config/deployment-root.ts`). The glob is declared here, ONCE,
       // so a deployment can add tests without editing a platform file — which is the whole point of
-      // the isolation. The directory does not exist yet (B2 moves the reference deployment's tests
-      // there) and a glob that matches nothing is simply empty.
+      // the isolation. Since FOUNDATION-DEPLOYMENT-ISO-B2A the reference deployment's own tests are
+      // there (they opt out of the synthetic default with `vi.unmock("@/config")`).
       "deployment/tests/**/*.test.ts",
       "deployment/tests/**/*.test.tsx",
     ],

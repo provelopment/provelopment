@@ -1,0 +1,7 @@
+# Deployment-local PRIVATE workspace (disposable, never version controlled).
+#
+# `deployment/.test/` is where an agent or a test keeps throwaway material for THIS deployment:
+# temporary fixtures, screenshots, generated reports, browser artifacts, probes, copied files.
+# Nothing inside it is ever committed — not even a `.gitkeep` — so an agent that needs the
+# directory creates it locally (see `deployment/AGENTS.md`).
+.test/

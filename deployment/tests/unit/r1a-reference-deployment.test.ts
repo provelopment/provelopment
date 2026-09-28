@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment; moves to deployment/tests/**.
+// DEPLOYMENT SCOPE — this test asserts THIS deployment, so it lives in the deployment capsule
+// (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and opts out of the generic synthetic-config
+// default: its subject is the real deployment, never a fixture.
 vi.unmock("@/config");
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
+
+import { deploymentPaths } from "@/config/deployment-root";
 
 import PageRoute from "@/app/[...segments]/page";
 import robots from "@/app/robots";
@@ -40,8 +44,17 @@ const REFERENCE_ABOUT_TITLE = "About this Foundation website";
  */
 const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
-const root = process.cwd();
-const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
+/**
+ * WHERE THIS TEST'S FILES COME FROM (FOUNDATION-DEPLOYMENT-ISO-B2A)
+ * ----------------------------------------------------------------
+ * The deployment's own configuration and asset locations are asked of the ONE deployment-root
+ * authority (`@/config/deployment-root`, ISO-B1) — never spelled as a repository-root path here — so
+ * this suite follows the deployment wherever it is kept. A PLATFORM file (application source,
+ * generated static output) is a property of the repository, which is what `platformRoot` names.
+ */
+const deployment = deploymentPaths();
+const platformRoot = process.cwd();
+const platformFile = (...segments: string[]) => path.join(platformRoot, ...segments);
 
 /** The shipped JSON, as an adopter edits it (the loader's own input shape). */
 interface RawReferenceConfig {
@@ -57,7 +70,8 @@ interface RawReferenceConfig {
     readonly iconClosed?: string;
   }[];
 }
-const rawConfig = (): RawReferenceConfig => JSON.parse(read("site.config.json")) as RawReferenceConfig;
+const rawConfig = (): RawReferenceConfig =>
+  JSON.parse(readFileSync(deployment.siteConfigFile, "utf8")) as RawReferenceConfig;
 
 const siteCode = siteConfig.defaultSite.code;
 const localePath = siteConfig.defaultSite.defaultLocale;
@@ -73,7 +87,7 @@ describe("the reference deployment's own configuration", () => {
     expect(siteConfig.assets?.favicon).toBe(`${REFERENCE_ORIGIN}/assets/favicon.svg`);
     // `/assets/<file>` is the runtime mirror's contract, so the file must exist or
     // the browser would 404 the very icon the configuration declares.
-    expect(existsSync(path.join(root, "public", "assets", "favicon.svg"))).toBe(true);
+    expect(existsSync(path.join(deployment.publicAssetsDirectory, "favicon.svg"))).toBe(true);
   });
 
   it("enables the visitor layout switcher without a competing navigation leaf", () => {
@@ -104,7 +118,7 @@ describe("the reference deployment's own configuration", () => {
     // Icons resolve through the shipped asset family (never a broken <img>).
     for (const item of siteConfig.navigation) {
       for (const icon of [item.iconOpen, item.iconClosed].filter(Boolean)) {
-        expect(existsSync(path.join(root, "public", "assets", icon as string))).toBe(true);
+        expect(existsSync(path.join(deployment.publicAssetsDirectory, icon as string))).toBe(true);
       }
     }
   });
@@ -202,7 +216,7 @@ describe("the reference origin reaches the technical routes", () => {
 });
 
 describe("the shared sidebar disclosure contract (source-level guard)", () => {
-  const css = read("src", "app", "globals.css");
+  const css = readFileSync(platformFile("src", "app", "globals.css"), "utf8");
 
   it("insets the disclosed control's content through a token — padding, never a transform", () => {
     expect(css).toContain("--ui-sidebar-control-inset:");
