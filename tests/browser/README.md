@@ -20,6 +20,29 @@ committed, reproducible version).
 pnpm test:browser
 ```
 
+### Two owners, one framework
+
+This harness is **Foundation-owned**: the runner, the CDP client (`cdp.mjs`), the dev-server
+mechanics and every **generic** scenario, which runs against a disposable copy of the committed
+synthetic deployment (`tests/fixtures/synthetic-deployment`) so no generic contract depends on — or
+writes — the repository's own deployment.
+
+A **deployment's** own browser acceptance belongs to that deployment and lives in its capsule at
+`deployment/tests/browser/`. This harness discovers every `*.scenario.mjs` there and runs it, so a
+deployment ships expectations rather than a second browser framework:
+
+```js
+export const id = "reference-content";           // the report's `presentation` label
+export async function run(chrome, harness) { … }  // returns the same check rows as a scenario here
+```
+
+The `harness` argument carries the generic pieces a scenario needs — its port, its viewports, its
+assertion collector, its dev server (`startDevServer`/`stopServer`/`waitForServer`/`waitReady`), its
+layout helper, and `configFile`: the deployment's configuration path, resolved exactly as the build
+resolves it (a capsule at `<repo>/deployment/site.config.json` when one exists, otherwise the
+repository root). A deployment scenario therefore names no repository path of its own, and a
+repository without a capsule discovers nothing.
+
 For the Foundation's **one canonical presentation** the harness:
 1. writes the canonical UI configuration (plus a matrix CTA) into `site.config.json`;
 2. boots `next dev`;
@@ -108,8 +131,9 @@ tree stays clean.
   `[jump](#fixture-section)` link reaches it, and the sticky header's clearance
   keeps the target visible — measured on a target the AUTHOR created. An id typed
   in raw HTML stays inert.
-- **the reference deployment's own content** (`reference-content` scenario, R1A): runs against
-  the **shipped configuration, unmodified** — the JSON Home page (advanced mode) and the Markdown
+- **the deployment's own content** (`reference-content` scenario, R1A — **owned by the deployment**,
+  sourced from `deployment/tests/browser/reference-content.scenario.mjs` and run by this harness): runs
+  against the **shipped configuration, unmodified** — the JSON Home page (advanced mode) and the Markdown
   About page at their real URLs, each with exactly one `<h1>`; the Home → About destination; Home +
   About in the site-aware navigation; the visitor Layout control (its exact vocabulary, the sidebar
   default, switching, browser-local persistence and reload survival); the sidebar disclosure's two

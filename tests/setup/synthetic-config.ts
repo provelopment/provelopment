@@ -6,12 +6,14 @@
  * generic contract can no longer break because the live reference deployment changed (ISO-A1: the
  * same `@/config` import made 34 files depend on — and mutate — the reference deployment).
  *
- * A test that genuinely asserts the SHIPPED reference deployment opts out with one line:
+ * A test that asserts the SHIPPED deployment's own configuration opts out with one line:
  *
- *     vi.unmock("@/config");   // DEPLOYMENT SCOPE (B2): asserts the reference deployment
+ *     vi.unmock("@/config");   // DEPLOYMENT SCOPE
  *
- * That marker is deliberate: it is how deployment-scope tests stay identifiable while they still
- * live in the platform tree, and it is the list B2 moves into `deployment/tests/**`.
+ * Deployment-scope tests live in the deployment's capsule (`deployment/tests/**`) — since
+ * FOUNDATION-DEPLOYMENT-ISO-B2A that is where they belong, and they read the deployment's files
+ * through `@/config/deployment-root`. The marker here is what keeps a generic test honest: a test in
+ * `tests/**` has no business asserting the live deployment, so its expectations stay synthetic.
  */
 import { vi } from "vitest";
 

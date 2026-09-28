@@ -1,7 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment; moves to deployment/tests/**.
+// DEPLOYMENT SCOPE — this test asserts THIS deployment, so it lives in the deployment capsule
+// (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and opts out of the generic synthetic-config
+// default: its subject is the real deployment, never a fixture.
 vi.unmock("@/config");
 
 // The header contains real client controls (Site/Language/Location switches navigate); this suite

@@ -4,11 +4,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment's authored pages; moves to
-// deployment/tests/**.
+// DEPLOYMENT SCOPE — this test asserts THIS deployment's authored pages, so it lives in the
+// deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and opts out of the
+// generic synthetic-config default: its subject is the real deployment, never a fixture.
 vi.unmock("@/config");
-
-
 
 // A page route signals "nothing answers this URL" through `notFound()`. In a node
 // test that is a controlled signal, so it is stubbed — which also lets the
@@ -26,9 +25,9 @@ import PageRoute, {
 import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
+import { deploymentPaths } from "@/config/deployment-root";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { resolveSites } from "@/core/site";
-
 /**
  * THE ONE PAGE MODEL, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1/A1E).
  *
@@ -52,7 +51,18 @@ import { resolveSites } from "@/core/site";
  * authored reference pages are left exactly as they are: a run fixture may add a file
  * beside them, but never overwrites or deletes shipped content.
  */
-const root = process.cwd();
+/**
+ * WHERE THESE FIXTURES GO (FOUNDATION-DEPLOYMENT-ISO-B2A)
+ * ------------------------------------------------------
+ * The deployment's authoring roots are asked of the ONE deployment-root authority
+ * (`@/config/deployment-root`, ISO-B1) — never spelled as a repository-root path here — so a run
+ * fixture is planted in the deployment's own page tree wherever the deployment is kept, and never in
+ * a path this file invented.
+ */
+const PAGES_ROOT = path.dirname(deploymentPaths().markdownPagesRoot);
+const MARKDOWN_PAGES_ROOT = deploymentPaths().markdownPagesRoot;
+const JSON_PAGES_ROOT = deploymentPaths().jsonPagesRoot;
+
 // S1 - these fixtures live in ONE site tree: the deployment default site.
 const SITE = siteConfig.defaultSite.code;
 const MARKDOWN_SLUG = "zz-authoring-fixture";
@@ -70,13 +80,10 @@ const EMPTY_LOCALE_NAME = "zz-empty";
 // characters), holding a page that must therefore never be published.
 const UNCONFIGURED_LOCALE_NAME = "zz-unconf";
 
-const MARKDOWN_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", SITE, "en");
-const EMPTY_LOCALE_DIRECTORY = path.join(root, "content", "pages", "markdown", SITE, EMPTY_LOCALE_NAME);
+const MARKDOWN_LOCALE_DIRECTORY = path.join(MARKDOWN_PAGES_ROOT, SITE, "en");
+const EMPTY_LOCALE_DIRECTORY = path.join(MARKDOWN_PAGES_ROOT, SITE, EMPTY_LOCALE_NAME);
 const UNCONFIGURED_LOCALE_DIRECTORY = path.join(
-  root,
-  "content",
-  "pages",
-  "markdown",
+  MARKDOWN_PAGES_ROOT,
   SITE,
   UNCONFIGURED_LOCALE_NAME,
 );
@@ -86,8 +93,8 @@ const createdPaths = [
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_SLUG}.md`),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, "README.md"),
   path.join(MARKDOWN_LOCALE_DIRECTORY, NESTED_SECTION, `${NESTED_JSON_SLUG}.md`),
-  path.join(root, "content", "pages", "json", SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
-  path.join(root, "content", "pages", SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
+  path.join(JSON_PAGES_ROOT, SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
+  path.join(PAGES_ROOT, SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
 ];
 
 function write(file: string, contents: string): void {
@@ -107,7 +114,7 @@ function jsonDocument(title: string, sections: readonly unknown[]): string {
  */
 function cleanUp(file: string): void {
   rmSync(file, { force: true });
-  const rootsDirectory = path.join(root, "content", "pages");
+  const rootsDirectory = PAGES_ROOT;
   let directory = path.dirname(file);
   while (directory.startsWith(rootsDirectory) && directory !== rootsDirectory) {
     try {
@@ -174,7 +181,7 @@ describe("the one page model, through the real application", () => {
     // A NESTED JSON page: a valid document, so it wins over the Markdown file with the
     // same route and is served by the declarative composer.
     write(
-      path.join(root, "content", "pages", "json", SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
+      path.join(JSON_PAGES_ROOT, SITE, "en", NESTED_SECTION, `${NESTED_JSON_SLUG}.json`),
       jsonDocument("Nested JSON fixture page", [
         { type: "prose", body: "The declarative page wins." },
       ]),
@@ -186,7 +193,7 @@ describe("the one page model, through the real application", () => {
     );
     // A page-shaped file OUTSIDE the two mode roots: never a page source.
     write(
-      path.join(root, "content", "pages", SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
+      path.join(PAGES_ROOT, SITE, "en", `${OUTSIDE_ROOT_SLUG}.md`),
       `---\ntitle: Outside-root page\n---\n\nThis must never be published.\n`,
     );
     // An EMPTY locale directory, and a locale the site does not configure.
@@ -275,14 +282,14 @@ describe("the one page model, through the real application", () => {
 
   it("stops the build when a JSON document is invalid, naming the file and the property", async () => {
     write(
-      path.join(root, "content", "pages", "json", SITE, "en", "zz-invalid.json"),
+      path.join(JSON_PAGES_ROOT, SITE, "en", "zz-invalid.json"),
       `${JSON.stringify({ schemaVersion: 2, title: "Wrong version", sections: [] }, null, 2)}\n`,
     );
     try {
       await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/zz-invalid\.json/);
       await expect(PageRoute(params("zz-invalid"))).rejects.toThrow(/schemaVersion/);
     } finally {
-      cleanUp(path.join(root, "content", "pages", "json", SITE, "en", "zz-invalid.json"));
+      cleanUp(path.join(JSON_PAGES_ROOT, SITE, "en", "zz-invalid.json"));
     }
   });
 
@@ -300,7 +307,7 @@ describe("the one page model, through the real application", () => {
       "content/pages/markdown/README.md",
       "content/pages/json/README.md",
     ]) {
-      expect(existsSync(path.join(root, readme)), readme).toBe(true);
+      expect(existsSync(path.join(deploymentPaths().root, readme)), readme).toBe(true);
     }
 
     // An unknown path, a traversal attempt and the reserved home segment are all 404s.
@@ -379,10 +386,7 @@ describe("the one page model, through the real application", () => {
     const fixtureSite = "gs";
     const fixtureLocale = "zz-home";
     const file = path.join(
-      root,
-      "content",
-      "pages",
-      "markdown",
+      MARKDOWN_PAGES_ROOT,
       fixtureSite,
       fixtureLocale,
       `${HOME_CONTENT_SLUG}.md`,
