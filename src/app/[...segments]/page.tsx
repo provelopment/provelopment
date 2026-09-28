@@ -11,6 +11,7 @@ import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Heading } from "@/components/ui/heading";
 import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/config";
+import { siteDescriptionForLocale } from "@/config/site-metadata";
 import { buildLanguageAlternates } from "@/core/locale";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { pageRoutePathSegments } from "@/core/page-route-path";
@@ -186,22 +187,26 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
   // The locale root: the site's own name and description, whatever answers the page itself.
   if (routePath === "") {
     const canonical = sitePath(site, locale) as string;
+    // R1B — the locale's OWN words for this locale's root (else the deployment's
+    // `site.description`): no page-level summary speaks for the locale root, so the
+    // site speaks for it, in the locale it is being served in.
+    const description = siteDescriptionForLocale(siteConfig, locale);
     return {
-      description: siteConfig.description,
+      description,
       alternates: { canonical, languages: siteAlternates(site) },
       openGraph: buildOpenGraphData({
         baseUrl: siteConfig.url,
         siteName: siteConfig.name,
         locale: localeTag,
         title: siteConfig.name,
-        fallbackDescription: siteConfig.description,
+        fallbackDescription: description,
         url: canonical,
         imageUrl: ogImage,
         alternateLocales,
       }),
       twitter: buildTwitterData({
         title: siteConfig.name,
-        fallbackDescription: siteConfig.description,
+        fallbackDescription: description,
         imageUrl: ogImage,
       }),
     };
@@ -227,9 +232,12 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
       })
     : siteAlternates(site, `/${routePath}`);
 
+  // R1B — a page without its own summary falls back to the SITE's description IN THIS
+  // LOCALE, never to the deployment's default-language sentence.
+  const siteDescription = siteDescriptionForLocale(siteConfig, locale);
   return {
     title: page.title,
-    description: page.description ?? siteConfig.description,
+    description: page.description ?? siteDescription,
     alternates: {
       canonical,
       languages: Object.keys(alternates).length > 0 ? alternates : undefined,
@@ -239,14 +247,14 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
       siteName: siteConfig.name,
       locale: localeTag,
       title: page.title,
-      fallbackDescription: siteConfig.description,
+      fallbackDescription: siteDescription,
       url: canonical,
       imageUrl: ogImage,
       alternateLocales,
     }),
     twitter: buildTwitterData({
       title: page.title,
-      fallbackDescription: siteConfig.description,
+      fallbackDescription: siteDescription,
       imageUrl: ogImage,
     }),
   };

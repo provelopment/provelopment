@@ -50,8 +50,10 @@ describe("Site selector presence and composition", () => {
 
     // Exactly one site control…
     expect(html.match(/data-selector="site"/g)).toHaveLength(1);
-    // …and the selectors that need a second locale / a configured region render none here.
-    expect(html).not.toContain('data-selector="language"');
+    // Exactly one site control, with the SITE label — never the language vocabulary…
+    // …and it stays a DIFFERENT control from the language one, which now renders legitimately
+    // because this deployment serves `en` + `de` (R1B): each keeps its own identity and label.
+    expect(html.match(/data-selector="language"/g)).toHaveLength(1);
     expect(html).not.toContain('data-selector="location"');
   });
 

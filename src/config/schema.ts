@@ -60,6 +60,19 @@ export const localeConfigSchema = z.object({
    * differ. Explicit configuration; never inferred.
    */
   englishLabel: z.string().min(1, "must not be empty").optional(),
+  /**
+   * R1B — the SITE's own words for this locale: the sentence a search engine
+   * or social preview shows for this locale's ROOT page (`/<site>/<locale>`),
+   * where no page-level summary exists to speak for it.
+   *
+   * It exists because `site.description` is ONE string while a deployment may
+   * speak several languages: the locale root's metadata description is the
+   * site's by contract (see `[...segments]/page.tsx`), so a translated locale
+   * root would otherwise advertise `site.description` in another language.
+   * Absent → `site.description` (the documented single-language behaviour, and
+   * why adding this leaf changes no existing deployment).
+   */
+  description: z.string().min(1, "must not be empty").optional(),
 });
 
 /**

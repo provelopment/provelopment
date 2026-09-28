@@ -1,0 +1,98 @@
+{
+  "home": {
+    "tagline": "Ein konfigurierbares Website-Fundament für Ihr Unternehmen",
+    "description": "Dies ist der Startinhalt der Vorlage. Ersetzen Sie ihn – und den Website-Namen in site.config.json – durch Ihre eigenen Inhalte, und legen Sie dann Ihre Seiten unter content/ und Ihre Grafiken in assets/placeholders/ ab."
+  },
+  "sections": {
+    "about": "Über uns",
+    "contact": "Kontakt",
+    "connect": "Verbinden",
+    "navigate": "Navigation"
+  },
+  "navigation": {
+    "primaryLabel": "Hauptnavigation",
+    "footerLabel": "Fußzeilen-Navigation",
+    "moreMenu": "Mehr",
+    "showSidebar": "Navigation einblenden",
+    "hideSidebar": "Navigation ausblenden",
+    "items": {
+      "/": "Startseite",
+      "/about": "Über uns"
+    }
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "message": "Die gesuchte Seite existiert nicht.",
+    "returnHome": "Zur Startseite"
+  },
+  "error": {
+    "title": "Etwas ist schiefgelaufen",
+    "message": "Das tut uns leid. Bitte versuchen Sie es erneut.",
+    "tryAgain": "Erneut versuchen",
+    "returnHome": "Zur Startseite"
+  },
+  "language": {
+    "label": "Sprache"
+  },
+  "site": {
+    "label": "Website"
+  },
+  "layout": {
+    "label": "Layout",
+    "sidebar": "Seitenleiste",
+    "menuBar": "Menüleiste"
+  },
+  "location": {
+    "label": "Standort",
+    "unspecified": "Global"
+  },
+  "business": {
+    "open": "Jetzt geöffnet",
+    "closed": "Geschlossen",
+    "noHours": "Öffnungszeiten nicht verfügbar",
+    "hoursLabel": "Öffnungszeiten",
+    "hoursTimeZoneLabel": "Zeitzone"
+  },
+  "a11y": {
+    "skipToContent": "Zum Inhalt springen"
+  },
+  "contact": {
+    "heading": "Kontakt",
+    "nameLabel": "Name",
+    "emailLabel": "E-Mail",
+    "subjectLabel": "Betreff",
+    "messageLabel": "Nachricht",
+    "submit": "Anfrage senden",
+    "sending": "Wird gesendet…",
+    "honeypotLabel": "Website",
+    "success": "Ihre Anfrage wurde erfolgreich übermittelt.",
+    "demoNotice": "Demo-Modus: Es wurde nichts gesendet. Verbinden Sie einen Webhook, um Anfragen zu erhalten.",
+    "unconfigured": "Das Kontaktformular ist auf dieser Website noch nicht eingerichtet.",
+    "configError": "Das Kontaktformular ist nicht korrekt eingerichtet. Bitte wenden Sie sich direkt an den Betreiber der Website.",
+    "sendError": "Ihre Anfrage konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.",
+    "errors": {
+      "name": "Bitte geben Sie Ihren Namen ein.",
+      "email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+      "subject": "Bitte kürzen Sie den Betreff.",
+      "message": "Bitte geben Sie eine Nachricht ein (bis zu 5000 Zeichen)."
+    }
+  },
+  "legal": {
+    "heading": "Rechtliches",
+    "labels": {
+      "privacy": "Datenschutzerklärung",
+      "terms": "Nutzungsbedingungen",
+      "cookies": "Cookie-Richtlinie"
+    }
+  },
+  "connect": {
+    "heading": "Verbinden",
+    "demoNotice": "Diese Verbindungsoptionen sind Demonstrationen der Vorlage. Nichts davon ist mit einem echten Unternehmen oder Dienst verbunden.",
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Nachricht senden",
+      "email": "E-Mail",
+      "phone": "Telefon"
+    }
+  }
+}

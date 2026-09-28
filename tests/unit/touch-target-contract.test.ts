@@ -16,6 +16,15 @@ vi.mock("react", async (importOriginal) => {
   };
 });
 
+// R1B — the header legitimately renders the Language control once the deployment serves more than
+// one language, and a real language switch is a CLIENT navigation. The router is stubbed here
+// because this suite asserts the shell's TOUCH-TARGET contract; the switching behaviour itself is
+// proved against a real browser in the `reference-content` matrix scenario.
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/ww/en",
+  useRouter: () => ({ push: () => {} }),
+}));
+
 import { SiteHeader } from "@/components/site/site-header";
 import { ShellMobileNav } from "@/components/shell";
 import { siteConfig } from "@/config";
