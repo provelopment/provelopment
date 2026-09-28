@@ -1,61 +1,121 @@
 {
+
   "schemaVersion": 1,
-  "title": "Build a website you can own.",
-  "description": "The Provelopment Foundation template's own reference site: what it is, the two ways to write a page, and how to make it yours.",
+
+  "title": "Build a website you own.",
+
+  "description": "The live reference site for Provelopment Foundation: see how pages are written, how the site adapts, and how to make it your own.",
+
   "sections": [
+
     {
+
       "type": "hero",
-      "lede": "Foundation is an open-source website template designed to be understandable, editable and deployable — without locking the owner into Provelopment.",
+
+      "lede": "Foundation is an open-source website template designed to be understandable, editable and deployable. You can use it yourself, modify it as needed and take it wherever you choose.",
+
       "actions": [
+
         { "label": "See how this site works", "route": "about" },
+
         {
-          "label": "View the Foundation project",
-          "href": "https://foundation.provelopment.com/",
+
+          "label": "View the Foundation repository",
+
+          "href": "https://github.com/provelopment/provelopment-foundation",
+
           "variant": "secondary"
+
         }
+
       ]
+
     },
+
     {
+
       "type": "columns",
+
       "heading": "Two ways to write a page",
+
       "ratio": "equal",
+
       "items": [
+
         {
+
           "title": "Markdown",
-          "body": "For straightforward pages: plain text, with a few simple marks for headings, lists and links. The **About** page of this site is written this way."
+
+          "body": "For straightforward pages, Markdown keeps the content close to plain text, with simple notation for headings, lists and links. The **About** page on this site is written this way."
+
         },
+
         {
+
           "title": "JSON",
-          "body": "For structured pages: you declare the sections — a hero, columns, cards, a table, questions — in a small documented vocabulary. **This page** is written this way."
+
+          "body": "For structured pages, JSON defines sections such as heroes, columns, cards, tables and questions using a documented set of options. **This page** is written this way."
+
         }
+
       ]
+
     },
+
     {
+
       "type": "callout",
+
       "heading": "You own your website",
-      "body": "Staying with Provelopment is a service choice, not a technical hostage situation. The site, its content and its code are yours.",
+
+      "body": "Using Provelopment services is a choice, not a requirement. Your website, its content and its code remain yours.",
+
       "surface": "muted"
+
     },
+
     {
+
       "type": "cards",
+
       "heading": "About this website",
+
       "items": [
+
         {
-          "title": "What this site is",
-          "body": "This is the Foundation template's own reference deployment — the public code, running live, with two example pages written in the two authoring modes.",
+
+          "title": "A working Foundation site",
+
+          "body": "This website is the live reference deployment of the Foundation template. It runs the public code and includes example pages using both supported authoring methods.",
+
           "action": { "label": "Read about this site", "route": "about" }
+
         }
+
       ]
+
     },
+
     {
+
       "type": "prose",
+
       "heading": "Built to adapt",
-      "body": "The **Layout** control in the header switches between the Sidebar and the Menu-bar presentation: the page, its address and its content stay exactly the same. A Foundation site can also serve several languages, several physical Locations and several countries — when a site configures them, their controls appear in that same row. This deployment configures one language and no Locations, so Layout is the only one offered here."
+
+      "body": "The **Layout** control in the header switches between the Sidebar and Menu-bar presentations without changing the page, its address or its content. Foundation can also support multiple languages, physical locations and countries. When those options are configured, their controls appear in the same area. This reference site uses one language and no locations, so only the Layout control is shown."
+
     },
+
     {
+
       "type": "prose",
-      "heading": "Everything here is in the public repository",
-      "body": "This page is data, not a mock-up. It is one file — `home.json` — in the [Provelopment Foundation repository](https://github.com/provelopment/provelopment-foundation), which is also where the About page, the styling and the settings live. Change a file, commit it, push it: the site rebuilds itself. The code is yours to take with you."
+
+      "heading": "The complete site is public",
+
+      "body": "This page is part of the site itself, not a mock-up. Its content comes from a single file — `home.json` — in the Provelopment Foundation repository. The About page, styling and site settings are there as well. Change the files, commit them and push the changes, and the site can rebuild from the updated source. The code remains yours to use, change and deploy elsewhere."
+
     }
+
   ]
+
 }
