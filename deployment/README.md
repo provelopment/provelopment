@@ -12,6 +12,9 @@ each other.
 
 | Path | What it is |
 | --- | --- |
+| `site.config.json` | This deployment's configuration: its sites, languages, locations, contact details, social links, navigation and feature flags. |
+| `config/i18n/` | This deployment's user-visible interface strings, one file per locale. |
+| `content/` | This deployment's authored content: its pages — Markdown, or the declarative JSON mode — and the artwork sources in `content/assets/`. `content/README.md` is the map of what to edit. |
 | `tests/unit/` | This deployment's durable unit-level acceptance: its real configuration, dictionaries, routes, copy and structured data. |
 | `tests/integration/` | This deployment's durable integration acceptance: its authored pages served through the real application. |
 | `tests/browser/` | This deployment's browser acceptance scenario, run by the Foundation's browser harness. |
@@ -19,11 +22,15 @@ each other.
 | `foundation-baseline.json` | The Foundation version this deployment was established from (see below). |
 | `AGENTS.md` | The contract for an agent working on this deployment. |
 
-**Not here yet:** this deployment's configuration, dictionaries, authored pages and artwork still sit
-at the repository root (`site.config.json`, `config/i18n/**`, `content/**`). Those files are deployed
-exactly as they always were; only its *tests* have moved into the capsule so far.
+**The capsule owns the whole deployment.** Its configuration, dictionaries, authored pages and artwork
+sources live here and nowhere else — there is no second copy at the repository root, so a deployment
+change needs no edit outside this directory. The artwork's runtime mirror (`public/assets/**`) is
+generated build output rather than deployment source: `pnpm assets:sync` writes it and
+`pnpm assets:check` proves it is byte-identical to the sources above.
 
 ## How to work on this deployment
+
+The paths in this section are relative to this capsule.
 
 - **A deployment change never requires editing the Foundation.** Change the configuration, the
   dictionaries or the authored pages, run this deployment's validation, and stop there.

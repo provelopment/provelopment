@@ -12,9 +12,10 @@ instruction-manuals/** -text
 
 # Asset artwork is verified BYTE-FOR-BYTE.
 #
-# `content/assets/**` is the SOURCE asset tree and `public/assets/**` is its mirrored
-# runtime derivative (`scripts/sync-runtime-assets.mjs`, `pnpm assets:check`,
-# `tests/unit/asset-taxonomy-mirror.test.ts`). The mirror proof is a SHA-256
+# `deployment/content/assets/**` is the SOURCE asset tree — it belongs to the SELECTED
+# DEPLOYMENT — and `public/assets/**` is its mirrored runtime derivative
+# (`scripts/sync-runtime-assets.mjs`, `pnpm assets:check`,
+# `deployment/tests/unit/asset-taxonomy-mirror.test.ts`). The mirror proof is a SHA-256
 # comparison of the two files as they exist on disk, and the favicon contract
 # compares the branding mark with the favicon derived from it — so no automatic
 # line-ending conversion may rewrite either side. Store source artwork and its
@@ -23,9 +24,10 @@ instruction-manuals/** -text
 # Both paths must stay listed: a rule for a tree that no longer exists would stop
 # protecting the artwork without failing anything visible (FOUNDATION-PAGES-A1D
 # moved the source tree from `assets/` to `content/assets/`, and
-# `tests/unit/asset-taxonomy-mirror.test.ts` now asserts that BOTH paths — and only
-# the current ones — carry `-text`).
-content/assets/** -text
+# FOUNDATION-DEPLOYMENT-ISO-B2B moved that source tree into the deployment capsule;
+# `deployment/tests/unit/asset-taxonomy-mirror.test.ts` now asserts that BOTH paths —
+# and only the current ones — carry `-text`).
+deployment/content/assets/** -text
 public/assets/** -text
 
 # `LICENSE` is the CANONICAL Apache License 2.0 text, installed byte-for-byte

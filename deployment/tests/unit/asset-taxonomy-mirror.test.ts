@@ -238,11 +238,13 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
 
   it("stores the source tree and its mirror byte-verbatim (no EOL conversion)", () => {
     // The mirror proof hashes the two files as they exist on disk, so `.gitattributes`
-    // must keep BOTH trees out of automatic line-ending conversion. A1D moved the
-    // source tree, and a stale rule for the retired path would have silently stopped
-    // protecting the artwork, so the CURRENT paths are asserted here.
+    // must keep BOTH trees out of automatic line-ending conversion. A1D moved the source
+    // tree and B2B moved it into this capsule, and a stale rule for a retired path would
+    // have silently stopped protecting the artwork — so the CURRENT paths are asserted
+    // here: the SOURCE rule follows the deployment, the runtime mirror stays the
+    // repository's generated output.
     const attributes = readFileSync(path.join(ROOT, ".gitattributes"), "utf8");
-    for (const rule of ["content/assets/** -text", "public/assets/** -text"]) {
+    for (const rule of ["deployment/content/assets/** -text", "public/assets/** -text"]) {
       expect(attributes, rule).toContain(rule);
     }
     expect(attributes, "a rule for the retired assets/ tree must be gone").not.toMatch(
