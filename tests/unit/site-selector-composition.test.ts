@@ -13,15 +13,6 @@ import { describe, expect, it, vi } from "vitest";
 // configuration) comes from the SYNTHETIC test deployment, never from the repository's own
 // deployment. See tests/support/synthetic-deployment.ts — the copy is disposable and the committed
 // fixture is only ever its source.
-vi.mock("@/config/deployment-root", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/config/deployment-root")>();
-  const { syntheticDeploymentPaths } = await import("../support/synthetic-deployment");
-  return {
-    ...actual,
-    deploymentLayout: () => "override" as const,
-    deploymentPaths: () => syntheticDeploymentPaths(),
-  };
-});
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/ww/en",

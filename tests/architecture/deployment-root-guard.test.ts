@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveDeploymentForBuild } from "@/config/deployment-build.mjs";
 import { deploymentPaths } from "@/config/deployment-root";
 
+import { syntheticDeploymentPaths } from "../support/synthetic-deployment";
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/ww/en",
   useRouter: () => ({ push: () => {} }),
@@ -145,36 +147,102 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     expect(readers.map((file) => path.relative(ROOT, file))).toEqual([]);
   });
 
-  it("keeps the build harness out of the application: only the two config files import it", () => {
-    const importers = sourceFiles(path.join(ROOT, "src"))
-      .concat([path.join(ROOT, "next.config.ts"), path.join(ROOT, "vitest.config.mts")])
-      .filter((file) =>
-        // Any specifier ending in the harness module (`…/deployment-build.mjs`) — the extension is
-        // the module FORMAT and may change; the import being confined to these two files may not.
-        codeLines(file).some((line) => /from\s+["'][^"']*deployment-build[^"']*["']/.test(line)),
-      );
-    expect(importers.map((file) => path.relative(ROOT, file)).sort()).toEqual([
+  it("keeps the build harness out of the application, and on its approved boundaries", () => {
+    // CLIENT SAFETY is the property that matters: the harness touches `node:fs`, so an application
+    // module that imported it would drag a filesystem import into a client chunk.
+    const importsHarness = (file: string) =>
+      codeLines(file).some((line) => /from\s+["'][^"']*deployment-build[^"']*["']/.test(line));
+
+    const applicationImporters = sourceFiles(path.join(ROOT, "src")).filter(importsHarness);
+    expect(applicationImporters.map((file) => path.relative(ROOT, file))).toEqual([]);
+
+    // Every other consumer is a NON-bundled boundary: the build (`next.config.ts`), the Foundation's
+    // own Node tooling (`scripts/sync-runtime-assets.mjs`) and the test-context setup/support modules
+    // that select a deployment for the two Vitest projects (ISO-H2). Nothing else may join the list —
+    // in particular not `vitest.config.mts`, which deliberately resolves NO deployment: the generic
+    // suite must run in a repository where no real deployment exists.
+    const approved = [
       "next.config.ts",
-      "vitest.config.mts",
-    ]);
+      "scripts/sync-runtime-assets.mjs",
+      "tests/architecture/deployment-root-guard.test.ts",
+      "tests/setup/real-deployment.ts",
+      "tests/support/synthetic-deployment-root.ts",
+    ];
+    const unapproved = sourceFiles(path.join(ROOT, "tests"))
+      .concat(sourceFiles(path.join(ROOT, "scripts")), [path.join(ROOT, "next.config.ts")])
+      .filter(importsHarness)
+      .map((file) => path.relative(ROOT, file).split(path.sep).join("/"))
+      .filter((file) => !approved.includes(file));
+    expect(unapproved).toEqual([]);
   });
 });
 
 describe("the build selects exactly one deployment", () => {
-  it("resolves the CURRENT repository layout when nothing else is selected", () => {
-    const resolved = resolveDeploymentForBuild({}, ROOT);
-    expect(resolved.layout).toBe("repository");
-    expect(resolved.root).toBe(ROOT);
-    expect(JSON.parse(resolved.config)).toEqual(JSON.parse(readFileSync(resolved.siteConfigFile, "utf8")));
-    // The build's choice and the runtime authority agree: repository layout, the repository root,
-    // and the deployment-owned locations exactly where they are today. Paths are published with
-    // forward slashes (valid on every platform Node/Next support), so compare normalised.
+  it("resolves the REPOSITORY layout for a repository that has no capsule (never 'this checkout')", () => {
+    // ISO-H2 — this assertion used to pin the CURRENT checkout to the repository layout, which states
+    // today's install rather than the architecture: a valid consumer repository may contain a capsule.
+    // The rule is therefore exercised on a controlled temporary repository, where the expected answer
+    // is unambiguous.
+    const root = mkdtempSync(path.join(tmpdir(), "foundation-repository-layout-"));
+    try {
+      writeFileSync(
+        path.join(root, "site.config.json"),
+        JSON.stringify({ repository: true }),
+        "utf8",
+      );
+      const resolved = resolveDeploymentForBuild({}, root);
+      expect(resolved.layout).toBe("repository");
+      expect(resolved.root).toBe(root);
+      expect(resolved.siteConfigFile).toBe(path.join(root, "site.config.json"));
+      expect(JSON.parse(resolved.config)).toEqual({ repository: true });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("publishes deployment-owned locations RELATIVE to the selected root, in every layout", () => {
+    // The runtime authority derives its answer from the selection, never from a literal beside it, so
+    // the same rule holds in the repository layout, in a capsule and under a test override.
     const paths = deploymentPaths();
     const normalise = (value: string) => value.replace(/\\/g, "/");
-    expect(paths.layout).toBe("repository");
-    expect(normalise(paths.root)).toBe(normalise(ROOT));
-    expect(normalise(paths.dictionaryDirectory)).toBe(`${normalise(ROOT)}/config/i18n`);
-    expect(normalise(paths.markdownPagesRoot)).toBe(`${normalise(ROOT)}/content/pages/markdown`);
+    expect(["repository", "capsule", "override"]).toContain(paths.layout);
+    for (const location of [
+      paths.siteConfigFile,
+      paths.dictionaryDirectory,
+      paths.dictionaryOverrideDirectory,
+      paths.markdownPagesRoot,
+      paths.jsonPagesRoot,
+      paths.assetSourceRoot,
+    ]) {
+      expect(normalise(location).startsWith(normalise(paths.root)), location).toBe(true);
+    }
+    // …while the runtime mirror is the ONE platform-owned location and never follows a deployment.
+    expect(normalise(paths.publicAssetsDirectory)).toBe(
+      normalise(path.join(ROOT, "public", "assets")),
+    );
+  });
+
+  it("gives the GENERIC test project a synthetic identity, never the installed deployment", () => {
+    // ISO-H2 — the decisive isolation property, asserted where it is enforced: the generic project
+    // selects the synthetic deployment before any test module loads
+    // (`tests/setup/synthetic-deployment.ts`), so BOTH identity surfaces — the selected configuration
+    // (`@/config`) and the filesystem identity (`deploymentPaths()`) — describe that deployment.
+    const paths = deploymentPaths();
+    const synthetic = syntheticDeploymentPaths();
+    // Paths are published with forward slashes by the authority (valid on every platform Node/Next
+    // support) while the support helper builds them with `path.join`, so compare normalised.
+    const normalise = (value: string) => value.replace(/\\/g, "/");
+    expect(paths.layout).toBe("override");
+    expect(normalise(paths.root)).toBe(normalise(synthetic.root));
+    expect(normalise(paths.siteConfigFile)).toBe(normalise(synthetic.siteConfigFile));
+    expect(normalise(paths.dictionaryDirectory)).toBe(normalise(synthetic.dictionaryDirectory));
+    expect(normalise(paths.markdownPagesRoot)).toBe(normalise(synthetic.markdownPagesRoot));
+    expect(normalise(paths.jsonPagesRoot)).toBe(normalise(synthetic.jsonPagesRoot));
+    expect(normalise(paths.assetSourceRoot)).toBe(normalise(synthetic.assetSourceRoot));
+    // The synthetic root is a disposable temporary tree outside the checkout: a generic test may plant
+    // and remove fixtures freely without touching any committed deployment.
+    expect(paths.root.startsWith(ROOT + path.sep)).toBe(false);
+    expect(existsSync(path.join(paths.root, "site.config.json"))).toBe(true);
   });
 
   it("resolves a CAPSULE at <repo>/deployment when one exists — with no root config involved", () => {

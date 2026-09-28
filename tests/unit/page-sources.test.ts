@@ -4,18 +4,23 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { createPageSources } from "@/adapters/content/page-sources";
+import { deploymentPaths } from "@/config/deployment-root";
 import { resolveSites } from "@/core/site";
 
 /**
  * THE COMPOSITION, END TO END (FOUNDATION-PAGES-A1; two-mode contract, A1C).
  *
- * These fixtures live under a test-only locale directory (`zz-srcs`) in the REAL
- * authoring roots, so the declared precedence is proven on the real layout, not on
- * stubs. A fixture is ALSO planted under `content/pages/<locale>/` to prove the
- * collection path is not a page source at all: it can neither serve a page nor shadow
- * one. Everything is removed afterwards.
+ * These fixtures live under a test-only locale directory (`zz-srcs`) in the SELECTED deployment's own
+ * authoring roots, so the declared precedence is proven on a real layout, not on stubs. A fixture is
+ * ALSO planted under `content/pages/<locale>/` to prove the collection path is not a page source at
+ * all: it can neither serve a page nor shadow one. Everything is removed afterwards.
+ *
+ * ISO-H2 — `root` is the deployment authority's answer, never `process.cwd()`: in the generic project
+ * that is the SYNTHETIC deployment's disposable temporary tree, so this suite plants, reads and removes
+ * its fixtures without touching any committed deployment — and it keeps working after B2B moves the real
+ * deployment's content into its capsule.
  */
-const root = process.cwd();
+const root = deploymentPaths().root;
 // A locale UNIQUE to this suite: vitest runs test FILES in parallel, so two suites
 // sharing one fixture locale would overwrite each other's fixtures.
 const SOURCES_LOCALE = "zz-srcs";

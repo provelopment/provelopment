@@ -85,9 +85,10 @@ describe("P12-FG — schema / backward compatibility", () => {
     expect(siteConfig.assets?.footerGraphic).toBeUndefined();
     expect(availableFooterGraphicPath(siteConfig.assets?.footerGraphic)).toBeUndefined();
     // The blank placeholder still ships, so activating the role is one config
-    // line and needs no artwork at all.
+    // line and needs no artwork at all. ISO-H2 — that the runtime file IS the placeholder source
+    // (byte-identical) is asserted by the deployment's own acceptance suite, because the mirror is
+    // generated from the SELECTED deployment.
     const shipped = readFileSync(path.join(root, "public", "assets", "footer-graphic.svg"), "utf8");
-    expect(shipped).toBe(readFileSync(path.join(root, "content", "assets", "placeholders", "footer-graphic.svg"), "utf8"));
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|line|image|text)\b/i);
   });
 });
