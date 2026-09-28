@@ -48,6 +48,7 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { deploymentPaths } from "@/config/deployment-root";
 import {
   pageRouteChildDirectories,
   pageRoutePathFromFile,
@@ -63,18 +64,19 @@ import { isLocalePathKey } from "@/core/site-locale";
 import { isCanonicalSiteCode } from "@/core/site-code";
 
 /**
- * The absolute authoring roots, built from LITERALS only.
+ * The absolute authoring roots, taken from the ONE deployment-root authority.
  *
  * The build traces filesystem access statically, and a path it cannot resolve makes it
  * trace the WHOLE project into the server bundle ("Dynamic filesystem access causes
- * tracing of the whole project"). These two constants are fully static, so every path
- * below is `path.join(<static root>, <opaque locale>, <opaque route path>)` — the shape
- * the tracer resolves. Nothing here returns a path from a function, and no path is built
- * by concatenating a computed path with an extension: both defeat the analysis and
- * silently inflate every deployment.
+ * tracing of the whole project"). The authority therefore selects between PRE-DECLARED
+ * literal `path.join(<cwd>, <literal…>)` roots and hands back the selected constant, so the
+ * shape below is unchanged: `path.join(<static root>, <opaque locale>, <opaque route path>)`
+ * is still what every call site builds. Nothing here returns a path from a function, and no
+ * path is built by concatenating a computed path with an extension: both defeat the analysis
+ * and silently inflate every deployment.
  */
-const MARKDOWN_ROOT = path.join(process.cwd(), "content", "pages", "markdown");
-const JSON_ROOT = path.join(process.cwd(), "content", "pages", "json");
+const MARKDOWN_ROOT = deploymentPaths().markdownPagesRoot;
+const JSON_ROOT = deploymentPaths().jsonPagesRoot;
 
 /** The one of those two roots a mode reads from. */
 function authoringRoot(mode: PageAuthoringMode): string {

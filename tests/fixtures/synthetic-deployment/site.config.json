@@ -1,0 +1,70 @@
+{
+  "site": {
+    "url": "https://synthetic.example.test",
+    "name": "Synthetic Deployment",
+    "tagline": "A synthetic deployment for generic Foundation tests",
+    "description": "Test-only configuration. This deployment exists so generic Foundation contracts can be proved without depending on, or mutating, any real deployment.",
+    "assets": {
+      "favicon": "https://synthetic.example.test/assets/favicon.svg"
+    }
+  },
+  "i18n": {
+    "defaultLocale": "en",
+    "locales": [
+      { "code": "en", "label": "English", "englishLabel": "English" },
+      { "code": "de", "label": "Deutsch", "description": "Synthetische Beschreibung." }
+    ]
+  },
+  "sites": [
+    { "code": "ww", "label": "Global" },
+    {
+      "code": "ca",
+      "label": "Canada",
+      "locales": ["en"],
+      "defaultLocale": "en"
+    }
+  ],
+  "defaultSite": "ww",
+  "contact": {
+    "email": "fixture@example.test"
+  },
+  "business": {
+    "regions": {
+      "north": {
+        "timezone": "America/Toronto",
+        "name": "North",
+        "label": "North",
+        "address": { "street": "1 Fixture Street", "city": "Fixtureville", "country": "Canada" },
+        "hours": {}
+      },
+      "south": {
+        "timezone": "America/Toronto",
+        "name": "South",
+        "label": "South",
+        "address": { "street": "2 Fixture Street", "city": "Fixtureville", "country": "Canada" },
+        "hours": {}
+      }
+    },
+    "pages": [
+      { "site": "ca", "locale": "en", "region": "north" },
+      { "site": "ca", "locale": "en", "region": "south" }
+    ]
+  },
+  "socialLinks": [],
+  "navigation": [
+    { "label": "Home", "href": "/", "iconOpen": "icon-home.svg", "iconClosed": "icon-home.svg" },
+    { "label": "About", "href": "/about", "iconOpen": "icon-about.svg", "iconClosed": "icon-about.svg" }
+  ],
+  "features": {
+    "analytics": { "provider": "none" },
+    "maps": { "provider": "none" },
+    "booking": { "provider": "none" },
+    "contact": { "provider": "stub" }
+  },
+  "ui": {
+    "density": "comfortable",
+    "content": { "width": "standard" },
+    "theme": { "mode": "system", "radius": "medium" },
+    "layoutSwitcher": { "enabled": true, "default": "sidebar" }
+  }
+}

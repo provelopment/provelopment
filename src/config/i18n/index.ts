@@ -1,18 +1,21 @@
-import path from "node:path";
-
 import type { BookingFeatureConfig } from "@/core/booking";
 import type { Locale } from "@/core/locale";
 
+import { deploymentPaths } from "../deployment-root";
 import { siteConfig } from "../loader";
 import type { Dictionary } from "./dictionary";
 import { loadDictionaryRegistry } from "./registry";
 
-const dictionaryDirectory = path.join(process.cwd(), "config", "i18n");
+// The dictionaries belong to the DEPLOYMENT, so their location comes from the ONE deployment-root
+// authority — never from a path spelled here. In the transitional repository layout this resolves
+// to `<repo>/config/i18n` exactly as before. SERVER-ONLY module: `@/config/i18n` is never imported
+// by a client component (its registry reads the filesystem by design).
+const dictionaryDirectory = deploymentPaths().dictionaryDirectory;
 
 // S1E2 — the OPTIONAL site+locale overrides live in a `sites/` folder BESIDE the shared
 // dictionaries, one `config/i18n/sites/<site>/<locale>.json` per (site, locale) that speaks
 // differently. Absent → every site is exactly the shared dictionary (the ordinary deployment).
-const dictionaryOverrideDirectory = path.join(dictionaryDirectory, "sites");
+const dictionaryOverrideDirectory = deploymentPaths().dictionaryOverrideDirectory;
 
 // Built once at module load (build time). Discovery is data-driven: the set of
 // available dictionaries comes from the `config/i18n/` directory (validated

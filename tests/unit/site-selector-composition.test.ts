@@ -50,11 +50,12 @@ describe("Site selector presence and composition", () => {
 
     // Exactly one site control…
     expect(html.match(/data-selector="site"/g)).toHaveLength(1);
-    // Exactly one site control, with the SITE label — never the language vocabulary…
-    // …and it stays a DIFFERENT control from the language one, which now renders legitimately
-    // because this deployment serves `en` + `de` (R1B): each keeps its own identity and label.
+    // …and it stays a DIFFERENT control from the language and location ones, which render
+    // legitimately for the SYNTHETIC test deployment (it serves `en` + `de`, and it binds locations
+    // to its `ca` site): each control keeps its own identity.
     expect(html.match(/data-selector="language"/g)).toHaveLength(1);
-    expect(html).not.toContain('data-selector="location"');
+    expect(html.match(/data-selector="location"/g)).toHaveLength(1);
+    expect(getDictionary("en").location.label).not.toBe(getDictionary("en").site.label);
   });
 
   it("keeps the site label out of the language vocabulary", () => {
