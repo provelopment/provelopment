@@ -1,12 +1,76 @@
 name: CI
 
+# ── CHANGE-SCOPED VALIDATION (FOUNDATION-DEPLOYMENT-ISO-B3B) ─────────────────
+#
+# One question decides what this workflow runs: WHO OWNS THE CHANGE?
+# `scripts/ci/change-scope.mjs` answers it from the Git diff ALONE — never from a commit message, a
+# PR label or a human's choice — and the jobs below run exactly the already-proven contract that
+# ownership requires. The ownership model, the routing table and the reasoning live in that ONE
+# module; this file is orchestration.
+#
+#   documentation  repository/documentation hygiene only: no install, no build, no test, no browser
+#   deployment     the capsule's own contract, and ZERO Foundation test/browser execution
+#   foundation     the generic contract, plus a bounded canary against the ONE reference deployment
+#   full           the complete gate — every shared, mixed, retired or unrecognised change
+#
+# Unknown or ambiguous ownership always BROADENS validation, never skips it.
+#
+# `validate` is the single required status context on `main`. It runs ALWAYS — including when a route
+# job was skipped — and fails whenever the selected route failed, so a skipped route can never be
+# mistaken for a pass.
+
 on:
   push:
     branches: [main, staging]
   pull_request:
 
 jobs:
-  validate:
+  # ── WHO OWNS THIS CHANGE ────────────────────────────────────────────────────
+  classify:
+    name: classify
+    runs-on: ubuntu-latest
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+      base: ${{ steps.scope.outputs.base }}
+      head: ${{ steps.scope.outputs.head }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Both endpoints of the change must be present for the classifier to answer at all; a
+          # shallow checkout could not, and would force the complete gate on every single run.
+          fetch-depth: 0
+
+      - name: Classify the change
+        id: scope
+        # No toolchain setup and no install: the classifier is dependency-free Node, which is what
+        # lets the documentation route below run nothing but repository hygiene.
+        run: node scripts/ci/change-scope.mjs --event-file "$GITHUB_EVENT_PATH" --github-output "$GITHUB_OUTPUT"
+
+  # ── DOCUMENTATION ───────────────────────────────────────────────────────────
+  documentation:
+    name: documentation
+    needs: classify
+    if: needs.classify.outputs.scope == 'documentation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Repository hygiene — whitespace errors and conflict markers
+        env:
+          BASE: ${{ needs.classify.outputs.base }}
+          HEAD: ${{ needs.classify.outputs.head }}
+        run: git diff --check "$BASE".."$HEAD"
+
+  # ── DEPLOYMENT ──────────────────────────────────────────────────────────────
+  # The capsule's own contract, and NOTHING of the Foundation's test surfaces: no `test:foundation`
+  # and no `test:browser:foundation` here, however broad this repository's gate used to be. The
+  # deployment's own suite proves the deployment; the generic contract is the Foundation's job.
+  deployment:
+    name: deployment
+    needs: classify
+    if: needs.classify.outputs.scope == 'deployment'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,18 +86,31 @@ jobs:
 
       - run: pnpm assets:check
 
+      - run: pnpm country-codes:check
+
       - run: pnpm exec tsc --noEmit
 
       - run: pnpm lint
 
-      - run: pnpm test
+      - run: pnpm test:deployment
 
       - run: pnpm build
 
-  # UI-10 D5: the committed cross-preset browser/accessibility gate. Drives real
-  # headless Chrome via CDP (Node's built-in WebSocket + fetch; no Playwright/
-  # Cypress). GitHub ubuntu-latest runners ship a stable Chrome.
-  browser-matrix:
+      - run: pnpm test:browser:deployment
+
+  # ── FOUNDATION ──────────────────────────────────────────────────────────────
+  # The generic contract, then ONE bounded canary: the reference deployment installed today. The
+  # canary IS the deployment route's contract, so the platform proves both that it satisfies its own
+  # contracts and that it still fits a real installation — the check that must NOT scale with the
+  # number of deployments that will exist. A Foundation change never runs "every deployment"; a
+  # second deployment's acceptance belongs to its own capsule and its own CI.
+  #
+  # The browser matrix drives real headless Chrome via CDP (Node's built-in WebSocket + fetch; no
+  # Playwright/Cypress). GitHub ubuntu-latest runners ship a stable Chrome.
+  foundation:
+    name: foundation
+    needs: classify
+    if: needs.classify.outputs.scope == 'foundation'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -47,6 +124,111 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm assets:check
+
+      - run: pnpm country-codes:check
+
       - run: pnpm exec tsc --noEmit
 
-      - run: pnpm run test:browser
+      - run: pnpm lint
+
+      - run: pnpm test:foundation
+
+      - run: pnpm build
+
+      - run: pnpm test:browser:foundation
+
+      - name: Reference-deployment canary — the deployment's acceptance contract
+        run: pnpm test:deployment
+
+      - name: Reference-deployment canary — the deployment's own browser acceptance
+        run: pnpm test:browser:deployment
+
+  # ── SHARED / MIXED — THE COMPLETE GATE ──────────────────────────────────────
+  # Everything the repository gate has always run, unchanged. This is the route for shared paths
+  # (manifests, lockfiles, build/CI configuration, platform scripts, the shared test harness, the
+  # runtime mirror), for mixed Foundation+deployment changes, for retired root locations and for
+  # anything the classifier cannot recognise — so the complete gate is never bypassed, only reached
+  # deliberately.
+  full:
+    name: full
+    needs: classify
+    if: needs.classify.outputs.scope == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Repository hygiene — whitespace errors and conflict markers
+        env:
+          BASE: ${{ needs.classify.outputs.base }}
+          HEAD: ${{ needs.classify.outputs.head }}
+        run: git diff --check "$BASE".."$HEAD"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm assets:check
+
+      - run: pnpm country-codes:check
+
+      - run: pnpm exec tsc --noEmit
+
+      - run: pnpm lint
+
+      - run: pnpm test
+
+      - run: pnpm build
+
+      - run: pnpm test:browser
+
+  # ── THE ONE REQUIRED RESULT ─────────────────────────────────────────────────
+  # `validate` is the required status context on `main`, and the only check branch protection has to
+  # understand. It runs ALWAYS — `if: always()` — so a skipped route is a fact this job REPORTS,
+  # never an absence a reviewer has to interpret. It passes only when the classifier succeeded AND
+  # the SELECTED route succeeded; every other outcome, including an unknown scope, fails it.
+  validate:
+    name: validate
+    needs: [classify, documentation, deployment, foundation, full]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate the routed result
+        env:
+          SCOPE: ${{ needs.classify.outputs.scope }}
+          CLASSIFY: ${{ needs.classify.result }}
+          DOCUMENTATION: ${{ needs.documentation.result }}
+          DEPLOYMENT: ${{ needs.deployment.result }}
+          FOUNDATION: ${{ needs.foundation.result }}
+          FULL: ${{ needs.full.result }}
+        run: |
+          set -euo pipefail
+          echo "change scope: ${SCOPE:-<none>}"
+          echo "job results: classify=${CLASSIFY} documentation=${DOCUMENTATION} deployment=${DEPLOYMENT} foundation=${FOUNDATION} full=${FULL}"
+          if [ "$CLASSIFY" != "success" ]; then
+            echo "::error::the change-scope classifier did not succeed (${CLASSIFY}) — no route can be trusted, so this run FAILS."
+            exit 1
+          fi
+          case "$SCOPE" in
+            documentation) selected="$DOCUMENTATION" ;;
+            deployment)    selected="$DEPLOYMENT" ;;
+            foundation)    selected="$FOUNDATION" ;;
+            full)          selected="$FULL" ;;
+            *)
+              echo "::error::the classifier reported an unknown scope \"${SCOPE}\" — refusing to report success."
+              exit 1
+              ;;
+          esac
+          echo "selected route: ${SCOPE} -> ${selected}"
+          if [ "$selected" != "success" ]; then
+            echo "::error::the ${SCOPE} route did not succeed (${selected})."
+            exit 1
+          fi
+          echo "CI OK — the ${SCOPE} route passed; every other route was skipped by ownership."
