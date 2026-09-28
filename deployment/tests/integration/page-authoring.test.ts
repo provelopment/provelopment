@@ -111,12 +111,21 @@ function jsonDocument(title: string, sections: readonly unknown[]): string {
  * Remove a file, then the folders it needed ONLY while they are empty — never a
  * recursive delete and never past the page roots, so a developer's own pages are safe
  * and a run leaves no fixture directory behind.
+ *
+ * THE COMPARISON IS NORMALISED (ISO-C1). `@/config/deployment-root` publishes its
+ * deployment-owned paths with FORWARD slashes (`${root}/content/pages/markdown`) while the
+ * fixture paths above are composed with `path.join`, which uses the platform separator. On
+ * Windows the raw `startsWith` therefore never matched, the walk pruned NOTHING, and every
+ * directory this suite created stayed behind in the real deployment's page tree
+ * (`markdown/gs/zz-home`, `markdown/ww/en/zz-section`, `json/ww/en/zz-section`, `ww/en`).
+ * Comparing `path.resolve`d paths with an explicit separator boundary is correct on every
+ * platform, and cannot match a sibling whose name merely shares a prefix.
  */
 function cleanUp(file: string): void {
   rmSync(file, { force: true });
-  const rootsDirectory = PAGES_ROOT;
-  let directory = path.dirname(file);
-  while (directory.startsWith(rootsDirectory) && directory !== rootsDirectory) {
+  const rootsDirectory = path.resolve(PAGES_ROOT);
+  let directory = path.resolve(path.dirname(file));
+  while (directory.startsWith(rootsDirectory + path.sep)) {
     try {
       rmdirSync(directory);
     } catch {
