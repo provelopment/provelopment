@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import { resolveDeploymentForBuild } from "@/config/deployment-build";
+import { resolveDeploymentForBuild } from "@/config/deployment-build.mjs";
 import { deploymentPaths } from "@/config/deployment-root";
 
 vi.mock("next/navigation", () => ({
@@ -29,23 +29,27 @@ const ROOT = process.cwd();
 const AUTHORITY = path.join(ROOT, "src", "config", "deployment-root.ts");
 /**
  * The BUILD/CONFIG-harness module. It is the one other file that may anchor on `process.cwd()` and
- * read a deployment's configuration, because it runs at build/configuration time in Node. The
- * assertion below covers the APPLICATION surface — `src/**` — plus the two configuration files and
- * expects exactly `next.config.ts` and `vitest.config.mts` there, so no client chunk and no
- * application module can reach it. Build tooling OUTSIDE that surface may legitimately use the same
- * seam: the asset pipeline does (`scripts/sync-runtime-assets.mjs`, FOUNDATION-DEPLOYMENT-ISO-H1),
- * because a generator that mirrors deployment-owned assets must resolve them exactly as the build
- * does — one seam, not a second mechanism.
+ * read a deployment's configuration, because it runs at build/configuration time in Node — and it is
+ * PLAIN ESM (FOUNDATION-DEPLOYMENT-ISO-H1C) so that all three of its runtimes — the build
+ * (`next.config.ts`), the test run (`vitest.config.mts`) and the Foundation's Node tooling
+ * (`scripts/sync-runtime-assets.mjs`) — consume the SAME authority with no TypeScript execution flag
+ * and no loader or warning suppression. The assertion below covers the APPLICATION surface — `src/**`
+ * — plus the two configuration files and expects exactly `next.config.ts` and `vitest.config.mts`
+ * there, so no client chunk and no application module can reach it.
  */
-const BUILD_HARNESS = path.join(ROOT, "src", "config", "deployment-build.ts");
+const BUILD_HARNESS = path.join(ROOT, "src", "config", "deployment-build.mjs");
 
-/** Every TypeScript/TSX file under `src/`, excluding the one authority. */
+/**
+ * Every module under `src/` this guard polices: TypeScript/TSX sources AND plain-ESM `.mjs` modules
+ * — the build harness is one of the latter, so the scan surface must never depend on a file
+ * extension (a `.mjs` deployment path would otherwise escape this guard).
+ */
 function sourceFiles(directory: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(directory)) {
     const full = path.join(directory, entry);
     if (statSync(full).isDirectory()) found.push(...sourceFiles(full));
-    else if (full.endsWith(".ts") || full.endsWith(".tsx")) found.push(full);
+    else if (full.endsWith(".ts") || full.endsWith(".tsx") || full.endsWith(".mjs")) found.push(full);
   }
   return found;
 }
@@ -145,7 +149,9 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     const importers = sourceFiles(path.join(ROOT, "src"))
       .concat([path.join(ROOT, "next.config.ts"), path.join(ROOT, "vitest.config.mts")])
       .filter((file) =>
-        codeLines(file).some((line) => /from\s+["'][^"']*deployment-build["']/.test(line)),
+        // Any specifier ending in the harness module (`…/deployment-build.mjs`) — the extension is
+        // the module FORMAT and may change; the import being confined to these two files may not.
+        codeLines(file).some((line) => /from\s+["'][^"']*deployment-build[^"']*["']/.test(line)),
       );
     expect(importers.map((file) => path.relative(ROOT, file)).sort()).toEqual([
       "next.config.ts",

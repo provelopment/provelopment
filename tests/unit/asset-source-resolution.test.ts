@@ -17,7 +17,7 @@ import {
  *
  * `scripts/sync-runtime-assets.mjs` mirrors deployment-owned SOURCE artwork into the repository's
  * GENERATED `public/assets/**` runtime tree. The source tree is deployment state, so its location
- * must come from the ONE build/deployment seam (`src/config/deployment-build.ts`) — the same answer
+ * must come from the ONE build/deployment seam (`src/config/deployment-build.mjs`) — the same answer
  * `next.config.ts` and `vitest.config.mts` receive — in every supported layout.
  *
  * The defect this suite guards against is a measured one: the ISO-B2B migration moved the reference
@@ -139,8 +139,22 @@ describe("the asset pipeline uses the ONE seam, and keeps the two ownership conc
   /** CODE lines only: the header legitimately names the layouts and the seam in prose. */
   const code = script.split(/\r?\n/).filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line));
 
-  it("asks the build seam which deployment this is, instead of implementing a second mechanism", () => {
-    expect(code.some((line) => /from\s+["'][^"']*deployment-build[^"']*["']/.test(line))).toBe(true);
+  it("consumes the shared authority as PLAIN ESM, so no loader flags are needed to run it", () => {
+    // FOUNDATION-DEPLOYMENT-ISO-H1C: the authority is a plain `.mjs` module, so `node` executes the
+    // asset script directly — the same module Next and Vitest import, with no TypeScript execution
+    // flag and no loader-warning suppression (the H1 form of this import needed both).
+    expect(code.some((line) => /from\s+["'][^"']*deployment-build\.mjs["']/.test(line))).toBe(true);
+    const manifest = JSON.parse(
+      readFileSync(path.join(process.cwd(), "package.json"), "utf8"),
+    ) as { scripts: Record<string, string> };
+    for (const name of ["build", "assets:sync", "assets:check"]) {
+      expect(manifest.scripts[name], `${name} must run the asset script with plain node`).toMatch(
+        /^node scripts\/sync-runtime-assets\.mjs/,
+      );
+      expect(manifest.scripts[name], `${name} must not need Node loader flags`).not.toMatch(
+        /--experimental-strip-types|--disable-warning|--loader/,
+      );
+    }
     // No capsule sniffing of its own, and no independent parsing of the deployment-root env: the
     // seam is the ONLY place that answers "which deployment is this?".
     for (const line of code) {

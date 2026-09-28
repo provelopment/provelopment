@@ -4,13 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync-runtime-assets.mjs && next build",
+    "build": "node scripts/sync-runtime-assets.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
     "test:browser": "node tests/browser/matrix.mjs",
-    "assets:sync": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync-runtime-assets.mjs",
-    "assets:check": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/sync-runtime-assets.mjs --check"
+    "assets:sync": "node scripts/sync-runtime-assets.mjs",
+    "assets:check": "node scripts/sync-runtime-assets.mjs --check"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

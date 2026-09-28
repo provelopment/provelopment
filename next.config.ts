@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-import { deploymentEnvironment, resolveDeploymentForBuild } from "./src/config/deployment-build";
+import { deploymentEnvironment, resolveDeploymentForBuild } from "./src/config/deployment-build.mjs";
 
 /**
  * THE DEPLOYMENT ROOT, RESOLVED BY THE BUILD (FOUNDATION-DEPLOYMENT-ISO-B1C)

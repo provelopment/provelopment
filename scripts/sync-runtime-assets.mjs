@@ -50,10 +50,9 @@
  * while the runtime target is always `<repo>/public/assets/`. This script never inspects which
  * customer or deployment it is processing: swap the deployment and the pipeline follows it.
  *
- * The seam is TypeScript and this script is plain ESM, so `package.json` invokes it with
- * `--experimental-strip-types` (Node ≥22.6; a no-op on Node ≥23.6, where type stripping is already
- * on by default) and the seam is imported by its explicit `.ts` path. `--disable-warning` only
- * silences the module-type notice Node prints for that import; it changes no behaviour.
+ * The seam is PLAIN ESM (`src/config/deployment-build.mjs`), so this script imports it directly and
+ * Node runs both natively: `package.json` needs no TypeScript execution flag and no loader or
+ * warning suppression for the asset commands (FOUNDATION-DEPLOYMENT-ISO-H1C).
  *
  * USAGE
  *   node scripts/sync-runtime-assets.mjs           # write the runtime mirror
@@ -64,12 +63,12 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-// THE ONE DEPLOYMENT-SELECTION SEAM (FOUNDATION-DEPLOYMENT-ISO-H1)
+// THE ONE DEPLOYMENT-SELECTION SEAM (FOUNDATION-DEPLOYMENT-ISO-H1 / H1C)
 // The asset SOURCE tree is deployment-owned state, so this build-tool script asks the same
-// authority `next.config.ts` and `vitest.config.mts` ask (`src/config/deployment-build.ts`)
-// instead of implementing a second deployment-root mechanism or hard-coding a location. The
-// explicit `.ts` specifier is what lets a plain `node` process load the TypeScript seam.
-import { resolveDeploymentForBuild } from "../src/config/deployment-build.ts";
+// authority `next.config.ts` and `vitest.config.mts` ask (`src/config/deployment-build.mjs`)
+// instead of implementing a second deployment-root mechanism or hard-coding a location. That
+// module is plain ESM with JSDoc types, so `node` loads it natively — exactly as Next and Vitest do.
+import { resolveDeploymentForBuild } from "../src/config/deployment-build.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RUNTIME_DIR = "public/assets";
