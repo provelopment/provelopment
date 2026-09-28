@@ -107,10 +107,10 @@ describe("deployment-owned scenarios are discovered, never enumerated", () => {
   });
 
   it("derives the deployment's own surface from the root the authority SELECTED", () => {
-    // Capsule, repository and override roots all answer the same way, so no layout is special.
-    expect(deploymentBrowserDirectory("C:\\capsule")).toBe(
-      path.join("C:", "capsule", "tests", "browser"),
-    );
+    // Capsule, repository and override roots all answer the same way, so no layout is special: the
+    // tree is appended in the ROOT's own convention, and the harness therefore spells no platform
+    // path and no `deployment/` of its own.
+    expect(deploymentBrowserDirectory("C:\\capsule")).toBe("C:\\capsule\\tests\\browser");
     expect(deploymentBrowserDirectory("/tmp/acme")).toBe("/tmp/acme/tests/browser");
     expect(deploymentBrowserDirectory("/tmp/acme/")).toBe("/tmp/acme/tests/browser");
   });
