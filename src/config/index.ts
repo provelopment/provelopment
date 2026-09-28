@@ -1,5 +1,6 @@
 export { parseSiteConfig, siteConfig } from "./loader";
 export { effectiveSitePageConfig, mergeSitePageConfig } from "./site-page-config";
+export { siteDescriptionForLocale } from "./site-metadata";
 export type { PageFacingConfig, SitePageConfig } from "./site-page-config";
 export type { SiteConfigFile } from "./loader";
 export type {

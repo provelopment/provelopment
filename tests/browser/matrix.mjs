@@ -4112,7 +4112,39 @@ const REFERENCE_PROBE = `(() => {
     visibleNav: [...document.querySelectorAll('nav a')]
       .filter((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
       .map((a) => (a.getAttribute('href') || '') + '|' + (a.getAttribute('aria-current') || '')),
+    // The VISIBLE navigation vocabulary — how the dictionary's labels actually read to a visitor.
+    navTexts: [...document.querySelectorAll('nav a')]
+      .filter((a) => { const r = a.getBoundingClientRect(); return r.width > 0 && r.height > 0; })
+      .map((a) => (a.textContent || '').trim()),
   });
+})()`;
+
+/** The visitor-facing selector row, and the standards metadata of the page it is on. */
+const REFERENCE_SELECTORS_PROBE = `(() => {
+  const select = (name) => document.querySelector('select[data-selector="' + name + '"]');
+  const shown = (el) => !!el && el.getClientRects().length > 0;
+  const language = select('language');
+  return JSON.stringify({
+    languagePresent: shown(language),
+    languageLabel: language ? language.getAttribute('aria-label') : null,
+    languageValue: language ? language.value : null,
+    languageOptions: language ? [...language.options].map((option) => option.textContent.trim()) : [],
+    sitePresent: shown(select('site')),
+    locationPresent: shown(select('location')),
+    layoutPresent: shown(select('layout')),
+    lang: document.documentElement.lang,
+    canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
+    description: (document.querySelector('meta[name="description"]') || {}).content || null,
+  });
+})()`;
+
+/** Choose a language exactly as a visitor does (value + change event on the control). */
+const chooseLanguage = (locale) => `(() => {
+  const control = document.querySelector('select[data-selector="language"]');
+  if (!control) return false;
+  control.value = ${JSON.stringify(locale)};
+  control.dispatchEvent(new Event('change', { bubbles: true }));
+  return true;
 })()`;
 
 async function runReferenceContentScenario(chrome) {
@@ -4386,6 +4418,221 @@ async function runReferenceContentScenario(chrome) {
       about.canonical === `${REFERENCE_ORIGIN}/ww/en/about`,
       String(about.canonical),
     );
+
+    // ── GERMAN: the second language, added by configuration + content alone (R1B) ───
+    // The shipped deployment declares `en` + `de`, so the EXISTING Language control appears on its
+    // own — `site-header` renders it whenever the deployment serves more than one locale. Nothing
+    // in the shell was changed to make it visible, and the Site/Location controls stay ABSENT
+    // because there is still one site and no Location.
+    const germanConfig = (reference.i18n?.locales ?? []).find((locale) => locale.code === "de");
+    check(
+      rows,
+      "reference.german.configDeclaresGermanOnTheDefaultLocale",
+      germanConfig?.label === "Deutsch" && reference.i18n?.defaultLocale === "en",
+      JSON.stringify(reference.i18n ?? null),
+    );
+
+    // At English About: present, labelled in English, offering exactly the configured languages.
+    const englishSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.german.languageControlAppeared",
+      englishSelectors.languagePresent === true,
+      JSON.stringify(englishSelectors),
+    );
+    check(
+      rows,
+      "reference.german.exactVisibleChoices",
+      (englishSelectors.languageOptions ?? []).join(" | ") === "English | Deutsch",
+      String(englishSelectors.languageOptions),
+    );
+    check(
+      rows,
+      "reference.german.englishIsCurrent",
+      englishSelectors.languageValue === "en",
+      String(englishSelectors.languageValue),
+    );
+    check(
+      rows,
+      "reference.german.siteAndLocationSelectorsStayAbsent",
+      englishSelectors.sitePresent === false && englishSelectors.locationPresent === false,
+      JSON.stringify(englishSelectors),
+    );
+
+    // English About → Deutsch: the SAME page, in German. The route is preserved.
+    check(rows, "reference.german.switchApplies", await cdp.evalBool(chooseLanguage("de")));
+    await sleep(900);
+    await waitReady(cdp);
+    const germanAboutPath = await cdp.evaluate("location.pathname");
+    check(
+      rows,
+      "reference.german.aboutRoutePreserved",
+      germanAboutPath === "/ww/de/about",
+      String(germanAboutPath),
+    );
+    const germanAbout = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    const germanSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.german.aboutOneH1AuthoredTitle",
+      germanAbout.h1s.length === 1 && germanAbout.h1s[0] === "Über diese Foundation-Website",
+      JSON.stringify(germanAbout.h1s),
+    );
+    check(
+      rows,
+      "reference.german.aboutSectionsRender",
+      [
+        "Was diese Website zeigt",
+        "Eine Website, die Sie steuern",
+        "Zwei Wege, Seiten zu erstellen",
+        "Gebaut, um sich anzupassen",
+        "Open Source zuerst",
+        "Mehr erfahren",
+      ].every((heading) => germanAbout.headings.includes(heading)),
+      JSON.stringify(germanAbout.headings),
+    );
+    check(
+      rows,
+      "reference.german.dictionaryIsGerman",
+      germanSelectors.languageLabel === "Sprache" && germanSelectors.languageValue === "de",
+      JSON.stringify(germanSelectors),
+    );
+    check(
+      rows,
+      "reference.german.navigationIsGerman",
+      germanAbout.navTexts.includes("Startseite") && germanAbout.navTexts.includes("Über uns"),
+      JSON.stringify(germanAbout.navTexts),
+    );
+    check(
+      rows,
+      "reference.german.htmlLangAndCanonical",
+      germanSelectors.lang === "de" && germanSelectors.canonical === `${REFERENCE_ORIGIN}/ww/de/about`,
+      `lang=${germanSelectors.lang} canonical=${germanSelectors.canonical}`,
+    );
+    check(
+      rows,
+      "reference.german.aboutSpeaksGermanMetadata",
+      typeof germanSelectors.description === "string" &&
+        germanSelectors.description.length > 0 &&
+        germanSelectors.description !== reference.site?.description,
+      String(germanSelectors.description),
+    );
+
+    // The Layout choice is the VISITOR's, not the language's: switch it, change language, keep it.
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(500);
+    const germanLayout = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(
+      rows,
+      "reference.german.layoutSwitchedInGerman",
+      germanLayout.attribute === "menu-bar",
+      JSON.stringify(germanLayout),
+    );
+    check(rows, "reference.german.backToEnglishApplies", await cdp.evalBool(chooseLanguage("en")));
+    await sleep(900);
+    await waitReady(cdp);
+    const backInEnglish = await cdp.evaluate("location.pathname");
+    const englishLayoutAfter = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(
+      rows,
+      "reference.german.englishRoutePreserved",
+      backInEnglish === "/ww/en/about",
+      String(backInEnglish),
+    );
+    check(
+      rows,
+      "reference.german.layoutSurvivesLanguageChange",
+      englishLayoutAfter.attribute === "menu-bar" && englishLayoutAfter.stored === "menu-bar",
+      JSON.stringify(englishLayoutAfter),
+    );
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── GERMAN HOME: the JSON document at `/ww/de`, whose action really reaches German About ──
+    await cdp.navigate(`${BASE_URL}/ww/de`);
+    await waitReady(cdp);
+    await sleep(300);
+    const germanHome = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    const germanHomeSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
+    check(
+      rows,
+      "reference.german.homeOneH1AuthoredTitle",
+      germanHome.h1s.length === 1 && germanHome.h1s[0] === "Eine Website, die Ihnen gehört.",
+      JSON.stringify(germanHome.h1s),
+    );
+    check(
+      rows,
+      "reference.german.homeSectionsRender",
+      [
+        "Zwei Wege, eine Seite zu schreiben",
+        "Ihre Website gehört Ihnen",
+        "Über diese Website",
+        "Gebaut, um sich anzupassen",
+        "Die vollständige Website ist öffentlich",
+      ].every((heading) => germanHome.headings.includes(heading)),
+      JSON.stringify(germanHome.headings),
+    );
+    check(
+      rows,
+      "reference.german.localeRootSpeaksGerman",
+      // `site.config.json`'s `i18n.locales[].description` is what the locale root advertises: the
+      // German sentence, never the deployment's English one.
+      germanHomeSelectors.description === germanConfig?.description,
+      String(germanHomeSelectors.description),
+    );
+    check(
+      rows,
+      "reference.german.repositoryLinkIntact",
+      germanHome.repositoryLink === true,
+      "the owner-final external destination is preserved in German",
+    );
+    // The internal action carries the German locale and must LAND in German even when the
+    // visitor's cookie says English — the site-less locale form is completed by `src/proxy.ts`
+    // with the language the URL names, never with the visitor's stored preference.
+    await cdp.evaluate(`document.cookie = "NEXT_LOCALE=en; path=/"; true`);
+    const germanAction = germanHome.aboutAnchors[0]?.split(" :: ")[0];
+    check(
+      rows,
+      "reference.german.homeActionCarriesGerman",
+      String(germanAction).startsWith("/de/"),
+      String(germanAction),
+    );
+    await cdp.navigate(`${BASE_URL}${germanAction}`);
+    await waitReady(cdp);
+    await sleep(300);
+    const landedInGerman = await cdp.evaluate("location.pathname");
+    check(
+      rows,
+      "reference.german.homeActionReachesGermanAbout",
+      landedInGerman === "/ww/de/about",
+      `landed ${landedInGerman} (the cookie said en)`,
+    );
+
+    // German text is longer than English: the layout must absorb it at every width.
+    for (const [name, viewport] of [
+      ["desktop", VIEWPORTS.desktop],
+      ["tablet", VIEWPORTS.tablet],
+      ["mobile", VIEWPORTS.mobile],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await cdp.navigate(`${BASE_URL}/ww/de`);
+      await waitReady(cdp);
+      await sleep(250);
+      const state = JSON.parse(
+        await cdp.evaluate(
+          `JSON.stringify({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth })`,
+        ),
+      );
+      check(
+        rows,
+        `reference.german.noHorizontalOverflow.${name}`,
+        state.scrollWidth <= state.clientWidth + 1,
+        `scrollW=${state.scrollWidth} clientW=${state.clientWidth}`,
+      );
+    }
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
 
     // ── The reference origin reaches the technical routes too ───────────────
     const technical = await cdp.evaluate(`(async () => {

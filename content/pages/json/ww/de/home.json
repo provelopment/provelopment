@@ -1,0 +1,121 @@
+{
+
+  "schemaVersion": 1,
+
+  "title": "Eine Website, die Ihnen gehört.",
+
+  "description": "Die laufende Referenzseite für Provelopment Foundation: wie Seiten geschrieben werden, wie sich die Website anpasst und wie Sie sie zu Ihrer eigenen machen.",
+
+  "sections": [
+
+    {
+
+      "type": "hero",
+
+      "lede": "Foundation ist eine Open-Source-Website-Vorlage, die verständlich, bearbeitbar und einsatzbereit sein soll. Sie können sie selbst nutzen, nach Bedarf anpassen und mitnehmen, wohin Sie möchten.",
+
+      "actions": [
+
+        { "label": "So funktioniert diese Website", "route": "about" },
+
+        {
+
+          "label": "Foundation-Repository ansehen",
+
+          "href": "https://github.com/provelopment/provelopment-foundation",
+
+          "variant": "secondary"
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      "type": "columns",
+
+      "heading": "Zwei Wege, eine Seite zu schreiben",
+
+      "ratio": "equal",
+
+      "items": [
+
+        {
+
+          "title": "Markdown",
+
+          "body": "Für unkomplizierte Seiten bleibt der Inhalt mit Markdown nah am reinen Text, mit einfacher Notation für Überschriften, Listen und Links. Die Seite **Über uns** dieser Website ist so geschrieben."
+
+        },
+
+        {
+
+          "title": "JSON",
+
+          "body": "Für strukturierte Seiten definiert JSON Abschnitte wie Heroes, Spalten, Karten, Tabellen und Fragen über einen dokumentierten Satz von Optionen. **Diese Seite** ist so geschrieben."
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      "type": "callout",
+
+      "heading": "Ihre Website gehört Ihnen",
+
+      "body": "Die Nutzung von Provelopment-Leistungen ist eine Entscheidung, keine Voraussetzung. Ihre Website, ihre Inhalte und ihr Code bleiben Ihre.",
+
+      "surface": "muted"
+
+    },
+
+    {
+
+      "type": "cards",
+
+      "heading": "Über diese Website",
+
+      "items": [
+
+        {
+
+          "title": "Eine funktionierende Foundation-Website",
+
+          "body": "Diese Website ist die laufende Referenzinstallation der Vorlage Foundation. Sie führt den öffentlichen Code aus und enthält Beispielseiten in beiden unterstützten Autorenverfahren.",
+
+          "action": { "label": "Mehr über diese Website", "route": "about" }
+
+        }
+
+      ]
+
+    },
+
+    {
+
+      "type": "prose",
+
+      "heading": "Gebaut, um sich anzupassen",
+
+      "body": "Das Bedienelement **Layout** in der Kopfzeile wechselt zwischen den Darstellungen Seitenleiste und Menüleiste, ohne die Seite, ihre Adresse oder ihre Inhalte zu ändern. Foundation kann außerdem mehrere Sprachen, physische Standorte und Länder unterstützen. Wenn diese Optionen konfiguriert sind, erscheinen ihre Bedienelemente im selben Bereich. Diese Referenzseite verwendet eine Sprache und keine Standorte, daher wird hier nur das Layout-Bedienelement angezeigt."
+
+    },
+
+    {
+
+      "type": "prose",
+
+      "heading": "Die vollständige Website ist öffentlich",
+
+      "body": "Diese Seite gehört zur Website selbst und ist kein Entwurf. Ihr Inhalt stammt aus einer einzigen Datei — `home.json` — im Repository Provelopment Foundation. Die Seite „Über uns“, das Styling und die Website-Einstellungen liegen ebenfalls dort. Ändern Sie die Dateien, committen und pushen Sie die Änderungen, und die Website kann aus der aktualisierten Quelle neu erstellt werden. Der Code bleibt Ihr Eigentum und kann genutzt, geändert und anderswo eingesetzt werden."
+
+    }
+
+  ]
+
+}

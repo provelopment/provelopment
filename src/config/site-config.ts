@@ -32,6 +32,12 @@ export interface LocaleConfig {
    * differ (`Français (French)`); never `English (English)`.
    */
   readonly englishLabel?: string;
+  /**
+   * R1B — the SITE's own words for this locale (see `localeConfigSchema`): the
+   * description this locale's root page advertises when no page-level summary
+   * exists. Absent → the deployment's `site.description`.
+   */
+  readonly description?: string;
 }
 
 export interface SocialLink {

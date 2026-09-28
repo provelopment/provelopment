@@ -51,13 +51,19 @@ export function proxy(request: NextRequest) {
   // site-less form) is replaced rather than repeated, so `/en/about` and `/about` both land
   // on `/<default site>/<locale>/about`.
   const defaultSite = siteConfig.defaultSite;
-  const rest =
-    first !== undefined && siteSupportsLocalePath(defaultSite, first) ? segments.slice(1) : segments;
+  // R1B — an EXPLICIT locale in the path is authoritative, exactly as it is in the site-scoped
+  // form (`/ww/de/...` never negotiates at all): `/de/about` means German whatever the visitor's
+  // cookie says. A link that carries a language must not be answered in another one — which is
+  // what would happen if this negotiation preferred `NEXT_LOCALE` over the URL once a deployment
+  // serves more than one language. Only a path that names NO locale negotiates.
+  const explicitLocale =
+    first !== undefined && siteSupportsLocalePath(defaultSite, first) ? first : undefined;
+  const rest = explicitLocale === undefined ? segments : segments.slice(1);
 
   const url = request.nextUrl.clone();
-  url.pathname = `${sitePrefixPath(defaultSite)}/${negotiateWithin(defaultSite, request)}${
-    rest.length === 0 ? "" : `/${rest.join("/")}`
-  }`;
+  url.pathname = `${sitePrefixPath(defaultSite)}/${
+    explicitLocale ?? negotiateWithin(defaultSite, request)
+  }${rest.length === 0 ? "" : `/${rest.join("/")}`}`;
 
   return NextResponse.redirect(url);
 }

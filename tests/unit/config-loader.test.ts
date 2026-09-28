@@ -1027,6 +1027,38 @@ describe("Phase M — connect config + region defaultLocale", () => {
     expect(config.locales[1].englishLabel).toBe("French");
   });
 
+  it("passes through a locale's own site description, and leaves it absent otherwise (R1B)", () => {
+    // The locale root's metadata description is the site's by contract, so a locale may state its
+    // own words for that root. Absent → the deployment's `site.description` (unchanged behaviour).
+    const config = parseSiteConfig({
+      ...validConfig,
+      i18n: {
+        defaultLocale: "en",
+        locales: [
+          { code: "en", label: "English" },
+          { code: "de", label: "Deutsch", description: "Eine deutsche Beschreibung." },
+        ],
+      },
+    });
+    expect(config.locales[1].description).toBe("Eine deutsche Beschreibung.");
+    expect(config.locales[0].description).toBeUndefined();
+  });
+
+  it("refuses an empty locale description", () => {
+    expect(() =>
+      parseSiteConfig({
+        ...validConfig,
+        i18n: {
+          defaultLocale: "en",
+          locales: [
+            { code: "en", label: "English" },
+            { code: "de", label: "Deutsch", description: "" },
+          ],
+        },
+      }),
+    ).toThrow(/description|too small/);
+  });
+
   it("passes through a region's localized display labels", () => {
     const config = parseSiteConfig({
       ...regionConfigData(),

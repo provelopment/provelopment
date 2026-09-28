@@ -10,6 +10,7 @@ import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
+import { siteDescriptionForLocale } from "@/config/site-metadata";
 import {
   assertConfiguredIconAssetsExist,
   assetPathFromUrl,
@@ -122,7 +123,7 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       default: siteConfig.name,
       template: `%s | ${siteConfig.name}`,
     },
-    description: siteConfig.description,
+    description: siteDescriptionForLocale(siteConfig, request.localePath),
     openGraph: {
       type: "website",
       siteName: siteConfig.name,
