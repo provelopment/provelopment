@@ -1,6 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment; moves to deployment/tests/**.
+vi.unmock("@/config");
+
 // The header contains real client controls (Site/Language/Location switches navigate); this suite
 // asserts the SERVER-RENDERED composition, so navigation is stubbed exactly as the other
 // header-composition suites do.

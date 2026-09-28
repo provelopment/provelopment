@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// DEPLOYMENT SCOPE (B2): asserts the SHIPPED reference deployment; moves to deployment/tests/**.
+vi.unmock("@/config");
 import { renderToStaticMarkup } from "react-dom/server";
 
 import PageRoute, { generateMetadata } from "@/app/[...segments]/page";

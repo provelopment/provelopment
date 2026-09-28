@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "title": "Synthetic Home (Global)",
+  "description": "The synthetic deployment's Global Home page.",
+  "sections": [
+    { "type": "hero", "lede": "A synthetic page for generic Foundation tests.", "actions": [{ "label": "About", "route": "about" }] },
+    { "type": "prose", "heading": "Synthetic prose", "body": "This page exists only in the test fixture." }
+  ]
+}

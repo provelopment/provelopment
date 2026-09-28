@@ -1,4 +1,4 @@
-import rawSiteConfig from "../../site.config.json";
+import { readDeploymentConfig } from "./deployment-root";
 import type { z } from "zod";
 
 import { siteConfigFileSchema } from "./schema";
@@ -223,7 +223,8 @@ function toPageBindings(
 /**
  * The application's validated configuration.
  *
- * This is the only sanctioned way to read `site.config.json`; importing
- * the JSON directly anywhere else bypasses validation.
+ * This is the only sanctioned way to read a deployment's `site.config.json`; importing
+ * the JSON directly anywhere else bypasses validation AND the deployment root
+ * (`@/config/deployment-root`, which resolves where the deployment's file lives).
  */
-export const siteConfig: SiteConfig = parseSiteConfig(rawSiteConfig);
+export const siteConfig: SiteConfig = parseSiteConfig(readDeploymentConfig());

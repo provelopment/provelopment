@@ -89,8 +89,10 @@ describe("footerNavigation — the validated configuration surface", () => {
     expect(parsed.footerNavigation?.heading).toBe("Project");
     expect(parsed.footerNavigation?.items).toHaveLength(3);
     // The primary navigation is exactly what it was: a footer group is a
-    // SEPARATE concern and must never leak into the menu/sidebar/bottom bar.
-    expect(parsed.navigation).toEqual(siteConfig.navigation);
+    // SEPARATE concern and must never leak into the menu/sidebar/bottom bar. The comparison is
+    // against the RAW config parsed on its own, so the contract holds for any deployment (generic
+    // tests no longer read the live reference deployment's navigation).
+    expect(parsed.navigation).toEqual(parseSiteConfig(rawConfig).navigation);
     expect(parsed.navigation.map((item) => item.href)).not.toContain("/help");
   });
 });
@@ -108,9 +110,12 @@ type Resolver = ReturnType<typeof createDirectionLinkResolver>;
  */
 async function renderFooter(overrides: Record<string, unknown>): Promise<string> {
   vi.resetModules();
-  vi.doMock("@/config", async (importOriginal) => {
-    const actual = await importOriginal<typeof import("@/config")>();
-    return { ...actual, siteConfig: { ...actual.siteConfig, ...overrides } };
+  // The substitution is built from the SYNTHETIC test deployment, never from the live reference
+  // deployment: a generic footer contract must not depend on — or mutate — what a real deployment
+  // happens to configure (`tests/support/synthetic-deployment.ts`).
+  vi.doMock("@/config", async () => {
+    const { syntheticSiteConfig } = await import("../support/synthetic-deployment");
+    return { siteConfig: { ...syntheticSiteConfig, ...overrides } };
   });
 
   const { SiteFooter } = await import("@/components/site/site-footer");

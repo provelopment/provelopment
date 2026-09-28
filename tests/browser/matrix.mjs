@@ -11,7 +11,7 @@
 //  - emits a machine-readable report and exits non-zero on any failure.
 // Run: `pnpm test:browser` (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { readFile, writeFile, mkdir, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -22,7 +22,38 @@ import { Cdp, findChrome } from "./cdp.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
-const CONFIG_PATH = join(ROOT, "site.config.json");
+
+// ── DEPLOYMENT ISOLATION (FOUNDATION-DEPLOYMENT-ISO-B1) ──────────────────────
+// The GENERIC scenarios below prove platform behaviour, so they must not depend on — or mutate —
+// the repository's own (reference) deployment. They therefore run against a TEMP COPY of the
+// committed synthetic deployment (`tests/fixtures/synthetic-deployment`), handed to each dev server
+// through `FOUNDATION_DEPLOYMENT_ROOT` (`src/config/deployment-root.ts`). Every config write and
+// content fixture below lands inside that copy; the repository's `site.config.json` and
+// `content/pages/**` are never opened for writing.
+//
+// The REFERENCE deployment's own acceptance scenario is the one exception: it reads the SHIPPED
+// config read-only and starts its dev server WITHOUT the override, because its subject is the
+// reference deployment itself. It is scheduled to move to `deployment/tests/browser/**` in B2.
+const SYNTHETIC_DEPLOYMENT_ROOT = mkdtempSync(join(tmpdir(), "foundation-synthetic-browser-"));
+cpSync(join(ROOT, "tests", "fixtures", "synthetic-deployment"), SYNTHETIC_DEPLOYMENT_ROOT, {
+  recursive: true,
+});
+/** The deployment root the GENERIC scenarios mutate (a disposable copy). */
+const DEPLOYMENT_ROOT = SYNTHETIC_DEPLOYMENT_ROOT;
+/** The SHIPPED reference deployment's config — READ ONLY, for the reference scenario. */
+const SHIPPED_CONFIG_PATH = join(ROOT, "site.config.json");
+/** Generic scenarios' config target: the disposable copy, never the shipped file. */
+const CONFIG_PATH = join(DEPLOYMENT_ROOT, "site.config.json");
+/** Generic scenarios' content + dictionary roots (inside the disposable copy). */
+const CONTENT_ROOT = join(DEPLOYMENT_ROOT, "content", "pages");
+const DICTIONARY_ROOT = join(DEPLOYMENT_ROOT, "config", "i18n");
+
+// The disposable tree is deleted when the run ends, whatever the outcome: generic scenarios leave
+// nothing behind in the repository, and the committed fixture is never written back to.
+process.on("exit", () => {
+  rmSync(SYNTHETIC_DEPLOYMENT_ROOT, { recursive: true, force: true });
+});
+
 const NEXT_BIN = join(ROOT, "node_modules", "next", "dist", "bin", "next");
 const BASE_PORT = 3800 + (Math.floor(Math.random() * 900) % 900);
 
@@ -219,20 +250,38 @@ async function openTrigger(cdp, triggerSelector, panelSelector, attempts = 5) {
   return false;
 }
 
-/** Dev-server process helpers. */
-function startDevServer(port) {
+/**
+ * Dev-server process helpers.
+ *
+ * `synthetic` (the default) points the server at the disposable synthetic deployment through
+ * `FOUNDATION_DEPLOYMENT_ROOT`; the reference scenario passes `synthetic: false` so its server
+ * serves the repository's own deployment.
+ */
+function startDevServer(port, { synthetic = true } = {}) {
   const proc = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
     cwd: ROOT,
+    env: synthetic
+      ? { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: DEPLOYMENT_ROOT }
+      : { ...process.env },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
   let log = "";
   proc.stdout.on("data", (d) => { log += d.toString(); });
   proc.stderr.on("data", (d) => { log += d.toString(); });
-  return { proc, log: () => log };
+  const server = { proc, log: () => log };
+  STARTED_SERVERS.push(server);
+  return server;
 }
 
-function stopServer(server) {
+/**
+ * Stops a dev server and WAITS until it is really gone.
+ *
+ * Next 16 refuses to start a second `next dev` for the same project directory, so a stopped-but-not-
+ * yet-dead server makes the next scenario's server exit immediately ("You can access the existing
+ * server at …"). The wait turns that race into an orderly hand-over.
+ */
+async function stopServer(server) {
   if (!server) return;
   try {
     if (process.platform === "win32") {
@@ -241,11 +290,30 @@ function stopServer(server) {
       server.proc.kill("SIGTERM");
     }
   } catch { /* noop */ }
+
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (server.proc.exitCode !== null && server.proc.exitCode !== undefined) return;
+    await sleep(250);
+  }
 }
+
+/** The dev servers started in this run, so a readiness wait can fail FAST when one dies. */
+const STARTED_SERVERS = [];
 
 async function waitForServer(url, timeoutMs = 300000) {
   const end = Date.now() + timeoutMs;
   while (Date.now() < end) {
+    // A dev server that exited cannot become ready: Next 16 refuses to start a second dev server
+    // for a project directory (a leftover process from an earlier run keeps the lock), and waiting
+    // the full budget for it produces a five-minute stall with no explanation. Report its own output
+    // immediately instead. ONLY the most recently started server is considered — earlier scenarios'
+    // servers have been stopped on purpose, so their exit codes say nothing about this wait.
+    const current = STARTED_SERVERS[STARTED_SERVERS.length - 1];
+    if (current && current.proc.exitCode !== null && current.proc.exitCode !== undefined) {
+      throw new Error(
+        `dev server exited before serving ${url}\n--- dev server output ---\n${current.log()}`,
+      );
+    }
     try {
       const res = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(12000) });
       if (res.status === 200) return;
@@ -893,7 +961,7 @@ async function runCanonical(chrome) {
     check(rows, "scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
   }
   return rows.map((r) => ({ presentation: CANONICAL.name, ...r }));
 }
@@ -1010,7 +1078,7 @@ async function runDuplicateNavScenario(chrome) {
       }
     } finally {
       if (cdp) await cdp.close();
-      stopServer(server);
+      await stopServer(server);
     }
   };
 
@@ -2152,7 +2220,7 @@ async function runConnectivityIconScenario(chrome) {
   // Connect page's safe Markdown source for the duration of the run (removed in
   // `finally`). The seam under test is the connectivity contract, not whether a fresh
   // clone has written its own pages yet.
-  const connectContentPath = join(ROOT, "content", "pages", "markdown", "ww", "en", "connect.md");
+  const connectContentPath = join(CONTENT_ROOT, "markdown", "ww", "en", "connect.md");
   await mkdir(dirname(connectContentPath), { recursive: true });
   await writeFile(
     connectContentPath,
@@ -2417,7 +2485,7 @@ async function runConnectivityIconScenario(chrome) {
     check(rows, "connectivity.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(connectContentPath, { force: true });
     // Remove the locale directory ONLY if the fixture left it empty.
@@ -2557,7 +2625,7 @@ async function runPersistentNavigationScenario(chrome) {
 
   // FS1 — the generic template ships NO pages, so this fixture supplies the tall
   // safe Markdown page the scroll assertions need (removed in `finally`).
-  const tallPath = join(ROOT, "content", "pages", "markdown", "ww", "en", "zz-nav-tall.md");
+  const tallPath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-nav-tall.md");
   await mkdir(dirname(tallPath), { recursive: true });
   await writeFile(tallPath, tallPageFixture(), "utf8");
 
@@ -2934,7 +3002,7 @@ async function runPersistentNavigationScenario(chrome) {
     check(rows, "persistent-navigation.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(tallPath, { force: true });
     // Remove the locale directory ONLY if the fixture left it empty.
@@ -3031,7 +3099,7 @@ A repeated heading, which the renderer must disambiguate.
 async function runSafeMarkdownScenario(chrome) {
   const port = BASE_PORT + 260;
   BASE_URL = `http://localhost:${port}`;
-  const fixturePath = join(ROOT, "content", "pages", "markdown", "ww", "en", `${SAFE_MARKDOWN_SLUG}.md`);
+  const fixturePath = join(CONTENT_ROOT, "markdown", "ww", "en", `${SAFE_MARKDOWN_SLUG}.md`);
   const url = `${BASE_URL}/ww/en/${SAFE_MARKDOWN_SLUG}`;
   const rows = [];
   await mkdir(dirname(fixturePath), { recursive: true });
@@ -3182,7 +3250,7 @@ async function runSafeMarkdownScenario(chrome) {
     check(rows, "safe-markdown.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     await rm(fixturePath, { force: true });
     // Remove the locale directory ONLY if the fixture left it empty.
     try {
@@ -3246,7 +3314,7 @@ async function waitForNotFound(cdp) {
 async function runNestedPageScenario(chrome) {
   const port = BASE_PORT + 270;
   BASE_URL = `http://localhost:${port}`;
-  const sectionDirectory = join(ROOT, "content", "pages", "markdown", "ww", "en", NESTED_SECTION);
+  const sectionDirectory = join(CONTENT_ROOT, "markdown", "ww", "en", NESTED_SECTION);
   const pagePath = join(sectionDirectory, `${NESTED_SLUG}.md`);
   const readmePath = join(sectionDirectory, "README.md");
   const url = `${BASE_URL}/ww/en/${NESTED_SECTION}/${NESTED_SLUG}`;
@@ -3311,7 +3379,7 @@ async function runNestedPageScenario(chrome) {
     check(rows, "nested-pages.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     await rm(pagePath, { force: true });
     await rm(readmePath, { force: true });
     // Remove the section directory ONLY if the fixture left it empty.
@@ -3373,7 +3441,7 @@ const JSON_PAGE_FIXTURE = JSON.stringify(
 async function runAdvancedJsonScenario(chrome) {
   const port = BASE_PORT + 271;
   BASE_URL = `http://localhost:${port}`;
-  const directory = join(ROOT, "content", "pages", "json", "ww", "en");
+  const directory = join(CONTENT_ROOT, "json", "ww", "en");
   const pagePath = join(directory, `${JSON_ROUTE_PATH}.json`);
   const url = `${BASE_URL}/ww/en/${JSON_ROUTE_PATH}`;
   const rows = [];
@@ -3456,7 +3524,7 @@ async function runAdvancedJsonScenario(chrome) {
     check(rows, "advanced-json.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     await rm(pagePath, { force: true });
     try {
       await rmdir(directory);
@@ -3538,7 +3606,7 @@ async function runLayoutSwitcherScenario(chrome) {
   // a different page (the shipped template has a single Home entry).
   config.navigation = [...config.navigation, { label: "Fixture page", href: "/zz-layout-page" }];
   await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
-  const pagePath = join(ROOT, "content", "pages", "markdown", "ww", "en", "zz-layout-page.md");
+  const pagePath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-layout-page.md");
   await mkdir(dirname(pagePath), { recursive: true });
   await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
 
@@ -3722,7 +3790,7 @@ async function runLayoutSwitcherScenario(chrome) {
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(pagePath, { force: true });
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
   }
   return rows;
 }
@@ -3802,7 +3870,7 @@ async function runMultisiteScenario(chrome) {
   const rows = [];
 
   for (const [site, locale, slug, body, title] of MULTISITE_PAGES) {
-    const file = join(ROOT, "content", "pages", "markdown", site, locale, `${slug}.md`);
+    const file = join(CONTENT_ROOT, "markdown", site, locale, `${slug}.md`);
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, `---\ntitle: ${title}\n---\n\n# ${title}\n\n${body}\n`, "utf8");
     written.push(file);
@@ -3813,10 +3881,10 @@ async function runMultisiteScenario(chrome) {
   // A locale needs a dictionary, and the template ships ONE: the fixture deployment speaks French,
   // so the scenario writes a temporary French dictionary (a copy of the shipped English one — it
   // validates against the same schema) and removes it in `finally`, exactly like its pages.
-  const dictionaryPath = join(ROOT, "config", "i18n", "fr.json");
+  const dictionaryPath = join(DICTIONARY_ROOT, "fr.json");
   await writeFile(
     dictionaryPath,
-    await readFile(join(ROOT, "config", "i18n", "en.json"), "utf8"),
+    await readFile(join(DICTIONARY_ROOT, "en.json"), "utf8"),
     "utf8",
   );
   // R1A — the SHARED dictionary is the wording authority for a configured navigation
@@ -3825,7 +3893,7 @@ async function runMultisiteScenario(chrome) {
   // (`config/i18n/sites/<site>/<locale>.json`) — the documented mechanism this fixture now
   // exercises for its France site, so site-scoped chrome is proved without depending on a
   // gap in the shared dictionary.
-  const overlayPath = join(ROOT, "config", "i18n", "sites", "fr", "fr.json");
+  const overlayPath = join(DICTIONARY_ROOT, "sites", "fr", "fr.json");
   await mkdir(dirname(overlayPath), { recursive: true });
   await writeFile(
     overlayPath,
@@ -3997,8 +4065,8 @@ async function runMultisiteScenario(chrome) {
     // created while they are empty.
     await rm(overlayPath, { force: true });
     for (const directory of [
-      join(ROOT, "config", "i18n", "sites", "fr"),
-      join(ROOT, "config", "i18n", "sites"),
+      join(DICTIONARY_ROOT, "sites", "fr"),
+      join(DICTIONARY_ROOT, "sites"),
     ]) {
       try {
         await rmdir(directory);
@@ -4007,14 +4075,14 @@ async function runMultisiteScenario(chrome) {
       }
     }
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
     for (const file of written) await rm(file, { force: true });
     // Remove the fixture site trees ONLY while they are empty — never a recursive delete, so a
     // developer's own pages can never be caught by a browser run.
     for (const site of MULTISITE_SITES) {
       for (const mode of ["markdown", "json"]) {
         for (const locale of ["fr", "en"]) {
-          for (const directory of [join(ROOT, "content", "pages", mode, site, locale, "zz-ca-only")]) {
+          for (const directory of [join(CONTENT_ROOT, mode, site, locale, "zz-ca-only")]) {
             try {
               await rmdir(directory);
             } catch {
@@ -4022,13 +4090,13 @@ async function runMultisiteScenario(chrome) {
             }
           }
           try {
-            await rmdir(join(ROOT, "content", "pages", mode, site, locale));
+            await rmdir(join(CONTENT_ROOT, mode, site, locale));
           } catch {
             /* not empty (or already gone): leave it exactly as it is */
           }
         }
         try {
-          await rmdir(join(ROOT, "content", "pages", mode, site));
+          await rmdir(join(CONTENT_ROOT, mode, site));
         } catch {
           /* not empty (or already gone): leave it exactly as it is */
         }
@@ -4204,7 +4272,7 @@ async function runReferenceContentScenario(chrome) {
   BASE_URL = `http://localhost:${port}`;
   // The SHIPPED configuration, READ ONLY: writing it here would prove a
   // configuration the repository does not ship.
-  const reference = JSON.parse(await readFile(CONFIG_PATH, "utf8"));
+  const reference = JSON.parse(await readFile(SHIPPED_CONFIG_PATH, "utf8"));
   check(rows, "reference.config.siteUrl", reference.site?.url === REFERENCE_ORIGIN, String(reference.site?.url));
   check(
     rows,
@@ -4226,7 +4294,7 @@ async function runReferenceContentScenario(chrome) {
     JSON.stringify((reference.navigation ?? []).map((item) => item.href)),
   );
 
-  const server = startDevServer(port);
+  const server = startDevServer(port, { synthetic: false });
   let cdp = null;
   try {
     await waitForServer(url);
@@ -5013,7 +5081,7 @@ async function runReferenceContentScenario(chrome) {
     check(rows, "reference-content.scenario.error", false, String(error));
   } finally {
     if (cdp) await cdp.close();
-    stopServer(server);
+    await stopServer(server);
   }
   return rows;
 }

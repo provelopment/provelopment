@@ -1,6 +1,8 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 
+import { deploymentPaths } from "./deployment-root";
+
 /**
  * P6-1 — configured icon-asset availability (framework layer).
  *
@@ -34,7 +36,11 @@ import path from "node:path";
  * imports siteConfig via `@/config`) must never pull `node:fs` into a browser
  * chunk — the loud check therefore lives in the server layout, not the loader.
  */
-const publicAssetsDirectory = path.join(process.cwd(), "public", "assets");
+// The path comes from the ONE deployment-root authority. It is the PLATFORM's static-file root
+// (Next.js serves from `public/` only) and therefore generated build output — not a deployment
+// location: the deployment's own artwork sources live under `deploymentPaths().assetSourceRoot` and
+// reach here through `pnpm assets:sync` (see the module note in `./deployment-root`).
+const publicAssetsDirectory = deploymentPaths().publicAssetsDirectory;
 
 const availabilityCache = new Map<string, boolean>();
 
