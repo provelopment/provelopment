@@ -29,9 +29,13 @@ const ROOT = process.cwd();
 const AUTHORITY = path.join(ROOT, "src", "config", "deployment-root.ts");
 /**
  * The BUILD/CONFIG-harness module. It is the one other file that may anchor on `process.cwd()` and
- * read a deployment's configuration, because it runs at build/configuration time in Node — and
- * `next.config.ts` plus `vitest.config.mts` are its ONLY importers (asserted below), so no client
- * chunk and no application module can reach it.
+ * read a deployment's configuration, because it runs at build/configuration time in Node. The
+ * assertion below covers the APPLICATION surface — `src/**` — plus the two configuration files and
+ * expects exactly `next.config.ts` and `vitest.config.mts` there, so no client chunk and no
+ * application module can reach it. Build tooling OUTSIDE that surface may legitimately use the same
+ * seam: the asset pipeline does (`scripts/sync-runtime-assets.mjs`, FOUNDATION-DEPLOYMENT-ISO-H1),
+ * because a generator that mirrors deployment-owned assets must resolve them exactly as the build
+ * does — one seam, not a second mechanism.
  */
 const BUILD_HARNESS = path.join(ROOT, "src", "config", "deployment-build.ts");
 
