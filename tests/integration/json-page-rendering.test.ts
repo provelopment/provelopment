@@ -4,6 +4,22 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+// GENERIC ISOLATION (ISO-B1C): deployment-owned state (dictionaries, authored pages, deployment
+// configuration) comes from the SYNTHETIC test deployment, never from the repository's own
+// deployment. See tests/support/synthetic-deployment.ts — the copy is disposable and the committed
+// fixture is only ever its source.
+vi.mock("@/config/deployment-root", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/deployment-root")>();
+  const { syntheticDeploymentPaths } = await import("../support/synthetic-deployment");
+  return {
+    ...actual,
+    deploymentLayout: () => "override" as const,
+    deploymentPaths: () => syntheticDeploymentPaths(),
+  };
+});
+
+import { deploymentPaths } from "@/config/deployment-root";
+
 vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new Error("NEXT_NOT_FOUND");
@@ -32,12 +48,11 @@ import { PAGE_SECTION_TYPES } from "@/core/page-document";
  * The fixture is built FROM the vocabulary list, so a new section type cannot be added
  * without this proof following it.
  */
-const root = process.cwd();
 // S1 — the fixture lives in ONE site tree; its URL is `/<site>/<locale>/<route>`.
 const SITE = siteConfig.defaultSite.code;
 const LOCALE = "en";
 const ROUTE_PATH = "zz-vocabulary-fixture";
-const FILE = path.join(root, "content", "pages", "json", SITE, LOCALE, `${ROUTE_PATH}.json`);
+const FILE = path.join(deploymentPaths().jsonPagesRoot, SITE, LOCALE, `${ROUTE_PATH}.json`);
 
 const IMAGE = { src: "/assets/photo.png", alt: "A described photograph" };
 
@@ -144,8 +159,8 @@ describe("the declarative page vocabulary, through the real route", () => {
   rmSync(FILE, { force: true });
   // …and only the now-empty fixture directories, so a run leaves nothing behind.
   for (const directory of [
-    path.join(root, "content", "pages", "json", SITE, LOCALE),
-    path.join(root, "content", "pages", "json", SITE),
+    path.join(deploymentPaths().jsonPagesRoot, SITE, LOCALE),
+    path.join(deploymentPaths().jsonPagesRoot, SITE),
   ]) {
     try {
       rmdirSync(directory);

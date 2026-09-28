@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
@@ -79,7 +80,7 @@ const renderHeader = (src: string | undefined) =>
   );
 
 describe("P12-HG — schema / backward compatibility", () => {
-  const rawSiteConfig = JSON.parse(readFileSync(path.join(root, "site.config.json"), "utf8")) as Record<
+  const rawSiteConfig = JSON.parse(readFileSync(syntheticDeploymentConfigFile, "utf8")) as Record<
     string,
     unknown
   >;

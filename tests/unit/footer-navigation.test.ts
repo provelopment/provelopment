@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+
+import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -27,7 +29,7 @@ const footerSource = readFileSync(
 
 /** The shipped template configuration, as a raw object we can vary. */
 const rawConfig = JSON.parse(
-  readFileSync(path.join(root, "site.config.json"), "utf8"),
+  readFileSync(syntheticDeploymentConfigFile, "utf8"),
 ) as Record<string, unknown>;
 
 const GROUP = {

@@ -1,7 +1,23 @@
 import { mkdirSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+
+// GENERIC ISOLATION (ISO-B1C): deployment-owned state (dictionaries, authored pages, deployment
+// configuration) comes from the SYNTHETIC test deployment, never from the repository's own
+// deployment. See tests/support/synthetic-deployment.ts — the copy is disposable and the committed
+// fixture is only ever its source.
+vi.mock("@/config/deployment-root", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/deployment-root")>();
+  const { syntheticDeploymentPaths } = await import("../support/synthetic-deployment");
+  return {
+    ...actual,
+    deploymentLayout: () => "override" as const,
+    deploymentPaths: () => syntheticDeploymentPaths(),
+  };
+});
+
+import { deploymentPaths } from "@/config/deployment-root";
 
 import {
   authoringLocaleDirectoriesOf,
@@ -20,9 +36,8 @@ import {
  * These fixtures live in a test-only locale directory under the REAL roots, so the
  * real layout is exercised, and they are removed afterwards.
  */
-const root = process.cwd();
-const markdownRoot = path.join(root, "content", "pages", "markdown");
-const jsonRoot = path.join(root, "content", "pages", "json");
+const markdownRoot = path.join(deploymentPaths().markdownPagesRoot);
+const jsonRoot = path.join(deploymentPaths().jsonPagesRoot);
 // A locale directory UNIQUE to this suite: vitest runs test FILES in parallel, so two
 // suites sharing one fixture directory would overwrite each other's fixtures.
 // (Subtags must be 2–8 characters for a name to be a well-formed language tag.)

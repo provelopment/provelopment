@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 import {
   contrastRatio,
   declarations,
@@ -186,12 +187,12 @@ describe("Foundation selectors — location + language only (preset feature reti
   });
 
   it("has NO preset-comparison configuration surface left", () => {
-    expect(read("site.config.json")).not.toContain("presetComparison");
+    expect(readFileSync(syntheticDeploymentConfigFile, "utf8")).not.toContain("presetComparison");
     expect(read("src", "config", "schema.ts")).not.toContain("presetComparison");
     expect(read("src", "config", "site-config.ts")).not.toContain("presetComparison");
     // The shipped config declares no preset either: the canonical presentation
     // comes from the shared UI engine's default, not from a selection.
-    const config = JSON.parse(read("site.config.json")) as { ui?: Record<string, unknown> };
+    const config = JSON.parse(readFileSync(syntheticDeploymentConfigFile, "utf8")) as { ui?: Record<string, unknown> };
     expect(config.ui).not.toHaveProperty("preset");
     expect(config.ui).not.toHaveProperty("presetComparison");
   });

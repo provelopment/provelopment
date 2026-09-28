@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { createElement, type ComponentType } from "react";
@@ -92,7 +93,7 @@ const render = (asset: StatusGraphicAsset | undefined) =>
 
 describe("P12-SG — schema / configuration contract", () => {
   const rawSiteConfig = JSON.parse(
-    readFileSync(path.join(root, "site.config.json"), "utf8"),
+    readFileSync(syntheticDeploymentConfigFile, "utf8"),
   ) as Record<string, unknown>;
 
   it("1. an existing adopter config WITHOUT the new role remains valid (no forced migration)", () => {

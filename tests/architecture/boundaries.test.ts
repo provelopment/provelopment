@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
 
 const srcDirectory = path.join(process.cwd(), "src");
 
@@ -449,7 +450,7 @@ describe("Phase L — regional page-context boundaries", () => {
 
   it("no location navigation links remain in config navigation or dictionaries", () => {
     const config = JSON.parse(
-      readFileSync(path.join(process.cwd(), "site.config.json"), "utf8"),
+      readFileSync(syntheticDeploymentConfigFile, "utf8"),
     ) as { navigation?: { href: string }[] };
     const hrefs = (config.navigation ?? []).map((entry) => entry.href);
     for (const forbidden of ["/toronto", "/vancouver", "/montreal", "/berlin"]) {
@@ -514,7 +515,7 @@ describe("Phase M — location selector + region-aware navigation boundaries", (
 
   it("primary navigation holds INTERNAL routes only (locations are selectors, never nav links)", () => {
     const config = JSON.parse(
-      readFileSync(path.join(process.cwd(), "site.config.json"), "utf8"),
+      readFileSync(syntheticDeploymentConfigFile, "utf8"),
     ) as { navigation?: { href: string }[] };
     const hrefs = (config.navigation ?? []).map((entry) => entry.href);
     expect(hrefs.length).toBeGreaterThan(0);

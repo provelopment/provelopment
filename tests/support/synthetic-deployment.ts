@@ -52,6 +52,65 @@ export interface SyntheticDeployment {
 }
 
 /**
+ * A DISPOSABLE copy of the fixture, created at most once per test process and deleted when the
+ * process exits. Using it is what lets a generic test read and WRITE deployment-owned state (pages,
+ * dictionaries, config) without ever touching the repository's own deployment — including the
+ * committed fixture, which is only ever the SOURCE of the copy.
+ */
+let writable: SyntheticDeployment | null = null;
+
+export function syntheticWritableDeployment(): SyntheticDeployment {
+  if (writable === null) {
+    writable = materializeSyntheticDeployment();
+    const created = writable;
+    process.on("exit", () => created.cleanup());
+  }
+  return writable;
+}
+
+/**
+ * The synthetic deployment's paths in the shape `@/config/deployment-root` publishes, so a test can
+ * install it as the authority:
+ *
+ *     vi.mock("@/config/deployment-root", async (importOriginal) => {
+ *       const actual = await importOriginal<typeof import("@/config/deployment-root")>();
+ *       const { syntheticDeploymentPaths } = await import("../support/synthetic-deployment");
+ *       return {
+ *         ...actual,
+ *         deploymentLayout: () => "override" as const,
+ *         deploymentPaths: () => syntheticDeploymentPaths(),
+ *       };
+ *     });
+ *
+ * `publicAssetsDirectory` deliberately keeps the PLATFORM path: Next serves static files from
+ * `public/` only, so asset availability is a platform fact, not a deployment location.
+ */
+export function syntheticDeploymentPaths(root: string = syntheticWritableDeployment().root): {
+  layout: "override";
+  root: string;
+  siteConfigFile: string;
+  dictionaryDirectory: string;
+  dictionaryOverrideDirectory: string;
+  markdownPagesRoot: string;
+  jsonPagesRoot: string;
+  assetSourceRoot: string;
+  publicAssetsDirectory: string;
+} {
+  const repositoryRoot = process.cwd();
+  return {
+    layout: "override",
+    root,
+    siteConfigFile: path.join(root, "site.config.json"),
+    dictionaryDirectory: path.join(root, "config", "i18n"),
+    dictionaryOverrideDirectory: path.join(root, "config", "i18n", "sites"),
+    markdownPagesRoot: path.join(root, "content", "pages", "markdown"),
+    jsonPagesRoot: path.join(root, "content", "pages", "json"),
+    assetSourceRoot: path.join(root, "content", "assets"),
+    publicAssetsDirectory: path.join(repositoryRoot, "public", "assets"),
+  };
+}
+
+/**
  * Copies the fixture deployment into a fresh temporary directory and returns its root. The
  * temporary tree is the only thing a generic test may mutate: `site.config.json`, dictionaries and
  * pages inside it are copies.
