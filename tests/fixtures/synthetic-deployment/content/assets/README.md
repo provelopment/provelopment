@@ -24,4 +24,3 @@ provides it: the artwork-only roles (`og-image.png`, `background-all.svg`, `stat
 Generated state is not committed here: `pnpm assets:sync` creates the runtime mirror from these
 sources, and `pnpm country-codes:sync` writes this deployment's `content/COUNTRY-CODES.md`. Both are
 produced when a deployment is selected, which is what the generic clean-room proof exercises.
-
