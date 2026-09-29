@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -6,6 +7,10 @@ import { describe, expect, it, vi } from "vitest";
 import { resolveDeploymentForBuild } from "@/config/deployment-build.mjs";
 import { deploymentPaths } from "@/config/deployment-root";
 
+import {
+  RETIRED_ROOT_DEPLOYMENT_LOCATIONS,
+  retiredRootDeploymentViolations,
+} from "../support/retired-root-deployment";
 import { syntheticDeploymentPaths } from "../support/synthetic-deployment";
 
 vi.mock("next/navigation", () => ({
@@ -284,5 +289,183 @@ describe("the build selects exactly one deployment", () => {
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * THE REPOSITORY-OWNERSHIP GUARD (FOUNDATION-DEPLOYMENT-ISO-B3C2A)
+ * ================================================================
+ *
+ * The guard above keeps the deployment root a SINGLE AUTHORITY. This one keeps the deployment itself
+ * in a single PLACE: the combined Foundation repository is a platform repository that CARRIES a
+ * reference deployment in its capsule, so the deployment-owned locations a build derives from a
+ * selected root must not also exist at this repository's root. Whichever copy a reader found first
+ * would decide what the site says — that is the defect this contract exists to make impossible.
+ *
+ * Four properties, each reasoned from structure rather than from an inventory:
+ *
+ *   1. NOTHING is tracked beneath the retired root locations, and nothing is sitting there on disk;
+ *   2. ARBITRARY future descendants are rejected — the rule names locations, never filenames;
+ *   3. the CAPABILITY is preserved: a standalone spoke repository keeps selecting the `repository`
+ *      layout (B4 depends on this), proven on a disposable synthetic repository;
+ *   4. the capsule directory is spelled in the build authority and the path authority ALONE, and the
+ *      generic test tree reaches deployment state only through the authority.
+ */
+describe("the combined Foundation repository keeps deployment state in its capsule", () => {
+  const relativeToRoot = (file: string) => path.relative(ROOT, file).split(path.sep).join("/");
+
+  /** The paths this repository has actually TRACKED beneath the retired root locations. */
+  function trackedRetiredRootPaths(): string[] {
+    return execFileSync("git", ["ls-files", "-z", "--", ...RETIRED_ROOT_DEPLOYMENT_LOCATIONS], {
+      cwd: ROOT,
+      encoding: "utf8",
+    })
+      .split("\0")
+      .filter((tracked) => tracked.length > 0);
+  }
+
+  it("tracks NOTHING at the retired Foundation-root deployment locations", () => {
+    const tracked = trackedRetiredRootPaths();
+
+    // The inventory is taken FROM the locations themselves, which is what makes this durable: a file
+    // nobody has written yet (`content/anything/new.txt`) fails here the day it is tracked, without
+    // this guard ever naming it.
+    expect(retiredRootDeploymentViolations(tracked)).toEqual([]);
+  });
+
+  it("leaves those locations ABSENT on disk as well — drift has no second home to grow in", () => {
+    // Filesystem evidence is COMPLEMENTARY, never the contract (Git does not track empty directories,
+    // and ISO-C1 showed how misleading directory presence can be): the tracked inventory above is the
+    // rule. This catches the other half — a stray copy that has not been committed yet.
+    for (const location of RETIRED_ROOT_DEPLOYMENT_LOCATIONS) {
+      expect(existsSync(path.join(ROOT, ...location.split("/"))), location).toBe(false);
+    }
+  });
+
+  it("rejects ARBITRARY future descendants under a retired root location", () => {
+    // The negative inventory is SYNTHETIC (B3C2A §19): the rule is proved on path inventories, so no
+    // forbidden file ever has to be planted in the repository — or left behind — to test it.
+    const rejected = [
+      "site.config.json",
+      "./site.config.json",
+      "config/i18n/en.json",
+      "config/i18n/sites/ww/en.json",
+      "content/pages/markdown/ww/en/about.md",
+      "content/pages/json/ww/en/offerings/website-design.json",
+      "content/assets/logo.svg",
+      "content/README.md",
+      "content/anything/new.txt",
+      "content\\assets\\logo.svg",
+      "CONTENT/README.md",
+    ];
+
+    for (const tracked of rejected) {
+      expect(retiredRootDeploymentViolations([tracked]), tracked).toEqual([tracked]);
+    }
+  });
+
+  it("accepts the capsule's own tree, fixture trees and root-anchored lookalikes", () => {
+    // The rule is about WHERE this repository's deployment state lives, not about the vocabulary: the
+    // capsule's own locations, a synthetic fixture's tree and platform modules that merely share a
+    // directory name all stay legal.
+    const accepted = [
+      "deployment/site.config.json",
+      "deployment/config/i18n/en.json",
+      "deployment/content/pages/markdown/ww/en/about.md",
+      "deployment/content/assets/logo.svg",
+      "src/config/i18n/registry.ts",
+      "tests/fixtures/synthetic-deployment/content/pages/markdown/ww/en/about.md",
+      "public/assets/logo-header.svg",
+      "content-notes.md",
+      "config/i18n-notes.md",
+    ];
+
+    expect(retiredRootDeploymentViolations(accepted)).toEqual([]);
+  });
+
+  it("selects the REPOSITORY layout for a standalone spoke — root deployment state stays SUPPORTED", () => {
+    // B3C2A forbids root deployment state in THIS repository; it must never forbid the CAPABILITY. A
+    // future independent spoke repository is exactly this shape — ONE deployment, no platform
+    // capsule, its deployment-owned locations at its own root — and this is the proof (B4's premise)
+    // that the selector still selects it. Nothing here is repository identity: the same call decides
+    // every repository the same way.
+    const root = mkdtempSync(path.join(tmpdir(), "foundation-spoke-"));
+    try {
+      const spokeLocations = [
+        "config/i18n/en.json",
+        "content/pages/markdown/ww/en/about.md",
+        "content/pages/json/ww/en/home.json",
+        "content/assets/logo.svg",
+      ];
+      for (const location of spokeLocations) {
+        const file = path.join(root, ...location.split("/"));
+        mkdirSync(path.dirname(file), { recursive: true });
+        writeFileSync(file, "{}\n", "utf8");
+      }
+      writeFileSync(path.join(root, "site.config.json"), JSON.stringify({ spoke: true }), "utf8");
+
+      const resolved = resolveDeploymentForBuild({}, root);
+      expect(resolved.layout).toBe("repository");
+      expect(resolved.root).toBe(root);
+      expect(resolved.siteConfigFile).toBe(path.join(root, "site.config.json"));
+      expect(JSON.parse(resolved.config)).toEqual({ spoke: true });
+
+      // The derived deployment-owned locations are the spoke's OWN root locations — the same five
+      // locations the authority derives for any selected root, capsule or override alike.
+      for (const location of [
+        "config/i18n",
+        "content/pages/markdown",
+        "content/pages/json",
+        "content/assets",
+      ]) {
+        expect(existsSync(path.join(root, ...location.split("/"))), location).toBe(true);
+      }
+
+      // …and a capsule, when a repository has one, still wins — the selector's documented order,
+      // applied to every repository rather than to this one.
+      const capsuleRoot = path.join(root, "deployment");
+      mkdirSync(capsuleRoot, { recursive: true });
+      writeFileSync(path.join(capsuleRoot, "site.config.json"), JSON.stringify({ capsule: true }), "utf8");
+      expect(resolveDeploymentForBuild({}, root).layout).toBe("capsule");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it("spells the capsule directory in the ONE build authority and the ONE path authority, nowhere else", () => {
+    // Selecting a deployment and deriving its root are the only two places in application source that
+    // may name the capsule directory. A third spelling would be a second derivation of the same
+    // answer — exactly what a reviewer should see statically rather than discover as a run-time
+    // disagreement between the build authority and the paths a server renders with.
+    const capsuleDirectory = /(?:^|["'`/\\])deployment(?:$|["'`/\\])/;
+
+    const spellers = sourceFiles(path.join(ROOT, "src"))
+      .filter((file) => codeLines(file).some((line) => capsuleDirectory.test(line)))
+      .map(relativeToRoot)
+      .sort();
+
+    expect(spellers).toEqual(["src/config/deployment-build.mjs", "src/config/deployment-root.ts"]);
+  });
+
+  it("keeps the generic test tree off the repository's own deployment state", () => {
+    // ISO-H2 gives the generic project a SYNTHETIC deployment, so a generic test reaches deployment
+    // state through the authority — `deploymentPaths()` or `syntheticDeploymentPaths()` — and never by
+    // composing a path itself. The rule keys on a REPOSITORY anchor (`ROOT`, `process.cwd()`, …) and
+    // not on the vocabulary, because a fixture tree a test creates in a TEMPORARY directory is the
+    // sanctioned way to have real deployment files (tests/support/synthetic-deployment-root.ts) and
+    // such a tree anchors on its own disposable root instead.
+    const repositoryAnchor =
+      /(process\.cwd\(\)|\bROOT\b|\bREPO_ROOT\b|__dirname|import\.meta\.dirname|\bHERE\b)/;
+    const deploymentState =
+      /(["'`/\\])deployment(["'`/\\])|(["'`/\\])content(["'`/\\])|(["'`/\\])i18n(["'`/\\])/;
+
+    const offenders = sourceFiles(path.join(ROOT, "tests"))
+      .filter((file) =>
+        codeLines(file).some((line) => repositoryAnchor.test(line) && deploymentState.test(line)),
+      )
+      .map(relativeToRoot)
+      .sort();
+
+    expect(offenders).toEqual([]);
   });
 });
