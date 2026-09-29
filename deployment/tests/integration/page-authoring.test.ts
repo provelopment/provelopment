@@ -4,10 +4,26 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-// DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so
-// it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
-// the `deployment` Vitest project, whose setup selects the REAL installed deployment
-// (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
+import {
+  captureProductionStateManifest,
+  productionStateDrift,
+} from "../../../tests/support/production-state-manifest";
+import { selectDisposableDeploymentCopy } from "../../../tests/support/disposable-deployment";
+
+// DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so it
+// lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in the
+// `deployment` Vitest project, whose setup selects the REAL installed deployment
+// (`tests/setup/real-deployment.ts`, ISO-H2).
+//
+// WHERE IT WRITES (FOUNDATION-DEPLOYMENT-ISO-B3C2B)
+// -------------------------------------------------
+// The authoring model is proved by PLANTING pages, so this suite needs writable deployment state — and a
+// deployment's shipped configuration, dictionaries, pages and artwork are not writable fixture space
+// (ISO-C1 showed why: cleanup is best-effort, and residue in a real page tree is damage, not untidiness).
+// The suite therefore selects a DISPOSABLE, byte-identical COPY of the deployment the authority chose
+// (`tests/support/disposable-deployment.ts` → the `override` layout, ISO-B1/H2) and plants every fixture
+// there. The real deployment stays the SUBJECT — it is read for the copy's source and proved unchanged at
+// the end of the run — while the only writable thing in the run is a temp copy that is deleted afterwards.
 
 // A page route signals "nothing answers this URL" through `notFound()`. In a node
 // test that is a controlled signal, so it is stubbed — which also lets the
@@ -18,16 +34,32 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import PageRoute, {
-  generateMetadata,
-  generateStaticParams,
-} from "@/app/[...segments]/page";
-import sitemap from "@/app/sitemap";
-import { createPageSources } from "@/adapters/content/page-sources";
-import { siteConfig } from "@/config";
-import { deploymentPaths } from "@/config/deployment-root";
-import { HOME_CONTENT_SLUG } from "@/core/page-content";
-import { resolveSites } from "@/core/site";
+// The copy must be selected BEFORE anything reads the config surface, and this project's setup file has
+// already read it once (it asserted the REAL deployment) — so the app modules are loaded AFTER a module
+// reset, which is what makes them describe the copy rather than the instances the setup warmed.
+const disposable = selectDisposableDeploymentCopy();
+vi.resetModules();
+
+const page = await import("@/app/[...segments]/page");
+const PageRoute = page.default;
+const { generateMetadata, generateStaticParams } = page;
+const sitemap = (await import("@/app/sitemap")).default;
+const { createPageSources } = await import("@/adapters/content/page-sources");
+const { siteConfig } = await import("@/config");
+const { deploymentPaths } = await import("@/config/deployment-root");
+const { HOME_CONTENT_SLUG } = await import("@/core/page-content");
+const { resolveSites } = await import("@/core/site");
+
+/**
+ * THE POSTCONDITION, TAKEN TWICE (FOUNDATION-DEPLOYMENT-ISO-B3C2B)
+ *
+ * Once here: the REAL deployment's authored state, before any fixture is planted. Once in `afterAll`:
+ * the same state, after everything this suite did. The whole `deployment` project is already bracketed
+ * by `tests/setup/production-state-integrity.ts`; this file — the one that plants fixtures — asserts it
+ * for ITSELF as well, so the file that used to write into the real page tree now proves, locally, that it
+ * cannot: every mutable path it touches is inside the copy.
+ */
+const shippedBefore = captureProductionStateManifest(disposable.sourceRoot);
 /**
  * THE ONE PAGE MODEL, THROUGH THE REAL APPLICATION (FOUNDATION-PAGES-A1/A1E).
  *
@@ -47,22 +79,32 @@ import { resolveSites } from "@/core/site";
  *     one;
  *   · the locale root still renders the authored home page content-first.
  *
- * Every fixture here is created and removed by THIS suite, and the repository's own
- * authored reference pages are left exactly as they are: a run fixture may add a file
- * beside them, but never overwrites or deletes shipped content. Removal is then ASSERTED,
- * not assumed (ISO-C1A1): a run that leaves a fixture file or directory behind FAILS.
+ * Every fixture here is created and removed by THIS suite, inside the DISPOSABLE COPY of the selected
+ * deployment it plants them in (see WHERE IT WRITES above); the real deployment's authored reference pages
+ * are never opened for writing at all, so a run can neither overwrite nor delete shipped content. Removal
+ * is then ASSERTED, not assumed (ISO-C1A1): a run that leaves a fixture file or directory behind FAILS.
  */
 /**
- * WHERE THESE FIXTURES GO (FOUNDATION-DEPLOYMENT-ISO-B2A)
- * ------------------------------------------------------
+ * WHERE THESE FIXTURES GO (FOUNDATION-DEPLOYMENT-ISO-B2A, re-pointed by ISO-B3C2B)
+ * ------------------------------------------------------------------------------
  * The deployment's authoring roots are asked of the ONE deployment-root authority
  * (`@/config/deployment-root`, ISO-B1) — never spelled as a repository-root path here — so a run
- * fixture is planted in the deployment's own page tree wherever the deployment is kept, and never in
- * a path this file invented.
+ * fixture is planted in that deployment's own page tree wherever the deployment is kept, and never in
+ * a path this file invented. The authority now answers with the disposable copy this file selected, and
+ * the assertion below refuses to continue if it answers with anything else.
  */
-const PAGES_ROOT = path.dirname(deploymentPaths().markdownPagesRoot);
-const MARKDOWN_PAGES_ROOT = deploymentPaths().markdownPagesRoot;
-const JSON_PAGES_ROOT = deploymentPaths().jsonPagesRoot;
+const copyPaths = deploymentPaths();
+if (path.resolve(copyPaths.root) !== path.resolve(disposable.root)) {
+  throw new Error(
+    "FOUNDATION-DEPLOYMENT-ISO-B3C2B: this suite plants fixtures into a disposable copy of the selected " +
+      `deployment, but the runtime authority answers with "${copyPaths.root}" instead of ` +
+      `"${disposable.root}". Refusing to run: a writable authoring experiment must never touch the real ` +
+      "deployment.",
+  );
+}
+const PAGES_ROOT = path.dirname(copyPaths.markdownPagesRoot);
+const MARKDOWN_PAGES_ROOT = copyPaths.markdownPagesRoot;
+const JSON_PAGES_ROOT = copyPaths.jsonPagesRoot;
 
 // S1 - these fixtures live in ONE site tree: the deployment default site.
 const SITE = siteConfig.defaultSite.code;
@@ -272,8 +314,25 @@ describe("the one page model, through the real application", () => {
   const residue = TEST_OWNED_PATHS.filter((candidate) => existsSync(candidate));
   expect(
     residue,
-    `fixture residue left in the deployment's page tree: ${residue.join(", ")}`,
+    `fixture residue left in the copy's page tree: ${residue.join(", ")}`,
   ).toEqual([]);
+
+  // AND THE BYTES OF THE REAL DEPLOYMENT (FOUNDATION-DEPLOYMENT-ISO-B3C2B). The copy is disposable, so
+  // residue there is untidiness at worst — but the selected deployment is not, and THIS suite is the one
+  // that used to write into its page tree. The manifest taken at import time is compared with the same
+  // state now: one changed, added or removed authored byte fails this file, whatever caused it.
+  const shippedDrift = productionStateDrift(
+    shippedBefore,
+    captureProductionStateManifest(disposable.sourceRoot),
+  );
+  expect(
+    shippedDrift,
+    `this suite mutated the selected deployment's authored state: ${shippedDrift.join(", ")}`,
+  ).toEqual([]);
+
+  // The temp copy is the only writable thing this run had; it goes last, so the assertion above is not
+  // affected by its removal.
+  disposable.cleanup();
 });
 
   it("generates a real static route for a flat AND a nested page", async () => {

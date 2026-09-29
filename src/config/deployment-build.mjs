@@ -56,6 +56,21 @@ export const DEPLOYMENT_CONFIG_ENV = "FOUNDATION_DEPLOYMENT_CONFIG";
 export const DEPLOYMENT_ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
 
 /**
+ * The capsule directory the selector probes: `<repositoryRoot>/deployment`.
+ *
+ * Exported because the spelling belongs HERE and nowhere else: a caller that needs to know where a
+ * deployment's capsule WOULD live (a test guard protecting it from writes, for instance) asks this
+ * module rather than composing `…/deployment` for itself. ISO-B3C2A fixes the set of modules that may
+ * name the capsule directory; this keeps that set at two.
+ *
+ * @param {string} [repositoryRoot] the repository the capsule would live in
+ * @returns {string} the absolute capsule directory
+ */
+export function capsuleDirectory(repositoryRoot = process.cwd()) {
+  return path.join(repositoryRoot, "deployment");
+}
+
+/**
  * Resolves the deployment this build serves.
  *
  *   capsule     `<repo>/deployment/site.config.json` exists → the capsule owns the deployment
@@ -71,7 +86,7 @@ export const DEPLOYMENT_ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
  */
 export function resolveDeploymentForBuild(environment = process.env, repositoryRoot = process.cwd()) {
   const override = environment[DEPLOYMENT_ROOT_ENV]?.trim();
-  const capsuleRoot = path.join(repositoryRoot, "deployment");
+  const capsuleRoot = capsuleDirectory(repositoryRoot);
   /** @type {DeploymentLayout} */
   const layout =
     override !== undefined && override !== ""

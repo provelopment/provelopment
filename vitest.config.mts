@@ -35,6 +35,13 @@ import { defineConfig } from "vitest/config";
  *                                          package command has to resolve a deployment in order to run
  *                                          the generic suite.
  *
+ * Both projects are additionally bracketed by ONE global setup,
+ * `tests/setup/production-state-integrity.ts` (FOUNDATION-DEPLOYMENT-ISO-B3C2B): it manifests the real
+ * deployment's authored production state before the project runs and compares it after, so a run that
+ * leaves a mutation behind FAILS instead of quietly damaging the deployment it was describing. It is
+ * the OUTCOME the write-domain rules are enforced for; the rules themselves (which module may write
+ * which domain) are asserted by `tests/architecture/write-ownership-guard.test.ts`.
+ *
  * The resolution is deliberately NOT done while this config is loaded: a missing real deployment must
  * fail the DEPLOYMENT suite loudly (with the authority's own message) and must not prevent the generic
  * suite from running.
@@ -59,6 +66,7 @@ export default defineConfig({
           name: "foundation",
           environment: "node",
           setupFiles: ["tests/setup/synthetic-deployment.ts"],
+          globalSetup: ["tests/setup/production-state-integrity.ts"],
           include: ["tests/**/*.test.ts", "tests/**/*.test.tsx"],
         },
       },
@@ -69,6 +77,7 @@ export default defineConfig({
           name: "deployment",
           environment: "node",
           setupFiles: ["tests/setup/real-deployment.ts"],
+          globalSetup: ["tests/setup/production-state-integrity.ts"],
           include: ["deployment/tests/**/*.test.ts", "deployment/tests/**/*.test.tsx"],
         },
       },

@@ -1,8 +1,14 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
+
+import {
+  captureProductionStateManifest,
+  productionStateDrift,
+} from "../support/production-state-manifest";
 
 import {
   COUNTRY_CODES_DOCUMENT,
@@ -173,4 +179,80 @@ describe("the generator consumes the ONE seam, and no second resolver exists", (
       );
     }
   });
+
+describe("the sanctioned write boundary is ONE document, and `--check` never writes (ISO-B3C2B)", () => {
+  /** The repository's generator, invoked exactly as `package.json` invokes it. */
+  const SCRIPT = path.join(process.cwd(), "scripts", "generate-country-code-reference.mjs");
+
+  /** A deployment-shaped tree with decoys on EVERY protected authored surface, plus its document. */
+  function plantFullDeployment(root: string): string {
+    const document = plantDeployment(root);
+    writeFile(path.join(root, "config", "i18n", "en.json"), '{ "decoy": true }\n');
+    writeFile(path.join(root, "content", "pages", "markdown", "ww", "en", "home.md"), "# Decoy\n");
+    writeFile(path.join(root, "content", "assets", "logo.svg"), "<svg/>\n");
+    return document;
+  }
+
+  it("sync changes that ONE document and nothing else in the selected deployment", () => {
+    const root = tempTree("foundation-country-codes-boundary-");
+    const document = plantFullDeployment(root);
+
+    const before = captureProductionStateManifest(root);
+    expect(syncCountryCodeReference({}, root).changed).toBe(true);
+    const after = captureProductionStateManifest(root);
+
+    // The whole protected surface is manifested before and after: the ONLY path that may differ is the
+    // document the generator owns. A configuration, dictionary, page or artwork write fails here.
+    expect(productionStateDrift(before, after)).toEqual(["content/COUNTRY-CODES.md (modified)"]);
+    expect(readFileSync(document, "utf8")).toContain("`ca` Canada");
+  });
+
+  it("`--check` reports drift, exits 1, and leaves every byte AND timestamp alone", () => {
+    const root = tempTree("foundation-country-codes-check-stale-");
+    const document = plantFullDeployment(root);
+
+    const before = captureProductionStateManifest(root);
+    const stamp = statSync(document).mtimeMs;
+    let status: number | undefined;
+    let stderr = "";
+    try {
+      execFileSync(process.execPath, [SCRIPT, "--check"], {
+        cwd: process.cwd(),
+        env: { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: root },
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (error) {
+      const failure = error as { status?: number; stderr?: string };
+      status = failure.status;
+      stderr = failure.stderr ?? "";
+    }
+
+    expect(status, "a stale generated section must fail the check").toBe(1);
+    expect(stderr).toContain("COUNTRY-CODE REFERENCE CHECK FAILED");
+    expect(productionStateDrift(before, captureProductionStateManifest(root))).toEqual([]);
+    expect(readFileSync(document, "utf8")).toBe(plantedDocument());
+    expect(statSync(document).mtimeMs).toBe(stamp);
+  });
+
+  it("`--check` on a current document exits 0 and still writes nothing", () => {
+    const root = tempTree("foundation-country-codes-check-clean-");
+    plantFullDeployment(root);
+    // Bring the document up to date first: `sync` is the mode that MAY write.
+    syncCountryCodeReference({}, root);
+
+    const before = captureProductionStateManifest(root);
+    const stamp = statSync(path.join(root, COUNTRY_CODES_DOCUMENT)).mtimeMs;
+    execFileSync(process.execPath, [SCRIPT, "--check"], {
+      cwd: process.cwd(),
+      env: { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: root },
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    expect(productionStateDrift(before, captureProductionStateManifest(root))).toEqual([]);
+    expect(statSync(path.join(root, COUNTRY_CODES_DOCUMENT)).mtimeMs).toBe(stamp);
+  });
+});
+
 });

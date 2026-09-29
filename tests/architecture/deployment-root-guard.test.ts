@@ -166,7 +166,11 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     // ISO-H1C / ISO-B3A) — the browser harness, which must discover the SELECTED deployment's own
     // scenarios in whatever root that deployment owns (`tests/browser/matrix.mjs`, ISO-B3A), and the
     // test-context setup/support modules that select a deployment for the two Vitest projects
-    // (ISO-H2). Nothing else may join the list — in particular not `vitest.config.mts`, which
+    // (ISO-H2). ISO-B3C2B adds the WRITE-BOUNDARY consumers, which must ask where the installed
+    // deployment is in order to protect it: the harness's write guard (`tests/browser/scratch.mjs`),
+    // the disposable-copy helper (`tests/support/disposable-deployment.ts`), the runtime
+    // production-state proof (`tests/setup/production-state-integrity.ts`) and the write-ownership
+    // guard itself. Nothing else may join the list — in particular not `vitest.config.mts`, which
     // deliberately resolves NO deployment: the generic suite must run in a repository where no real
     // deployment exists.
     const approved = [
@@ -174,8 +178,12 @@ describe("deployment-owned paths are spelled in ONE place", () => {
       "scripts/generate-country-code-reference.mjs",
       "scripts/sync-runtime-assets.mjs",
       "tests/architecture/deployment-root-guard.test.ts",
+      "tests/architecture/write-ownership-guard.test.ts",
       "tests/browser/matrix.mjs",
+      "tests/browser/scratch.mjs",
+      "tests/setup/production-state-integrity.ts",
       "tests/setup/real-deployment.ts",
+      "tests/support/disposable-deployment.ts",
       "tests/support/synthetic-deployment-root.ts",
     ];
     const unapproved = sourceFiles(path.join(ROOT, "tests"))
