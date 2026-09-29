@@ -32,6 +32,7 @@ import {
 } from "@/core/ui";
 import { pathContextOr, siteHref, sitePrefixPath, siteSetOf } from "@/core/site";
 import { ShellEngine } from "@/components/shell";
+import { SidebarPreferenceBoot } from "@/components/ui/sidebar-preference-boot";
 import { ContextNavLinks } from "@/components/site/context-nav-links";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
 import { PageBanner } from "@/components/site/page-banner";
@@ -304,6 +305,29 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       }
     : undefined;
 
+  // UI1-A2 — THE PRE-PAINT SIDEBAR BRIDGE, and the ONE hydration tolerance it needs.
+  //
+  // The rail's open/closed state is the visitor's browser-local preference, so a STATICALLY GENERATED
+  // document cannot know it: the server renders the canonical CLOSED rail (which is exactly what keeps
+  // every page prerendered — no cookie, session, request-time rendering or middleware enters this), and
+  // the browser has to apply the visitor's OPEN preference BEFORE that canonical geometry is painted,
+  // otherwise the visitor sees the sidebar appear closed and expand after hydration.
+  //
+  // So the layout emits one synchronous script — `SidebarPreferenceBoot`, the FIRST element of `<body>`,
+  // before any shell markup exists — which reads the SAME contract the runtime reads
+  // (`@/components/ui/sidebar-contract`) and marks `<html>` with the visitor's OPEN preference for the boot
+  // interval. The
+  // stylesheet presents the canonical rail as the OPEN one while that marker is present, and the runtime
+  // relinquishes it as soon as a rail represents the resolved preference (see `./sidebar`), so nothing
+  // about toggling, navigation or later lifetimes changes.
+  //
+  // `suppressHydrationWarning` is required, deliberately, and only on `<html>`: the marker is DOM state
+  // written between the server's markup and hydration, which is precisely the case React's escape hatch
+  // exists for. It is scoped to the `<html>` element itself (React applies it one level deep), so every
+  // descendant — the rails included — keeps React's strict hydration comparison; and it is emitted ONLY
+  // where a rail is actually composed, so a deployment without one ships no bridge and no tolerance.
+  const sidebarPreferenceBridge = usesAside;
+
   // FS-5 — the configured page/background color flows into the EXISTING
   // design-token system: when `ui.theme.background` is set, we override the
   // `--background` CSS variable on `<html>` (components consume the token via
@@ -338,9 +362,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       lang={localeTag}
       className={`${brandSans.variable} ${geistMono.variable} h-full antialiased`}
       style={htmlStyle}
+      suppressHydrationWarning={sidebarPreferenceBridge}
       {...htmlPresentationAttrs}
     >
       <body className="min-h-full flex flex-col">
+        {sidebarPreferenceBridge ? <SidebarPreferenceBoot /> : null}
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground"

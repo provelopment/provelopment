@@ -514,11 +514,17 @@ and the same left-side vertical position.
   icon navigates and never opens, closes or resets the rail. The tablet rail
   follows the same preference; the `<md` drawer/bottom bar is a separate,
   ephemeral interaction model that this preference does not govern. A missing,
-  unusable or blocked stored value falls back to the canonical CLOSED state. The
-  one thing a page load cannot know is the *stored* choice: a freshly loaded page
-  is served with the canonical CLOSED rail and adopts a stored `open` as it
-  hydrates, so refreshing while the sidebar is open may show that brief expand —
-  the same static-generation trade-off the Layout preference documents.
+  unusable or blocked stored value falls back to the canonical CLOSED state. A page
+  load is still served with the canonical CLOSED rail — no cookie, no session, no
+  request-time rendering, so every page stays statically generated — and the stored
+  choice is applied **before the rail is first painted**: one small synchronous
+  script (`@/components/ui/sidebar-preference-boot`, built from the same contract)
+  marks the document, the stylesheet presents the canonical rail as the visitor's
+  OPEN one while that mark is present, and the rail's runtime relinquishes the mark
+  as soon as it represents the resolved preference. Refreshing while the sidebar is
+  open therefore shows the OPEN sidebar **from the first painted frame** and never
+  expands into place; nothing about toggling, navigation or later page lifetimes
+  changes (the disclosure control remains the only thing that changes the state).
 - **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
   mobile disclosure carry **navigation only**: the single Book Now action lives in
   the shell's top region (`ui-shell-header-row`), so collapsing or expanding the

@@ -4343,11 +4343,18 @@ async function runMultisiteScenario(chrome) {
  *
  * Two further proofs are measured rather than assumed:
  *
- *   FIRST PAINT — a frame recorder samples the rail's state on every animation frame (installed before the
- *   document's own scripts run), so "the first painted state matches the preference" is an observation
- *   rather than a claim: an implementation that painted CLOSED and corrected to OPEN after hydration
- *   would be visible here as a frame carrying the wrong state;
+ *   FIRST PAINT — a frame recorder samples the rail's state, its PAINTED geometry and its presentation on
+ *   every animation frame (installed before the document's own scripts run), so "the first painted state
+ *   matches the preference" is an observation rather than a claim;
  *   CONSOLE — every console error/warning of the run is collected, and a HYDRATION message fails the run.
+ *
+ * UI1-A2 adds the FULL-DOCUMENT first-paint contract, because the frame recorder's ATTRIBUTE channel could
+ * not see the defect the owner reported on refresh: a document with a stored OPEN preference rendered the
+ * canonical CLOSED rail and expanded it after hydration (CLOSED first paint, then a 36px → 220px width
+ * transition). The repair is a synchronous pre-paint bridge, so the rows judge what is ON SCREEN —
+ * `firstPaint.*` — on a REAL reload: the first painted state, every painted state of the new document, the
+ * boot presentation against the runtime presentation, the relinquish of the bridge, and the absence of any
+ * boot-induced width transition. Reverting the repair flips those rows.
  *
  * UI1-A1 adds a THIRD, because the first one is not sufficient on its own: a rail that commits the canonical
  * state and adopts the stored one in the SAME commit paints no wrong frame, yet the browser still starts the
@@ -4361,15 +4368,27 @@ async function runMultisiteScenario(chrome) {
  * into it.
  */
 
-/** The preference key, READ FROM THE APP'S OWN SOURCE, so this scenario cannot agree with a copy. */
-const SIDEBAR_PREFERENCE_SOURCE = readFileSync(
-  join(ROOT, "src", "components", "ui", "sidebar-preference.ts"),
-  "utf8",
-);
+/**
+ * The preference contract, READ FROM THE APP'S OWN SOURCE, so this scenario cannot agree with a copy.
+ *
+ * UI1-A2 — the key, the vocabulary and the boot marker are declared in ONE authority
+ * (`src/components/ui/sidebar-contract.ts`), which both the pre-paint bridge and the runtime consume; the runtime module
+ * simply re-exports them. The scenario therefore reads the AUTHORITY, and the attribute it observes is the
+ * same one the app writes — never a literal spelled again here.
+ */
+const SIDEBAR_PREFERENCE_SOURCE = readFileSync(join(ROOT, "src", "components", "ui", "sidebar-contract.ts"), "utf8");
 const SIDEBAR_PREFERENCE_KEY = (() => {
   const match = /SIDEBAR_PREFERENCE_STORAGE_KEY\s*=\s*"([^"]+)"/.exec(SIDEBAR_PREFERENCE_SOURCE);
   if (!match) {
-    throw new Error("the sidebar preference key must be declared in @/components/ui/sidebar-preference.ts");
+    throw new Error("the sidebar preference key must be declared in @/components/ui/sidebar-contract.ts");
+  }
+  return match[1];
+})();
+/** The inert `<html>` marker the pre-paint bridge writes, from the same authority. */
+const SIDEBAR_PREFERENCE_MARKER = (() => {
+  const match = /SIDEBAR_PREFERENCE_ATTRIBUTE\s*=\s*"([^"]+)"/.exec(SIDEBAR_PREFERENCE_SOURCE);
+  if (!match) {
+    throw new Error("the sidebar boot marker must be declared in @/components/ui/sidebar-contract.ts");
   }
   return match[1];
 })();
@@ -4402,12 +4421,22 @@ const SIDEBAR_STATE_PROBE = `(() => {
 })()`;
 
 /**
- * Installed in EVERY document of this scenario, BEFORE the document's own scripts run: the rail's state
- * on every animation frame (from the first frame it exists in), and every console message at
- * error/warning level, so a hydration mismatch cannot pass unnoticed.
+ * Installed in EVERY document of this scenario, BEFORE the document's own scripts run: the rail's state on
+ * every animation frame (from the first frame it exists in), the rail's PAINTED geometry, the document's
+ * boot marker, and every console message at error/warning level, so a hydration mismatch cannot pass
+ * unnoticed.
+ *
+ * UI1-A2 — WHY THE PAINTED GEOMETRY IS RECORDED TOO. The attribute alone cannot answer "what did the
+ * visitor see": a document with a stored OPEN preference renders the canonical CLOSED rail and adopts the
+ * stored state in its first commit, so the ATTRIBUTE can be corrected while the painted geometry was
+ * already the narrow rail. The recorder therefore samples the rail's rendered WIDTH every frame (36px = the
+ * collapsed column, 220px = the open rail) and takes a full presentation fingerprint the first time a rail
+ * exists — so "the first painted state is the visitor's OPEN rail, and no CLOSED frame was ever shown" is
+ * measured rather than asserted.
  */
 const SIDEBAR_WATCH = `(() => {
-  const watch = { frames: [], console: [] };
+  const watch = { frames: [], console: [], bootFp: null };
+  const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   for (const level of ['error', 'warn']) {
     const reported = console[level];
     console[level] = function (...args) {
@@ -4415,14 +4444,44 @@ const SIDEBAR_WATCH = `(() => {
       return reported.apply(this, args);
     };
   }
+  /** The rail's VISIBLE presentation: geometry plus the state-dependent computed values. */
+  const fingerprint = (rail) => {
+    if (!rail) return null;
+    const toggle = rail.querySelector('.ui-sidebar-toggle');
+    const label = rail.querySelector('.ui-nav-item-label');
+    const link = rail.querySelector('li > a, li > span');
+    const list = rail.querySelector('ul');
+    const iconOpen = rail.querySelector('.ui-nav-item-icon-open');
+    const iconClosed = rail.querySelector('.ui-nav-item-icon-closed');
+    const cs = (el) => (el ? getComputedStyle(el) : null);
+    const railCs = cs(rail);
+    const toggleCs = cs(toggle);
+    const labelCs = cs(label);
+    const linkCs = cs(link);
+    const listCs = cs(list);
+    return [
+      'railW=' + Math.round(rail.getBoundingClientRect().width),
+      'railPad=' + railCs.paddingInlineStart + '/' + railCs.paddingInlineEnd,
+      'toggle=' + (toggleCs ? toggleCs.justifyContent + '|' + toggleCs.marginInlineStart + '|' + toggleCs.paddingInlineStart + '|' + toggleCs.backgroundColor : 'n/a'),
+      'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
+      'link=' + (linkCs ? linkCs.display + '|' + linkCs.justifyContent : 'n/a'),
+      'listPad=' + (listCs ? listCs.paddingInlineStart : 'n/a'),
+      'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+    ].join('  ');
+  };
   const sample = () => {
     if (watch.frames.length < 200) {
       const desktop = document.querySelector('#shell-sidebar-desktop-rail');
       const tablet = document.querySelector('#shell-sidebar-tablet-rail');
+      const rail = [desktop, tablet].find(shown) || null;
+      if (rail && watch.bootFp === null) watch.bootFp = fingerprint(rail);
       watch.frames.push({
         t: Math.round(performance.now()),
         desktop: desktop ? desktop.getAttribute('data-collapsed') : null,
         tablet: tablet ? tablet.getAttribute('data-collapsed') : null,
+        desktopW: desktop ? Math.round(desktop.getBoundingClientRect().width) : null,
+        tabletW: tablet ? Math.round(tablet.getBoundingClientRect().width) : null,
+        boot: document.documentElement.getAttribute(${JSON.stringify(SIDEBAR_PREFERENCE_MARKER)}),
       });
     }
     requestAnimationFrame(sample);
@@ -4431,16 +4490,64 @@ const SIDEBAR_WATCH = `(() => {
   window.__ui1Watch = watch;
 })()`;
 
-/** What the recorder has seen: each band's first recorded frame, the frames since, the console. */
+/** The collapsed rail's own width: anything at or below it is the icon column the visitor sees as CLOSED. */
+const SIDEBAR_PAINTED_NARROW_MAX = 64;
+
+/** What the recorder has seen: each band's first state, the PAINTED states, the boot marker, the console. */
 const SIDEBAR_WATCH_PROBE = `(() => {
-  const watch = window.__ui1Watch || { frames: [], console: [] };
+  const watch = window.__ui1Watch || { frames: [], console: [], bootFp: null };
   const firstOf = (band) => { const frame = watch.frames.find((entry) => entry[band] !== null); return frame ? frame[band] : null; };
+  const painted = watch.frames.filter((entry) => typeof entry.desktopW === 'number' && entry.desktopW > 0);
   return JSON.stringify({
     desktopFirst: firstOf('desktop'),
     tabletFirst: firstOf('tablet'),
+    desktopFirstPaintedWidth: painted.length > 0 ? painted[0].desktopW : null,
+    paintedStates: painted.map((entry) => (entry.desktopW <= ${SIDEBAR_PAINTED_NARROW_MAX} ? 'closed' : 'open')),
+    paintedWidths: [...new Set(painted.map((entry) => entry.desktopW))],
+    bootMarkers: [...new Set(watch.frames.map((entry) => entry.boot))],
+    bootFp: watch.bootFp,
     frames: watch.frames.map((entry) => entry.desktop),
     after: watch.frames.length,
     console: watch.console,
+  });
+})()`;
+
+/**
+ * The rail as the runtime presents it RIGHT NOW, plus the boot fingerprint the recorder captured and the
+ * document's boot marker. This is what makes "the boot presentation matches the real OPEN rail" and "the
+ * bridge was relinquished" observations rather than claims.
+ */
+const SIDEBAR_RUNTIME_PROBE = `(() => {
+  const marker = ${JSON.stringify(SIDEBAR_PREFERENCE_MARKER)};
+  const watch = window.__ui1Watch || {};
+  const fingerprintOf = (element) => {
+    if (!element) return null;
+    const toggle = element.querySelector('.ui-sidebar-toggle');
+    const label = element.querySelector('.ui-nav-item-label');
+    const link = element.querySelector('li > a, li > span');
+    const list = element.querySelector('ul');
+    const iconOpen = element.querySelector('.ui-nav-item-icon-open');
+    const iconClosed = element.querySelector('.ui-nav-item-icon-closed');
+    const cs = (el) => (el ? getComputedStyle(el) : null);
+    const railCs = cs(element);
+    const toggleCs = cs(toggle);
+    const labelCs = cs(label);
+    const linkCs = cs(link);
+    const listCs = cs(list);
+    return [
+      'railW=' + Math.round(element.getBoundingClientRect().width),
+      'railPad=' + railCs.paddingInlineStart + '/' + railCs.paddingInlineEnd,
+      'toggle=' + (toggleCs ? toggleCs.justifyContent + '|' + toggleCs.marginInlineStart + '|' + toggleCs.paddingInlineStart + '|' + toggleCs.backgroundColor : 'n/a'),
+      'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
+      'link=' + (linkCs ? linkCs.display + '|' + linkCs.justifyContent : 'n/a'),
+      'listPad=' + (listCs ? listCs.paddingInlineStart : 'n/a'),
+      'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+    ].join('  ');
+  };
+  return JSON.stringify({
+    bootMarker: document.documentElement.getAttribute(marker),
+    bootFp: watch.bootFp || null,
+    runtimeFp: fingerprintOf(document.querySelector('#shell-sidebar-desktop-rail')),
   });
 })()`;
 
@@ -4449,6 +4556,75 @@ const sidebarState = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_STATE_
 
 /** What the frame recorder has observed so far. */
 const sidebarWatch = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_WATCH_PROBE));
+
+/** The rail as the runtime presents it — the reference the boot presentation is compared against. */
+const sidebarRuntime = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_RUNTIME_PROBE));
+
+/**
+ * UI1-A2 — THE FIRST-PAINT CONTRACT OF A WHOLE DOCUMENT LOAD, as rows. The scenario calls this after an
+ * ACTUAL reload (a new document), once readiness has settled, and it judges the PAINTED state rather than
+ * the attribute:
+ *
+ *   firstPaintedState    the state of the first frame in which a rail was on screen;
+ *   neverPaintedOpposite no frame of the new document showed the other state — not for one frame;
+ *   bootPresentation     the fingerprint captured the first time a rail existed equals the fingerprint the
+ *                        runtime presents now (labels, icons, control inset, list inset and geometry), so
+ *                        the boot presentation IS the rail the visitor asked for, not just its width;
+ *   bridgeRelinquished   the boot marker is gone once the runtime represents the resolved preference.
+ *
+ * `expectedPainted` is the state the visitor stored for this document; `expectedMarker` is what the pre-paint
+ * bridge is allowed to have marked the document with at boot ("open" for a stored OPEN preference, none
+ * otherwise). `judgeTransitions` asks the transition observer about the interval that produced this document.
+ */
+async function checkSidebarFirstPaint(rows, cdp, label, expectedPainted, { expectMarker = null, judgeTransitions = true } = {}) {
+  const watch = await sidebarWatch(cdp);
+  const runtime = await sidebarRuntime(cdp);
+  const painted = watch.paintedStates;
+  const first = painted.length > 0 ? painted[0] : null;
+  const opposite = expectedPainted === "open" ? "closed" : "open";
+  check(
+    rows,
+    `firstPaint.${label}.firstPaintedStateIs${expectedPainted === "open" ? "Open" : "Closed"}`,
+    painted.length > 0 && first === expectedPainted,
+    `firstPainted=${first} width=${watch.desktopFirstPaintedWidth} states=${painted.join(",")} widths=${JSON.stringify(watch.paintedWidths)}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.neverPainted${opposite === "open" ? "Open" : "Closed"}`,
+    painted.length > 0 && painted.every((state) => state === expectedPainted),
+    `states=${JSON.stringify([...new Set(painted)])}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.bootPresentationMatches${expectedPainted === "open" ? "Open" : "Closed"}Rail`,
+    Boolean(watch.bootFp) && watch.bootFp === runtime.runtimeFp,
+    `boot=${watch.bootFp} runtime=${runtime.runtimeFp}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.bridgeRelinquished`,
+    expectMarker === null ? true : runtime.bootMarker === null,
+    `bootMarker=${runtime.bootMarker} bootMarkersSeen=${JSON.stringify(watch.bootMarkers)} (bridge marker: ${expectMarker ?? "none"})`,
+  );
+  if (expectMarker !== null) {
+    check(
+      rows,
+      `firstPaint.${label}.bridgeMarkedTheDocumentAtBoot`,
+      watch.bootMarkers.includes(expectMarker),
+      `bootMarkersSeen=${JSON.stringify(watch.bootMarkers)}`,
+    );
+  }
+  if (judgeTransitions) {
+    const observed = await sidebarTransition(cdp);
+    check(
+      rows,
+      `firstPaint.${label}.startsNoWidthTransition`,
+      observed.transitions.length === 0,
+      `transitions=${JSON.stringify(observed.transitions)} writes=${JSON.stringify(observed.writes)}`,
+    );
+  }
+  return { watch, runtime };
+}
 
 /** The stored preference, straight from the browser (never through the app's own reader). */
 const sidebarStored = (cdp) =>
@@ -4613,6 +4789,9 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "noPreference.nothingStored", fresh.stored === null, `stored=${fresh.stored}`);
     const freshWatch = await sidebarWatch(cdp);
     check(rows, "noPreference.firstPaintClosed", freshWatch.desktopFirst === "true", `firstFrame=${freshWatch.desktopFirst}`);
+    // UI1-A2 — the canonical document is the baseline the bridge must NOT touch: no marker, no OPEN frame,
+    // and the same presentation throughout.
+    await checkSidebarFirstPaint(rows, cdp, "noPreference", "closed");
 
     // ── TOGGLE → OPEN (the disclosure control is the only thing that changes the state) ─────────
     await resetSidebarTransition(cdp);
@@ -4638,14 +4817,15 @@ async function runSidebarStateScenario(chrome) {
     const reloadedOpen = await sidebarState(cdp);
     check(rows, "reload.openStaysOpen", reloadedOpen.collapsed === "false" && reloadedOpen.expanded === "true", JSON.stringify(reloadedOpen));
     const openWatch = await sidebarWatch(cdp);
-    // MEASURED, and deliberately asserted (§10): a DOCUMENT load cannot know a browser preference — the
-    // server emits the canonical CLOSED rail and the client adopts the stored OPEN in its first commit,
-    // which is the same static-generation trade-off the visitor's Layout preference already documents.
-    // The frame recorder proves the CLOSED preference needs no correction at all; for OPEN it records the
-    // canonical first paint, and the frames after a client-side navigation (below) record that the React
-    // tree never paints a state the visitor did not choose. A future pre-hydration hint would flip THIS
-    // row, which is exactly the deliberate decision it should force.
-    check(rows, "reload.openFirstPaintIsCanonicalClosed", openWatch.desktopFirst === "true", `firstFrame=${openWatch.desktopFirst}`);
+    // UI1-A2 — THE WHOLE POINT OF THIS TASK, MEASURED: the document was loaded with a stored OPEN preference,
+    // so the visitor must see the OPEN rail from the first frame that paints it. The rows below judge the
+    // PAINTED geometry of every frame of this new document (not the attribute, which may be corrected inside
+    // one commit), require the boot presentation to be identical to the runtime OPEN rail, require the
+    // pre-paint bridge to have marked the document and to have relinquished it, and require the boot interval
+    // to have started no width transition. Reverting the repair flips them (the first painted state becomes
+    // CLOSED, the boot fingerprint becomes the collapsed column's, and the adoption starts a 36px → 220px
+    // transition) — they are the durable, failing-without-the-fix proof.
+    await checkSidebarFirstPaint(rows, cdp, "openRefresh", "open", { expectMarker: "open" });
 
     // ── NAVIGATION with OPEN, through the REAL navigation control ───────────────────────────────
     const openedAt = openWatch.after;
@@ -4672,6 +4852,16 @@ async function runSidebarStateScenario(chrome) {
     await sleep(250);
     const closed = await sidebarState(cdp);
     check(rows, "toggle.closed", closed.collapsed === "true" && closed.expanded === "false" && closed.label === "Show navigation", JSON.stringify(closed));
+    // UI1-A2 — AND IT LOOKS CLOSED. This is the bridge's relinquish contract observed where it matters most:
+    // this document BOOTED with the OPEN bridge applied, so if the marker were still in place the explicit
+    // toggle would leave the rail painted OPEN while its state said otherwise. The painted geometry must be
+    // the collapsed column the visitor just asked for.
+    check(
+      rows,
+      "toggle.closedActuallyLooksClosed",
+      typeof closed.width === "number" && closed.width > 0 && closed.width <= SIDEBAR_PAINTED_NARROW_MAX,
+      `width=${closed.width} (collapsed column is <= ${SIDEBAR_PAINTED_NARROW_MAX}px)`,
+    );
     check(rows, "toggle.closedRecorded", (await sidebarStored(cdp)) === "closed");
 
     await cdp.reload();
@@ -4680,6 +4870,8 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "reload.closedStaysClosed", reloadedClosed.collapsed === "true" && reloadedClosed.expanded === "false", JSON.stringify(reloadedClosed));
     const closedWatch = await sidebarWatch(cdp);
     check(rows, "reload.closedFirstPaintClosed", closedWatch.desktopFirst === "true", `firstFrame=${closedWatch.desktopFirst}`);
+    // The reciprocal first-paint proof: a stored CLOSED preference is continuously CLOSED, with no marker.
+    await checkSidebarFirstPaint(rows, cdp, "closedRefresh", "closed");
 
     // ── NAVIGATION with CLOSED (the owner's second observation) ─────────────────────────────────
     const closedAt = closedWatch.after;

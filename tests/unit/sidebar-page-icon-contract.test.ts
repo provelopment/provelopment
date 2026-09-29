@@ -36,7 +36,18 @@ const runtime = (file: string) => path.join(deploymentPaths().publicAssetsDirect
 // deployment in the generic project, the real capsule in the deployment project).
 const source = (...segments: string[]) => path.join(deploymentPaths().assetSourceRoot, ...segments);
 const read = (...segments: string[]) => readFileSync(path.join(ROOT, ...segments), "utf8");
-const globals = read("src", "app", "globals.css");
+const globalsRaw = read("src", "app", "globals.css");
+
+/**
+ * UI1-A2 — THE BOOT GUARD. Every collapsed-state rule is guarded with
+ * `:where(html:not([data-ui-sidebar-preference="open"]))`, the zero-specificity prefix that lets the
+ * pre-paint bridge present the canonical CLOSED rail as the visitor's OPEN one for the boot interval (see
+ * `@/components/ui/sidebar-contract` and the block comment in `globals.css`). The prefix carries no
+ * specificity and no declarations, so the assertions below are about exactly the same rules and values they
+ * always were: the guard is stripped here, once, and asserted separately further down.
+ */
+const SIDEBAR_BOOT_GUARD = ':where(html:not([data-ui-sidebar-preference="open"])) ';
+const globals = globalsRaw.split(SIDEBAR_BOOT_GUARD).join("");
 
 // ISO-H2 — the canonical page → icon-library mapping this suite used to assert (Home/About/Resources/
 // Testimonials/Portfolio/Blog/Connect/Offerings against the shipped icon library) describes what THIS
@@ -124,6 +135,25 @@ describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", (
       /--ui-sidebar-rail-collapsed:\s*calc\(\s*var\(--ui-sidebar-control-icon-size\)\s*\+\s*var\(--ui-sidebar-rail-collapsed-pad\)\s*\*\s*2\s*\)/,
     );
     expect(globals).toMatch(/--ui-sidebar-rail-collapsed-pad:\s*0\.375rem/);
+  });
+
+  it("guards EVERY collapsed-state rule with the boot bridge's zero-specificity prefix (UI1-A2)", () => {
+    // Comments are not rules: strip them so only real selectors are judged.
+    const withoutComments = globalsRaw.replace(/\/\*[\s\S]*?\*\//g, "");
+    const collapsedSelectorLines = withoutComments
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.includes('[data-collapsed="true"]'));
+    // The set of collapsed-state rules is non-empty, and each one carries the guard — a rule added later
+    // without it would be applied even while the pre-paint bridge presents the OPEN rail, which is exactly
+    // the kind of drift this row exists to catch.
+    expect(collapsedSelectorLines.length).toBeGreaterThan(0);
+    for (const line of collapsedSelectorLines) {
+      expect(line.startsWith(SIDEBAR_BOOT_GUARD.trim()), line).toBe(true);
+    }
+    // …and the guard never owns declarations of its own: it is always followed by a real selector.
+    expect(globalsRaw).toContain(SIDEBAR_BOOT_GUARD);
+    expect(withoutComments).not.toMatch(/:where\(html:not\(\[data-ui-sidebar-preference="open"\]\)\)\s*\{/);
   });
 });
 

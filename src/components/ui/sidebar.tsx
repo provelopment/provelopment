@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 import { DisclosureIcon } from "./disclosure-icon";
 import {
+  relinquishSidebarPreferenceBoot,
   resolveSidebarPreference,
   resolvedSidebarPreference,
   storeSidebarPreference,
@@ -195,6 +196,22 @@ export function Sidebar({
     if (resolved === null) return;
     setState(stateOf(resolved));
   }, [collapsible]);
+
+  // UI1-A2 — RELINQUISH THE PRE-PAINT BRIDGE. A new document arrives as the canonical CLOSED rail, so the
+  // stylesheet presents it as the visitor's OPEN rail (an inert marker on `<html>`) until this rail
+  // represents the resolved preference. From that commit on, the rail's own state is the authority again
+  // and the marker must stop applying — otherwise the visitor's next explicit CLOSED toggle would be
+  // overridden by a stale bridge. Keyed on the STATE, so it runs after the commit that carries the adopted
+  // state (and never before it: clearing the marker while this rail still renders the canonical state would
+  // put the CLOSED geometry back on screen for a frame). A rail with no disclosure state of its own
+  // (not collapsible) relinquishes immediately — the bridge cannot change what it renders.
+  useIsomorphicLayoutEffect(() => {
+    if (collapsible) {
+      const resolved = resolvedSidebarPreference();
+      if (resolved !== null && stateOf(resolved) !== state) return;
+    }
+    relinquishSidebarPreferenceBoot();
+  }, [collapsible, state]);
 
   // ONE STATE, EVERY BAND — the desktop and tablet rails are two instances of the same preference and
   // only one of them is displayed at a time, so a toggle publishes the choice to the hidden instance

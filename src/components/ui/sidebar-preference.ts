@@ -1,10 +1,12 @@
 /**
- * THE SIDEBAR'S PRESENTATION PREFERENCE (FOUNDATION-UI1).
+ * THE SIDEBAR'S PRESENTATION PREFERENCE — THE RUNTIME LAYER (FOUNDATION-UI1 / UI1-A1 / UI1-A2).
  *
  * The rail's open/closed state is a PRESENTATION PREFERENCE the visitor owns. It is not route, page,
  * site, locale, location or content state: the same visitor keeps the same sidebar while they move
  * from `/ww/en` to `/ww/en/about`, on to another site or locale the deployment serves, and after a
- * reload. This module is the ONE place that knows how that preference is spelled, written and read.
+ * reload. WHAT the preference is spelled as (its key, its vocabulary and the pre-paint marker) is
+ * declared once in the sibling contract module `./sidebar-contract` and re-exported here; THIS
+ * module is the runtime that resolves, remembers and publishes it while the application is alive.
  *
  * WHY A PREFERENCE NEEDS PERSISTENCE AT ALL
  * -----------------------------------------
@@ -73,19 +75,29 @@
  * key's `isShellLayout`.
  */
 
-/** The stable, Foundation-owned browser-local key. See the storage contract above. */
-export const SIDEBAR_PREFERENCE_STORAGE_KEY = "foundation.sidebar";
+/**
+ * The stable, Foundation-owned browser-local key, the vocabulary and the boot-marker contract all live in the
+ * sibling contract module (`./sidebar-contract`), because the PRE-PAINT BRIDGE and this runtime are two
+ * readers of ONE contract. They are re-exported here so every existing importer keeps its import path —
+ * there is still exactly one authority, and no second copy of the key can drift from it.
+ */
+import {
+  isSidebarPreference,
+  SIDEBAR_PREFERENCE_ATTRIBUTE,
+  SIDEBAR_PREFERENCE_STORAGE_KEY,
+  SIDEBAR_PREFERENCES,
+  sidebarPreferenceBootScript,
+  type SidebarPreference,
+} from "./sidebar-contract";
 
-/** The COMPLETE value vocabulary. Two explicit states, nothing inferred. */
-export const SIDEBAR_PREFERENCES = ["open", "closed"] as const;
-
-/** One recorded sidebar presentation preference. */
-export type SidebarPreference = (typeof SIDEBAR_PREFERENCES)[number];
-
-/** Whether a value is a preference this contract recognizes (never a free-form string). */
-export function isSidebarPreference(value: unknown): value is SidebarPreference {
-  return typeof value === "string" && (SIDEBAR_PREFERENCES as readonly string[]).includes(value);
-}
+export {
+  isSidebarPreference,
+  SIDEBAR_PREFERENCE_ATTRIBUTE,
+  SIDEBAR_PREFERENCE_STORAGE_KEY,
+  SIDEBAR_PREFERENCES,
+  sidebarPreferenceBootScript,
+};
+export type { SidebarPreference };
 
 /**
  * The visitor's recorded preference, or `null` when there is none to apply: the key is absent, the
@@ -168,4 +180,31 @@ export function storeSidebarPreference(preference: SidebarPreference): void {
     /* preference only — the rail the visitor toggled keeps the choice regardless */
   }
   for (const listener of listeners) listener(preference);
+}
+
+/**
+ * RELINQUISH THE PRE-PAINT BRIDGE (UI1-A2).
+ *
+ * A NEW document cannot know the visitor's preference at render time: the server renders the canonical
+ * CLOSED rail (which is what keeps every page statically generated) and the preference only becomes
+ * readable in the browser. The synchronous pre-paint bridge
+ * (`./sidebar-contract` → `sidebarPreferenceBootScript`, rendered by `./sidebar-preference-boot`) therefore
+ * names the visitor's OPEN preference on `<html>` (`SIDEBAR_PREFERENCE_ATTRIBUTE`) BEFORE the rail is painted,
+ * and the stylesheet presents a canonical-CLOSED rail as the OPEN one while that marker is present.
+ *
+ * The bridge spans exactly `static HTML → hydrated runtime`, and this function ends it: once a rail has
+ * committed the state that represents the document's resolved preference, the rail's own `data-collapsed` is
+ * the authority again and the marker must stop applying — otherwise the visitor's next explicit CLOSED
+ * toggle would be overridden by a stale bridge. Removing an absent attribute is a no-op, so a client-side
+ * navigation (the UI1-A1 case, where the rail is created already correct) simply calls this for nothing.
+ *
+ * The removal happens in a layout effect, i.e. in the SAME frame as the attribute change it follows, so
+ * nothing is painted in between and the hand-off is invisible.
+ */
+export function relinquishSidebarPreferenceBoot(): void {
+  try {
+    document.documentElement.removeAttribute(SIDEBAR_PREFERENCE_ATTRIBUTE);
+  } catch {
+    /* nothing to relinquish (no document, or a DOM that refuses the write) */
+  }
 }
