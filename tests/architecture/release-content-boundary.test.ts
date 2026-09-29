@@ -52,17 +52,26 @@ describe("the release content policy classifies the repository's real inventory"
     expect(classifyReleaseInventory(trackedPaths()).unclassified).toEqual([]);
   });
 
-  it("keeps the reference deployment, this repository's CI and generated output OUT of a release", () => {
-    const excluded = trackedPaths().filter((file) => classifyReleasePath(file).inclusion === "excluded");
+  it("keeps the reference deployment and this repository's CI OUT of a release, wherever they exist", () => {
+    const tracked = trackedPaths();
+    const excluded = tracked.filter((file) => classifyReleasePath(file).inclusion === "excluded");
 
-    expect(excluded.filter((file) => file.startsWith("deployment/")).length).toBeGreaterThan(100);
-    expect(excluded).toContain(".github/workflows/ci.yml");
-    expect(excluded).toContain("scripts/ci/change-scope.mjs");
-    expect(excluded).toContain("deployment/foundation-baseline.json");
-
+    // The invariant, always: nothing excluded may also be platform content by a second rule.
     for (const file of excluded) {
       expect(classifyReleasePath(file).inclusion, file).toBe("excluded");
     }
+
+    // The concrete surfaces, WHERE THEY EXIST: a materialised release has no capsule and no CI, and
+    // that absence is the release working, not a reason to stop checking.
+    for (const surface of [
+      ".github/workflows/ci.yml",
+      "scripts/ci/change-scope.mjs",
+      "deployment/foundation-baseline.json",
+    ]) {
+      if (tracked.includes(surface)) expect(excluded, surface).toContain(surface);
+    }
+    const capsule = tracked.filter((file) => file.startsWith("deployment/"));
+    if (capsule.length > 0) expect(capsule.length).toBeGreaterThan(100);
   });
 
   it("keeps the platform surfaces a consumer needs IN a release", () => {
@@ -137,7 +146,17 @@ describe("the released generic suite never imports an excluded module", () => {
 });
 
 describe("the release CLI answers as an operator or CI would", () => {
-  it("reports every tracked path as classified for the accepted revision", () => {
+  /** `classify`/`build` are SOURCE-repository commands: they name a commit. A materialised release has no commit to name, so those two assertions are for a source checkout. */
+  const hasCommit = (() => {
+    try {
+      execFileSync("git", ["rev-parse", "--verify", "HEAD"], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  it.skipIf(!hasCommit)("reports every tracked path as classified for the accepted revision", () => {
     const result = runCli(["classify"]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("release content policy OK");
