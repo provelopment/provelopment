@@ -5,7 +5,8 @@ import type { ReactNode } from "react";
 
 import { DisclosureIcon } from "./disclosure-icon";
 import {
-  readSidebarPreference,
+  resolveSidebarPreference,
+  resolvedSidebarPreference,
   storeSidebarPreference,
   subscribeSidebarPreference,
   type SidebarPreference,
@@ -36,6 +37,29 @@ function preferenceOf(state: DisclosureState): SidebarPreference {
 
 function stateOf(preference: SidebarPreference): DisclosureState {
   return preference === "closed" ? DISCLOSURE_CLOSED : DISCLOSURE_OPEN;
+}
+
+/**
+ * THE STATE THE FIRST RENDER USES (UI1-A1).
+ *
+ * A rail that this DOCUMENT has already resolved a preference for renders that resolved state immediately —
+ * a rail created by a client-side navigation is therefore never created in the canonical state and then
+ * corrected. That correction is what the visitor saw: committing `data-collapsed="true"` and adopting the
+ * stored `open` in the same commit starts the rail's `width 200ms` CSS transition, so an open rail
+ * collapsed and expanded again on every navigation.
+ *
+ * `resolvedSidebarPreference()` never reads storage (see `./sidebar-preference`), so this is render-safe in
+ * both senses that matter:
+ *   · a FRESH document has resolved nothing, so the declared initial state is rendered — exactly the state
+ *     the server's markup carries, so hydration still agrees with it, and the stored preference is adopted
+ *     by the effect below as before;
+ *   · a rail created later in the SAME document (a navigation) renders the resolved state, so no correction
+ *     — and therefore no transition and no visible transient — exists at all.
+ */
+function initialDisclosureState(collapsible: boolean, collapsed: boolean): DisclosureState {
+  if (!collapsible) return createInitialDisclosure(!collapsed);
+  const resolved = resolvedSidebarPreference();
+  return resolved === null ? createInitialDisclosure(!collapsed) : stateOf(resolved);
 }
 
 
@@ -144,27 +168,32 @@ export function Sidebar({
   close,
   className,
 }: SidebarProps) {
-  const [state, setState] = useState<DisclosureState>(() => createInitialDisclosure(!collapsed));
+  const [state, setState] = useState<DisclosureState>(() =>
+    initialDisclosureState(collapsible, collapsed),
+  );
   const isCollapsed = collapsible ? state === "closed" : collapsed;
 
-  // UI1 — THE STATE CONTRACT. `state` above is the ONE runtime authority for this rail's disclosure;
-  // the visitor's stored preference is its BACKING PERSISTENCE, never a second authority.
+  // UI1/UI1-A1 — THE STATE CONTRACT. The RESOLVED preference owned by `./sidebar-preference` is the ONE
+  // runtime authority; `state` above is this rail's render of it, and browser storage is only its backing
+  // persistence. Nothing else — no route, no navigation, no remount — may reset it.
   //
-  // Adoption happens ONCE PER MOUNT, in a layout effect, so it lands before the first paint:
+  // Resolution happens ONCE PER DOCUMENT, in a layout effect, so it lands before the first paint:
   //
-  //   · a RELOAD creates a new document and a CLIENT-SIDE NAVIGATION remounts the shell (the route's
-  //     params change), so "once per mount" is exactly the frequency at which the visitor's choice
-  //     must be restored — that is the whole repair of both owner-observed defects;
-  //   · the FIRST client render still renders the declared initial state, so the client cannot
-  //     disagree with the server's markup and hydration stays clean; the adoption is an ordinary
-  //     state update React flushes before the browser paints, so no wrong state is ever painted;
-  //   · `null` means "no usable preference" (see `./sidebar-preference`) and leaves the declared
-  //     initial state — the platform's canonical CLOSED state for a composed rail — untouched.
+  //   · a RELOAD creates a new document, which resolves the stored preference here and adopts it — that is
+  //     the whole repair of the reload defect;
+  //   · a CLIENT-SIDE NAVIGATION does not re-resolve anything: the document already resolved the
+  //     preference, so a replacement rail renders it from its FIRST render (see `initialDisclosureState`)
+  //     and this effect is a no-op — no canonical-state commit, no correction, no width transition, and so
+  //     no visible OPEN → CLOSED → OPEN flicker (UI1-A1);
+  //   · the FIRST client render of a fresh document still renders the declared initial state, so the client
+  //     cannot disagree with the server's markup and hydration stays clean;
+  //   · `null` means "no usable preference" (see `./sidebar-preference`) and leaves the declared initial
+  //     state — the platform's canonical CLOSED state for a composed rail — untouched.
   useIsomorphicLayoutEffect(() => {
     if (!collapsible) return;
-    const stored = readSidebarPreference();
-    if (stored === null) return;
-    setState(stateOf(stored));
+    const resolved = resolveSidebarPreference();
+    if (resolved === null) return;
+    setState(stateOf(resolved));
   }, [collapsible]);
 
   // ONE STATE, EVERY BAND — the desktop and tablet rails are two instances of the same preference and

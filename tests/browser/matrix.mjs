@@ -4349,6 +4349,13 @@ async function runMultisiteScenario(chrome) {
  *   would be visible here as a frame carrying the wrong state;
  *   CONSOLE — every console error/warning of the run is collected, and a HYDRATION message fails the run.
  *
+ * UI1-A1 adds a THIRD, because the first one is not sufficient on its own: a rail that commits the canonical
+ * state and adopts the stored one in the SAME commit paints no wrong frame, yet the browser still starts the
+ * rail's `width 200ms` CSS transition from the committed CLOSED geometry — the owner-visible flicker. The
+ * transition observer (below) therefore judges the whole navigation INTERVAL: no opposite-state commit on
+ * the rail (replacement nodes included) and no width transition. `toggle.stillAnimatesTheRail` calibrates
+ * that observer on an explicit toggle, which is the one control allowed to move the rail.
+ *
  * The mobile layer is deliberately NOT touched: below `md` the navigation is a different interaction
  * model (an ephemeral drawer/bottom bar), so one bounded row records that the preference does not reach
  * into it.
@@ -4448,6 +4455,90 @@ const sidebarStored = (cdp) =>
   cdp.evaluate(`window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)})`);
 
 /**
+ * UI1-A1 — THE TRANSITION OBSERVER.
+ *
+ * The frame recorder above answers "which state was PAINTED", and it passed while the owner was still
+ * seeing a flicker: a rail that committed `data-collapsed="true"` and adopted the stored `open` in the same
+ * commit painted no wrong frame, but the browser still started the rail's `width 200ms` CSS transition from
+ * the committed CLOSED geometry — so an OPEN rail visibly collapsed and expanded again on every navigation
+ * (measured on the live site as transition keyframes `36px → 220px`).
+ *
+ * This observer records the two things that make that visible, and nothing else:
+ *   COMMITS     — every `data-collapsed` write on a `#shell-sidebar-*` rail, WITH its value, so a
+ *                 canonical-state write that is corrected a moment later is still counted;
+ *   TRANSITIONS — every `transitionrun`/`transitionstart` on such a rail for the `width` property, i.e. the
+ *                 geometry animation the visitor actually sees.
+ *
+ * Continuity is therefore an assertion about the TRANSITION INTERVAL, not about its end state: a navigation
+ * may replace the rail node (and does), but it may not commit the opposite state on it and may not start a
+ * width transition. The explicit toggle is the only control allowed to do either.
+ */
+const SIDEBAR_TRANSITION_WATCH = `(() => {
+  const record = { writes: [], transitions: [] };
+  window.__ui1Transition = record;
+  const isRail = (el) => !!el && el.nodeType === 1 && typeof el.id === 'string' && el.id.indexOf('shell-sidebar') === 0;
+  const setAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function (name, value) {
+    const result = setAttribute.call(this, name, value);
+    try {
+      if (name === 'data-collapsed' && isRail(this)) {
+        record.writes.push({ id: this.id, value: String(value), t: Math.round(performance.now()) });
+      }
+    } catch (error) { /* recording is best effort, never the page's problem */ }
+    return result;
+  };
+  for (const type of ['transitionrun', 'transitionstart']) {
+    document.addEventListener(type, (event) => {
+      try {
+        if (event.propertyName !== 'width' || !isRail(event.target)) return;
+        record.transitions.push({ id: event.target.id, type, t: Math.round(performance.now()) });
+      } catch (error) { /* recording is best effort */ }
+    }, true);
+  }
+})()`;
+
+/** Arm the transition observer: only the interval that follows is judged. */
+const SIDEBAR_TRANSITION_RESET = `(() => {
+  const record = window.__ui1Transition;
+  if (!record) return false;
+  record.writes = [];
+  record.transitions = [];
+  return true;
+})()`;
+
+/** What the rail did since the last reset. */
+const SIDEBAR_TRANSITION_READ = `(() => JSON.stringify(window.__ui1Transition || { writes: [], transitions: [] }))()`;
+
+const sidebarTransition = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_TRANSITION_READ));
+const resetSidebarTransition = (cdp) => cdp.evaluate(SIDEBAR_TRANSITION_RESET);
+
+/**
+ * The continuity rows for ONE observed interval: the rail never committed the opposite state and never
+ * started a width transition. `expectedState` is the state the visitor had chosen for the whole interval.
+ *
+ * A replacement rail node is PERMITTED — the interval may commit the SAME state on a new node as often as
+ * the composition likes. The recorder's health is calibrated by `toggle.stillAnimatesTheRail`, which
+ * requires a real write and a real width transition on an explicit toggle in the same document.
+ */
+async function checkSidebarContinuity(rows, cdp, label, expectedState) {
+  const observed = await sidebarTransition(cdp);
+  const committedOpposite = observed.writes.filter((write) => write.value !== expectedState);
+  check(
+    rows,
+    `continuity.${label}.commitsNoOppositeState`,
+    committedOpposite.length === 0,
+    `writes=${JSON.stringify(observed.writes)}`,
+  );
+  check(
+    rows,
+    `continuity.${label}.startsNoWidthTransition`,
+    observed.transitions.length === 0,
+    `transitions=${JSON.stringify(observed.transitions)}`,
+  );
+  return observed;
+}
+
+/**
  * Click a REAL navigation control in the rail and await the route it navigates to (FOUNDATION-BR1: a
  * client transition is awaited by the state the next assertion reads, never by a settle).
  */
@@ -4503,8 +4594,10 @@ async function runSidebarStateScenario(chrome) {
   try {
     await waitForServer(url);
     cdp = await Cdp.connect(chrome);
-    // The frame recorder and the console collector must exist BEFORE the first document runs.
+    // The frame recorder, the transition observer and the console collector must exist BEFORE the first
+    // document runs: the first two judge state the visitor can see, the third fails the run on a mismatch.
     await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: SIDEBAR_WATCH });
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: SIDEBAR_TRANSITION_WATCH });
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
 
     // ── NO PREFERENCE → CLOSED, on a document that has never carried one ────────────────────────
@@ -4522,11 +4615,22 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "noPreference.firstPaintClosed", freshWatch.desktopFirst === "true", `firstFrame=${freshWatch.desktopFirst}`);
 
     // ── TOGGLE → OPEN (the disclosure control is the only thing that changes the state) ─────────
+    await resetSidebarTransition(cdp);
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
     await sleep(250);
     const opened = await sidebarState(cdp);
     check(rows, "toggle.open", opened.collapsed === "false" && opened.expanded === "true" && opened.label === "Hide navigation", JSON.stringify(opened));
     check(rows, "toggle.recorded", (await sidebarStored(cdp)) === "open");
+    // The EXPLICIT toggle is the one control allowed to move the rail, so its width transition must still
+    // run (UI1-A1 §11: the flicker is removed by making the state continuous, never by removing the
+    // animation, the transition or the control).
+    const toggleTransition = await sidebarTransition(cdp);
+    check(
+      rows,
+      "toggle.stillAnimatesTheRail",
+      toggleTransition.writes.some((write) => write.value === "false") && toggleTransition.transitions.length > 0,
+      `writes=${JSON.stringify(toggleTransition.writes)} transitions=${JSON.stringify(toggleTransition.transitions)}`,
+    );
 
     // ── REFRESH with OPEN (a new document) ──────────────────────────────────────────────────────
     await cdp.reload();
@@ -4545,16 +4649,23 @@ async function runSidebarStateScenario(chrome) {
 
     // ── NAVIGATION with OPEN, through the REAL navigation control ───────────────────────────────
     const openedAt = openWatch.after;
+    await resetSidebarTransition(cdp);
     const toAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
     const aboutOpen = await sidebarState(cdp);
     check(rows, "navigate.openStaysOpen", !!toAbout && aboutOpen.path === ABOUT && aboutOpen.collapsed === "false" && aboutOpen.expanded === "true", JSON.stringify(aboutOpen));
     const openNavWatch = await sidebarWatch(cdp);
     check(rows, "navigate.openNeverPaintedClosed", openNavWatch.frames.slice(openedAt).includes("true") === false, `frames=${openNavWatch.frames.slice(openedAt).join(",")}`);
+    // UI1-A1 — CONTINUITY, not merely the destination state: the transition interval may not commit CLOSED
+    // on the (replacement) rail and may not start its width transition, or the visitor sees the rail
+    // collapse and expand again on the way (the owner-observed flicker).
+    await checkSidebarContinuity(rows, cdp, "openNavigation", "false");
 
     // Back home through the rail's own Home control (the second ordinary route).
+    await resetSidebarTransition(cdp);
     const toHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
     const homeOpen = await sidebarState(cdp);
     check(rows, "navigate.back.openStaysOpen", !!toHome && homeOpen.path === HOME && homeOpen.collapsed === "false", JSON.stringify(homeOpen));
+    await checkSidebarContinuity(rows, cdp, "openBackNavigation", "false");
 
     // ── TOGGLE → CLOSED, then REFRESH with CLOSED ───────────────────────────────────────────────
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
@@ -4572,15 +4683,21 @@ async function runSidebarStateScenario(chrome) {
 
     // ── NAVIGATION with CLOSED (the owner's second observation) ─────────────────────────────────
     const closedAt = closedWatch.after;
+    await resetSidebarTransition(cdp);
     const closedToAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
     const aboutClosed = await sidebarState(cdp);
     check(rows, "navigate.closedStaysClosed", !!closedToAbout && aboutClosed.path === ABOUT && aboutClosed.collapsed === "true" && aboutClosed.expanded === "false", JSON.stringify(aboutClosed));
     const closedNavWatch = await sidebarWatch(cdp);
     check(rows, "navigate.closedNeverPaintedOpen", closedNavWatch.frames.slice(closedAt).includes("false") === false, `frames=${closedNavWatch.frames.slice(closedAt).join(",")}`);
+    // The reciprocal continuity proof: CLOSED is the state that already looked smooth, so the same two rows
+    // protect it from regressing in the other direction.
+    await checkSidebarContinuity(rows, cdp, "closedNavigation", "true");
 
+    await resetSidebarTransition(cdp);
     const closedHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
     const homeClosed = await sidebarState(cdp);
     check(rows, "navigate.back.closedStaysClosed", !!closedHome && homeClosed.path === HOME && homeClosed.collapsed === "true", JSON.stringify(homeClosed));
+    await checkSidebarContinuity(rows, cdp, "closedBackNavigation", "true");
 
     // ── AN UNUSABLE STORED VALUE is `no preference`, so the canonical state stands ──────────────
     await cdp.evaluate(SET_HOSTILE);
@@ -4612,6 +4729,28 @@ async function runSidebarStateScenario(chrome) {
       await waitReady(cdp, { path: switchedPath });
       const afterSite = await sidebarState(cdp);
       check(rows, "selector.siteChange.keepsState", afterSite.path === switchedPath && afterSite.collapsed === "true", JSON.stringify(afterSite));
+      await cdp.navigate(url);
+      await waitReady(cdp);
+
+      // ── …and the SAME route change while the rail is OPEN (UI1-A1 §17) ─────────────────────────
+      await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+      await sleep(250);
+      const openForSelector = await sidebarState(cdp);
+      check(rows, "selector.whileOpen.startsOpen", openForSelector.collapsed === "false" && openForSelector.stored === "open", JSON.stringify(openForSelector));
+      await resetSidebarTransition(cdp);
+      await cdp.evaluate(`(() => {
+        const control = document.querySelector('select[data-selector="site"]');
+        control.value = ${JSON.stringify(site.next)};
+        control.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`);
+      await waitReady(cdp, { path: switchedPath });
+      const afterSiteOpen = await sidebarState(cdp);
+      check(rows, "selector.siteChangeWhileOpen.keepsState", afterSiteOpen.path === switchedPath && afterSiteOpen.collapsed === "false", JSON.stringify(afterSiteOpen));
+      await checkSidebarContinuity(rows, cdp, "selectorWhileOpen", "false");
+      // Restore what the later rows expect: the visitor's CLOSED choice, on the default site.
+      await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+      await sleep(250);
       await cdp.navigate(url);
       await waitReady(cdp);
     } else {

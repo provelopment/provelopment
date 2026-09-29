@@ -499,18 +499,26 @@ and the same left-side vertical position.
   (`aria-expanded` reflects the state; `aria-controls` targets the persistent
   panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary. A
   deliberately non-collapsible rail (immersive `floating`) has no toggle.
-- **State life-cycle (UI1).** The rail's open/closed state is the visitor's
+- **State life-cycle (UI1/UI1-A1).** The rail's open/closed state is the visitor's
   PRESENTATION PREFERENCE, and it is remembered in browser-local storage — one
-  key, `foundation.sidebar`, whose only values are `open` and `closed`. So the
-  choice **survives a refresh** and **survives page navigation** (both of which
-  re-create the rail), and it applies to **every route of the origin**: changing
+  key, `foundation.sidebar`, whose only values are `open` and `closed`. It has two
+  layers: the **resolved** preference is the authority for as long as the page is
+  in view, and browser storage is what carries the choice to the next visit. So
+  the choice **survives a refresh** and **survives page navigation** — a
+  navigation re-creates the rail already in the visitor's state, so an **open
+  sidebar stays visibly open while the destination loads** and never collapses and
+  expands on the way — and it applies to **every route of the origin**: changing
   Site, Language or Location through the selector controls changes the URL and
   nothing else about the sidebar. With **no stored preference the canonical state
   is CLOSED**, and only the disclosure control changes it — clicking a navigation
   icon navigates and never opens, closes or resets the rail. The tablet rail
   follows the same preference; the `<md` drawer/bottom bar is a separate,
   ephemeral interaction model that this preference does not govern. A missing,
-  unusable or blocked stored value falls back to the canonical CLOSED state.
+  unusable or blocked stored value falls back to the canonical CLOSED state. The
+  one thing a page load cannot know is the *stored* choice: a freshly loaded page
+  is served with the canonical CLOSED rail and adopts a stored `open` as it
+  hydrates, so refreshing while the sidebar is open may show that brief expand —
+  the same static-generation trade-off the Layout preference documents.
 - **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
   mobile disclosure carry **navigation only**: the single Book Now action lives in
   the shell's top region (`ui-shell-header-row`), so collapsing or expanding the
