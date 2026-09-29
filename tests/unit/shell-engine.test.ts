@@ -145,14 +145,16 @@ describe("P0-1 — the Sidebar capability is composition-driven (custom configs,
     expect(html).toContain("md:w-full");
     // Collapsible desktop band exposes the structural toggle.
     expect(html).toContain('aria-controls="shell-sidebar-desktop-panel"');
-    expect(html).toContain('aria-expanded="true"');
+    // UI1 — the CANONICAL no-preference state of a composed rail is CLOSED, in EVERY band: an
+    // untoggled sidebar renders collapsed, and the visitor's stored preference is layered on top of
+    // this declared state (before the first paint, by the primitive).
+    expect(html).toContain('aria-expanded="false"');
     // Tablet `collapsed-sidebar` renders collapsed-by-default + expandable
     // (never a dead-end).
     // P6-3A — the tablet `collapsed-sidebar` band is a PERSISTENT rail
     // (collapsed by default via `data-collapsed`), never a display:none panel.
     expect(html).toContain('id="shell-sidebar-tablet-panel" class="ui-sidebar-rail-panel"');
     expect(html).toContain('data-collapsed="true"');
-    expect(html).toContain('aria-expanded="false"');
     // P6-3C — the CTA is NOT composed inside the sidebar: it renders once in
     // the shell's TOP region, ABOVE the aside rail, so no rail state can
     // contain, clip, or obscure it.

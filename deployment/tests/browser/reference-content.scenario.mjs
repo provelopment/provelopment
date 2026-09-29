@@ -283,7 +283,21 @@ export async function run(chrome, harness) {
     await cdp.evaluate(chooseLayout("sidebar"));
     await waitReady(cdp);
 
-    // ── The sidebar disclosure's two visual states (desktop, expanded rail) ──
+    // ── The sidebar disclosure's two visual states (desktop), and its STATE LIFE-CYCLE (UI1) ──
+    // UI1 — the rail's canonical no-preference state is CLOSED, so the STATE a visitor first meets is the
+    // closed one, and the OPEN state below follows the visitor's own toggle. Both states' visual contract
+    // is unchanged; only the way they are reached is explicit now.
+    const canonicalState = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.initialIsCanonicalClosed",
+      // The closed control keeps its accessible name while saying "Show navigation" (its label is
+      // sr-only in this state, so the probe's width cannot stand in for "visible").
+      canonicalState.collapsed === "true" && canonicalState.accessibleName === "Show navigation",
+      JSON.stringify(canonicalState),
+    );
+    await cdp.clickCenter(".ui-sidebar-toggle");
+    await sleep(600);
     const openState = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
     check(
       rows,
@@ -354,8 +368,50 @@ export async function run(chrome, harness) {
       closedState.scrollWidth <= closedState.clientWidth + 1,
       `scrollW=${closedState.scrollWidth} clientW=${closedState.clientWidth}`,
     );
+    // ── UI1 — THE OWNER-OBSERVED LIFE-CYCLE DEFECTS, ON THE REAL SITE ───────────────────────────
+    // The rail is CLOSED here (the row above proved the collapse), which is the exact state the owner
+    // reported: it used to return OPEN after a refresh, and to arrive OPEN after a navigation icon click.
+    await cdp.reload();
+    await waitReady(cdp);
+    const closedAfterReload = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.closedSurvivesReload",
+      closedAfterReload.collapsed === "true",
+      JSON.stringify(closedAfterReload),
+    );
+    // A REAL navigation icon click, awaited by the route it produces (FOUNDATION-BR1).
+    const navigatedClosed = await cdp.clickCenter('#shell-sidebar-desktop-rail a[href$="/about"]');
+    await waitReady(cdp, { path: "/ww/en/about" });
+    const closedAfterNavigation = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.closedSurvivesNavigationIcon",
+      !!navigatedClosed && closedAfterNavigation.collapsed === "true",
+      JSON.stringify(closedAfterNavigation),
+    );
+    // …and the OPEN case through the same controls: open, navigate home, reload.
     await cdp.clickCenter(".ui-sidebar-toggle");
     await sleep(400);
+    const reopenAfterNavigation = await cdp.clickCenter("#shell-sidebar-desktop-rail ul li:first-child a");
+    await waitReady(cdp, { path: "/ww/en" });
+    const openAfterNavigation = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.openSurvivesNavigationIcon",
+      !!reopenAfterNavigation && openAfterNavigation.collapsed === "false" && openAfterNavigation.labelVisible === true,
+      JSON.stringify(openAfterNavigation),
+    );
+    await cdp.reload();
+    await waitReady(cdp);
+    const openAfterReload = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.openSurvivesReload",
+      openAfterReload.collapsed === "false",
+      JSON.stringify(openAfterReload),
+    );
+    // The visitor is back on Home, which is where the next block expects them.
 
     // ── HOME: the authored JSON document, served at the locale root ─────────
     const home = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));

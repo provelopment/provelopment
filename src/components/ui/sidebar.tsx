@@ -1,10 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { DisclosureIcon } from "./disclosure-icon";
-import { createInitialDisclosure, disclosureReducer, type DisclosureState } from "./state";
+import {
+  readSidebarPreference,
+  storeSidebarPreference,
+  subscribeSidebarPreference,
+  type SidebarPreference,
+} from "./sidebar-preference";
+import {
+  DISCLOSURE_CLOSED,
+  DISCLOSURE_OPEN,
+  createInitialDisclosure,
+  disclosureReducer,
+  type DisclosureState,
+} from "./state";
+
+/**
+ * A LAYOUT effect on the client and an INERT one on the server.
+ *
+ * The stored preference must be adopted BEFORE THE FIRST PAINT (see the state contract below), which
+ * is what a layout effect is for — but the server has no browser to read it from, and React warns when
+ * `useLayoutEffect` runs during a server render. This is the standard reconciliation: server rendering
+ * keeps the declared initial state (the value the markup already carries), the client corrects it in
+ * the same commit, before anything is painted.
+ */
+const useIsomorphicLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** The stored vocabulary of a disclosure state, and back — two words, mapped explicitly. */
+function preferenceOf(state: DisclosureState): SidebarPreference {
+  return state === DISCLOSURE_CLOSED ? "closed" : "open";
+}
+
+function stateOf(preference: SidebarPreference): DisclosureState {
+  return preference === "closed" ? DISCLOSURE_CLOSED : DISCLOSURE_OPEN;
+}
+
 
 /**
  * Sidebar (UI-03 — Shared UI Primitives; P0-1 — global Sidebar capability).
@@ -47,6 +80,14 @@ import { createInitialDisclosure, disclosureReducer, type DisclosureState } from
  *  - The toggle is a REAL interactive control (shared `.ui-sidebar-toggle`
  *    renderer styling: border, surface, hover/focus-visible/active affordance,
  *    pointer cursor) so it never reads as ordinary static heading text.
+ *
+ * UI1 — PERSISTENT PRESENTATION STATE. The rail's open/closed state is a VISITOR PREFERENCE — not
+ * route, page, site, locale or content state. It is remembered in browser-local storage
+ * (`./sidebar-preference`: key `foundation.sidebar`, values `open`/`closed`) and adopted once per
+ * mount BEFORE the first paint, so a document reload and a client-side navigation both arrive in the
+ * state the visitor left behind. ONLY the toggle changes it: a navigation click navigates, and never
+ * opens, closes or resets the rail. The canonical no-preference state is CLOSED, declared by the
+ * composer (the shell engine) rather than inferred here.
  *
  * PERSISTENT NAVIGATION — the rail's CONTENT COLUMN (this component's
  * `.ui-sidebar-rail-sticky`) is the persistent element: it stays in view while
@@ -106,6 +147,45 @@ export function Sidebar({
   const [state, setState] = useState<DisclosureState>(() => createInitialDisclosure(!collapsed));
   const isCollapsed = collapsible ? state === "closed" : collapsed;
 
+  // UI1 — THE STATE CONTRACT. `state` above is the ONE runtime authority for this rail's disclosure;
+  // the visitor's stored preference is its BACKING PERSISTENCE, never a second authority.
+  //
+  // Adoption happens ONCE PER MOUNT, in a layout effect, so it lands before the first paint:
+  //
+  //   · a RELOAD creates a new document and a CLIENT-SIDE NAVIGATION remounts the shell (the route's
+  //     params change), so "once per mount" is exactly the frequency at which the visitor's choice
+  //     must be restored — that is the whole repair of both owner-observed defects;
+  //   · the FIRST client render still renders the declared initial state, so the client cannot
+  //     disagree with the server's markup and hydration stays clean; the adoption is an ordinary
+  //     state update React flushes before the browser paints, so no wrong state is ever painted;
+  //   · `null` means "no usable preference" (see `./sidebar-preference`) and leaves the declared
+  //     initial state — the platform's canonical CLOSED state for a composed rail — untouched.
+  useIsomorphicLayoutEffect(() => {
+    if (!collapsible) return;
+    const stored = readSidebarPreference();
+    if (stored === null) return;
+    setState(stateOf(stored));
+  }, [collapsible]);
+
+  // ONE STATE, EVERY BAND — the desktop and tablet rails are two instances of the same preference and
+  // only one of them is displayed at a time, so a toggle publishes the choice to the hidden instance
+  // instead of letting it reappear stale when the viewport crosses the breakpoint.
+  useEffect(() => {
+    if (!collapsible) return;
+    return subscribeSidebarPreference((preference) => setState(stateOf(preference)));
+  }, [collapsible]);
+
+  /**
+   * The disclosure is changed by ITS OWN CONTROL and by nothing else: no route change, no navigation
+   * and no remount may open, close or reset the rail (a navigation click is `navigate(target)`).
+   * Toggling records the visitor's choice.
+   */
+  function toggle(): void {
+    const next = disclosureReducer(state, { type: "toggle" });
+    setState(next);
+    if (collapsible) storeSidebarPreference(preferenceOf(next));
+  }
+
   // P6-1 — the active control follows the STATE: closed → the "show" (open)
   // control; open → the "hide" (close) control. Exactly the mobile contract.
   const active = isCollapsed ? (open ?? {}) : (close ?? {});
@@ -150,7 +230,7 @@ export function Sidebar({
         {collapsible ? (
           <button
             type="button"
-            onClick={() => setState((current) => disclosureReducer(current, { type: "toggle" }))}
+            onClick={toggle}
             aria-expanded={!isCollapsed}
             aria-controls={`${id}-panel`}
             // Icon-only controls (visible text "" with an icon) keep the

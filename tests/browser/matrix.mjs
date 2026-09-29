@@ -574,82 +574,117 @@ async function runFocusVisibleRing(rows, cdp, label) {
   }
   check(rows, `${label}.focusVisible.link.ring`, !!keyboard && !!keyboard.ok, (keyboard && keyboard.detail) || `active=${keyboard && keyboard.tag}: ${keyboard && keyboard.style}`);
 }
+/**
+ * The rail state one band presents — every field BOTH the closed and the expanded contract reads
+ * (P0-1 / P6-1 / P6-3A / P6-3C). One probe, so a state change is re-probed instead of re-measured by a
+ * second copy of the same expressions.
+ */
+async function probeAside(cdp, { railSel, panelSel, controlsId }) {
+  return cdp.evaluate(`(() => {
+    const rail = document.querySelector(${JSON.stringify(railSel)});
+    const shell = document.querySelector('.ui-shell-sidebar');
+    const panel = document.querySelector(${JSON.stringify(panelSel)});
+    const toggle = rail ? rail.querySelector(${JSON.stringify(`[aria-controls="${controlsId}"]`)}) : null;
+    const pr = panel ? panel.getBoundingClientRect() : null;
+    const tr = toggle ? toggle.getBoundingClientRect() : null;
+    const sr = shell ? shell.getBoundingClientRect() : null;
+    const firstItem = rail ? rail.querySelector('ul li') : null;
+    const fir = firstItem ? firstItem.getBoundingClientRect() : null;
+    const toggleIcon = toggle ? toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon') : null;
+    return {
+      hasRail: !!rail,
+      panelVisible: !!pr && pr.width > 0 && pr.height > 0,
+      panelHiddenClass: !!panel && panel.classList.contains('hidden'),
+      // P6-3A — persistent-rail width state (collapse = a horizontal width).
+      railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : null,
+      dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null,
+      togglePresent: !!toggle,
+      toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+      // P6-1 — the disclosure is a real interactive control with a visible,
+      // LOADED icon and the state-correct Show/Hide navigation label.
+      toggleTag: toggle ? toggle.tagName : null,
+      toggleText: toggle ? toggle.textContent.trim() : null,
+      toggleIcon: !!toggleIcon,
+      toggleIconLoaded: !!toggleIcon && toggleIcon.complete && toggleIcon.naturalWidth > 0,
+      // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
+      railLeft: sr ? Math.round(sr.left) : null,
+      toggleLeft: tr ? Math.round(tr.left) : null,
+      itemLeft: fir ? Math.round(fir.left) : null,
+      noBrokenImages: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
+    };
+  })()`);
+}
+
 /** The canonical presentation's desktop aside (bottom bar + More on mobile). */
 async function runAsidePresentation(rows, presentation, cdp) {
   // P0-1: the canonical presentation resolves `shell.sidebar.collapsible: true`,
   // so the SAME structural contract applies here.
   const collapsible = true;
+  /**
+   * UI1 — the width the EXPANDED rail presents, captured per band by an explicit toggle and used as the
+   * reference for every later comparison (the canonical initial state is CLOSED, so the initial width is
+   * the collapsed rail's).
+   */
+  let expandedRailWidth = null;
   for (const [vpName, vp] of [["desktop", VIEWPORTS.desktop], ["tablet", VIEWPORTS.tablet]]) {
     await cdp.setViewport(vp.width, vp.height);
     await cdp.navigate(`${BASE_URL}/ww/en`);
     await waitReady(cdp);
+    // UI1 — the CANONICAL no-preference state is asserted on a document that HAS no preference: this
+    // scenario's own toggles record one, and the preference is the visitor's browser state, so it is
+    // cleared through the browser exactly as a visitor's storage would be.
+    await cdp.evaluate(`window.localStorage.removeItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)}); true`);
+    await cdp.reload();
+    await waitReady(cdp);
     const controlsId = vpName === "desktop" ? "shell-sidebar-desktop-panel" : "shell-sidebar-tablet-panel";
     const railSel = vpName === "desktop" ? "#shell-sidebar-desktop-rail" : "#shell-sidebar-tablet-rail";
+    const panelSel = vpName === "desktop" ? "#shell-sidebar-desktop-panel" : "#shell-sidebar-tablet-panel";
     const toggleSel = `${railSel} [aria-controls="${controlsId}"]`;
 
     // P0-1 INITIAL state — a real collapse is NOT aria-only: a collapsed band
-    // hides its panel from layout + tab order; the toggle stays (expand control).
+    // keeps its persistent rail geometry; the toggle stays (expand control).
     // P6-1 — also captures the disclosure CONTROL contract: semantic element,
     // state-flipping label, real loaded icon, rail/content insets, no broken
     // image anywhere on the page.
-    const init = await cdp.evaluate(`(() => {
-      const rail = document.querySelector(${JSON.stringify(railSel)});
-      const shell = document.querySelector('.ui-shell-sidebar');
-      const panel = document.querySelector(${JSON.stringify(vpName === "desktop" ? "#shell-sidebar-desktop-panel" : "#shell-sidebar-tablet-panel")});
-      const toggle = rail ? rail.querySelector('[aria-controls="${controlsId}"]') : null;
-      const pr = panel ? panel.getBoundingClientRect() : null;
-      const tr = toggle ? toggle.getBoundingClientRect() : null;
-      const sr = shell ? shell.getBoundingClientRect() : null;
-      const firstItem = rail ? rail.querySelector('ul li') : null;
-      const fir = firstItem ? firstItem.getBoundingClientRect() : null;
-      const toggleIcon = toggle ? toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon') : null;
-      return {
-        hasRail: !!rail,
-        panelVisible: !!pr && pr.width > 0 && pr.height > 0,
-        panelHiddenClass: !!panel && panel.classList.contains('hidden'),
-        // P6-3A — persistent-rail width state (collapse = a horizontal width).
-        railWidth: rail ? Math.round(rail.getBoundingClientRect().width) : null,
-        dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null,
-        togglePresent: !!toggle,
-        toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
-        // P6-1 — the disclosure is a real interactive control with a visible,
-        // LOADED icon and the state-correct Show/Hide navigation label.
-        toggleTag: toggle ? toggle.tagName : null,
-        toggleText: toggle ? toggle.textContent.trim() : null,
-        toggleIcon: !!toggleIcon,
-        toggleIconLoaded: !!toggleIcon && toggleIcon.complete && toggleIcon.naturalWidth > 0,
-        // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
-        railLeft: sr ? Math.round(sr.left) : null,
-        toggleLeft: tr ? Math.round(tr.left) : null,
-        itemLeft: fir ? Math.round(fir.left) : null,
-        noBrokenImages: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
-      };
-    })()`);
+    //
+    // UI1 — the INITIAL state of a composed rail is CLOSED in every band (the canonical
+    // no-preference state); the EXPANDED contract below is therefore measured after the visitor
+    // toggles, which is the only thing that may open a rail.
+    const init = await probeAside(cdp, { railSel, panelSel, controlsId });
     check(rows, `${vpName}.aside.present`, !!init.hasRail);
     if (collapsible) {
       check(rows, `${vpName}.aside.toggle.present`, !!init.togglePresent);
       check(rows, `${vpName}.aside.toggle.semanticButton`, !!init.togglePresent && init.toggleTag === "BUTTON");
       check(rows, `${vpName}.aside.toggle.icon`, !!init.toggleIcon);
       check(rows, `${vpName}.aside.toggle.icon.loaded`, !!init.toggleIconLoaded);
+      // UI1 — THE CANONICAL NO-PREFERENCE STATE IS CLOSED IN EVERY BAND, so both compositions are
+      // asserted closed first: a collapsed band keeps its persistent rail (P6-3A), stays narrow, is
+      // never a dead end, and says "Show navigation" (P6-1).
+      check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.dataCollapsed === "true" && init.panelVisible && !init.panelHiddenClass);
+      check(rows, `${vpName}.aside.collapsed.persistentNarrow`, init.railWidth != null && init.railWidth > 0 && init.railWidth <= 64, `railWidth=${init.railWidth}`);
+      check(rows, `${vpName}.aside.collapsed.notDeadEnd`, init.togglePresent);
+      // P6-1 — collapsed rail → "Show navigation".
+      check(rows, `${vpName}.aside.toggle.labelShow`, init.toggleText === "Show navigation");
+
+      // UI1 — the EXPANDED contract (P0-1 expansion + P6-1 spacing/vocabulary) is measured after the
+      // VISITOR toggles: the disclosure control is the only thing that may open a rail, and the width it
+      // produces is the reference every later comparison uses.
+      await cdp.clickCenter(toggleSel);
+      await sleep(250);
+      const expanded = await probeAside(cdp, { railSel, panelSel, controlsId });
+      expandedRailWidth = expanded.railWidth;
+      check(rows, `${vpName}.aside.expand.afterToggle`, expanded.toggleExpanded === "true" && expanded.panelVisible);
+      // P6-1 — ONE vocabulary: open rail → "Hide navigation".
+      check(rows, `${vpName}.aside.toggle.labelHide`, expanded.toggleText === "Hide navigation");
       if (vpName === "desktop") {
-        check(rows, `${vpName}.aside.expanded.initial`, init.toggleExpanded === "true" && init.panelVisible);
-        // P6-1 — ONE vocabulary: open rail → "Hide navigation".
-        check(rows, `${vpName}.aside.toggle.labelHide`, init.toggleText === "Hide navigation");
-        // P6-1 — edge spacing + second-level inset (control vs navigation items).
-        check(rows, `${vpName}.aside.spacing.railInset`, !!(init.railLeft != null && init.railLeft >= 16), `railLeft=${init.railLeft}`);
+        // P6-1 — edge spacing + second-level inset (control vs navigation items) is the DESKTOP rail's
+        // contract (the rows below are unchanged; only the state they are measured in is explicit now).
+        check(rows, `${vpName}.aside.spacing.railInset`, !!(expanded.railLeft != null && expanded.railLeft >= 16), `railLeft=${expanded.railLeft}`);
         // 2026-09 closure pass — the show/hide CONTROL is LEFT-ALIGNED with the
         // ONE shared shell-control inset (~5px) from the rail's inline edge.
-        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(init.toggleLeft != null && init.railLeft != null && init.toggleLeft >= init.railLeft + 4 && init.toggleLeft <= init.railLeft + 6), `toggle=${init.toggleLeft} rail=${init.railLeft} inset=${init.toggleLeft - init.railLeft} (target ~5)`);
-        check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(init.itemLeft != null && init.toggleLeft != null && init.itemLeft >= init.toggleLeft + 4), `item=${init.itemLeft} toggle=${init.toggleLeft}`);
-        check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(init.itemLeft != null && init.itemLeft >= 24), `itemLeft=${init.itemLeft}`);
-      } else {
-        // `collapsed-sidebar` MEANS collapsed-by-default + always expandable —
-        // and P6-3A means it is a PERSISTENT narrow rail (never display:none).
-        check(rows, `${vpName}.aside.collapsed.initial`, init.toggleExpanded === "false" && init.dataCollapsed === "true" && init.panelVisible && !init.panelHiddenClass);
-        check(rows, `${vpName}.aside.collapsed.persistentNarrow`, init.railWidth != null && init.railWidth > 0 && init.railWidth <= 64, `railWidth=${init.railWidth}`);
-        check(rows, `${vpName}.aside.collapsed.notDeadEnd`, init.togglePresent);
-        // P6-1 — collapsed rail → "Show navigation".
-        check(rows, `${vpName}.aside.toggle.labelShow`, init.toggleText === "Show navigation");
+        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(expanded.toggleLeft != null && expanded.railLeft != null && expanded.toggleLeft >= expanded.railLeft + 4 && expanded.toggleLeft <= expanded.railLeft + 6), `toggle=${expanded.toggleLeft} rail=${expanded.railLeft} inset=${expanded.toggleLeft - expanded.railLeft} (target ~5)`);
+        check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(expanded.itemLeft != null && expanded.toggleLeft != null && expanded.itemLeft >= expanded.toggleLeft + 4), `item=${expanded.itemLeft} toggle=${expanded.toggleLeft}`);
+        check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(expanded.itemLeft != null && expanded.itemLeft >= 24), `itemLeft=${expanded.itemLeft}`);
       }
     } else {
       // immersive floating rail: static, expanded, no toggle (capability off).
@@ -659,10 +694,8 @@ async function runAsidePresentation(rows, presentation, cdp) {
     // P6-1 — no broken-image placeholder anywhere on the rail viewport.
     check(rows, `${vpName}.aside.noBrokenImages`, !!init.noBrokenImages);
 
-    if (collapsible && vpName === "tablet") {
-      await cdp.clickCenter(toggleSel); // expand before content checks
-      await sleep(250);
-    }
+    // UI1 — the band is already EXPANDED here (the toggle above), which is the state the content
+    // contract below (one item per row, current-page marking, no CTA inside the rail) is measured in.
 
 const s = await cdp.evaluate(`(() => ({
       sidebar: !!document.querySelector('.ui-shell-sidebar'),
@@ -723,7 +756,7 @@ const s = await cdp.evaluate(`(() => ({
       })()`);
       check(rows, `${vpName}.aside.collapse.persistent`, !collapsed.panelHiddenClass && collapsed.panelVisible);
       check(rows, `${vpName}.aside.collapse.dataState`, collapsed.dataCollapsed === "true");
-      check(rows, `${vpName}.aside.collapse.narrower`, collapsed.railWidth != null && init.railWidth != null && collapsed.railWidth < init.railWidth, `collapsed=${collapsed.railWidth} expanded=${init.railWidth}`);
+      check(rows, `${vpName}.aside.collapse.narrower`, collapsed.railWidth != null && expandedRailWidth != null && collapsed.railWidth < expandedRailWidth, `collapsed=${collapsed.railWidth} expanded=${expandedRailWidth}`);
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
       check(rows, `${vpName}.aside.collapse.navReachable`, collapsed.navReachable);
@@ -744,7 +777,7 @@ const s = await cdp.evaluate(`(() => ({
         const tr2 = topCta ? topCta.getBoundingClientRect() : null;
         return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0, ctaInTop: !!tr2 && tr2.width > 0 };
       })()`);
-      check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible && restored.railWidth != null && init.railWidth != null && restored.railWidth >= init.railWidth - 2, `restored=${restored.railWidth} expanded=${init.railWidth}`);
+      check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible && restored.railWidth != null && expandedRailWidth != null && restored.railWidth >= expandedRailWidth - 2, `restored=${restored.railWidth} expanded=${expandedRailWidth}`);
       check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true" && restored.dataCollapsed === "false");
       check(rows, `${vpName}.aside.expand.navReachable`, restored.linkReachable);
       // P6-1 — re-expanded rail returns to "Hide navigation".
@@ -770,6 +803,16 @@ const s = await cdp.evaluate(`(() => ({
       await cdp.setViewport(w, 900);
       await cdp.navigate(`${BASE_URL}/ww/en`);
       await waitReady(cdp);
+      // UI1 — these are EXPANDED-state measurements, and the state is now the VISITOR's (it survives
+      // the reload above), so the rail is opened through its own control when it arrives collapsed
+      // rather than assuming whichever state the previous block left behind.
+      const collapsedOnArrival = await cdp.evalBool(
+        `document.querySelector('#shell-sidebar-desktop-rail').getAttribute('data-collapsed') === 'true'`,
+      );
+      if (collapsedOnArrival) {
+        await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+        await sleep(250);
+      }
       const sp = await cdp.evaluate(`(() => {
         const rail = document.querySelector('#shell-sidebar-desktop-rail');
         const shell = document.querySelector('.ui-shell-sidebar');
@@ -4275,6 +4318,367 @@ async function runMultisiteScenario(chrome) {
   return rows;
 }
 
+/**
+ * FOUNDATION-UI1 — THE SIDEBAR'S PRESENTATION STATE LIFECYCLE (the owner-observed defect).
+ * ======================================================================================
+ *
+ * The visitor's sidebar choice is a PRESENTATION PREFERENCE, and it used to survive neither of the two
+ * things a visitor actually does:
+ *
+ *   · REFRESH — the rail returned OPEN after a reload, because its open/closed state lived only in the
+ *     mounted component's memory and a reload creates a new document;
+ *   · NAVIGATION — a CLOSED rail arrived OPEN after clicking a navigation icon, because the shell is
+ *     composed inside the `[...segments]` layout, so a client-side route change REMOUNTS the rail (the
+ *     page did not reload: `documentLoads` stays at 1) and the re-created instance started from its
+ *     initial state again.
+ *
+ * Neither defect involved any code that opened the sidebar, and this scenario proves the replacement
+ * contract through the REAL controls only:
+ *
+ *   no preference         → the canonical state is CLOSED (never "whatever mounted");
+ *   toggle                → the choice is recorded (`foundation.sidebar`, read from the app's own source);
+ *   reload                → the choice survives the new document;
+ *   navigation ICON click → the destination keeps the current state (closed stays closed, open stays open);
+ *   a selector route change (Site) and a presentation change (Layout) → the state is independent of both.
+ *
+ * Two further proofs are measured rather than assumed:
+ *
+ *   FIRST PAINT — a frame recorder samples the rail's state on every animation frame (installed before the
+ *   document's own scripts run), so "the first painted state matches the preference" is an observation
+ *   rather than a claim: an implementation that painted CLOSED and corrected to OPEN after hydration
+ *   would be visible here as a frame carrying the wrong state;
+ *   CONSOLE — every console error/warning of the run is collected, and a HYDRATION message fails the run.
+ *
+ * The mobile layer is deliberately NOT touched: below `md` the navigation is a different interaction
+ * model (an ephemeral drawer/bottom bar), so one bounded row records that the preference does not reach
+ * into it.
+ */
+
+/** The preference key, READ FROM THE APP'S OWN SOURCE, so this scenario cannot agree with a copy. */
+const SIDEBAR_PREFERENCE_SOURCE = readFileSync(
+  join(ROOT, "src", "components", "ui", "sidebar-preference.ts"),
+  "utf8",
+);
+const SIDEBAR_PREFERENCE_KEY = (() => {
+  const match = /SIDEBAR_PREFERENCE_STORAGE_KEY\s*=\s*"([^"]+)"/.exec(SIDEBAR_PREFERENCE_SOURCE);
+  if (!match) {
+    throw new Error("the sidebar preference key must be declared in @/components/ui/sidebar-preference.ts");
+  }
+  return match[1];
+})();
+
+
+/** The rail the visitor is actually looking at, and the state it presents (one band is displayed). */
+const SIDEBAR_STATE_PROBE = `(() => {
+  const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  const rails = [
+    { band: 'desktop', el: document.querySelector('#shell-sidebar-desktop-rail') },
+    { band: 'tablet', el: document.querySelector('#shell-sidebar-tablet-rail') },
+  ];
+  const current = rails.find((rail) => shown(rail.el)) || null;
+  const rail = current ? current.el : null;
+  const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
+  const label = toggle ? toggle.querySelector('span') : null;
+  const bottomBar = document.querySelector('.ui-shell-bottom-bar');
+  return JSON.stringify({
+    path: location.pathname,
+    band: current ? current.band : null,
+    railPresent: !!rail,
+    collapsed: rail ? rail.getAttribute('data-collapsed') : null,
+    expanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+    label: label ? label.textContent.trim() : null,
+    width: rail ? Math.round(rail.getBoundingClientRect().width) : null,
+    stored: window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)}),
+    drawer: !!document.querySelector('[role="dialog"]'),
+    mobileBar: shown(bottomBar),
+  });
+})()`;
+
+/**
+ * Installed in EVERY document of this scenario, BEFORE the document's own scripts run: the rail's state
+ * on every animation frame (from the first frame it exists in), and every console message at
+ * error/warning level, so a hydration mismatch cannot pass unnoticed.
+ */
+const SIDEBAR_WATCH = `(() => {
+  const watch = { frames: [], console: [] };
+  for (const level of ['error', 'warn']) {
+    const reported = console[level];
+    console[level] = function (...args) {
+      try { watch.console.push(String(args[0])); } catch (error) { /* the page's own message is lost, never ours */ }
+      return reported.apply(this, args);
+    };
+  }
+  const sample = () => {
+    if (watch.frames.length < 200) {
+      const desktop = document.querySelector('#shell-sidebar-desktop-rail');
+      const tablet = document.querySelector('#shell-sidebar-tablet-rail');
+      watch.frames.push({
+        t: Math.round(performance.now()),
+        desktop: desktop ? desktop.getAttribute('data-collapsed') : null,
+        tablet: tablet ? tablet.getAttribute('data-collapsed') : null,
+      });
+    }
+    requestAnimationFrame(sample);
+  };
+  requestAnimationFrame(sample);
+  window.__ui1Watch = watch;
+})()`;
+
+/** What the recorder has seen: each band's first recorded frame, the frames since, the console. */
+const SIDEBAR_WATCH_PROBE = `(() => {
+  const watch = window.__ui1Watch || { frames: [], console: [] };
+  const firstOf = (band) => { const frame = watch.frames.find((entry) => entry[band] !== null); return frame ? frame[band] : null; };
+  return JSON.stringify({
+    desktopFirst: firstOf('desktop'),
+    tabletFirst: firstOf('tablet'),
+    frames: watch.frames.map((entry) => entry.desktop),
+    after: watch.frames.length,
+    console: watch.console,
+  });
+})()`;
+
+/** The rail state as the visitor sees it. */
+const sidebarState = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_STATE_PROBE));
+
+/** What the frame recorder has observed so far. */
+const sidebarWatch = async (cdp) => JSON.parse(await cdp.evaluate(SIDEBAR_WATCH_PROBE));
+
+/** The stored preference, straight from the browser (never through the app's own reader). */
+const sidebarStored = (cdp) =>
+  cdp.evaluate(`window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)})`);
+
+/**
+ * Click a REAL navigation control in the rail and await the route it navigates to (FOUNDATION-BR1: a
+ * client transition is awaited by the state the next assertion reads, never by a settle).
+ */
+async function clickSidebarNav(cdp, selector, path) {
+  const clicked = await cdp.clickCenter(selector);
+  await waitReady(cdp, { path });
+  return clicked;
+}
+
+/** The rail's own controls, addressed as the visitor meets them. */
+const SIDEBAR_ABOUT_LINK = '#shell-sidebar-desktop-rail a[href$="/about"]';
+const SIDEBAR_HOME_LINK = "#shell-sidebar-desktop-rail ul li:first-child a";
+
+/**
+ * FOUNDATION-UI1 — the sidebar's state lifecycle, proved in a browser against the disposable synthetic
+ * deployment (generic owner: this is platform behaviour, not one deployment's content).
+ */
+async function runSidebarStateScenario(chrome) {
+  const rows = [];
+  const port = BASE_PORT + 341;
+  const base = `http://localhost:${port}`;
+  BASE_URL = base;
+  const HOME = "/ww/en";
+  const ABOUT = "/ww/en/about";
+  const url = `${base}${HOME}`;
+  const key = JSON.stringify(SIDEBAR_PREFERENCE_KEY);
+  const SET_HOSTILE = `window.localStorage.setItem(${key}, 'compact'); true`;
+
+  // The visitor dimensions are SWITCHED ON for this scenario (the Layout control must exist for the
+  // presentation-independence row); the scenario pins no composition of its own — the Layout control's
+  // configured default decides which one is presented.
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const shipped = JSON.parse(original);
+  const switcher = shipped.ui?.layoutSwitcher ?? {};
+  await writeFile(
+    CONFIG_PATH,
+    `${JSON.stringify(
+      {
+        ...shipped,
+        ui: {
+          ...(shipped.ui ?? {}),
+          layoutSwitcher: { ...switcher, enabled: true, default: switcher.default ?? "sidebar" },
+        },
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+
+  const server = startDevServer(port);
+  let cdp = null;
+  try {
+    await waitForServer(url);
+    cdp = await Cdp.connect(chrome);
+    // The frame recorder and the console collector must exist BEFORE the first document runs.
+    await cdp.send("Page.addScriptToEvaluateOnNewDocument", { source: SIDEBAR_WATCH });
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+
+    // ── NO PREFERENCE → CLOSED, on a document that has never carried one ────────────────────────
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    await cdp.evaluate(`window.localStorage.removeItem(${key}); true`);
+    await cdp.reload();
+    await waitReady(cdp);
+    const fresh = await sidebarState(cdp);
+    check(rows, "noPreference.closed", !!fresh.railPresent && fresh.collapsed === "true" && fresh.expanded === "false", JSON.stringify(fresh));
+    check(rows, "noPreference.narrowPersistentRail", fresh.width != null && fresh.width > 0 && fresh.width <= 64, `width=${fresh.width}`);
+    check(rows, "noPreference.notADeadEnd", fresh.label === "Show navigation", `label=${fresh.label}`);
+    check(rows, "noPreference.nothingStored", fresh.stored === null, `stored=${fresh.stored}`);
+    const freshWatch = await sidebarWatch(cdp);
+    check(rows, "noPreference.firstPaintClosed", freshWatch.desktopFirst === "true", `firstFrame=${freshWatch.desktopFirst}`);
+
+    // ── TOGGLE → OPEN (the disclosure control is the only thing that changes the state) ─────────
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const opened = await sidebarState(cdp);
+    check(rows, "toggle.open", opened.collapsed === "false" && opened.expanded === "true" && opened.label === "Hide navigation", JSON.stringify(opened));
+    check(rows, "toggle.recorded", (await sidebarStored(cdp)) === "open");
+
+    // ── REFRESH with OPEN (a new document) ──────────────────────────────────────────────────────
+    await cdp.reload();
+    await waitReady(cdp);
+    const reloadedOpen = await sidebarState(cdp);
+    check(rows, "reload.openStaysOpen", reloadedOpen.collapsed === "false" && reloadedOpen.expanded === "true", JSON.stringify(reloadedOpen));
+    const openWatch = await sidebarWatch(cdp);
+    // MEASURED, and deliberately asserted (§10): a DOCUMENT load cannot know a browser preference — the
+    // server emits the canonical CLOSED rail and the client adopts the stored OPEN in its first commit,
+    // which is the same static-generation trade-off the visitor's Layout preference already documents.
+    // The frame recorder proves the CLOSED preference needs no correction at all; for OPEN it records the
+    // canonical first paint, and the frames after a client-side navigation (below) record that the React
+    // tree never paints a state the visitor did not choose. A future pre-hydration hint would flip THIS
+    // row, which is exactly the deliberate decision it should force.
+    check(rows, "reload.openFirstPaintIsCanonicalClosed", openWatch.desktopFirst === "true", `firstFrame=${openWatch.desktopFirst}`);
+
+    // ── NAVIGATION with OPEN, through the REAL navigation control ───────────────────────────────
+    const openedAt = openWatch.after;
+    const toAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
+    const aboutOpen = await sidebarState(cdp);
+    check(rows, "navigate.openStaysOpen", !!toAbout && aboutOpen.path === ABOUT && aboutOpen.collapsed === "false" && aboutOpen.expanded === "true", JSON.stringify(aboutOpen));
+    const openNavWatch = await sidebarWatch(cdp);
+    check(rows, "navigate.openNeverPaintedClosed", openNavWatch.frames.slice(openedAt).includes("true") === false, `frames=${openNavWatch.frames.slice(openedAt).join(",")}`);
+
+    // Back home through the rail's own Home control (the second ordinary route).
+    const toHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
+    const homeOpen = await sidebarState(cdp);
+    check(rows, "navigate.back.openStaysOpen", !!toHome && homeOpen.path === HOME && homeOpen.collapsed === "false", JSON.stringify(homeOpen));
+
+    // ── TOGGLE → CLOSED, then REFRESH with CLOSED ───────────────────────────────────────────────
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const closed = await sidebarState(cdp);
+    check(rows, "toggle.closed", closed.collapsed === "true" && closed.expanded === "false" && closed.label === "Show navigation", JSON.stringify(closed));
+    check(rows, "toggle.closedRecorded", (await sidebarStored(cdp)) === "closed");
+
+    await cdp.reload();
+    await waitReady(cdp);
+    const reloadedClosed = await sidebarState(cdp);
+    check(rows, "reload.closedStaysClosed", reloadedClosed.collapsed === "true" && reloadedClosed.expanded === "false", JSON.stringify(reloadedClosed));
+    const closedWatch = await sidebarWatch(cdp);
+    check(rows, "reload.closedFirstPaintClosed", closedWatch.desktopFirst === "true", `firstFrame=${closedWatch.desktopFirst}`);
+
+    // ── NAVIGATION with CLOSED (the owner's second observation) ─────────────────────────────────
+    const closedAt = closedWatch.after;
+    const closedToAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
+    const aboutClosed = await sidebarState(cdp);
+    check(rows, "navigate.closedStaysClosed", !!closedToAbout && aboutClosed.path === ABOUT && aboutClosed.collapsed === "true" && aboutClosed.expanded === "false", JSON.stringify(aboutClosed));
+    const closedNavWatch = await sidebarWatch(cdp);
+    check(rows, "navigate.closedNeverPaintedOpen", closedNavWatch.frames.slice(closedAt).includes("false") === false, `frames=${closedNavWatch.frames.slice(closedAt).join(",")}`);
+
+    const closedHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
+    const homeClosed = await sidebarState(cdp);
+    check(rows, "navigate.back.closedStaysClosed", !!closedHome && homeClosed.path === HOME && homeClosed.collapsed === "true", JSON.stringify(homeClosed));
+
+    // ── AN UNUSABLE STORED VALUE is `no preference`, so the canonical state stands ──────────────
+    await cdp.evaluate(SET_HOSTILE);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const hostile = await sidebarState(cdp);
+    check(rows, "hostileValue.fallsBackToClosed", hostile.collapsed === "true" && hostile.stored === "compact", JSON.stringify(hostile));
+    // …and it is cleared again, so every later row starts from a defined state.
+    await cdp.evaluate(`window.localStorage.removeItem(${key}); true`);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+
+    // ── A SELECTOR ROUTE CHANGE (Site) does not own the state (§15) ─────────────────────────────
+    const siteChoice = await cdp.evaluate(`(() => {
+      const control = document.querySelector('select[data-selector="site"]');
+      if (!control) return JSON.stringify({ current: null, next: null, options: [] });
+      const options = [...control.options].map((option) => option.value);
+      return JSON.stringify({ current: control.value, next: options.find((value) => value !== control.value) ?? null, options });
+    })()`);
+    const site = JSON.parse(siteChoice);
+    if (site.next) {
+      await cdp.evaluate(`(() => {
+        const control = document.querySelector('select[data-selector="site"]');
+        control.value = ${JSON.stringify(site.next)};
+        control.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()`);
+      const switchedPath = `/${site.next}/en`;
+      await waitReady(cdp, { path: switchedPath });
+      const afterSite = await sidebarState(cdp);
+      check(rows, "selector.siteChange.keepsState", afterSite.path === switchedPath && afterSite.collapsed === "true", JSON.stringify(afterSite));
+      await cdp.navigate(url);
+      await waitReady(cdp);
+    } else {
+      check(rows, "selector.siteChange.keepsState", false, `no second site is switchable: ${siteChoice}`);
+    }
+
+    // ── A PRESENTATION CHANGE (Layout) is independent of the state (§16) ────────────────────────
+    const chooseLayoutValue = (value) => `(() => {
+      const control = document.querySelector('[data-ui-layout-switcher]');
+      if (!control) return false;
+      control.value = ${JSON.stringify(value)};
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+      return control.value === ${JSON.stringify(value)};
+    })()`;
+    const toMenuBar = await cdp.evaluate(chooseLayoutValue("menu-bar"));
+    await sleep(250);
+    const menuBar = await sidebarState(cdp);
+    check(rows, "layout.menuBarComposesNoRail", !!toMenuBar && menuBar.railPresent === false, JSON.stringify(menuBar));
+    const backToSidebar = await cdp.evaluate(chooseLayoutValue("sidebar"));
+    await sleep(250);
+    const sidebarAgain = await sidebarState(cdp);
+    check(rows, "layout.backToSidebar.keepsState", !!backToSidebar && sidebarAgain.railPresent === true && sidebarAgain.collapsed === "true", JSON.stringify(sidebarAgain));
+
+    // ── ONE PREFERENCE ACROSS BANDS: the tablet rail is the same contract, so it follows it ─────
+    await cdp.setViewport(VIEWPORTS.tablet.width, VIEWPORTS.tablet.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    // The preference belongs to the visitor and the tablet rail is the same contract: a real recorded
+    // choice (CLOSED) is confirmed to reach the tablet band, then a toggle HERE is confirmed to reach the
+    // desktop band — one state, every band.
+    await cdp.evaluate(`window.localStorage.setItem(${key}, 'closed'); true`);
+    await cdp.reload();
+    await waitReady(cdp);
+    const tabletClosed = await sidebarState(cdp);
+    check(rows, "tablet.bandIsTheTabletRail", tabletClosed.band === "tablet", JSON.stringify(tabletClosed));
+    check(rows, "tablet.followsStoredPreference", tabletClosed.collapsed === "true", JSON.stringify(tabletClosed));
+    await cdp.clickCenter("#shell-sidebar-tablet-rail .ui-sidebar-toggle");
+    await sleep(250);
+    check(rows, "tablet.toggleIsRecorded", (await sidebarStored(cdp)) === "open");
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const desktopAfterTablet = await sidebarState(cdp);
+    check(rows, "bands.shareOnePreference", desktopAfterTablet.collapsed === "false", JSON.stringify(desktopAfterTablet));
+
+    // ── THE MOBILE LAYER IS A DIFFERENT INTERACTION MODEL: a rail preference must not open it ──
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await cdp.navigate(url);
+    await waitReady(cdp);
+    const mobile = await sidebarState(cdp);
+    check(rows, "mobile.preferenceDoesNotOpenMobileNavigation", mobile.drawer === false && mobile.mobileBar === true, JSON.stringify(mobile));
+
+    // ── NO HYDRATION WARNING AND NO CONSOLE ERROR anywhere in this scenario (§11) ───────────────
+    const finalWatch = await sidebarWatch(cdp);
+    const hydration = finalWatch.console.filter((message) => /hydrat|did not match|server rendered HTML|Warning:/i.test(message));
+    check(rows, "console.noHydrationWarning", hydration.length === 0, hydration.join(" | "));
+    check(rows, "console.clean", finalWatch.console.length === 0, finalWatch.console.join(" | "));
+  } catch (error) {
+    check(rows, "sidebar-state.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    await stopServer(server);
+    await writeFile(CONFIG_PATH, original, "utf8");
+  }
+  return rows;
+}
+
 async function runMatrix(chrome, scope) {
 /**
  * MULTISITE / MULTILINGUAL, IN A REAL BROWSER (FOUNDATION-S1).
@@ -4428,6 +4832,12 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(multisiteRows.map((r) => ({ presentation: "multisite", ...r })));
       const multisiteFails = multisiteRows.filter((r) => !r.ok).length;
       console.log(`[matrix] multisite: ${multisiteRows.length - multisiteFails}/${multisiteRows.length} checks passed${multisiteFails ? ` FAIL=${multisiteFails}` : ""}`);
+      // FOUNDATION-UI1 — SIDEBAR PRESENTATION STATE: the visitor's open/closed choice survives a reload
+      // and a navigation (both of which RE-CREATE the rail), and no route change owns it.
+      const sidebarRows = await runSidebarStateScenario(chrome);
+      allRows = allRows.concat(sidebarRows.map((r) => ({ presentation: "sidebar-state", ...r })));
+      const sidebarFails = sidebarRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] sidebar-state: ${sidebarRows.length - sidebarFails}/${sidebarRows.length} checks passed${sidebarFails ? ` FAIL=${sidebarFails}` : ""}`);
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");

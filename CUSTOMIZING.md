@@ -499,6 +499,18 @@ and the same left-side vertical position.
   (`aria-expanded` reflects the state; `aria-controls` targets the persistent
   panel). No `viewSidebar`/`closeSidebar`/`sidebarToggle` vocabulary. A
   deliberately non-collapsible rail (immersive `floating`) has no toggle.
+- **State life-cycle (UI1).** The rail's open/closed state is the visitor's
+  PRESENTATION PREFERENCE, and it is remembered in browser-local storage — one
+  key, `foundation.sidebar`, whose only values are `open` and `closed`. So the
+  choice **survives a refresh** and **survives page navigation** (both of which
+  re-create the rail), and it applies to **every route of the origin**: changing
+  Site, Language or Location through the selector controls changes the URL and
+  nothing else about the sidebar. With **no stored preference the canonical state
+  is CLOSED**, and only the disclosure control changes it — clicking a navigation
+  icon navigates and never opens, closes or resets the rail. The tablet rail
+  follows the same preference; the `<md` drawer/bottom bar is a separate,
+  ephemeral interaction model that this preference does not govern. A missing,
+  unusable or blocked stored value falls back to the canonical CLOSED state.
 - **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
   mobile disclosure carry **navigation only**: the single Book Now action lives in
   the shell's top region (`ui-shell-header-row`), so collapsing or expanding the
