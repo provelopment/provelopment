@@ -106,6 +106,20 @@ export const RELEASE_CONTENT_RULES = Object.freeze([
     reason: "the change-scope router encodes THIS repository's ownership model and its capsule canary",
   },
   {
+    id: "exclude-ci-router-tests",
+    kind: "exact",
+    match: "tests/unit/change-scope.test.ts",
+    inclusion: RELEASE_INCLUSION.EXCLUDED,
+    reason: "a test of the EXCLUDED CI router: shipping it without its subject would ship a test whose module is absent (a clean room proved it — `tsc` could not resolve the import)",
+  },
+  {
+    id: "exclude-ci-routing-contract",
+    kind: "exact",
+    match: "tests/architecture/ci-routing-contract.test.ts",
+    inclusion: RELEASE_INCLUSION.EXCLUDED,
+    reason: "the router's architecture contract, for the same reason: its subject is this repository's CI routing, which a consumer replaces with its own",
+  },
+  {
     id: "exclude-generated-public",
     kind: "prefix",
     match: "public/",

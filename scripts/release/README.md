@@ -26,8 +26,11 @@ Consequences that follow from that sentence:
 
 - **The release never contains another site.** `deployment/**` — the reference deployment's
   configuration, dictionaries, pages, artwork, acceptance suite and baseline record — is excluded, as
-  is this repository's own CI (`.github/**`, `scripts/ci/**`) and every generated path (`public/**`,
-  `.next/**`, `node_modules/**`). A deployment adopting a release brings **its own** deployment state.
+  is this repository's own CI (`.github/**`, `scripts/ci/**`, and the router's own test, which exists
+  only to protect that excluded subject) and every generated path (`public/**`, `.next/**`,
+  `node_modules/**`). A deployment adopting a release brings **its own** deployment state.
+  A released file never imports an excluded module: `tests/architecture/release-content-boundary.test.ts`
+  proves it over the whole tracked tree.
 - **The reference deployment stays a bounded compatibility canary.** It is an *input* to canary
   validation, never part of construction, and its files never enter the payload or the digest.
 - **A release is cut from a commit, never from a working tree.** See "Determinism" below.
@@ -86,7 +89,7 @@ cannot be mistaken for a finished release):
     "commit": "<40-character commit SHA>",
     "tree": "<40-character tree SHA>"
   },
-  "content": { "policy": "foundation-source-v1", "digest": "sha256:<digest>", "fileCount": 336 },
+  "content": { "policy": "foundation-source-v1", "digest": "sha256:<digest>", "fileCount": 305 },
   "requirements": { "node": ">=22", "pnpm": "11.6.0" },
   "compatibility": { "pageDocumentSchema": 1, "deploymentLayouts": ["capsule", "repository", "override"] }
 }

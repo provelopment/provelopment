@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { listTrackedEntries } from "../../scripts/release/release-construction.mjs";
+import { assertReleasePayloadImportsResolve, listTrackedEntries } from "../../scripts/release/release-construction.mjs";
 import {
   RELEASE_CONTENT_POLICY_ID,
   RELEASE_CONTENT_RULES,
@@ -102,6 +103,31 @@ describe("the release content policy classifies the repository's real inventory"
       expect(["platform", "excluded"]).toContain(rule.inclusion);
     }
     expect(RELEASE_CONTENT_POLICY_ID).toBe("foundation-source-v1");
+  });
+});
+
+describe("the released generic suite never imports an excluded module", () => {
+  /** The policy's platform/excluded split for the repository's real tracked inventory. */
+  const split = classifyReleaseInventory(trackedPaths());
+
+  it("keeps every released file's imports inside the release — the tool's own construction-time rule", () => {
+    // ONE authority: the check below is exactly what release construction runs, so a defect of this
+    // class cannot reach a release. It is not hypothetical — `tests/unit/change-scope.test.ts` and
+    // `tests/architecture/ci-routing-contract.test.ts` both protect the excluded CI router, and the
+    // payload's own `tsc` failed in a clean room before they were classified with their subject.
+    expect(
+      assertReleasePayloadImportsResolve({
+        platformPaths: split.platform,
+        excludedPaths: split.excluded,
+        readText: (file) => readFileSync(path.join(ROOT, ...file.split("/")), "utf8"),
+      }),
+    ).toBeGreaterThan(100);
+  });
+
+  it("keeps the CI router and its tests on the SAME side of the boundary", () => {
+    expect(classifyReleasePath("scripts/ci/change-scope.mjs").inclusion).toBe("excluded");
+    expect(classifyReleasePath("tests/unit/change-scope.test.ts").inclusion).toBe("excluded");
+    expect(classifyReleasePath("tests/architecture/ci-routing-contract.test.ts").inclusion).toBe("excluded");
   });
 });
 

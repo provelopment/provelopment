@@ -235,6 +235,47 @@ export function readSourceBlobs(sourceRepository, commit, files) {
 }
 
 /**
+ * Fail unless every released FILE's relative imports resolve INSIDE the release.
+ *
+ * A release is a content set; a file whose import resolves to a path the policy excludes is a file
+ * that cannot work in the clean room it will be consumed in. This was not hypothetical: the generic
+ * suite contained two tests of the excluded CI router, and the payload's own `tsc` failed in a clean
+ * room because the import could not resolve. The rule is checked at CONSTRUCTION, so the boundary is
+ * enforced where a release is made rather than noticed afterwards.
+ *
+ * @param {{ platformPaths: string[], excludedPaths: string[], readText: (file: string) => string }} input
+ * @returns {number} how many released files were inspected
+ */
+export function assertReleasePayloadImportsResolve(input) {
+  const excluded = new Set(input.excludedPaths);
+  const code = /\.(ts|tsx|mts|mjs|js|jsx|cjs)$/;
+  let inspected = 0;
+
+  for (const file of input.platformPaths) {
+    if (!code.test(file)) continue;
+    inspected += 1;
+    for (const match of input.readText(file).matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)) {
+      const specifier = match[1];
+      if (!specifier.startsWith(".")) continue; // packages, Node builtins and the `@/` platform alias
+      const base = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
+      const subject = [base, `${base}.ts`, `${base}.tsx`, `${base}.mts`, `${base}.mjs`, `${base}/index.ts`].find(
+        (candidate) => excluded.has(candidate),
+      );
+      if (subject !== undefined) {
+        throw new Error(
+          `FOUNDATION-R1B: ${file} is released but imports ${subject}, which the release content policy ` +
+            "EXCLUDES — the file could not resolve in a clean room. Either classify the importer as excluded " +
+            "too (with its subject), or stop excluding the subject " +
+            "(scripts/release/release-content-policy.mjs).",
+        );
+      }
+    }
+  }
+
+  return inspected;
+}
+
+/**
  * The release's file plan at a commit: what is platform, what is excluded, and the anchors present.
  *
  * @param {string} sourceRepository the repository to read
@@ -292,6 +333,14 @@ export function constructRelease(input) {
     writeFileSync(absolute, bytes);
     entries.push({ path: file, sha256: sha256Hex(bytes) });
   }
+
+  // THE PLAN MUST BE SELF-CONSISTENT: a released file whose import resolves to an excluded path would
+  // be unusable in the clean room it is consumed in. Checked here, where a release is made.
+  assertReleasePayloadImportsResolve({
+    platformPaths: ordered,
+    excludedPaths: plan.excluded,
+    readText: (file) => bytesOf(file).toString("utf8"),
+  });
 
   const { digest, fileCount } = digestReleaseEntries(entries);
   const authorities = readReleaseAuthorities(bytesOf);
@@ -420,7 +469,13 @@ export function verifyRelease(input) {
             `records ${manifest.source.tree}`,
         );
       }
-      const expected = new Set(planReleaseContent(root, manifest.source.commit).platform);
+      const plan = planReleaseContent(root, manifest.source.commit);
+      assertReleasePayloadImportsResolve({
+        platformPaths: plan.platform,
+        excludedPaths: plan.excluded,
+        readText: (file) => readFileSync(path.join(payload, ...file.split("/")), "utf8"),
+      });
+      const expected = new Set(plan.platform);
       const actual = new Set(listPayloadFiles(payload).filter(isReleasePayloadPath));
       for (const file of [...expected].filter((entry) => !actual.has(entry)).sort(compareReleasePaths)) {
         problems.push(`${file} is platform content at ${manifest.source.commit} but is MISSING from the payload`);
