@@ -22,6 +22,15 @@
  *                           overwritten by the next `assets:sync`, and `assets:check`
  *                           fails in the meantime.
  *
+ * NOT VERSION-CONTROLLED (FOUNDATION-DEPLOYMENT-ISO-B3C1)
+ * ------------------------------------------------------
+ * The mirror is DERIVED state, so it is not tracked: `.gitignore` excludes it, and every workflow
+ * installs it deterministically — `pnpm install` (postinstall), `pnpm dev` and `pnpm build` each run
+ * this script, so a fresh clone needs no undocumented step. `pnpm assets:sync` re-installs on demand
+ * and `pnpm assets:check` verifies without repairing. Tracking it would put a second copy of every
+ * artwork byte in version control, able to disagree with the source it was derived from — the
+ * ambiguity this ownership model exists to remove.
+ *
  * This script is the only sanctioned writer of those derivatives. It is
  * idempotent, it reports every create/update, and `--check` fails (exit 1) when
  * the two trees drift — which is what `tests/unit/asset-taxonomy-mirror.test.ts`
@@ -55,11 +64,12 @@
  * warning suppression for the asset commands (FOUNDATION-DEPLOYMENT-ISO-H1C).
  *
  * USAGE
- *   node scripts/sync-runtime-assets.mjs           # write the runtime mirror
- *   node scripts/sync-runtime-assets.mjs --check   # verify only, exit 1 on drift
+ *   node scripts/sync-runtime-assets.mjs                  # install the runtime mirror (create, update, remove)
+ *   node scripts/sync-runtime-assets.mjs --check          # verify only, exit 1 on drift/absence/unauthorized output
+ *   node scripts/sync-runtime-assets.mjs --if-deployment  # install only if a deployment exists (the postinstall hook)
  */
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -105,8 +115,33 @@ export function resolveAssetDeployment(environment = process.env, repositoryRoot
   };
 }
 
-/** The deployment this run serves: resolved ONCE, through the seam above. */
-export const ASSET_DEPLOYMENT = resolveAssetDeployment();
+/**
+ * Is there a deployment to install for at all?
+ *
+ * The explicit asset commands and `pnpm dev`/`pnpm build` require one: a missing configuration is a
+ * LOUD failure there, because a build must never silently serve a different deployment. `pnpm install`
+ * is the one caller that must not assume it — a checkout with no deployment installed (the physical
+ * separation B4 will make real, and any stripped-down clone today) still has to be installable — so
+ * the postinstall hook asks THIS question first and reports "nothing to install" instead of failing.
+ *
+ * @param {Record<string, string | undefined>} [environment] the environment the seam reads
+ * @param {string} [repositoryRoot] the repository the deployment is resolved inside
+ * @returns {boolean} whether a deployment is resolvable here
+ */
+export function deploymentAvailable(environment = process.env, repositoryRoot = ROOT) {
+  try {
+    resolveAssetDeployment(environment, repositoryRoot);
+    return true;
+  } catch {
+    // The seam's own message is the diagnostic a BUILD needs; here it only answers this question.
+    return false;
+  }
+}
+
+/** The deployment this run serves, resolved through the seam. Never cached across calls. */
+function selectedDeploymentRoot() {
+  return resolveAssetDeployment().deploymentRoot;
+}
 
 /**
  * Every mirrored source → runtime filename pair. `from` is relative to the SELECTED DEPLOYMENT's
@@ -160,6 +195,14 @@ export const RUNTIME_ONLY = [];
 
 const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 
+/**
+ * One planned mirror row.
+ * @typedef {object} MirrorRow
+ * @property {string} from the source path, relative to the SELECTED DEPLOYMENT's root
+ * @property {string} to the runtime filename the mirror installs
+ * @property {string} note why this file is mirrored
+ */
+
 /** Deliverable artwork extensions — documentation (e.g. `README.md`) is not mirrored. */
 const MIRRORED_EXTENSIONS = new Set([".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"]);
 
@@ -168,7 +211,7 @@ const MIRRORED_EXTENSIONS = new Set([".svg", ".png", ".jpg", ".jpeg", ".webp", "
  * SELECTED DEPLOYMENT. `deploymentRoot` is a parameter so a generic test can substitute a
  * synthetic deployment; the CLI uses the deployment the seam resolved.
  */
-export function buildPlan(deploymentRoot = ASSET_DEPLOYMENT.deploymentRoot) {
+export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
   const rows = [];
   for (const { from, to, note } of MIRRORED) rows.push({ from, to, note });
   for (const { from, note } of MIRRORED_DIRECTORIES) {
@@ -181,15 +224,62 @@ export function buildPlan(deploymentRoot = ASSET_DEPLOYMENT.deploymentRoot) {
   return rows;
 }
 
-/** Classify every planned pair: created / updated / current (+ missing sources). */
-export function checkMirrors(deploymentRoot = ASSET_DEPLOYMENT.deploymentRoot) {
+/**
+ * Every entry under the runtime tree, RELATIVE to it — files and directories alike, deepest last.
+ *
+ * The plan installs FLAT filenames into the runtime directory, so any directory at all (and any file
+ * the plan does not declare) is unauthorized output. That is what stops a second, uncontrolled asset
+ * library from appearing under `public/assets/`, and what makes a STALE file — a source that was
+ * removed — detectable instead of permanent.
+ *
+ * An absent runtime tree is not an error: it is the state a fresh checkout starts in, and
+ * `syncMirrors` is what bootstraps it.
+ *
+ * @param {string} runtimeRoot the generated runtime tree
+ * @returns {string[]} relative paths; a directory ends with `/`
+ */
+function runtimeEntries(runtimeRoot) {
+  if (!existsSync(runtimeRoot)) return [];
+  const found = [];
+  const walk = (directory, prefix) => {
+    const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name),
+    );
+    for (const entry of entries) {
+      const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      if (entry.isDirectory()) {
+        found.push(`${relative}/`);
+        walk(path.join(directory, entry.name), relative);
+      } else {
+        // Anything that is not a directory (including a symbolic link) is treated as a file.
+        found.push(relative);
+      }
+    }
+  };
+  walk(runtimeRoot, "");
+  return found;
+}
+
+/**
+ * Classify every planned pair: created / updated / current (+ missing sources), and list every runtime
+ * entry the plan does NOT account for.
+ *
+ * `runtimeRoot` is a parameter for the same reason `deploymentRoot` is: a generic test proves this
+ * generated-output lifecycle on disposable trees under the OS temp directory and must never touch the
+ * repository's real `public/assets/**`. Every command uses the defaults.
+ *
+ * @param {string} [deploymentRoot] the selected deployment's root
+ * @param {string} [runtimeRoot] the generated runtime tree
+ * @returns {{ created: MirrorRow[], updated: MirrorRow[], current: MirrorRow[], missingSources: MirrorRow[], unexpected: string[] }}
+ */
+export function checkMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRoot = RUNTIME_ROOT) {
   const created = [];
   const updated = [];
   const current = [];
   const missingSources = [];
   for (const row of buildPlan(deploymentRoot)) {
     const source = path.join(deploymentRoot, row.from);
-    const target = path.join(RUNTIME_ROOT, row.to);
+    const target = path.join(runtimeRoot, row.to);
     if (!existsSync(source)) {
       missingSources.push(row);
       continue;
@@ -200,26 +290,74 @@ export function checkMirrors(deploymentRoot = ASSET_DEPLOYMENT.deploymentRoot) {
     else current.push(row);
   }
   const planned = new Set(buildPlan(deploymentRoot).map((row) => row.to));
-  const allowlisted = (name) => RUNTIME_ONLY.some((entry) => entry.pattern.test(name));
-  const unexpected = readdirSync(RUNTIME_ROOT, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && !planned.has(entry.name) && !allowlisted(entry.name))
-    .map((entry) => entry.name)
-    .sort();
+  const allowlisted = (name) =>
+    RUNTIME_ONLY.some((entry) => entry.pattern.test(name) || entry.pattern.test(path.basename(name)));
+  // A directory is legitimate only while something the plan installs lives inside it.
+  const directoryExpected = (relative) =>
+    [...planned].some((target) => target.startsWith(relative));
+  const unexpected = runtimeEntries(runtimeRoot).filter((relative) =>
+    relative.endsWith("/")
+      ? !directoryExpected(relative)
+      : !planned.has(relative) && !allowlisted(relative),
+  );
   return { created, updated, current, missingSources, unexpected };
 }
 
-/** Copy every out-of-date source over its runtime derivative (idempotent). */
-export function syncMirrors(deploymentRoot = ASSET_DEPLOYMENT.deploymentRoot) {
-  const report = checkMirrors(deploymentRoot);
-  mkdirSync(RUNTIME_ROOT, { recursive: true });
+/**
+ * Make the runtime mirror EQUAL the plan: create, update, and REMOVE unauthorized output (idempotent).
+ *
+ * Removal is the half that keeps a generated tree honest. A source that no longer exists, or a file
+ * someone placed directly in `public/assets/`, must not survive merely because it is already on disk —
+ * the PLAN decides what is legitimate, never "what was already there". Only paths discovered INSIDE
+ * `runtimeRoot` are ever removed, only empty directories are unlinked (never a recursive delete), and
+ * nothing is removed recursively from a path this function did not list itself.
+ *
+ * @param {string} [deploymentRoot] the selected deployment's root
+ * @param {string} [runtimeRoot] the generated runtime tree
+ * @returns {{ created: MirrorRow[], updated: MirrorRow[], current: MirrorRow[], missingSources: MirrorRow[], unexpected: string[], removed: string[] }}
+ */
+export function syncMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRoot = RUNTIME_ROOT) {
+  // Bootstrap FIRST: an absent mirror is the fresh-checkout state, not an error — and the plan is
+  // what decides the tree, so there is nothing to preserve from a previous install.
+  mkdirSync(runtimeRoot, { recursive: true });
+  const report = checkMirrors(deploymentRoot, runtimeRoot);
+
+  const root = path.resolve(runtimeRoot);
+  /** A path inside the runtime tree, or a refusal — this function's own write boundary. */
+  const inside = (relative) => {
+    const full = path.resolve(root, relative);
+    if (full !== root && !full.startsWith(root + path.sep)) {
+      throw new Error(`refusing to touch a path outside the runtime tree: ${relative}`);
+    }
+    return full;
+  };
+
   for (const row of [...report.created, ...report.updated]) {
     const source = path.join(deploymentRoot, row.from);
-    const target = path.join(RUNTIME_ROOT, row.to);
+    const target = inside(row.to);
     const expected = sha256(readFileSync(source));
     copyFileSync(source, target);
     if (sha256(readFileSync(target)) !== expected) throw new Error(`mirror write failed: ${row.to}`);
   }
-  return report;
+
+  const removed = [];
+  const depth = (relative) => relative.split("/").filter((part) => part !== "").length;
+  for (const relative of report.unexpected.filter((entry) => !entry.endsWith("/"))) {
+    rmSync(inside(relative), { force: true });
+    removed.push(relative);
+  }
+  // Deepest first, so a directory that only held unauthorized material goes once it is empty.
+  const directories = report.unexpected
+    .filter((entry) => entry.endsWith("/"))
+    .sort((a, b) => depth(b) - depth(a));
+  for (const relative of directories) {
+    const full = inside(relative);
+    if (existsSync(full) && readdirSync(full).length === 0) {
+      rmdirSync(full);
+      removed.push(relative);
+    }
+  }
+  return { ...report, removed: removed.sort() };
 }
 
 const isMain =
@@ -227,17 +365,30 @@ const isMain =
 
 if (isMain) {
   const checkOnly = process.argv.includes("--check");
+  const optional = process.argv.includes("--if-deployment");
+  // The ONE tolerant caller: `pnpm install` must succeed in a checkout that has no deployment yet
+  // (a stripped-down clone, or a Foundation repository after the B4 separation). Every other caller
+  // keeps the seam's loud failure — a build must never silently serve a different deployment.
+  if (optional && !deploymentAvailable()) {
+    console.log(
+      "runtime asset mirror — no deployment is installed in this repository, so there is no mirror to install.",
+    );
+    process.exit(0);
+  }
+  const deployment = resolveAssetDeployment();
   const report = checkOnly ? checkMirrors() : syncMirrors();
   const noun = (n) => `${n} file${n === 1 ? "" : "s"}`;
   console.log(`runtime asset mirror — ${RUNTIME_DIR} (${noun(buildPlan().length)} declared)`);
-  console.log(`  source:   ${ASSET_DEPLOYMENT.sourceRoot}  (${ASSET_DEPLOYMENT.layout} deployment)`);
-  console.log(`  target:   ${ASSET_DEPLOYMENT.runtimeRoot}`);
+  console.log(`  source:   ${deployment.sourceRoot}  (${deployment.layout} deployment)`);
+  console.log(`  target:   ${deployment.runtimeRoot}`);
   console.log(`  ${checkOnly ? "drifted" : "updated"}: ${noun(report.updated.length)}`);
   console.log(`  absent:   ${noun(report.created.length)}`);
   console.log(`  current:  ${noun(report.current.length)}`);
+  if (!checkOnly) console.log(`  removed:  ${noun(report.removed.length)}`);
   for (const row of [...report.updated, ...report.created]) {
     console.log(`    ${checkOnly ? "drift" : "write"}  ${row.from} → ${row.to}`);
   }
+  if (!checkOnly) for (const relative of report.removed) console.log(`    remove ${relative}`);
 
   const failures = [];
   if (report.missingSources.length > 0) {
@@ -245,18 +396,29 @@ if (isMain) {
       `declared source asset(s) are missing:\n${report.missingSources.map((row) => `    ${row.from}`).join("\n")}`,
     );
   }
-  if (report.unexpected.length > 0) {
+  // In CHECK mode unauthorized output is a failure: nothing may be accepted merely because it exists.
+  // In SYNC mode it is an action already taken — reported above as `remove …` — because the plan, not
+  // the previous contents of the tree, decides what is legitimate.
+  if (checkOnly && report.unexpected.length > 0) {
     failures.push(
-      `undeclared runtime-only file(s) in ${RUNTIME_DIR}/ — mirror them from a source, or declare them in RUNTIME_ONLY with a reason:\n` +
+      `unauthorized runtime file(s) in ${RUNTIME_DIR}/ — the plan does not declare them, so nobody derived them. Mirror them from a source, or declare them in RUNTIME_ONLY with a reason:\n` +
         report.unexpected.map((name) => `    ${name}`).join("\n"),
     );
   }
   if (checkOnly && (report.created.length > 0 || report.updated.length > 0)) {
-    failures.push("runtime assets are not byte-identical to their sources — run `pnpm assets:sync`.");
+    failures.push(
+      report.created.length === buildPlan().length
+        ? `the runtime mirror is NOT INSTALLED in ${RUNTIME_DIR}/ — run \`pnpm assets:sync\` (or \`pnpm install\`, which installs it).`
+        : "runtime assets are not byte-identical to their sources — run `pnpm assets:sync`.",
+    );
   }
   if (failures.length > 0) {
-    console.error(`\nRUNTIME ASSET MIRROR CHECK FAILED\n${failures.join("\n")}`);
+    console.error(
+      `\n${checkOnly ? "RUNTIME ASSET MIRROR CHECK FAILED" : "RUNTIME ASSET MIRROR INSTALL FAILED"}\n${failures.join("\n")}`,
+    );
     process.exit(1);
   }
-  console.log("\nruntime asset mirror OK — every runtime file is byte-identical to its source.");
+  console.log(
+    "\nruntime asset mirror OK — every runtime file is byte-identical to its source, and nothing else is present.",
+  );
 }

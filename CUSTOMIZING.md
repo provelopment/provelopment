@@ -77,9 +77,11 @@ action (see the Assets section below). The **values** you configure in
 ## Update-safety model (be honest about it)
 
 - **Downstream-owned files are preserved** on a future upstream pull: your
-  `site.config.json`, `content/**`, `config/i18n/*`, and `public/assets/*`
-  edits stay yours. In a `git merge upstream/main`, your versions of those
-  files win when you've changed them.
+  `site.config.json`, `content/**` (including the `content/assets/**` artwork) and
+  `config/i18n/*` edits stay yours. In a `git merge upstream/main`, your versions of
+  those files win when you've changed them. `public/assets/**` is GENERATED output —
+  git-ignored and installed by the package lifecycle — so there is nothing of yours to
+  preserve there, and derived bytes can never conflict with their source.
 - **Foundation-owned files are replaced** on a future upstream pull: `src/**`,
   `tests/**`, build/deploy files, and the schema/loader evolve with the
   template.
@@ -303,11 +305,14 @@ pipeline (configuration → resolver → shared primitives → semantic classes)
 
 Two equivalent ways to replace a UI asset:
 
-1. **Replace the file** — keep the configured filename and drop your file into
-   `public/assets/` (e.g. overwrite `sidebar-open.svg`). No configuration
-   change.
-2. **Change the configured filename** — point the leaf at a different file also
-   under `public/assets/` (e.g. `"icon": "my-sidebar-icon.svg"`).
+1. **Replace the file** — keep the configured filename and replace the SOURCE artwork
+   in the deployment's `content/assets/**` (this repository: the capsule's
+   `deployment/content/assets/**`, e.g. `placeholders/sidebar-open.svg`). No configuration
+   change; the generated `public/assets/` copy is installed from it by `pnpm assets:sync`
+   (and by `pnpm install`, `pnpm dev` and `pnpm build`).
+2. **Change the configured filename** — put your file in the same source tree and point
+   the leaf at that filename (e.g. `"icon": "my-sidebar-icon.svg"`). The runtime
+   filename the resolver screens is the one installed under `public/assets/`.
 
 Only **plain filenames** are accepted (letters, digits, `.`, `_`, `-`, ending in
 `.svg`/`.png`/`.webp`/`.jpg`/`.jpeg`/`.gif`/`.ico`). Paths and URLs are
@@ -1238,9 +1243,12 @@ configurable through the validated `site.assets.*` block:
 
 There are **two equally-supported ways to customize an asset**:
 
-1. **Replace in place** — overwrite the default file at its existing path
-   under `public/assets/` (for example `public/assets/favicon.svg` for the icon
-   role). No configuration change, no code change.
+1. **Replace the file** — overwrite the default artwork where it is AUTHORED, in the
+   deployment's `content/assets/**` (for example the capsule's
+   `deployment/content/assets/placeholders/favicon.svg` for the icon role). No
+   configuration change, no code change: the git-ignored `public/assets/` copy is
+   installed from it by `pnpm assets:sync` (and by `pnpm install`, `pnpm dev` and
+   `pnpm build`).
 2. **Point configuration at your own URL** — keep the Foundation default file
    untouched and set the absolute URL:
 

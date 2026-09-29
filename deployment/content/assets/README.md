@@ -12,7 +12,12 @@ That copy is produced by a script — **never edit `public/assets/` by hand**, b
 your edit is overwritten the next time the copy runs, and the automated check fails
 until it is.
 
-So: edit here, then run the copy (or just `pnpm build`, which copies first).
+The copy is **generated output, not a file you keep in Git.** It is ignored by Git and
+installed for you by `pnpm install` (and again by `pnpm dev` and `pnpm build`), so a
+fresh clone never needs it committed. Only this folder is version controlled, which is
+what gives the artwork exactly ONE authority.
+
+So: edit here, and the commands that need the copy make it.
 
 ```text
 pnpm assets:sync     # copy your artwork into public/assets
@@ -41,5 +46,6 @@ swap artwork.
 3. Reference it in `site.config.json` (for a role) or in your page
    (`![description](/assets/<filename>)`) — a page image is a Markdown image whose
    path starts `/assets/`.
-4. Commit both the file here **and** the regenerated `public/assets/` copy, then
-   push: the automated checks verify they match.
+4. Commit **only this file** — `public/assets/` is generated and stays out of Git.
+   The next `pnpm install`, `pnpm dev` or `pnpm build` installs the copy, and the
+   automated check verifies it matches this folder.
