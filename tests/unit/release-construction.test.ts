@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, wr
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { constructRelease, verifyRelease } from "../../scripts/release/release-construction.mjs";
 import { RELEASE_MANIFEST_FILE, digestReleaseEntries } from "../../scripts/release/release-digest.mjs";
@@ -25,6 +25,13 @@ import { parseReleaseManifest } from "../../scripts/release/release-manifest.mjs
  * Nothing here creates a tag, publishes anything or touches this repository's own state.
  */
 const IDENTITY = "v2099.01.01-foundation-release-r1b-test";
+
+// EVERY TEST HERE SPAWNS GIT — a synthetic repository, then one or more constructions that read it
+// through the object database. On a loaded CI runner those spawns are an order of magnitude slower
+// than on a developer machine, so this file raises the HARNESS budget, measured rather than guessed.
+// It is not a property of the release mechanism: nothing in `scripts/release/**` waits, retries or
+// inflates anything.
+vi.setConfig({ testTimeout: 30_000 });
 
 /** The synthetic platform: every anchor the policy requires, plus representative content. */
 const PLATFORM_FILES: Record<string, string> = {
