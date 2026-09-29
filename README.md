@@ -52,7 +52,7 @@ deployment      # THE DEPLOYMENT CAPSULE — everything one website owns (see de
     pages/markdown # Safe Markdown pages — content/pages/markdown/<site>/<locale>/<route>.md  (see its README)
     pages/json  #   Declarative JSON pages — content/pages/json/<site>/<locale>/<route>.json  (see its README)
     assets      #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
-public/assets   # GENERATED mirror of the deployment's content/assets/** — never edit by hand (scripts/sync-runtime-assets.mjs)
+public/assets   # GENERATED mirror of the deployment's content/assets/** (git-ignored; installed by pnpm install/dev/build — never edit by hand)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
 tests           # Architecture-boundary, unit, integration and CDP browser-matrix tests
 ```

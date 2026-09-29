@@ -128,8 +128,9 @@ keeps it that way. Three layouts are resolved once per build:
 | **override** | `FOUNDATION_DEPLOYMENT_ROOT` | the dev/test escape hatch that points a dev server at a synthetic deployment. Never a production mechanism |
 
 `public/assets/**` is NOT deployment-owned: Next.js serves static files from `public/`
-only, so it is GENERATED build output (`pnpm assets:sync`, byte-verified by
-`tests/unit/asset-taxonomy-mirror.test.ts`).
+only, so it is GENERATED build output — ignored by Git and installed by `pnpm install`
+(postinstall), `pnpm dev` and `pnpm build` (`pnpm assets:sync` / `pnpm assets:check`,
+byte-verified by the deployment's own asset suites).
 
 ### `content`
 
@@ -188,7 +189,8 @@ hoc, so discovery, routing and the sitemap cannot disagree about what exists.
 **Assets** are authored under the deployment's `content/assets/**` and mirrored byte-for-byte into
 `public/assets/**` by `scripts/sync-runtime-assets.mjs` (`pnpm assets:sync` /
 `assets:check`). `content/assets/**` is the source of truth a human edits;
-`public/assets/**` is a GENERATED derivative that is never edited by hand, and a test
+`public/assets/**` is a GENERATED derivative that is never edited by hand, is NOT
+version-controlled (installed by the package lifecycle instead), and a test
 asserts that no second user-editable asset authority exists at the repository root.
 
 The content pipeline follows the ports and adapters boundaries:

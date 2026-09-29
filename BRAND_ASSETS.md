@@ -95,7 +95,8 @@ for someone asking
 | One authority | A file is **edited in `content/assets/**`** and mirrored. `public/assets/**` is a byte-identical **derivative**, never a second place to maintain artwork |
 | One editable place | There is **no** root-level `assets/` tree: `content/assets/` is the only user-editable asset authority, and a test asserts it |
 | Never hand-edit the mirror | `public/assets/**` is GENERATED. An edit there is overwritten by the next `pnpm assets:sync` and fails `pnpm assets:check` until then — change the source file instead |
-| Deterministic | `pnpm assets:sync` writes the mirror; `pnpm assets:check` (and `tests/unit/asset-taxonomy-mirror.test.ts`) fails on any drift, on a missing declared source, and on any **undeclared** file appearing under `public/assets/` |
+| Not version-controlled | `public/assets/**` is **generated output**: ignored by Git and installed by `pnpm install` (postinstall), `pnpm dev` and `pnpm build`, so a fresh clone needs no committed copy — and derived bytes can never disagree with their source in version control |
+| Deterministic | `pnpm assets:sync` writes the mirror (and REMOVES output the plan does not declare); `pnpm assets:check` fails on any drift, on a missing declared source, on an absent mirror, and on any **undeclared** file or directory appearing under `public/assets/` |
 | Build-safe | `pnpm build` runs the mirror first, so a deployment can never ship a stale or half-applied asset move |
 | No permanent exceptions | every **persistent** runtime visual asset has an authoritative source beneath `content/assets/**`. `RUNTIME_ONLY` (the explicit, reasoned allowlist in the mirror manifest) is **empty by design**; a generated, source-less asset would still have to be declared there with a reason |
 | No junk drawer | `content/assets/placeholders/` holds blank/generic defaults only — never business branding, never general-purpose icons |
@@ -133,11 +134,11 @@ document says so explicitly rather than inventing a requirement.
 
 Both are fully supported and neither requires a code change:
 
-1. **Replace in place** — overwrite the file under `public/assets/`. The
-   configuration keeps pointing at the same role file. (In *this* repository the
-   file is authored in `content/assets/**` and mirrored — see §1.1; overwriting only the
-   runtime copy is correct for an adopter, and `pnpm assets:sync` keeps the two
-   trees identical for the Foundation itself.)
+1. **Replace the source file** — overwrite the file where it is AUTHORED, in the
+   deployment's `content/assets/**` (§1.1). The configuration keeps pointing at the same
+   role file, and the mirror is installed from it by `pnpm assets:sync` (or by
+   `pnpm install`, `pnpm dev` and `pnpm build`, which all install it first).
+   `public/assets/**` is GENERATED output and is never the file you edit.
 2. **Point configuration at your own file** — set the role's `site.assets.*`
    key to an **absolute URL** (required by the schema, validated at build time)
    whose basename matches a file in `public/assets/`.
@@ -292,8 +293,9 @@ Rules that follow from this:
 > **The decorative defaults are blank, and the branded artwork is one copy away.**
 > The header/footer decorative roles are ACTIVE against a **transparent, empty**
 > placeholder: nothing paints, nothing is required, and a deployment activates its
-> own graphic by replacing `public/assets/header-graphic.svg` /
-> `public/assets/footer-graphic.svg` (or by re-pointing the role). The neutral
+> own graphic by replacing the SOURCE artwork at
+> `content/assets/placeholders/header-graphic.svg` /
+> `content/assets/placeholders/footer-graphic.svg` (or by re-pointing the role). The neutral
 > *test* fixture at `tests/fixtures/placeholder-assets/header-graphic.svg` remains a
 > testing-only source and is never resolved by the runtime.
 
@@ -1090,7 +1092,7 @@ A short map, for maintainers — not required reading for an artwork task.
 | Connectivity icon screening | `src/components/site/connectivity-links.ts` |
 | Open Graph / Twitter metadata | `src/app/[locale]/layout.tsx` + `src/core/seo-metadata.ts` (`resolveOgImageUrl`) |
 | All presentation (sizing, crop, anchor, pointer behaviour) | `src/app/globals.css` |
-| **Source → runtime asset mirror** (the only sanctioned writer of `public/assets/**`) | `scripts/sync-runtime-assets.mjs` — `MIRRORED`, `MIRRORED_DIRECTORIES`, `RUNTIME_ONLY`, `buildPlan`, `syncMirrors`, `checkMirrors` (`pnpm assets:sync` / `pnpm assets:check`; run first by `pnpm build`) |
+| **Source → runtime asset mirror** (the only sanctioned writer of `public/assets/**`) | `scripts/sync-runtime-assets.mjs` — `MIRRORED`, `MIRRORED_DIRECTORIES`, `RUNTIME_ONLY`, `buildPlan`, `syncMirrors`, `checkMirrors` (`pnpm assets:sync` / `pnpm assets:check`; installed first by `pnpm install`, `pnpm dev` and `pnpm build`) |
 | Sidebar page icons (16 × 16 contract, icon-library mapping, tooltip) | `src/app/globals.css` (`--ui-sidebar-nav-icon-size`) · `src/components/site/nav-links.ts` (`withSidebarNavIcons`) · `src/components/ui/nav-item.tsx` · `site.config.json` (`navigation[].iconOpen/iconClosed`) |
 | Sidebar open/close CONTROL (24 × 24; expanded inset / collapsed centred) | `src/app/globals.css` (`--ui-sidebar-control-icon-size`, `--ui-shell-control-inset`, `--ui-sidebar-rail-collapsed`, `--ui-sidebar-rail-collapsed-pad`) · `src/components/ui/sidebar.tsx` · `src/components/shell/shell-engine.tsx` (`resolveControlPresentation`) |
 | **Foundation accent** (the ONE hardcoded `--ui-foundation-accent` → wordmark + highlights; dark derived) | `src/app/globals.css` (`--ui-foundation-accent`; `--ui-brand-accent`, `--primary`, `--ring` derive from it) · consumers: `src/app/[locale]/page.tsx` (wordmark), `src/components/site/{location,language}-switcher.tsx` (selector emphasis), `src/components/ui/cta.tsx` (CTA fill) |

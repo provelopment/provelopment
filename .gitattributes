@@ -21,6 +21,11 @@ instruction-manuals/** -text
 # line-ending conversion may rewrite either side. Store source artwork and its
 # runtime mirror verbatim.
 #
+# `public/assets/**` is GENERATED and NOT version-controlled (FOUNDATION-DEPLOYMENT-ISO-B3C1):
+# it is ignored by `.gitignore` and installed from the source tree by the package lifecycle. Its
+# `-text` rule is kept as a guard so that an explicit re-add (or a downstream repository that still
+# commits a mirror) can never have its artwork bytes normalised.
+#
 # Both paths must stay listed: a rule for a tree that no longer exists would stop
 # protecting the artwork without failing anything visible (FOUNDATION-PAGES-A1D
 # moved the source tree from `assets/` to `content/assets/`, and
