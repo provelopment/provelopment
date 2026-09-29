@@ -31,6 +31,15 @@ import { fileURLToPath } from "node:url";
 
 import { Cdp, findChrome } from "./cdp.mjs";
 import { HYDRATION_SETTLE_MS, READINESS_POLL_MS, READINESS_TIMEOUT_MS, readinessProbeExpression } from "./readiness.mjs";
+import {
+  expectedName,
+  observedSemantics,
+  readSemanticsHooks,
+  semanticsAgree,
+  semanticsDisagreement,
+  semanticsOf,
+  sidebarSemanticsReader,
+} from "./sidebar-semantics.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -61,6 +70,14 @@ const BOOT_MARKER = (() => {
   if (!match) throw new Error("the sidebar boot marker must be declared in @/components/ui/sidebar-contract.ts");
   return match[1];
 })();
+/**
+ * UI1-A3-A1 — the attribute the CONTROL declares its OPEN-state accessible name in, read from the same
+ * authority (so this proof cannot agree with a stale copy of it, exactly like the key and the marker above)
+ * by the same shared parser the matrix gate uses. A missing declaration is reported as a FAILING row below,
+ * never as a crash here: the proof must be able to run against a candidate that has not declared it yet —
+ * that is what makes it a proof.
+ */
+const OPEN_NAME_ATTRIBUTE = readSemanticsHooks(PREFERENCE_SOURCE).openNameAttribute;
 /** The collapsed rail's own width: anything at or below it is the icon column the visitor sees as CLOSED. */
 const NARROW_MAX = 64;
 
@@ -70,11 +87,59 @@ const NARROW_MAX = 64;
  * and the document's boot marker, because the defect this file exists for now includes a FIRST-PAINT defect
  * that no attribute channel can see.
  */
+/**
+ * UI1-A3 — THE DISCLOSURE CONTROL'S PRESENTED CONTENT, as ONE source string shared by the boot recorder and
+ * the runtime reader (they must agree byte-for-byte, so the reader exists once).
+ *
+ * The rail's own geometry being OPEN was never the whole contract: the control at the top of the rail ALSO
+ * presents state — an artwork and a label. UI1-A2's fingerprint ignored both, which is exactly why a
+ * stored-OPEN reload could paint the CLOSED-state control and swap it at hydration while every A2 row stayed
+ * green. What is read here is what the control PRESENTS (the variant whose computed `display` is not `none`),
+ * identified by its stable state-pair hook class and by the asset it actually paints — never by screen
+ * coordinates, and never by assuming how many variants the markup contains.
+ */
+const CONTROL_READER = `const control = (rail) => {
+  const toggle = rail.querySelector('.ui-sidebar-toggle');
+  if (!toggle) return 'none';
+  const icons = [...toggle.querySelectorAll('.ui-sidebar-toggle-icon')];
+  // The label hook marks the state PAIR; markup without it (a single, React-chosen label) is read as the one
+  // label the control declares, so the reading answers in both worlds.
+  const labels = (() => {
+    const paired = [...toggle.querySelectorAll('.ui-sidebar-toggle-label')];
+    return paired.length > 0 ? paired : [...toggle.querySelectorAll('span')];
+  })();
+  const presentedIcon = icons.find((el) => getComputedStyle(el).display !== 'none') || null;
+  const presentedLabel = labels.find((el) => getComputedStyle(el).display !== 'none') || null;
+  const displayed = (els) => els.filter((el) => getComputedStyle(el).display !== 'none').length;
+  const variantOf = (el) => !el ? 'none'
+    : el.classList.contains('ui-sidebar-toggle-icon-open') || el.classList.contains('ui-sidebar-toggle-label-open') ? 'open'
+    : el.classList.contains('ui-sidebar-toggle-icon-closed') || el.classList.contains('ui-sidebar-toggle-label-closed') ? 'closed'
+    : 'unpaired';
+  const assetOf = (el) => el ? (el.getAttribute('src') || '').replace('/assets/', '') : 'none';
+  return [
+    'icon=' + assetOf(presentedIcon) + '@' + variantOf(presentedIcon),
+    'label=' + (presentedLabel ? '"' + (presentedLabel.textContent || '').trim() + '"' : 'none') + '@' + variantOf(presentedLabel),
+    'variants=' + icons.length + 'icon/' + labels.length + 'label',
+    'presented=' + displayed(icons) + 'icon/' + displayed(labels) + 'label',
+  ].join(' ');
+};`;
+
+/**
+ * UI1-A3-A1 — THE CONTROL'S SEMANTICS, read by the SHARED reader (tests/browser/sidebar-semantics.mjs).
+ *
+ * A3 repaired what the control PRESENTS; what it CLAIMS is a second channel. This file shares ONE reader
+ * with the matrix gate, so both judge the same facts by the same rule and neither can drift — and the hook
+ * names it needs are read from the app's own contract module, never copied.
+ */
+const SEMANTIC_READER = sidebarSemanticsReader({ marker: BOOT_MARKER, openNameAttribute: OPEN_NAME_ATTRIBUTE });
+
 const RECORDER = `(() => {
   const record = { writes: [], transitions: [], console: [], frames: [], bootFp: null };
   window.__ui1a1 = record;
   const isRail = (el) => !!el && el.nodeType === 1 && typeof el.id === 'string' && el.id.indexOf('shell-sidebar') === 0;
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  ${CONTROL_READER}
+  ${SEMANTIC_READER}
   const fingerprint = (rail) => {
     if (!rail) return null;
     const cs = (el) => (el ? getComputedStyle(el) : null);
@@ -92,6 +157,8 @@ const RECORDER = `(() => {
       'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
       'listPad=' + cs(rail.querySelector('ul')).paddingInlineStart,
       'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+      'control=' + control(rail),
+      'sem=' + semanticProjection(rail),
     ].join('  ');
   };
   const sample = () => {
@@ -104,6 +171,13 @@ const RECORDER = `(() => {
         w: desktop ? Math.round(desktop.getBoundingClientRect().width) : null,
         attr: desktop ? desktop.getAttribute('data-collapsed') : null,
         boot: document.documentElement.getAttribute(${JSON.stringify(BOOT_MARKER)}),
+        // UI1-A3 — what the disclosure CONTROL presents in this very frame.
+        ctl: rail ? control(rail) : null,
+        // UI1-A3-A1 — and what it CLAIMS in this very frame (aria-expanded, accessible name, and the
+        // declarations those are judged against) — plus the same claims projected to what must be identical
+        // between the boot presentation and the hydrated runtime.
+        sem: rail ? semantics(rail) : null,
+        semFp: rail ? semanticProjection(rail) : null,
       });
     }
     requestAnimationFrame(sample);
@@ -145,6 +219,8 @@ const STATE = `(() => {
 
 const RUNTIME_FINGERPRINT = `(() => {
   const cs = (el) => (el ? getComputedStyle(el) : null);
+  ${CONTROL_READER}
+  ${SEMANTIC_READER}
   const rail = document.querySelector('#shell-sidebar-desktop-rail');
   if (!rail) return null;
   const toggle = rail.querySelector('.ui-sidebar-toggle');
@@ -161,8 +237,49 @@ const RUNTIME_FINGERPRINT = `(() => {
     'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
     'listPad=' + cs(rail.querySelector('ul')).paddingInlineStart,
     'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+    'control=' + control(rail),
+    'sem=' + semanticProjection(rail),
   ].join('  ');
 })()`;
+
+/** The control's PRESENTED content as the runtime has it — the reference every boot frame is compared against. */
+const RUNTIME_CONTROL = `(() => {
+  ${CONTROL_READER}
+  const rail = document.querySelector('#shell-sidebar-desktop-rail');
+  return rail ? control(rail) : null;
+})()`;
+
+/**
+ * UI1-A3-A1 — the same facts as the hydrated runtime presents them, plus the two facts the DOM cannot answer
+ * on its own: the control's COMPUTED accessible name and expanded state as the browser's own accessibility
+ * tree reports them (what a screen reader is actually told), and how many operable disclosure controls the
+ * presented rail contains.
+ */
+const RUNTIME_SEMANTICS = `(() => {
+  ${SEMANTIC_READER}
+  const rail = document.querySelector('#shell-sidebar-desktop-rail');
+  if (!rail) return null;
+  return JSON.stringify({
+    projection: semanticProjection(rail),
+    facts: semanticFacts(rail),
+    controls: rail.querySelectorAll('.ui-sidebar-toggle').length,
+    // The label the runtime presents, so a boot reading can be compared against the runtime's own copy.
+    presentedLabel: semanticFacts(rail) ? semanticFacts(rail).presentedLabel : null,
+  });
+})()`;
+
+/** The state variant a `control` reading says is PRESENTED (`open` | `closed` | `unpaired` | `none`). */
+function presentedIconVariant(reading) {
+  const match = /icon=[^@]*@([a-z]+)/.exec(reading ?? "");
+  return match ? match[1] : "none";
+}
+
+/** How many variants the same reading says are on screen at once. */
+function presentedCounts(reading) {
+  const match = /presented=(\d+)icon\/(\d+)label/.exec(reading ?? "");
+  return match ? { icons: Number(match[1]), labels: Number(match[2]) } : null;
+}
+
 
 async function waitReady(cdp, path = null) {
   const end = Date.now() + READINESS_TIMEOUT_MS;
@@ -181,6 +298,51 @@ async function waitReady(cdp, path = null) {
 const probe = async (cdp) => JSON.parse(await cdp.evaluate(STATE));
 const readRecorder = async (cdp) => JSON.parse(await cdp.evaluate(READ));
 const resetRecorder = (cdp) => cdp.evaluate(RESET);
+
+/**
+ * UI1-A3-A1 — WHAT THE BROWSER'S OWN ACCESSIBILITY TREE SAYS.
+ *
+ * The rows above judge the facts the tree is COMPUTED from; these judge the tree itself, for the state the
+ * visitor is left with: role, COMPUTED accessible name and the `expanded` property, straight from
+ * `Accessibility.getPartialAXTree` (the same channel a screen reader consumes). It is the independent
+ * confirmation that nothing in the repair traded one contradiction for another — e.g. by making an icon
+ * `aria-hidden` while the name moved somewhere else, or by leaving two disclosure controls where one is
+ * styled away but still announced.
+ */
+async function accessibilityRows(cdp, label, expected) {
+  const runtime = JSON.parse(await cdp.evaluate(RUNTIME_SEMANTICS));
+  const wanted = runtime && runtime.facts ? expectedName(runtime.facts, expected) : null;
+  await cdp.send("Accessibility.enable", {});
+  const document = await cdp.send("DOM.getDocument", { depth: -1 });
+  const found = await cdp.send("DOM.querySelector", {
+    nodeId: document.root.nodeId,
+    selector: "#shell-sidebar-desktop-rail .ui-sidebar-toggle",
+  });
+  const tree = await cdp.send("Accessibility.getPartialAXTree", {
+    nodeId: found.nodeId,
+    fetchRelatives: false,
+  });
+  const nodes = tree.nodes ?? [];
+  const button = nodes.find((entry) => entry.role && entry.role.value === "button") ?? null;
+  const properties = new Map(
+    ((button && button.properties) || []).map((property) => [property.name, property.value && property.value.value]),
+  );
+  check(
+    `production.accessibility.${label}.role`,
+    Boolean(button),
+    `roles=${JSON.stringify(nodes.map((entry) => entry.role && entry.role.value))}`,
+  );
+  check(
+    `production.accessibility.${label}.computedName`,
+    Boolean(button) && Boolean(wanted) && button.name && button.name.value === wanted,
+    `name="${button && button.name ? button.name.value : "none"}" expected="${wanted}"`,
+  );
+  check(
+    `production.accessibility.${label}.computedExpanded`,
+    Boolean(button) && properties.has("expanded") && String(properties.get("expanded")) === (expected === "open" ? "true" : "false"),
+    `expanded=${String(properties.get("expanded"))}`,
+  );
+}
 
 /**
  * UI1-A2 — THE FIRST-PAINT CONTRACT OF ONE PRODUCTION-MODE DOCUMENT LOAD, as rows.
@@ -221,6 +383,74 @@ async function firstPaintRows(cdp, label, expected) {
     runtime.collapsed === (expected === "open" ? "false" : "true"),
     JSON.stringify(runtime),
   );
+
+  // ── UI1-A3 — THE DISCLOSURE CONTROL IS PART OF THE STATE, NOT A DECORATION ─────────────────────────
+  // The owner observed a stored-OPEN reload whose RAIL was continuously open (A2 succeeded) while the
+  // control at the top of that rail still flipped its artwork and its label: the canonical CLOSED-state
+  // control was painted first and swapped when React adopted the stored preference. These three rows are
+  // that defect, measured: what the control PRESENTS must be the state's variant from the first painted
+  // frame, it must be the same content the hydrated runtime presents, and exactly one variant may be on
+  // screen at a time (never both, never the wrong one).
+  const runtimeControl = await cdp.evaluate(RUNTIME_CONTROL);
+  const controlFrames = painted.map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  const expectedVariant = expected === "open" ? "open" : "closed";
+  const variants = controlFrames.map(presentedIconVariant);
+  check(
+    `production.firstPaint.${label}.controlPresentsTheStateVariant`,
+    controlFrames.length > 0 && variants.every((variant) => variant === expectedVariant),
+    `firstPresented=${variants[0] ?? "none"} variants=${JSON.stringify([...new Set(variants)])}`,
+  );
+  check(
+    `production.firstPaint.${label}.controlContentStableFromFirstFrame`,
+    controlFrames.length > 0 && controlFrames.every((reading) => reading === runtimeControl),
+    `first=${controlFrames[0] ?? "none"} runtime=${runtimeControl}`,
+  );
+  const ambiguous = controlFrames
+    .map((reading) => ({ reading, counts: presentedCounts(reading) }))
+    .filter((entry) => !entry.counts || entry.counts.icons !== 1 || entry.counts.labels > 1);
+  check(
+    `production.firstPaint.${label}.controlPresentsExactlyOneVariantPerFrame`,
+    controlFrames.length > 0 && ambiguous.length === 0,
+    ambiguous.length === 0 ? `${controlFrames[0]} (${controlFrames.length} frames)` : JSON.stringify(ambiguous.slice(0, 3)),
+  );
+
+  // ── UI1-A3-A1 — AND IT CLAIMS THE SAME STATE ──────────────────────────────────────────────────────
+  // Presentation and accessibility are ONE contract: while the rail is presented OPEN, the control must say
+  // so — `aria-expanded="true"` and the OPEN action's name — from the FIRST frame the control is on screen,
+  // not from the first frame React has committed. That interval is the whole point: a static document paints
+  // long before the bundle runs, so a semantic claim that only arrives with hydration is a contradiction
+  // every assistive-technology visitor sees. These rows judge the FACTS the accessibility tree is computed
+  // from, on every sampled frame, and require the boot reading to be byte-identical to the runtime's own.
+  const runtimeSemantics = JSON.parse(await cdp.evaluate(RUNTIME_SEMANTICS));
+  const semanticFrames = painted
+    .map((frame) => ({ facts: semanticsOf(frame), projection: typeof frame.semFp === "string" ? frame.semFp : null }))
+    .filter((frame) => frame.facts !== null);
+  const disagreements = semanticFrames
+    .map((frame) => semanticsDisagreement(frame.facts, expected))
+    .filter((disagreement) => disagreement !== null);
+  check(
+    `production.firstPaint.${label}.controlSemanticsMatchPresentedState`,
+    semanticFrames.length > 0 && disagreements.length === 0,
+    disagreements.length === 0
+      ? `${JSON.stringify(runtimeSemantics.facts)} (${semanticFrames.length} frames)`
+      : `${disagreements.length}/${semanticFrames.length} frames: ${disagreements[0]}`,
+  );
+  check(
+    `production.firstPaint.${label}.neverObservedOppositeSemantics`,
+    semanticFrames.length > 0 && semanticFrames.every((frame) => semanticsAgree(frame.facts, expected)),
+    `observed=${observedSemantics(semanticFrames.map((frame) => frame.facts))}`,
+  );
+  check(
+    `production.firstPaint.${label}.controlSemanticsStableFromFirstFrame`,
+    semanticFrames.length > 0 && semanticFrames[0].projection === runtimeSemantics.projection,
+    `first=${semanticFrames[0] ? semanticFrames[0].projection : "none"} runtime=${runtimeSemantics.projection}`,
+  );
+  check(
+    `production.firstPaint.${label}.oneOperableDisclosureControl`,
+    runtimeSemantics.controls === 1,
+    `controls=${runtimeSemantics.controls}`,
+  );
+  await accessibilityRows(cdp, label, expected);
   return recorded;
 }
 
@@ -256,6 +486,12 @@ async function waitForServer(url, timeoutMs = 300000) {
   return false;
 }
 
+/** The control reading of the LAST frame the recorder kept (what the observer last saw the control present). */
+function lastControlReading(observed) {
+  const readings = (observed.frames ?? []).map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  return readings.length > 0 ? readings[readings.length - 1] : null;
+}
+
 /**
  * One production-mode navigation, judged by the same invariant as the matrix rows: the rail may be
  * replaced, but it may not commit the opposite state and may not start a width transition.
@@ -278,6 +514,30 @@ async function continuityLeg(cdp, { label, selector, path, expected, expectedSta
     observed.transitions.length === 0,
     `transitions=${JSON.stringify(observed.transitions)}`,
   );
+  // UI1-A3 — and the control's PRESENTED content never flips to the other state's variant on the way.
+  const expectedVariant = expectedState === "false" ? "open" : "closed";
+  const controlFrames = observed.frames.map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  const variants = controlFrames.map(presentedIconVariant);
+  check(
+    `production.${label}.controlPresentsTheStateVariant`,
+    controlFrames.length > 0 && variants.every((variant) => variant === expectedVariant),
+    `variants=${JSON.stringify([...new Set(variants)])} frames=${controlFrames.length}`,
+  );
+  // UI1-A3-A1 — and neither do its CLAIMS: across the whole navigation interval the control must keep
+  // announcing the state the visitor is in (a replacement rail may be created, but a rail that arrives
+  // claiming the opposite state is the same defect one layer down).
+  const expectedSemantics = expectedState === "false" ? "open" : "closed";
+  const semanticFrames = observed.frames.map((frame) => semanticsOf(frame)).filter((facts) => facts !== null);
+  const disagreements = semanticFrames
+    .map((facts) => semanticsDisagreement(facts, expectedSemantics))
+    .filter((disagreement) => disagreement !== null);
+  check(
+    `production.${label}.controlSemanticsMatchPresentedState`,
+    semanticFrames.length > 0 && disagreements.length === 0,
+    disagreements.length === 0
+      ? `${semanticFrames.length} frames continuously ${expectedSemantics}`
+      : `${disagreements.length}/${semanticFrames.length} frames: ${disagreements[0]}`,
+  );
   return observed;
 }
 /**
@@ -294,6 +554,15 @@ async function runProductionContinuity() {
   const built = await new Promise((resolve) => build.on("exit", (code) => resolve(code ?? 1)));
   check("production.buildSucceeded", built === 0, `next build exit=${built}`);
   if (built !== 0) return rows;
+
+  // UI1-A3-A1 — the contract that carries the CONTROL's semantics must be declared by the app's own
+  // authority, exactly like the storage key and the boot marker above: a candidate that declares none cannot
+  // present the OPEN state's name before hydration in the mode where the name is author-supplied.
+  check(
+    "production.contract.declaresControlOpenNameHook",
+    typeof OPEN_NAME_ATTRIBUTE === "string" && OPEN_NAME_ATTRIBUTE.length > 0,
+    `attribute=${OPEN_NAME_ATTRIBUTE}`,
+  );
 
   const server = spawn(process.execPath, [NEXT_BIN, "start", "-p", String(PORT)], {
     cwd: ROOT,
@@ -334,6 +603,21 @@ async function runProductionContinuity() {
       opened.collapsed === "false" && opened.stored === "open" && toggleRecorder.transitions.length > 0,
       `state=${JSON.stringify(opened)} transitions=${JSON.stringify(toggleRecorder.transitions)}`,
     );
+    // UI1-A3 — an explicit toggle is the ONE moment the control's content is ENTITLED to change: it must end
+    // on the OPEN state's variant (and the row above keeps that change an animation, never a jump).
+    check(
+      "production.explicitToggle.openedControlPresentsTheOpenVariant",
+      presentedIconVariant(lastControlReading(toggleRecorder)) === "open",
+      `control=${lastControlReading(toggleRecorder)}`,
+    );
+    // UI1-A3-A1 — …and an explicit toggle is likewise the one moment its CLAIMS may change: the runtime must
+    // end on the OPEN state's semantics, with the visitor's own choice persisted in the same breath.
+    const openedSemantics = JSON.parse(await cdp.evaluate(RUNTIME_SEMANTICS));
+    check(
+      "production.explicitToggle.openedControlClaimsTheOpenState",
+      semanticsAgree(openedSemantics.facts, "open") && opened.stored === "open",
+      `semantics=${openedSemantics.projection} stored=${opened.stored}`,
+    );
 
     // ── the owner's defect, judged on production-mode output ──────────────────────────────────────
     // UI1-A2 — FIRST, the whole-document case the owner reported: an actual reload with the preference stored
@@ -347,8 +631,21 @@ async function runProductionContinuity() {
     await continuityLeg(cdp, { label: "open.aboutToHome", selector: "#shell-sidebar-desktop-rail ul li:first-child a", path: HOME, expected: "false", expectedState: "false" });
 
     // ── the reciprocal proof for the state that already looked smooth ─────────────────────────────
+    await resetRecorder(cdp);
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
     await sleep(250);
+    const closedToggle = await readRecorder(cdp);
+    check(
+      "production.explicitToggle.closedControlPresentsTheClosedVariant",
+      presentedIconVariant(lastControlReading(closedToggle)) === "closed",
+      `control=${lastControlReading(closedToggle)}`,
+    );
+    const closedSemantics = JSON.parse(await cdp.evaluate(RUNTIME_SEMANTICS));
+    check(
+      "production.explicitToggle.closedControlClaimsTheClosedState",
+      semanticsAgree(closedSemantics.facts, "closed") && (await probe(cdp)).stored === "closed",
+      `semantics=${closedSemantics.projection}`,
+    );
     await continuityLeg(cdp, { label: "closed.homeToAbout", selector: '#shell-sidebar-desktop-rail a[href$="/about"]', path: ABOUT, expected: "true", expectedState: "true" });
 
     // ── the reciprocal whole-document case: a stored CLOSED preference, on an actual reload ───────

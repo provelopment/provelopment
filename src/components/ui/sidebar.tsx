@@ -8,6 +8,8 @@ import {
   relinquishSidebarPreferenceBoot,
   resolveSidebarPreference,
   resolvedSidebarPreference,
+  SIDEBAR_TOGGLE_CLASS,
+  SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE,
   storeSidebarPreference,
   subscribeSidebarPreference,
   type SidebarPreference,
@@ -38,6 +40,45 @@ function preferenceOf(state: DisclosureState): SidebarPreference {
 
 function stateOf(preference: SidebarPreference): DisclosureState {
   return preference === "closed" ? DISCLOSURE_CLOSED : DISCLOSURE_OPEN;
+}
+
+/** One state's control content as the markup declares it (see `controlContent`). */
+interface ControlContent {
+  readonly icon: string | undefined;
+  readonly text: string;
+  readonly labelled: string | undefined;
+}
+
+/**
+ * UI1-A3 — ONE STATE'S CONTROL CONTENT (the P5-5/P6-1 empty-string semantics, applied PER STATE).
+ *
+ * The two "no text" states are NOT the same thing, and conflating them is a bug:
+ *
+ *   · `text: ""` WITH an icon → ICON-ONLY by contract: no visible text is painted (the accessible name comes
+ *     from `aria-label`), which is what a collapsed rail and an adopter who deliberately removed the label
+ *     rely on;
+ *   · `text: ""` with NO icon (both leaves empty) → P0-1 wins and the localized label is painted, so the
+ *     toggle can never be an empty, unnamed box;
+ *   · `text` ABSENT → the localized fallback label is used.
+ *
+ * `labelled` is the name a control needs when the state has no EXPLICIT visible text (the original P5-5/P6-1
+ * rule, preserved): it is the localized fallback label, and it is rendered as the button's `aria-label` — which
+ * in the icon-only mode is the name, and in the text-absent mode duplicates the label the same rule paints.
+ * The pre-paint bridge reads the SAME rule: a state that renders no explicit text declares its name in the
+ * markup, so the bridge never has to invent one.
+ */
+function controlContent(
+  leaf: { readonly icon?: string; readonly text?: string } | undefined,
+  fallbackLabel: string,
+): ControlContent {
+  const icon = leaf?.icon === undefined || leaf.icon === "" ? undefined : leaf.icon;
+  const explicitText = leaf?.text !== undefined && leaf.text !== "" ? leaf.text : "";
+  const iconOnly = leaf?.text === "" && icon !== undefined;
+  return {
+    icon,
+    text: explicitText !== "" ? explicitText : iconOnly ? "" : fallbackLabel,
+    labelled: explicitText === "" && icon !== undefined ? fallbackLabel : undefined,
+  };
 }
 
 /**
@@ -102,6 +143,19 @@ function initialDisclosureState(collapsible: boolean, collapsed: boolean): Discl
  *    the localized label; `text: ""` → icon-only (decorative icon, accessible
  *    name via `aria-label`); `icon: ""` → text-only (no `<img>`); BOTH `""` →
  *    P0-1 still wins: the toggle stays reachable with the localized label.
+ *  - UI1-A3 — BOTH states' control content (artwork + label) is DECLARED in the markup as a state pair and
+ *    the stylesheet presents exactly one of them, so the visitor's stored OPEN state is presented before the
+ *    first paint instead of flipping at hydration. This is the same "declare both variants, select by rail
+ *    state" shape the P6-3B page icons use, and the visible result is unchanged: exactly one icon and one
+ *    label are ever on screen, in both states.
+ *  - UI1-A3-A1 — WHAT THE CONTROL CLAIMS FOLLOWS WHAT IT PRESENTS, from the same first paint. Presentation
+ *    can be selected by a stylesheet; `aria-expanded` and the accessible name are attributes with one value
+ *    each, so the ONE pre-paint bridge that presents the rail (`./sidebar-preference-boot` →
+ *    `./sidebar-contract`) also applies the OPEN state's semantics to the control, using the OPEN name this
+ *    control declares in the markup when (and only when) its name is author-supplied. There is no ARIA
+ *    state, no icon state and no accessibility-only preference anywhere: every claim is the visitor's
+ *    `foundation.sidebar` preference, read from the same key, and the runtime owns both attributes again as
+ *    soon as it represents that preference.
  *  - The toggle is a REAL interactive control (shared `.ui-sidebar-toggle`
  *    renderer styling: border, surface, hover/focus-visible/active affordance,
  *    pointer cursor) so it never reads as ordinary static heading text.
@@ -232,25 +286,23 @@ export function Sidebar({
     if (collapsible) storeSidebarPreference(preferenceOf(next));
   }
 
-  // P6-1 — the active control follows the STATE: closed → the "show" (open)
-  // control; open → the "hide" (close) control. Exactly the mobile contract.
-  const active = isCollapsed ? (open ?? {}) : (close ?? {});
-  // P0-1 — never-dead-end fallback: with BOTH leaves empty the toggle stays
-  // reachable using the localized label (never invisible, never an empty box).
-  const fallbackLabel =
-    isCollapsed ? showLabel ?? DEFAULT_SHOW_LABEL : hideLabel ?? DEFAULT_HIDE_LABEL;
-  // P5-5/P6-1 empty-string semantics — the two "no text" states are NOT the
-  // same thing, and conflating them is a bug:
-  //  - `text: ""` WITH an icon → ICON-ONLY by contract: no visible text is
-  //    painted (the accessible name comes from `aria-label`), which is what a
-  //    collapsed rail and an adopter who deliberately removed the label rely on;
-  //  - `text: ""` with NO icon (both leaves empty) → P0-1 wins and the localized
-  //    label is painted, so the toggle can never be an empty, unnamed box;
-  //  - `text` ABSENT → the localized `fallbackLabel` is used.
-  const icon = active.icon === undefined || active.icon === "" ? undefined : active.icon;
-  const iconOnly = active.text === "" && icon !== undefined;
-  const visibleText = active.text !== undefined && active.text !== "" ? active.text : "";
-  const toggleText = visibleText !== "" ? visibleText : iconOnly ? "" : fallbackLabel;
+  // P6-1 — the control follows the STATE: closed → the "show" (open) control; open → the "hide" (close)
+  // control. Exactly the mobile contract.
+  //
+  // UI1-A3 — WHY BOTH STATES ARE RESOLVED HERE. The visitor's preference is browser-local, so a statically
+  // generated document necessarily arrives as the canonical CLOSED rail; the pre-paint bridge
+  // (`./sidebar-preference-boot`) presents that document as the visitor's OPEN one, and a stylesheet can
+  // select between two declared variants but can never INVENT one. The control's artwork and label are
+  // therefore declared for BOTH states, resolved by this ONE rule (never two spellings of the vocabulary —
+  // that is why `controlContent` exists), and the stylesheet presents exactly one of them through the SAME
+  // `[data-collapsed]` seam, guarded by the SAME boot marker, that already presents the rail's geometry, its
+  // label inset and the P6-3B page-icon pair. React still owns the state and still commits
+  // `data-collapsed`; the variant on screen follows it, immediately and with no transition of its own.
+  const collapsedContent = controlContent(open, showLabel ?? DEFAULT_SHOW_LABEL);
+  const expandedContent = controlContent(close, hideLabel ?? DEFAULT_HIDE_LABEL);
+  // The ACTIVE state's facts the RUNTIME owns: the accessible name of a deliberately icon-only control, and
+  // the button's own ARIA attributes (which no statically generated document can know either).
+  const active = isCollapsed ? collapsedContent : expandedContent;
 
   return (
     <nav
@@ -281,11 +333,44 @@ export function Sidebar({
             aria-controls={`${id}-panel`}
             // Icon-only controls (visible text "" with an icon) keep the
             // accessible name from the localized label; decorative icon.
-            aria-label={visibleText === "" && icon !== undefined ? fallbackLabel : undefined}
-            className="ui-sidebar-toggle"
+            aria-label={active.labelled}
+            className={SIDEBAR_TOGGLE_CLASS}
+            // UI1-A3-A1 — THE OPEN STATE'S SEMANTICS, DECLARED FOR THE STATE A STATIC DOCUMENT CANNOT
+            // EXPRESS. `aria-expanded` and the accessible name are attributes with ONE value each, so a
+            // statically generated document carries the canonical CLOSED ones — and a rail the pre-paint
+            // bridge presents as OPEN must not announce itself as closed to assistive technology. The SAME
+            // bridge (`./sidebar-contract`: the same key, the same script, the same interval) applies the
+            // visitor's OPEN state to these two attributes, taking the name from the declaration below.
+            //
+            // Only the AUTHOR-SUPPLIED-NAME mode (the documented `text: ""` icon-only control, whose name
+            // comes from `aria-label`) needs a declaration: every mode whose name comes from a rendered label
+            // is already state-selected by the stylesheet, so this attribute is absent for it and the bridge
+            // writes no name at all.
+            //
+            // `suppressHydrationWarning` is the same NARROW tolerance the layout documents for the bridge's
+            // marker on `<html>`: the DOM carries the value the runtime is about to render for the same
+            // preference, so there is no disagreement to report — only an attribute a static server could not
+            // have known. It covers this element's own attributes and nothing beneath it.
+            suppressHydrationWarning
+            {...{ [SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE]: expandedContent.labelled }}
           >
-            <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
-            {toggleText !== "" ? <span>{toggleText}</span> : null}
+            {/* UI1-A3 — THE CONTROL'S CONTENT IS A STATE PAIR. Both states' artwork and label are declared
+                here and the stylesheet presents exactly ONE of them (globals.css), so a document whose
+                visitor stored the OPEN preference shows the OPEN control from its first painted frame —
+                before React exists — instead of flipping its icon and its label at hydration (the
+                owner-observed title flicker). The variants are named for the RAIL STATE they are presented
+                in, exactly like the P6-3B page-icon pair (`-open` first, then `-closed`), and the inactive
+                one is `display: none` — never merely visually hidden — so it cannot join the accessible
+                name. Each icon is decorative (`alt="" aria-hidden`), so nothing is announced twice, and the
+                16px/24px size tokens keep exactly one icon in the control's layout in both states. */}
+            <DisclosureIcon asset={expandedContent.icon} className="ui-sidebar-toggle-icon ui-sidebar-toggle-icon-open" />
+            <DisclosureIcon asset={collapsedContent.icon} className="ui-sidebar-toggle-icon ui-sidebar-toggle-icon-closed" />
+            {expandedContent.text !== "" ? (
+              <span className="ui-sidebar-toggle-label ui-sidebar-toggle-label-open">{expandedContent.text}</span>
+            ) : null}
+            {collapsedContent.text !== "" ? (
+              <span className="ui-sidebar-toggle-label ui-sidebar-toggle-label-closed">{collapsedContent.text}</span>
+            ) : null}
           </button>
         ) : null}
         {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows

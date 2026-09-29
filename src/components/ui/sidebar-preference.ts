@@ -86,6 +86,8 @@ import {
   SIDEBAR_PREFERENCE_ATTRIBUTE,
   SIDEBAR_PREFERENCE_STORAGE_KEY,
   SIDEBAR_PREFERENCES,
+  SIDEBAR_TOGGLE_CLASS,
+  SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE,
   sidebarPreferenceBootScript,
   type SidebarPreference,
 } from "./sidebar-contract";
@@ -95,6 +97,8 @@ export {
   SIDEBAR_PREFERENCE_ATTRIBUTE,
   SIDEBAR_PREFERENCE_STORAGE_KEY,
   SIDEBAR_PREFERENCES,
+  SIDEBAR_TOGGLE_CLASS,
+  SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE,
   sidebarPreferenceBootScript,
 };
 export type { SidebarPreference };

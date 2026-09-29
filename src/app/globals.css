@@ -1074,6 +1074,49 @@ html[data-ui-hero="showcase"] .home-hero {
   display: inline-block;
 }
 
+/* ── UI1-A3 — THE STATE-PAIRED DISCLOSURE CONTROL (the rail's title/control area) ──────────────────
+ *
+ * WHY. UI1-A2 presented the canonical CLOSED rail as the visitor's OPEN rail before first paint — its
+ * geometry, its label inset, its control inset and the P6-3B page icons — but a control's ARTWORK and LABEL
+ * are not values a stylesheet can swap by itself: the markup carried the CLOSED state's (a server cannot know
+ * a browser-local preference), so a stored-OPEN reload painted the CLOSED-state control and replaced it the
+ * moment React adopted the preference — the owner-observed title/control flicker.
+ *
+ * WHAT. The control declares BOTH states' content and this seam presents exactly one of them: the SAME
+ * `[data-collapsed="true"]` state the rest of the rail already follows, guarded by the SAME pre-paint
+ * marker, so the visitor's stored OPEN state is on screen before the first paint and the hydrated state takes
+ * over as soon as it commits. The variants are named for the RAIL STATE they are presented in — exactly like
+ * the P6-3B page-icon pair directly above (`-open` is the OPEN rail's content, `-closed` the collapsed
+ * one). No second bridge, no second storage key and no icon-specific state exists: the icon is a PRESENTATION
+ * of the one sidebar state.
+ *
+ * ACCESSIBILITY. The inactive LABEL is `display: none` — never merely visually hidden — so it cannot join the
+ * control's accessible name, and both icons are already decorative (`alt="" aria-hidden`), so no variant
+ * announces anything. The name is therefore the label on screen, or the button's `aria-label` when the
+ * active state is deliberately icon-only. Because exactly one variant is displayed, the control keeps its
+ * single 24px icon in layout in both states — no doubled gap, no reserved slot, no geometry change.
+ *
+ * The relative order of the two rules below matters as little as it does above (both variants can never want
+ * the same display), but it is written as "hide the other state" → "present this state" so the collapsed
+ * branch reads in one direction. */
+.ui-sidebar-toggle-icon-closed,
+.ui-sidebar-toggle-label-closed {
+  display: none;
+}
+
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle-icon-open,
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle-label-open {
+  display: none;
+}
+
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle-icon-closed {
+  display: inline-block;
+}
+
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle-label-closed {
+  display: inline;
+}
+
 /* ── PERSISTENT NAVIGATION (shell top region + rail content column) ────────
  *
  * THE CONTRACT: while a visitor scrolls, the site's PRIMARY NAVIGATION stays

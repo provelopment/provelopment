@@ -63,18 +63,28 @@ const DISCLOSURE_PROBE = `(() => {
   const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')]
     .find((el) => el && el.getBoundingClientRect().width > 0) || null;
   const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
-  const icon = toggle ? rail.querySelector('.ui-sidebar-toggle-icon') : null;
-  const label = toggle ? toggle.querySelector('span') : null;
+  // The disclosure CONTROL declares BOTH states' artwork and label and the stylesheet presents exactly one,
+  // so this probe measures the variant that is actually rendered — never the state pair's first element (for
+  // a collapsed rail that is the HIDDEN open-state variant: a 0x0 box and the other state's copy).
+  const presented = (selector) => [...(toggle ? toggle.querySelectorAll(selector) : [])]
+    .find((el) => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0) || null;
+  const icon = presented('.ui-sidebar-toggle-icon');
+  const label = presented('.ui-sidebar-toggle-label');
   const cs = toggle ? getComputedStyle(toggle) : null;
   return JSON.stringify({
     collapsed: rail ? rail.getAttribute('data-collapsed') : null,
     rail: box(rail),
     toggle: box(toggle),
     icon: box(icon),
-    labelVisible: label ? label.getBoundingClientRect().width > 0 : null,
+    // A VISIBLE label (not the sr-only one the collapsed rail keeps as the control's accessible name).
+    labelVisible: label ? label.getBoundingClientRect().width > 1 : false,
+    label: label ? (label.textContent || '').trim() : null,
     background: cs ? cs.backgroundColor : null,
     borderColor: cs ? cs.borderTopColor : null,
-    accessibleName: toggle ? (toggle.getAttribute('aria-label') || (toggle.textContent || '').trim()) : null,
+    // UI1-A3-A1 — what the control CLAIMS about the state it presents (the property assistive technology
+    // reads), which must agree with the rail's collapsed state in every one of the reference states.
+    expanded: toggle ? toggle.getAttribute('aria-expanded') : null,
+    accessibleName: toggle ? (toggle.getAttribute('aria-label') || (label ? (label.textContent || '').trim() : '')) : null,
     iconInsetFromControlLeft: toggle && icon ? r2(icon.getBoundingClientRect().left - toggle.getBoundingClientRect().left) : null,
     fullyInsideRail: !!(rail && toggle) &&
       toggle.getBoundingClientRect().left >= rail.getBoundingClientRect().left - 0.5 &&
@@ -291,9 +301,14 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.initialIsCanonicalClosed",
-      // The closed control keeps its accessible name while saying "Show navigation" (its label is
-      // sr-only in this state, so the probe's width cannot stand in for "visible").
-      canonicalState.collapsed === "true" && canonicalState.accessibleName === "Show navigation",
+      // The closed control keeps its accessible name while saying "Show navigation". UI1-A3 — that copy is the
+      // state pair's PRESENTED variant (`label`), and `labelVisible` is false in this state: the collapsed
+      // rail keeps the label as the control's sr-only name, it does not paint it.
+      canonicalState.collapsed === "true" &&
+        canonicalState.accessibleName === "Show navigation" &&
+        canonicalState.label === "Show navigation" &&
+        canonicalState.labelVisible === false &&
+        canonicalState.expanded === "false",
       JSON.stringify(canonicalState),
     );
     await cdp.clickCenter(".ui-sidebar-toggle");
@@ -302,7 +317,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.openState",
-      openState.collapsed === "false" && openState.labelVisible === true,
+      openState.collapsed === "false" && openState.labelVisible === true && openState.label === "Hide navigation" && openState.expanded === "true",
       JSON.stringify(openState),
     );
     check(
@@ -330,7 +345,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.closedKeepsHitTarget",
-      (closedState.toggle?.w ?? 0) >= 24 && (closedState.toggle?.h ?? 0) >= 24 && !!closedState.accessibleName,
+      (closedState.toggle?.w ?? 0) >= 24 && (closedState.toggle?.h ?? 0) >= 24 && !!closedState.accessibleName && closedState.expanded === "false",
       `box=${closedState.toggle?.w}x${closedState.toggle?.h} name="${closedState.accessibleName}"`,
     );
     check(
@@ -399,7 +414,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.openSurvivesNavigationIcon",
-      !!reopenAfterNavigation && openAfterNavigation.collapsed === "false" && openAfterNavigation.labelVisible === true,
+      !!reopenAfterNavigation && openAfterNavigation.collapsed === "false" && openAfterNavigation.labelVisible === true && openAfterNavigation.label === "Hide navigation",
       JSON.stringify(openAfterNavigation),
     );
     await cdp.reload();

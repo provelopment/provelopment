@@ -54,6 +54,33 @@ export const SIDEBAR_PREFERENCE_ATTRIBUTE = "data-ui-sidebar-preference";
 const SIDEBAR_PREFERENCE_BOOT_VALUE: SidebarPreference = "open";
 
 /**
+ * UI1-A3-A1 — THE CONTROL'S HOOK AND ITS OPEN-STATE ACCESSIBLE NAME.
+ *
+ * The rail's PRESENTATION is expressed in markup a stylesheet can select between (two declared variants, one
+ * presented — `./sidebar` and `globals.css`), so the pre-paint bridge only ever had to name the state on
+ * `<html>`. SEMANTICS cannot be expressed that way: `aria-expanded` and the control's accessible name are
+ * attributes with ONE value each, and a statically generated document can only carry the canonical CLOSED
+ * one. The bridge therefore has to apply the OPEN state's semantics to the control — and to do it without
+ * inventing copy, `./sidebar` DECLARES the OPEN state's accessible name in the markup, on the control, under
+ * this attribute. Two facts make the delegation exact:
+ *
+ *   · the attribute is emitted exactly when the runtime renders an `aria-label` for that state — the modes
+ *     with no EXPLICIT text (the documented `text: ""` icon-only control, and the text-absent fallback), where
+ *     the name is author-supplied rather than painted. In every mode whose name comes from an explicit
+ *     rendered label, nothing is declared and the bridge writes no name at all;
+ *   · the name it carries is the SAME value the runtime renders for that state, from the same
+ *     `controlContent` rule — never a second copy of the vocabulary.
+ */
+export const SIDEBAR_TOGGLE_CLASS = "ui-sidebar-toggle";
+
+/**
+ * The control's OPEN-state accessible name, as declared by the control that presents it. Read by the
+ * pre-paint bridge (below) and written by `./sidebar`; absent for every mode whose name comes from a rendered
+ * label.
+ */
+export const SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE = "data-ui-sidebar-toggle-name-open";
+
+/**
  * The SYNCHRONOUS PRE-PAINT BRIDGE, as the source of one inline script.
  *
  * Why a script at all: the visitor's preference lives in the browser, so a STATICALLY GENERATED document
@@ -72,13 +99,48 @@ const SIDEBAR_PREFERENCE_BOOT_VALUE: SidebarPreference = "open";
  *     instead of breaking rendering;
  *   · it never throws and never writes: a storage failure is caught, and nothing is mutated except the one
  *     inert attribute.
+ *
+ * UI1-A3-A1 — WHY IT ALSO APPLIES THE CONTROL'S SEMANTICS, AND WHY THAT IS STILL ONE BRIDGE.
+ *
+ * The marker presents the canonical CLOSED rail as the visitor's OPEN one, so a rail that LOOKS open must not
+ * announce itself as closed: `aria-expanded` and the control's accessible name are read by assistive
+ * technology, and leaving them canonical for the interval between the first paint and hydration is a
+ * presentation/accessibility contradiction (§ UI1-A3-A1). Semantics cannot be expressed in a stylesheet —
+ * the values live in attributes with one value each — so the SAME bridge that names the state on `<html>`
+ * applies it to the control as well:
+ *
+ *   · it is the SAME preference, from the SAME key, in the SAME script — no ARIA state, no icon state, no
+ *     accessibility-only preference, and no second storage key exists anywhere;
+ *   · it writes only what the runtime itself would render for the state it is presenting: `aria-expanded`
+ *     (`true` for the one value this bridge applies) and, when the control DECLARES an author-supplied name,
+ *     that declared name. A control whose name comes from a rendered label is already correct, because the
+ *     stylesheet selects the presented label — so nothing is written for it;
+ *   · it is applied to every disclosure control as soon as it exists — a MutationObserver callback runs in
+ *     the same task's microtask checkpoint as the insertion, i.e. BEFORE the browser can paint the control —
+ *     and the observer is disconnected at DOMContentLoaded, so the bridge spans exactly
+ *     `static markup → hydrated runtime`. After that the runtime owns these attributes: React renders the
+ *     resolved state on its own, and the explicit toggle writes them like any other prop.
+ *
+ * The canonical CLOSED presentation needs none of this: its markup already carries the correct semantics, and
+ * a missing/invalid/unreadable preference takes the same path.
  */
 export function sidebarPreferenceBootScript(): string {
   return [
     "try{",
     `var v=window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_STORAGE_KEY)});`,
     `if(v===${JSON.stringify(SIDEBAR_PREFERENCE_BOOT_VALUE)})`,
-    `{document.documentElement.setAttribute(${JSON.stringify(SIDEBAR_PREFERENCE_ATTRIBUTE)},v)}`,
+    "{",
+    `document.documentElement.setAttribute(${JSON.stringify(SIDEBAR_PREFERENCE_ATTRIBUTE)},v);`,
+    `var c=${JSON.stringify(SIDEBAR_TOGGLE_CLASS)},n=${JSON.stringify(SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE)},o,`,
+    "a=function(){var t=document.querySelectorAll('.'+c),i,b,lab;",
+    "for(i=0;i<t.length;i++){b=t[i];b.setAttribute('aria-expanded','true');",
+    "lab=b.getAttribute(n);",
+    "if(lab)b.setAttribute('aria-label',lab);}};",
+    "a();",
+    "if(typeof MutationObserver!=='undefined'){o=new MutationObserver(a);",
+    "o.observe(document.documentElement,{childList:true,subtree:true});",
+    "document.addEventListener('DOMContentLoaded',function(){o.disconnect()});}",
+    "}",
     "}catch(e){}",
   ].join("");
 }

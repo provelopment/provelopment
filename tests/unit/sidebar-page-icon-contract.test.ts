@@ -281,3 +281,115 @@ describe("sidebar page icons — expanded vs collapsed behaviour", () => {
     expect(bottomNav).not.toMatch(/openIcon|closedIcon|ui-nav-item-icon/);
   });
 });
+
+/**
+ * UI1-A3 — THE DISCLOSURE CONTROL'S CONTENT IS A STATE PAIR, SELECTED BY THE SAME SEAM AS EVERYTHING ELSE.
+ *
+ * A statically generated document cannot know the visitor's browser-local preference, so the control (like
+ * the rail it sits in, and like the P6-3B page icons) declares BOTH states' content and the stylesheet
+ * presents exactly one. These rows are the durable contract of that seam: the pair exists, in the same shape
+ * as the page-icon pair, guarded by the same zero-specificity boot prefix, and the inactive LABEL is
+ * genuinely removed (`display: none`) rather than visually hidden, so it cannot join the control's
+ * accessible name. The behavioural half — what is actually on screen, per painted frame — belongs to the
+ * browser gate (`tests/browser/matrix.mjs`, `tests/browser/production-continuity.mjs`).
+ */
+describe("sidebar disclosure CONTROL — state-paired content (UI1-A3)", () => {
+  /**
+   * Every rule of the stylesheet as `{ selectors, declarations }`, comments stripped. Reading a rule's
+   * DECLARATIONS (rather than pattern-matching a selector anywhere in the file) is what lets these rows tell
+   * the grouped base rule from a guarded descendant one: `.ui-sidebar-toggle-icon-closed` appears both as a
+   * base selector and as the tail of a collapsed selector, and only one of those is the base rule.
+   */
+  const rules = (() => {
+    const source = globalsRaw.replace(/\/\*[\s\S]*?\*\//g, "");
+    const found: { selectors: string[]; declarations: string }[] = [];
+    for (const match of source.matchAll(/\{([^{}]*)\}/g)) {
+      const declarations = match[1];
+      if (!declarations.includes(":")) continue;
+      const opened = source.lastIndexOf("{", match.index - 1);
+      const closed = source.lastIndexOf("}", match.index - 1);
+      const selectorText = source.slice(Math.max(opened, closed) + 1, match.index);
+      // An at-rule prelude (`@media …`) is not a selector list; the rules INSIDE it are read normally,
+      // because a selector is taken back only to the nearest `{`.
+      if (selectorText.includes("@")) continue;
+      found.push({
+        selectors: selectorText
+          .split(",")
+          .map((selector) => selector.trim().replace(/\s+/g, " "))
+          .filter(Boolean),
+        declarations,
+      });
+    }
+    return found;
+  })();
+  /** Every declaration written for one EXACT selector (a `,`-grouped rule included), in file order. */
+  const declarationsFor = (selector: string) =>
+    rules
+      .filter((entry) => entry.selectors.includes(selector))
+      .map((entry) => entry.declarations)
+      .join("\n");
+  /** A COLLAPSED-state selector: the one shared rail state, carrying the shared boot guard. */
+  const collapsed = (selector: string) =>
+    `${SIDEBAR_BOOT_GUARD.trim()} .ui-sidebar-rail[data-collapsed="true"] ${selector}`;
+
+  it("declares BOTH states in the markup, each with its semantic hook, exactly once", () => {
+    const sidebarSource = read("src", "components", "ui", "sidebar.tsx");
+    for (const hook of [
+      "ui-sidebar-toggle-icon ui-sidebar-toggle-icon-open",
+      "ui-sidebar-toggle-icon ui-sidebar-toggle-icon-closed",
+      "ui-sidebar-toggle-label ui-sidebar-toggle-label-open",
+      "ui-sidebar-toggle-label ui-sidebar-toggle-label-closed",
+    ]) {
+      expect(sidebarSource.split(hook).length - 1, `${hook} declared once`).toBe(1);
+    }
+    // The OPEN state's variant is declared FIRST, exactly as the page-icon pair declares `-open` first.
+    expect(sidebarSource.indexOf("ui-sidebar-toggle-icon-open")).toBeLessThan(
+      sidebarSource.indexOf("ui-sidebar-toggle-icon-closed"),
+    );
+    expect(sidebarSource.indexOf("ui-sidebar-toggle-label-open")).toBeLessThan(
+      sidebarSource.indexOf("ui-sidebar-toggle-label-closed"),
+    );
+  });
+
+  it("presents exactly one variant per state through the shared rail state", () => {
+    // BASE (the OPEN rail, and the boot presentation the pre-paint bridge creates): the CLOSED variant is
+    // removed, so the OPEN variant is the one on screen. These two rules are `,`-grouped.
+    expect(declarationsFor(".ui-sidebar-toggle-icon-closed")).toMatch(/display:\s*none/);
+    expect(declarationsFor(".ui-sidebar-toggle-label-closed")).toMatch(/display:\s*none/);
+    // COLLAPSED: the OPEN variant is removed and the CLOSED variant is presented — the mirror of the
+    // page-icon pair's rules (same shape, same values, same guard), so the two can never drift. Every one of
+    // these is a GUARDED collapsed selector: without the guard the pair would ignore the visitor's stored OPEN
+    // preference for the whole boot interval, and the flicker would simply move back into the control.
+    expect(declarationsFor(collapsed(".ui-sidebar-toggle-icon-open"))).toMatch(/display:\s*none/);
+    expect(declarationsFor(collapsed(".ui-sidebar-toggle-label-open"))).toMatch(/display:\s*none/);
+    expect(declarationsFor(collapsed(".ui-sidebar-toggle-icon-closed"))).toMatch(/display:\s*inline-block/);
+    // `display: inline` (not sr-only): the collapsed label is the control's NAME for assistive tech, and the
+    // rail's own sr-only rule (the nav labels) only applies to text that is actually rendered.
+    expect(declarationsFor(collapsed(".ui-sidebar-toggle-label-closed"))).toMatch(/display:\s*inline/);
+    // …and there is no UNGUARDED collapsed variant of the pair, which would win over the boot presentation.
+    for (const selector of [
+      ".ui-sidebar-rail[data-collapsed=\"true\"] .ui-sidebar-toggle-icon-open",
+      ".ui-sidebar-rail[data-collapsed=\"true\"] .ui-sidebar-toggle-label-open",
+      ".ui-sidebar-rail[data-collapsed=\"true\"] .ui-sidebar-toggle-icon-closed",
+      ".ui-sidebar-rail[data-collapsed=\"true\"] .ui-sidebar-toggle-label-closed",
+    ]) {
+      expect(declarationsFor(selector), selector).toBe("");
+    }
+  });
+
+  it("removes the inactive LABEL from the accessible name (display, never merely visually hidden)", () => {
+    // A sr-only label would still be announced; `display: none` cannot be. The presented variant is the
+    // control's name, and the icon-only case keeps using the button's own `aria-label`.
+    const sidebarSource = read("src", "components", "ui", "sidebar.tsx");
+    expect(sidebarSource).toMatch(/aria-label=\{active\.labelled\}/);
+  });
+
+  it("keeps the pair decorative: no variant adds accessible content of its own", () => {
+    // `DisclosureIcon` → `AssetIcon` renders `alt="" aria-hidden="true"`, so neither icon announces.
+    const assetIcon = read("src", "components", "ui", "asset-icon.tsx");
+    expect(assetIcon).toMatch(/alt=""/);
+    expect(assetIcon).toMatch(/aria-hidden="true"/);
+    const disclosureIcon = read("src", "components", "ui", "disclosure-icon.tsx");
+    expect(disclosureIcon).toMatch(/<AssetIcon/);
+  });
+});

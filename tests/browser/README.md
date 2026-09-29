@@ -60,12 +60,15 @@ call bypasses it.
 ### The production-mode proof (`production-continuity.mjs`)
 
 The scenarios above drive a **development** server, which is the right trade-off for a 500+ check suite:
-fast, and honest about the contracts it asserts. It is not, however, what a visitor runs — and two defects
+fast, and honest about the contracts it asserts. It is not, however, what a visitor runs — and three defects
 were only visible there: FOUNDATION-UI1-A1, where navigating while the sidebar was OPEN re-created the rail,
 the canonical CLOSED state was committed and corrected inside one commit, so no wrong frame was painted —
 but the browser still started the rail's `width 200ms` CSS transition, and the rail visibly collapsed and
-expanded again on the way; and FOUNDATION-UI1-A2, where a FULL RELOAD with the preference stored OPEN
-painted the canonical CLOSED rail and expanded it after hydration.
+expanded again on the way; FOUNDATION-UI1-A2, where a FULL RELOAD with the preference stored OPEN
+painted the canonical CLOSED rail and expanded it after hydration; and FOUNDATION-UI1-A3, where that same
+reload painted the canonical CLOSED **disclosure control** — the Show icon and "Show navigation" — and swapped
+both at hydration: the rail's geometry was right and every row stayed green, because the fingerprint had never
+looked at the control's own content.
 
 `tests/browser/production-continuity.mjs` is the smallest proof that closes that gap, rather than a second
 suite: it runs `next build` and `next start` against the repository's own (reference) deployment and asserts
@@ -73,7 +76,9 @@ the same continuity invariant through the same real controls — no opposite-sta
 (replacement nodes included) and no width transition during a navigation, with the explicit toggle still
 animating as it must — plus the whole-document `firstPaint.*` rows (the stored preference must be the first
 painted state and every painted state of a reloaded document, with no boot-induced transition and with the
-boot presentation equal to the runtime presentation). It is **owned by this directory**, deliberately **NOT
+boot presentation equal to the runtime presentation), and the disclosure control's own content on every
+sampled frame: which state's variant it PRESENTS from the first frame it is on screen, and that exactly one
+variant is ever presented. It is **owned by this directory**, deliberately **NOT
 wired into any CI route** (a production build is minutes, not seconds), and writes nothing itself:
 
 ```sh
@@ -196,11 +201,16 @@ tree stays clean.
   FOUNDATION-UI1-A2): the frame recorder samples the rail's PAINTED geometry (its
   rendered width) and its presentation fingerprint, not only its attribute, because
   the refresh defect was pure geometry: the canonical CLOSED rail was painted and
-  then expanded after hydration. On a REAL reload the rows require the first painted
+  then expanded after hydration. Since FOUNDATION-UI1-A3 that fingerprint also
+  carries the disclosure CONTROL's presented content (its artwork and its label), so
+  a document whose rail is already the right width but whose control still says the
+  canonical state's copy is a mismatch rather than a pass. On a REAL reload the rows
+  require the first painted
   state to be the stored one, **every** painted frame of that document to be the
   stored state, the presentation captured at boot to be identical to the runtime
   presentation (geometry, rail padding, control inset/justification, label
-  visibility, list inset and the state-paired icons), the pre-paint bridge marker to
+  visibility, list inset, the state-paired icons and the control's presented
+  variant), the pre-paint bridge marker to
   have been present at boot and **relinquished** afterwards, and the boot interval
   to have started no width transition. Reverting the bridge flips them (measured: the
   first painted state becomes CLOSED and a `36px → 220px` transition starts), which
@@ -208,6 +218,23 @@ tree stays clean.
   `toggle.closedActuallyLooksClosed` closes the loop: a document that BOOTED on the
   bridge must still *look* closed after an explicit toggle, so a stale bridge cannot
   survive as a competing authority.
+- **Reading a state-paired control** (every scenario): the disclosure CONTROL and the
+  sidebar PAGE icons each declare both states' variants and the stylesheet presents one,
+  so a probe that takes the first match measures the HIDDEN variant — a 0x0 box or the
+  other state's copy. The browser gates therefore read the variant whose computed
+  `display` is not `none` (`PRESENTED_VARIANT` in `matrix.mjs`, `CONTROL_READER` in
+  `production-continuity.mjs`), never the control's whole `textContent`, which holds
+  both states' labels.
+- **Semantics first paint** (`firstPaint.*.controlSemantics*` rows, same scenario;
+  FOUNDATION-UI1-A3-A1): presentation can be selected by a stylesheet, but
+  `aria-expanded` and the control's accessible name cannot — so on every painted frame,
+  from the first one the control is on screen, the gate reads what the control CLAIMS
+  (`aria-expanded`, its accessible name, `aria-controls`, and the state-paired
+  declarations those are judged against) and requires it to describe the state the
+  control presents, with the boot reading byte-identical to the hydrated runtime's own
+  and exactly ONE operable disclosure control in the presented rail. The reader and the
+  rule are shared (`tests/browser/sidebar-semantics.mjs`), so both gates judge the same
+  facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
   sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does
