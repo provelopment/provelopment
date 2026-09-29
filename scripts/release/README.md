@@ -198,4 +198,3 @@ resolve to the recorded commit — the check the release process (R1C) makes bef
   selected deployment's sources and `pnpm assets:check` proves it byte-identical.
 - A deployment's own acceptance suite runs from its own capsule; a release proves the **generic**
   contracts plus one bounded canary, and never enumerates other deployments.
-

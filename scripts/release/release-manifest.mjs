@@ -255,4 +255,3 @@ export function parseReleaseManifest(text) {
   }
   return assertReleaseManifest(parsed);
 }
-

@@ -456,4 +456,3 @@ export function assertRequiredPlatformPaths(platformPaths) {
   }
   return REQUIRED_PLATFORM_PATHS.map((anchor) => anchor.path);
 }
-
