@@ -11,8 +11,12 @@
  *   · the committed fixture's location (`tests/fixtures/synthetic-deployment/**`, the test-only
  *     deployment: a Global site, a country site, two locales, two locations, a handful of pages,
  *     two dictionaries, a minimal asset tree and the authoring documentation a generic contract needs);
- *   · a DISPOSABLE temporary copy of it, created at most once per test process and deleted at exit, so
- *     a generic test may read and WRITE deployment-owned state without touching any committed file;
+ *   · a DISPOSABLE temporary copy of it, created at most once per TEST-FILE CONTEXT, so a generic test
+ *     may read and WRITE deployment-owned state without touching any committed file — and is REMOVED by
+ *     that context's teardown (`cleanupSyntheticDeployment()`), because the copy belongs to exactly one
+ *     test-file context. Removal is deliberately NOT left to a `process.on("exit")` hook: a Vitest worker
+ *     is terminated without running one, so the hook never fired and every executed generic test file left
+ *     a full deployment copy in OS temp (measured: 91 directories per run — ISO-B3C2B-A1).
  *   · `syntheticDeploymentPaths()` in the exact shape `@/config/deployment-root` publishes, for the
  *     few suites that assert the authority's answer;
  *   · `selectSyntheticDeployment()` — the one call that makes the synthetic deployment THE deployment
@@ -49,7 +53,7 @@ export const syntheticDeploymentConfigFile = path.join(
 export interface SyntheticDeployment {
   /** The absolute deployment root to hand to `FOUNDATION_DEPLOYMENT_ROOT`. */
   readonly root: string;
-  /** Deletes the temporary tree (call it in a `finally`). */
+  /** Deletes THIS copy's temporary tree. Exact and idempotent: safe to call more than once. */
   cleanup(): void;
 }
 
@@ -79,16 +83,44 @@ export function materializeSyntheticDeployment(): SyntheticDeployment {
   };
 }
 
-/** The process-wide disposable copy (created on first use, deleted when the process exits). */
+/**
+ * The disposable copy of THIS test-file context (created on first use, removed by
+ * `cleanupSyntheticDeployment()` — never by a process-exit hook, which a Vitest worker never runs).
+ */
 let writable: SyntheticDeployment | null = null;
 
 export function syntheticWritableDeployment(): SyntheticDeployment {
   if (writable === null) {
     writable = materializeSyntheticDeployment();
-    const created = writable;
-    process.on("exit", () => created.cleanup());
+    // No exit hook, and no other second owner: the teardown below removes exactly this root
+    // (ISO-B3C2B-A1 — see `cleanupSyntheticDeployment()`).
   }
   return writable;
+}
+
+/**
+ * REMOVES the copy this test-file context created, and nothing else (ISO-B3C2B-A1).
+ *
+ * OWNERSHIP IS EXACT. The one root `materializeSyntheticDeployment()` handed to this context is removed;
+ * OS temp is never searched, globbed or swept, so a historical copy, another checkout's copy, or a copy
+ * belonging to a run happening in parallel is not this function's — or this run's — property.
+ *
+ * Idempotent, and safe when this context owns nothing (returns `false`): the generic project's setup file
+ * registers exactly this call as that file's teardown, and a teardown must run once per test file whatever
+ * the file did. The copy is materialised lazily, so a later `syntheticWritableDeployment()` simply creates
+ * a fresh one — the context stays usable after its own teardown has run.
+ *
+ * A failure to remove is NOT swallowed: residue must fail a run visibly rather than accumulate quietly in
+ * OS temp, which is exactly the failure this lifecycle replaces.
+ *
+ * @returns whether a copy was removed.
+ */
+export function cleanupSyntheticDeployment(): boolean {
+  if (writable === null) return false;
+  const owned = writable;
+  writable = null;
+  owned.cleanup();
+  return true;
 }
 
 /**

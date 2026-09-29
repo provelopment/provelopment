@@ -14,8 +14,8 @@
 //      Scope semantics live in `tests/browser/scope.mjs` (one harness, one discovery policy).
 // (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { readFile, writeFile, mkdir, readdir, rm, rmdir } from "node:fs/promises";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -35,6 +35,13 @@ import {
   deploymentScenarioFiles,
   parseBrowserScope,
 } from "./scope.mjs";
+// ONE WRITE DOMAIN (FOUNDATION-DEPLOYMENT-ISO-B3C2B)
+// Every MUTATING filesystem call in this harness comes from `./scratch.mjs`, which refuses a target
+// inside the selected deployment — or outside this run's disposable temp state and its own `.report/` —
+// BEFORE writing. That turns "the generic scenarios only touch the disposable copy" from a convention
+// into a mechanical guarantee: a regression that reaches for the shipped `site.config.json` fails loudly
+// instead of rewriting it. Reads keep using `node:fs` directly.
+import { cpSync, mkdir, rm, rmdir, rmSync, writeFile } from "./scratch.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -45,7 +52,9 @@ const ROOT = join(HERE, "..", "..");
 // committed synthetic deployment (`tests/fixtures/synthetic-deployment`), handed to each dev server
 // through `FOUNDATION_DEPLOYMENT_ROOT` (`src/config/deployment-root.ts`). Every config write and
 // content fixture below lands inside that copy; the repository's `site.config.json` and
-// `content/pages/**` are never opened for writing.
+// `content/pages/**` are never opened for writing — and that is MECHANICAL, not conventional: those
+// writes are made through `./scratch.mjs`, which refuses any target inside the selected deployment or
+// outside this run's disposable state (ISO-B3C2B).
 //
 // A DEPLOYMENT's own browser acceptance is not part of this file: it lives inside that deployment's
 // capsule (`deployment/tests/browser/*.scenario.mjs`) and is DISCOVERED and run below with this

@@ -43,6 +43,20 @@ own tree — `tests/browser/` inside the root the deployment authority selected,
 discovers every `*.scenario.mjs` there and runs it, so a deployment ships expectations rather than a
 second browser framework, and adding a deployment edits no list.
 
+### What the harness may write
+
+That isolation is MECHANICAL, not conventional. Every MUTATING filesystem call this harness makes —
+the configuration edits, the page and dictionary fixtures, the machine-readable report, the readability
+screenshots — is routed through `tests/browser/scratch.mjs`, which refuses any target inside the selected
+deployment (or the capsule directory), and any target outside the two domains this harness owns: the OS
+temporary directory and this directory's ignored `.report/`. A regression that reached for the
+deployment's shipped `site.config.json` would therefore fail loudly, naming the target, and write nothing.
+READS are untouched — the shipped configuration a deployment scenario describes, the committed fixture
+and the repository's own files are read directly, exactly as before.
+`tests/architecture/write-ownership-guard.test.ts` proves both the guard's answers and that no mutating
+call bypasses it.
+
+
 ```js
 export const id = "reference-content";           // the report's `presentation` label
 export async function run(chrome, harness) { … }  // returns the same check rows as a scenario here

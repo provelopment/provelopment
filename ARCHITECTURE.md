@@ -407,6 +407,39 @@ Tests that cross application boundaries or require external/runtime behavior.
 
 Unit tests should remain close to the code they test where practical.
 
+## Write Ownership
+
+Repository tooling and tests write only into the domain they own. There are exactly THREE sanctioned
+durable writers, each with the ONE target it derives from the deployment authority:
+
+| Writer | The only domain it may write |
+| --- | --- |
+| `scripts/sync-runtime-assets.mjs` | `<repo>/public/assets/**` — the generated runtime mirror (B3C1) |
+| `scripts/generate-country-code-reference.mjs` | `<selected deployment>/content/COUNTRY-CODES.md` (B3A) |
+| `scripts/ci/change-scope.mjs` | `$GITHUB_OUTPUT` — the CI runner's own file, never repository state |
+
+Everything else that writes is TEST SCRATCH: OS temp state, the synthetic deployment's disposable copy
+(`tests/support/synthetic-deployment-root.ts`), a disposable copy of the SELECTED deployment
+(`tests/support/disposable-deployment.ts`) and the owner's own ignored report directory
+(`tests/browser/.report/**`). Foundation application code (`src/**`) contains no filesystem writer at all.
+
+A deployment's authored state — `site.config.json`, `config/**`, `content/pages/**`, `content/assets/**`
+and the generated `content/COUNTRY-CODES.md` — is READ by tests and by the browser harness, and is never
+their fixture storage. A test that needs WRITABLE deployment state takes a disposable copy of the selected
+deployment through the authority's own override selection, so no test depends on successful cleanup to
+protect an owner's content (the ISO-C1 lesson).
+
+This is NOT a ban on writing a deployment: a spoke's owner — or a workflow acting for them — authors its
+own configuration, dictionaries, pages, artwork, generated documents and operational state. What is
+forbidden is uncontrolled repository tooling and test execution treating shipped production state as
+scratch space. Enforcement is deliberately small: an exact writer inventory plus sanctioned-writer
+contracts (`tests/architecture/write-ownership-guard.test.ts`), a write guard around the browser harness
+(`tests/browser/scratch.mjs`), and a runtime before/after manifest of the real deployment's authored state
+around both Vitest projects (`tests/setup/production-state-integrity.ts`). Deployment-local rules are in
+`deployment/AGENTS.md`; harness-specific ones in `tests/browser/README.md`.
+
+## Dependency Direction
+
 ## Dependency Direction
 
 The intended dependency direction is:

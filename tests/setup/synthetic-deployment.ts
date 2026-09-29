@@ -21,14 +21,35 @@
  * in the generic suite resolves a real one.
  *
  * The synthetic deployment itself lives in `tests/support/synthetic-deployment.ts` (config + fixture
- * tree) and is materialised into a per-worker temporary directory, so a generic test may read and
- * WRITE deployment-owned state without touching any committed deployment.
+ * tree) and is materialised into a temporary directory OWNED BY THIS TEST-FILE CONTEXT, so a generic test
+ * may read and WRITE deployment-owned state without touching any committed deployment — and that context
+ * REMOVES the copy when its file finishes (see the teardown below), so a run leaves nothing in OS temp.
  */
+import { afterAll } from "vitest";
+
 import { deploymentPaths } from "@/config/deployment-root";
 
-import { selectSyntheticDeployment } from "../support/synthetic-deployment-root";
+import {
+  cleanupSyntheticDeployment,
+  selectSyntheticDeployment,
+} from "../support/synthetic-deployment-root";
 
 const synthetic = selectSyntheticDeployment();
+
+// THE CONTEXT THAT MATERIALISED THE COPY REMOVES IT (ISO-B3C2B-A1).
+//
+// A setup file runs once per test file, so the copy selected above belongs to exactly this file's context,
+// and `afterAll` is that context's teardown: Vitest runs it however the file's tests ended. It is
+// registered HERE — before the verification below, which may throw — so a file that fails at setup still
+// gives its copy back.
+//
+// It replaces the `process.on("exit")` hook the copy used to rely on, which never ran: Vitest terminates
+// its workers without executing exit handlers, so every generic test file left a complete deployment copy
+// in OS temp (deterministic; 91 directories per full run). The removal is exact — the one root this
+// context created — and never a search of OS temp.
+afterAll(() => {
+  cleanupSyntheticDeployment();
+});
 
 // Fail LOUDLY if the synthetic deployment is not the one the authority answers with: a generic test
 // that silently received the real deployment would be exactly the coupling this project exists to

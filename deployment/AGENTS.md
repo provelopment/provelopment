@@ -82,6 +82,14 @@ another deployment
 3. **Durable deployment tests live in `deployment/tests/**`.** A test belongs here when it answers a
    question about *this* deployment: its own sites, languages, locations, routes, copy, assets,
    structured data and acceptance.
+   **A test may READ this capsule; it may never use it as writable fixture space.** The authored state
+   (`site.config.json`, `config/**`, `content/pages/**`, `content/assets/**`) is the owner's content, and
+   a test that mutated it would be editing the website — cleanup is best-effort and residue is damage
+   (ISO-C1). A test that needs writable deployment state — planting a page, adding a dictionary, editing
+   configuration — takes a DISPOSABLE COPY of the selected deployment
+   (`tests/support/disposable-deployment.ts`) and plants its fixtures there; the run proves this capsule
+   unchanged before and after (`tests/setup/production-state-integrity.ts`). Nothing in `deployment/tests/**`
+   may depend on successful cleanup to protect production content.
 4. **Never copy a generic Foundation test into `deployment/tests/**`,** and never restate a platform
    contract here. Platform behaviour is proved once, by the Foundation. A deployment test that merely
    repeats a generic assertion adds maintenance, not confidence.
