@@ -42,6 +42,19 @@ import {
 // into a mechanical guarantee: a regression that reaches for the shipped `site.config.json` fails loudly
 // instead of rewriting it. Reads keep using `node:fs` directly.
 import { cpSync, mkdir, rm, rmdir, rmSync, writeFile } from "./scratch.mjs";
+// TWO READINESS LAYERS, ONE VOCABULARY (FOUNDATION-BR1)
+// `document ready` and `client navigation committed` are different states: a visitor action (Site,
+// Language, Location) navigates WITHOUT a document load, so the document-level facts `waitReady` has
+// always checked are already true when that transition starts. The conditions, the budgets and the
+// failure report therefore live in one module — `readiness.mjs` — and a scenario that dispatches a
+// visitor action passes the state its next assertion reads (`waitReady(cdp, { path, body })`).
+import {
+  HYDRATION_SETTLE_MS,
+  READINESS_POLL_MS,
+  READINESS_TIMEOUT_MS,
+  readinessFailureMessage,
+  readinessProbeExpression,
+} from "./readiness.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -276,16 +289,30 @@ function visible(selector) {
   return `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; })()`;
 }
 
-async function waitReady(cdp) {
+/**
+ * Waits for the page the scenario needs — BOTH readiness layers (FOUNDATION-BR1).
+ *
+ * Without `expected`: the document finished loading and the shell's chrome is present — the layer a FULL
+ * navigation (`cdp.navigate`) reaches.
+ *
+ * With `expected`: additionally, a CLIENT-SIDE transition has produced the state the CALLER is about to
+ * assert — the resulting route, and (when the caller knows it) a marker of the body it renders. A soft
+ * navigation changes neither `readyState` nor the shell, so this is the only observable that can await
+ * one; a page probed without it is the page that happened to be current, which is the historical
+ * language-switch transient.
+ *
+ * The budget, poll interval and settle are the harness's established ones (`readiness.mjs`); the settle is
+ * kept so the semantics of a satisfied wait are unchanged.
+ */
+async function waitReady(cdp, expected = null) {
   const t0 = Date.now();
-  while (Date.now() - t0 < 20000) {
-    const ready = await cdp.evaluate(
-      `(() => { const rd = document.readyState; const t = !!document.querySelector('#shell-mobile-nav'); const b = !!document.querySelector('.ui-shell-bottom-bar'); return rd === 'complete' && (t || b); })()`,
-    );
-    if (ready) { await sleep(400); return; }
-    await sleep(200);
+  let observed = null;
+  while (Date.now() - t0 < READINESS_TIMEOUT_MS) {
+    observed = await cdp.evaluate(readinessProbeExpression(expected));
+    if (observed.satisfied) { await sleep(HYDRATION_SETTLE_MS); return; }
+    await sleep(READINESS_POLL_MS);
   }
-  throw new Error("page did not hydrate in time");
+  throw new Error(readinessFailureMessage(observed, expected));
 }
 
 /** Click a point on the backdrop that is NOT covered by the left-anchored panel. */
@@ -4117,7 +4144,8 @@ async function runMultisiteScenario(chrome) {
     await cdp.navigate(`${BASE_URL}/ca/fr/about`);
     await waitReady(cdp);
     await cdp.evaluate(multisiteChoose("language", "en"));
-    await waitReady(cdp);
+    // The choice navigates WITHOUT a document load, so await the route it must produce.
+    await waitReady(cdp, { path: "/ca/en/about", body: MULTISITE_MARK.caEn });
     const canadaEnglish = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.languageSwitchStaysInsideTheSite", canadaEnglish.path === "/ca/en/about", canadaEnglish.path);
     check(rows, "multisite.languageSwitchServesThatSiteOwnBody", canadaEnglish.body.includes(MULTISITE_MARK.caEn), canadaEnglish.path);
@@ -4131,7 +4159,7 @@ async function runMultisiteScenario(chrome) {
     check(rows, "multisite.layoutChosenAndReflected", menuBar.shellLayout === "menu-bar", menuBar.shellLayout);
 
     await cdp.evaluate(multisiteChoose("site", "fr"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/fr/fr/about", body: MULTISITE_MARK.frFr });
     const toFrance = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.siteSwitchPreservesTheRoute", toFrance.path === "/fr/fr/about", toFrance.path);
     check(rows, "multisite.siteSwitchServesTheTargetSiteBody", toFrance.body.includes(MULTISITE_MARK.frFr), toFrance.path);
@@ -4139,11 +4167,11 @@ async function runMultisiteScenario(chrome) {
     check(rows, "multisite.chromeFollowsTheTargetSite", toFrance.navLabels.includes("À propos FR") && !toFrance.navLabels.includes("À propos CA"), `[${toFrance.navLabels}]`);
 
     await cdp.evaluate(multisiteChoose("language", "fr"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/fr/fr/about", body: MULTISITE_MARK.frFr });
     await cdp.evaluate(multisiteChoose("site", "ca"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/ca/fr/about", body: MULTISITE_MARK.caFr });
     await cdp.evaluate(multisiteChoose("language", "en"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/ca/en/about", body: MULTISITE_MARK.caEn });
     const layoutAfterLanguage = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.layoutSurvivesLanguageSwitch", layoutAfterLanguage.shellLayout === "menu-bar", layoutAfterLanguage.shellLayout);
     check(rows, "multisite.oneVisibleNavigationStructureAfterSwitching", layoutAfterLanguage.visibleLinks === menuBar.visibleLinks, `${menuBar.visibleLinks} -> ${layoutAfterLanguage.visibleLinks}`);
@@ -4163,7 +4191,7 @@ async function runMultisiteScenario(chrome) {
     const canadaOnly = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.canadaOnlyPageIsServedInCanada", canadaOnly.body.includes("ZZ-CANADA-ONLY-PAGE"), canadaOnly.path);
     await cdp.evaluate(multisiteChoose("site", "fr"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/fr/fr" });
     const fellBack = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.siteSwitchFallsBackToTheTargetHome", fellBack.path === "/fr/fr", fellBack.path);
     check(rows, "multisite.fallbackLandsOnARealPage", fellBack.body.includes("À propos FR") || fellBack.body.length > 0, fellBack.path);
@@ -4178,7 +4206,7 @@ async function runMultisiteScenario(chrome) {
     const inToronto = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.locationSelectorReflectsTheActiveLocation", !!inToronto.location && inToronto.location.value === "toronto", inToronto.location && inToronto.location.value);
     await cdp.evaluate(multisiteChoose("site", "fr"));
-    await waitReady(cdp);
+    await waitReady(cdp, { path: "/fr/fr" });
     const afterLocationSwitch = await cdp.evaluate(MULTISITE_PROBE);
     check(rows, "multisite.locationNeverCarriesTheVisitorAcrossSites", afterLocationSwitch.path === "/fr/fr" && !afterLocationSwitch.path.includes("toronto") && !afterLocationSwitch.body.includes("ZZ-CANADA-ONLY-PAGE"), `${inToronto.path} -> ${afterLocationSwitch.path}`);
 

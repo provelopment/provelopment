@@ -69,6 +69,33 @@ resolves it (a capsule at `<repo>/deployment/site.config.json` when one exists, 
 repository root). A deployment scenario therefore names no repository path of its own, and a
 repository without a capsule discovers nothing.
 
+### Readiness: two layers, and the one a client transition needs
+
+`waitReady(cdp)` waits for the DOCUMENT layer — the document finished loading and the shell's chrome is in
+the DOM. That is what a full navigation (`cdp.navigate`) reaches.
+
+A **visitor action** — a Site, Language or Location choice — navigates WITHOUT loading a document, so both
+of those facts are already true when the transition starts and can never observe it. A scenario that
+dispatches one therefore passes the state its next assertion actually reads:
+
+```js
+await cdp.evaluate(multisiteChoose("language", "en"));
+await waitReady(cdp, { path: "/ca/en/about", body: "…ENGLISH BODY…" });
+```
+
+Probing the page without that expectation asserts against whatever page happened to be current, which is
+the historical transient these two layers exist to end: two language-switch checks failed naming the
+PREVIOUS route while the third — which only required the other site's marker to be ABSENT — passed against
+that same stale page.
+
+The conditions, the 20 s budget, the 200 ms poll and the 400 ms settle live in `readiness.mjs` (one
+vocabulary, proved without a browser by `tests/architecture/browser-readiness-contract.test.ts`). A failed
+wait reports what was awaited and what the document reported — its URL, `readyState`, and whether the shell
+was present — instead of claiming a cause, because a document that never had the shell (a localized 404, a
+dev-server error page) is exactly as "complete" as a healthy one.
+
+A Layout choice is not a transition: it changes presentation, not the route.
+
 For the Foundation's **one canonical presentation** the harness:
 1. writes the canonical UI configuration (plus a matrix CTA) into `site.config.json`;
 2. boots `next dev`;
