@@ -124,8 +124,21 @@ keeps it that way. Three layouts are resolved once per build:
 | Layout | Deployment root | When it applies |
 | --- | --- | --- |
 | **capsule** | `<repo>/deployment/` | a real deployment capsule exists. It is the accepted long-term write boundary for one deployment — the layout THIS repository uses, and the one `deployment/README.md` and `deployment/AGENTS.md` describe |
-| **repository** | `<repo>/` | the transitional compatibility layout, where those locations sit at the repository root |
+| **repository** | `<repo>/` | a standalone repository that owns its own deployment — a SPOKE with no platform capsule, where those locations sit at its own root. It is a supported capability, and the layout THIS repository must NOT use: a combined platform repository carries its reference deployment in the capsule |
 | **override** | `FOUNDATION_DEPLOYMENT_ROOT` | the dev/test escape hatch that points a dev server at a synthetic deployment. Never a production mechanism |
+
+The three layouts are a CAPABILITY of the platform, not a description of this
+repository's install: an independent SPOKE repository — one deployment, no
+platform capsule — legitimately keeps `site.config.json`, `config/i18n/**` and
+`content/**` at its own root, and keeps resolving the `repository` layout. The
+combined Foundation repository is the other shape: it carries a reference
+deployment, so it owns that state in `deployment/**` alone. Deployment-owned
+locations therefore have exactly ONE home per repository, and no code branches on
+repository identity to decide which — the selector answers every repository the
+same way, and `tests/architecture/deployment-root-guard.test.ts` proves both
+halves: a standalone spoke still selects the `repository` layout, while
+`site.config.json`, `config/i18n/**` or `content/**` reappearing at THIS
+repository's root fails architectural validation.
 
 `public/assets/**` is NOT deployment-owned: Next.js serves static files from `public/`
 only, so it is GENERATED build output — ignored by Git and installed by `pnpm install`
