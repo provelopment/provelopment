@@ -46,16 +46,38 @@ server-side rate limiting or spam filtering.
 
 ## Continuous Integration Gating
 
-The repository's CI workflow (`.github/workflows/ci.yml`) runs typecheck,
-lint, tests, and a production build on every push and pull request.
+The repository's CI workflow (`.github/workflows/ci.yml`) validates a change
+according to **who owns it**. One dependency-free Node tool classifies the changed
+paths from the Git diff — never from a commit message, a PR label or a human's
+choice — in `scripts/ci/change-scope.mjs`:
+
+| Change | What CI proves |
+| --- | --- |
+| Documentation only (manuals, READMEs, `LICENSE`) | repository hygiene (`git diff --check`); nothing is installed, built or run |
+| The deployment only (`deployment/**`) | the deployment's own contract: `assets:check`, `country-codes:check`, typecheck, lint, `test:deployment`, `build`, `test:browser:deployment` |
+| The Foundation only (`src/**`, `tests/**`) | the generic contract (`test:foundation`, `test:browser:foundation`, typecheck, lint) **plus a canary**: the one representative deployment installed in this repository runs its own acceptance contract again |
+| Shared or mixed (manifests, lockfiles, build/CI configuration, platform scripts, the runtime asset mirror, or a change touching both owners) | the complete gate: all of the above in its unscoped form |
+
+Unknown or ambiguous ownership always **widens** validation: a new top-level
+directory, a re-created historical `content/**`, `config/**` or root
+`site.config.json`, or a change whose extent cannot be measured all run the
+complete gate instead of skipping work. Routing removes *unrelated* validation; it
+never weakens the contract a change actually has. A Foundation change never runs
+every deployment that exists — it proves the platform's own contracts, then that
+those contracts still fit one real installation.
+
+The pipeline exposes one required status context, **`validate`**, which runs on
+every push and pull request and fails whenever the selected route failed — so a
+skipped route can never be mistaken for a pass.
 
 Recommended branch protection for `main`:
 
 - Require the **`validate`** check to pass before merging.
 - Require pull requests before direct pushes (except by trusted maintainers).
 
-Vercel deployments can additionally be gated on the same checks in
-**Project Settings → Git**.
+Vercel is unchanged: it still builds a preview for every push, including a
+documentation-only one, because preview building is a Vercel project setting
+rather than a CI route.
 
 ## Custom Domain
 
