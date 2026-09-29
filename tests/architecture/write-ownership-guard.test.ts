@@ -106,6 +106,8 @@ const SANCTIONED_DOMAIN_WRITERS: Record<string, string> = {
   "scripts/generate-country-code-reference.mjs":
     "<selected deployment>/content/COUNTRY-CODES.md — the ONE generated deployment document (ISO-B3A)",
   "scripts/ci/change-scope.mjs": "$GITHUB_OUTPUT — the CI runner's own file, never repository state (ISO-B3B)",
+  "scripts/release/release-construction.mjs":
+    "the EMPTY destination directory the caller names — a release construction area outside the source repository. It reads committed bytes only, and writes no repository, deployment or generated state (R1B)",
 };
 
 /**
@@ -130,6 +132,8 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/unit/i18n-dictionary-discovery.test.ts": "OS temp dictionary trees it creates",
   "tests/unit/i18n-site-overlay.test.ts": "OS temp dictionary trees it creates",
   "tests/unit/page-sources.test.ts": "the synthetic deployment's page tree",
+  "tests/unit/release-construction.test.ts":
+    "synthetic source repositories and construction destinations under OS temp — the release mechanism proved on disposable repositories, never on this one (R1B)",
   "tests/unit/runtime-asset-lifecycle.test.ts": "OS temp deployment and runtime trees it creates",
   "tests/unit/site-page-isolation.test.ts": "the synthetic deployment's page tree",
   "tests/unit/synthetic-deployment-lifecycle.test.ts":
@@ -171,13 +175,15 @@ describe("the executable writer inventory is explicit", () => {
     ).toEqual(classified);
   });
 
-  it("names the three sanctioned durable domains, each as ONE document/domain and no more", () => {
-    expect(Object.keys(SANCTIONED_DOMAIN_WRITERS)).toHaveLength(3);
+  it("names the four sanctioned durable domains, each as ONE document/domain and no more", () => {
+    expect(Object.keys(SANCTIONED_DOMAIN_WRITERS)).toHaveLength(4);
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/sync-runtime-assets.mjs"]).toContain("public/assets");
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/generate-country-code-reference.mjs"]).toContain(
       "COUNTRY-CODES.md",
     );
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/ci/change-scope.mjs"]).toContain("GITHUB_OUTPUT");
+    // R1B — the release tool names its destination as the ONE thing it writes, and writes nothing else.
+    expect(SANCTIONED_DOMAIN_WRITERS["scripts/release/release-construction.mjs"]).toContain("destination");
   });
 
   it("keeps Foundation application code (src/**) free of writers entirely", () => {
