@@ -8,6 +8,8 @@ import {
   relinquishSidebarPreferenceBoot,
   resolveSidebarPreference,
   resolvedSidebarPreference,
+  SIDEBAR_TOGGLE_CLASS,
+  SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE,
   storeSidebarPreference,
   subscribeSidebarPreference,
   type SidebarPreference,
@@ -59,9 +61,11 @@ interface ControlContent {
  *     toggle can never be an empty, unnamed box;
  *   · `text` ABSENT → the localized fallback label is used.
  *
- * `labelled` is the name an icon-only control needs, and is `undefined` exactly when the painted text (or the
- * adopter's own explicit visible text) already carries the name — so the button's `aria-label` never
- * duplicates content that is on screen.
+ * `labelled` is the name a control needs when the state has no EXPLICIT visible text (the original P5-5/P6-1
+ * rule, preserved): it is the localized fallback label, and it is rendered as the button's `aria-label` — which
+ * in the icon-only mode is the name, and in the text-absent mode duplicates the label the same rule paints.
+ * The pre-paint bridge reads the SAME rule: a state that renders no explicit text declares its name in the
+ * markup, so the bridge never has to invent one.
  */
 function controlContent(
   leaf: { readonly icon?: string; readonly text?: string } | undefined,
@@ -144,6 +148,14 @@ function initialDisclosureState(collapsible: boolean, collapsed: boolean): Discl
  *    first paint instead of flipping at hydration. This is the same "declare both variants, select by rail
  *    state" shape the P6-3B page icons use, and the visible result is unchanged: exactly one icon and one
  *    label are ever on screen, in both states.
+ *  - UI1-A3-A1 — WHAT THE CONTROL CLAIMS FOLLOWS WHAT IT PRESENTS, from the same first paint. Presentation
+ *    can be selected by a stylesheet; `aria-expanded` and the accessible name are attributes with one value
+ *    each, so the ONE pre-paint bridge that presents the rail (`./sidebar-preference-boot` →
+ *    `./sidebar-contract`) also applies the OPEN state's semantics to the control, using the OPEN name this
+ *    control declares in the markup when (and only when) its name is author-supplied. There is no ARIA
+ *    state, no icon state and no accessibility-only preference anywhere: every claim is the visitor's
+ *    `foundation.sidebar` preference, read from the same key, and the runtime owns both attributes again as
+ *    soon as it represents that preference.
  *  - The toggle is a REAL interactive control (shared `.ui-sidebar-toggle`
  *    renderer styling: border, surface, hover/focus-visible/active affordance,
  *    pointer cursor) so it never reads as ordinary static heading text.
@@ -322,7 +334,25 @@ export function Sidebar({
             // Icon-only controls (visible text "" with an icon) keep the
             // accessible name from the localized label; decorative icon.
             aria-label={active.labelled}
-            className="ui-sidebar-toggle"
+            className={SIDEBAR_TOGGLE_CLASS}
+            // UI1-A3-A1 — THE OPEN STATE'S SEMANTICS, DECLARED FOR THE STATE A STATIC DOCUMENT CANNOT
+            // EXPRESS. `aria-expanded` and the accessible name are attributes with ONE value each, so a
+            // statically generated document carries the canonical CLOSED ones — and a rail the pre-paint
+            // bridge presents as OPEN must not announce itself as closed to assistive technology. The SAME
+            // bridge (`./sidebar-contract`: the same key, the same script, the same interval) applies the
+            // visitor's OPEN state to these two attributes, taking the name from the declaration below.
+            //
+            // Only the AUTHOR-SUPPLIED-NAME mode (the documented `text: ""` icon-only control, whose name
+            // comes from `aria-label`) needs a declaration: every mode whose name comes from a rendered label
+            // is already state-selected by the stylesheet, so this attribute is absent for it and the bridge
+            // writes no name at all.
+            //
+            // `suppressHydrationWarning` is the same NARROW tolerance the layout documents for the bridge's
+            // marker on `<html>`: the DOM carries the value the runtime is about to render for the same
+            // preference, so there is no disagreement to report — only an attribute a static server could not
+            // have known. It covers this element's own attributes and nothing beneath it.
+            suppressHydrationWarning
+            {...{ [SIDEBAR_TOGGLE_OPEN_NAME_ATTRIBUTE]: expandedContent.labelled }}
           >
             {/* UI1-A3 — THE CONTROL'S CONTENT IS A STATE PAIR. Both states' artwork and label are declared
                 here and the stylesheet presents exactly ONE of them (globals.css), so a document whose

@@ -457,6 +457,19 @@ Every sidebar disclosure across every breakpoint says the same thing:
   remove is the one a visitor whose stored state differs would see before the
   scripts run. The sidebar PAGE icons (`ui-nav-item-icon-open` / `-closed`) are the
   same pattern at 16×16.
+- **What the control CLAIMS follows what it presents** (FOUNDATION-UI1-A3-A1).
+  Artwork and copy can be selected by the stylesheet, but `aria-expanded` and the
+  control's accessible name are single-valued attributes — a statically generated
+  document can only carry the canonical CLOSED ones. The same one pre-paint script
+  that presents the rail (`foundation.sidebar` → the layout's inline bridge) also
+  applies the visitor's OPEN state to those two attributes, as soon as the control
+  exists and before it can be painted, and it stops at `DOMContentLoaded` — after
+  that the runtime owns them, exactly as it owns `data-collapsed`. It writes no
+  name of its own: in the modes whose name is author-supplied (an `aria-label`, i.e.
+  a control configured with no explicit visible text) the control declares that name
+  in its markup, and in every mode with explicit visible text the name already comes
+  from the label the stylesheet selects. There is no ARIA state, no icon state and
+  no accessibility-only preference anywhere — one preference, one bridge.
 - **Default icon assets:** `public/assets/sidebar-open.svg` (show) and
   `sidebar-close.svg` (hide) — **project-owned original SVG artwork** (24×24,
   stroke-based, `currentColor`-aware) shipped with the template and replaceable
@@ -540,7 +553,11 @@ and the same left-side vertical position.
   `Hide navigation` copy, which are presented by that same seam from that same frame
   (FOUNDATION-UI1-A3; before it, the rail was already open but the control still
   showed the closed state's show icon and `Show navigation` until the page's scripts
-  ran); nothing about toggling, navigation or later page lifetimes
+  ran), **and including what that control says about itself** (FOUNDATION-UI1-A3-A1:
+  `aria-expanded` is `true` and the control announces the OPEN action from that same
+  first frame, so a screen-reader visitor is never told the rail is closed while
+  everybody else sees it open); nothing about toggling, navigation or later page
+  lifetimes
   changes (the disclosure control remains the only thing that changes the state).
 - **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
   mobile disclosure carry **navigation only**: the single Book Now action lives in

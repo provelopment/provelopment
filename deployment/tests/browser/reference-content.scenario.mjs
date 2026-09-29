@@ -81,6 +81,9 @@ const DISCLOSURE_PROBE = `(() => {
     label: label ? (label.textContent || '').trim() : null,
     background: cs ? cs.backgroundColor : null,
     borderColor: cs ? cs.borderTopColor : null,
+    // UI1-A3-A1 — what the control CLAIMS about the state it presents (the property assistive technology
+    // reads), which must agree with the rail's collapsed state in every one of the reference states.
+    expanded: toggle ? toggle.getAttribute('aria-expanded') : null,
     accessibleName: toggle ? (toggle.getAttribute('aria-label') || (label ? (label.textContent || '').trim() : '')) : null,
     iconInsetFromControlLeft: toggle && icon ? r2(icon.getBoundingClientRect().left - toggle.getBoundingClientRect().left) : null,
     fullyInsideRail: !!(rail && toggle) &&
@@ -304,7 +307,8 @@ export async function run(chrome, harness) {
       canonicalState.collapsed === "true" &&
         canonicalState.accessibleName === "Show navigation" &&
         canonicalState.label === "Show navigation" &&
-        canonicalState.labelVisible === false,
+        canonicalState.labelVisible === false &&
+        canonicalState.expanded === "false",
       JSON.stringify(canonicalState),
     );
     await cdp.clickCenter(".ui-sidebar-toggle");
@@ -313,7 +317,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.openState",
-      openState.collapsed === "false" && openState.labelVisible === true && openState.label === "Hide navigation",
+      openState.collapsed === "false" && openState.labelVisible === true && openState.label === "Hide navigation" && openState.expanded === "true",
       JSON.stringify(openState),
     );
     check(
@@ -341,7 +345,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.disclosure.closedKeepsHitTarget",
-      (closedState.toggle?.w ?? 0) >= 24 && (closedState.toggle?.h ?? 0) >= 24 && !!closedState.accessibleName,
+      (closedState.toggle?.w ?? 0) >= 24 && (closedState.toggle?.h ?? 0) >= 24 && !!closedState.accessibleName && closedState.expanded === "false",
       `box=${closedState.toggle?.w}x${closedState.toggle?.h} name="${closedState.accessibleName}"`,
     );
     check(

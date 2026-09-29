@@ -225,6 +225,16 @@ tree stays clean.
   `display` is not `none` (`PRESENTED_VARIANT` in `matrix.mjs`, `CONTROL_READER` in
   `production-continuity.mjs`), never the control's whole `textContent`, which holds
   both states' labels.
+- **Semantics first paint** (`firstPaint.*.controlSemantics*` rows, same scenario;
+  FOUNDATION-UI1-A3-A1): presentation can be selected by a stylesheet, but
+  `aria-expanded` and the control's accessible name cannot — so on every painted frame,
+  from the first one the control is on screen, the gate reads what the control CLAIMS
+  (`aria-expanded`, its accessible name, `aria-controls`, and the state-paired
+  declarations those are judged against) and requires it to describe the state the
+  control presents, with the boot reading byte-identical to the hydrated runtime's own
+  and exactly ONE operable disclosure control in the presented rail. The reader and the
+  rule are shared (`tests/browser/sidebar-semantics.mjs`), so both gates judge the same
+  facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
   sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does

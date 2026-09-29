@@ -22,6 +22,17 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { Cdp, findChrome } from "./cdp.mjs";
+// UI1-A3-A1 — ONE semantics reader and ONE rule, shared with the production-mode proof
+// (`tests/browser/production-continuity.mjs`), so the same claims are judged identically by both gates.
+import {
+  observedSemantics,
+  readSemanticsHooks,
+  semanticsAgree,
+  semanticsDisagreement,
+  semanticsOf,
+  semanticsSelfContradiction,
+  sidebarSemanticsReader,
+} from "./sidebar-semantics.mjs";
 // ONE AUTHORITY, ONE DISCOVERY POLICY (FOUNDATION-DEPLOYMENT-ISO-B3A)
 // The deployment this harness describes is resolved by the platform's deployment seam — never by a
 // second capsule rule here — and WHICH family of scenarios a run executes is decided by the harness's
@@ -4436,6 +4447,16 @@ const SIDEBAR_PREFERENCE_MARKER = (() => {
   }
   return match[1];
 })();
+/**
+ * UI1-A3-A1 — the control's OPEN-name declaration, from the same authority, and the SHARED semantics reader
+ * built from both hooks. A candidate that has not declared the OPEN-name hook yet is reported by a failing
+ * row (never a crash), so this gate can run against a candidate that still has the defect.
+ */
+const SIDEBAR_OPEN_NAME_ATTRIBUTE = readSemanticsHooks(SIDEBAR_PREFERENCE_SOURCE).openNameAttribute;
+const SIDEBAR_SEMANTICS = sidebarSemanticsReader({
+  marker: SIDEBAR_PREFERENCE_MARKER,
+  openNameAttribute: SIDEBAR_OPEN_NAME_ATTRIBUTE,
+});
 
 
 /** The rail the visitor is actually looking at, and the state it presents (one band is displayed). */
@@ -4484,6 +4505,7 @@ const SIDEBAR_STATE_PROBE = `(() => {
  */
 const SIDEBAR_WATCH = `(() => {
   ${PRESENTED_VARIANT}
+  ${SIDEBAR_SEMANTICS}
   const watch = { frames: [], console: [], bootFp: null };
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   for (const level of ['error', 'warn']) {
@@ -4520,6 +4542,10 @@ const SIDEBAR_WATCH = `(() => {
       // document that painted the canonical state's control and swapped it at hydration produced an identical
       // fingerprint, which is exactly how the owner-observed content flicker passed this gate.
       'ctl=' + presentedControl(rail),
+      // UI1-A3-A1 — and what the control CLAIMS (aria-expanded, accessible name, the declarations those are
+      // judged against): without this field a document whose control announced the opposite state produced an
+      // identical fingerprint, which is how the semantic contradiction passed every earlier gate.
+      'sem=' + semanticProjection(rail),
     ].join('  ');
   };
   const sample = () => {
@@ -4535,6 +4561,10 @@ const SIDEBAR_WATCH = `(() => {
         desktopW: desktop ? Math.round(desktop.getBoundingClientRect().width) : null,
         tabletW: tablet ? Math.round(tablet.getBoundingClientRect().width) : null,
         boot: document.documentElement.getAttribute(${JSON.stringify(SIDEBAR_PREFERENCE_MARKER)}),
+        // UI1-A3-A1 — the control's semantics in this very frame, plus the projection that must be identical
+        // to the hydrated runtime's.
+        sem: rail ? semantics(rail) : null,
+        semFp: rail ? semanticProjection(rail) : null,
       });
     }
     requestAnimationFrame(sample);
@@ -4560,6 +4590,13 @@ const SIDEBAR_WATCH_PROBE = `(() => {
     bootMarkers: [...new Set(watch.frames.map((entry) => entry.boot))],
     bootFp: watch.bootFp,
     frames: watch.frames.map((entry) => entry.desktop),
+    // UI1-A3-A1 — the semantics observed on every painted frame, and their projections.
+    semantics: painted.map((entry) => entry.sem),
+    semanticsProjections: painted.map((entry) => entry.semFp),
+    // …and, for a failing row's detail, the frame facts a judgement is made about (marker + attribute + the
+    // reading), so a disagreement names the frame instead of only counting frames.
+    semanticsContext: painted.map((entry) =>
+      JSON.stringify({ boot: entry.boot, collapsed: entry.desktop, sem: entry.sem })),
     after: watch.frames.length,
     console: watch.console,
   });
@@ -4572,6 +4609,7 @@ const SIDEBAR_WATCH_PROBE = `(() => {
  */
 const SIDEBAR_RUNTIME_PROBE = `(() => {
   ${PRESENTED_VARIANT}
+  ${SIDEBAR_SEMANTICS}
   const marker = ${JSON.stringify(SIDEBAR_PREFERENCE_MARKER)};
   const watch = window.__ui1Watch || {};
   const fingerprintOf = (element) => {
@@ -4599,12 +4637,21 @@ const SIDEBAR_RUNTIME_PROBE = `(() => {
       // UI1-A3 — the same field the recorder captured at boot, so "the control the visitor saw from the first
       // painted frame IS the control the runtime presents" is compared, not assumed.
       'ctl=' + presentedControl(element),
+      // UI1-A3-A1 — the same field the recorder captured at boot, so "the control the visitor saw from the
+      // first painted frame IS the control the runtime presents AND claims" is compared, not assumed.
+      'sem=' + semanticProjection(element),
     ].join('  ');
   };
+  const rail = document.querySelector('#shell-sidebar-desktop-rail');
   return JSON.stringify({
     bootMarker: document.documentElement.getAttribute(marker),
     bootFp: watch.bootFp || null,
-    runtimeFp: fingerprintOf(document.querySelector('#shell-sidebar-desktop-rail')),
+    runtimeFp: fingerprintOf(rail),
+    // UI1-A3-A1 — the runtime's own semantic facts, so a row's expectation is derived from the SAME markup
+    // the visitor has rather than from a copy of the expected copy.
+    runtimeFacts: rail ? semanticFacts(rail) : null,
+    runtimeProjection: rail ? semanticProjection(rail) : null,
+    operableControls: rail ? rail.querySelectorAll('.ui-sidebar-toggle').length : null,
   });
 })()`;
 
@@ -4680,6 +4727,54 @@ async function checkSidebarFirstPaint(rows, cdp, label, expectedPainted, { expec
       `transitions=${JSON.stringify(observed.transitions)} writes=${JSON.stringify(observed.writes)}`,
     );
   }
+
+  // ── UI1-A3-A1 — PRESENTATION AND ACCESSIBILITY ARE ONE CONTRACT ───────────────────────────────────
+  // A rail presented OPEN must not announce itself as closed. On every painted frame the control's claims
+  // (`aria-expanded`, its accessible name) must describe the state it presents, the boot reading must be
+  // byte-identical to the hydrated runtime's own, and the presented rail must contain exactly ONE operable
+  // disclosure control — so a repair cannot pass by leaving a second, styled-away control in the DOM.
+  const facts = watch.semantics.map((reading) => {
+    try {
+      return reading ? JSON.parse(reading) : null;
+    } catch {
+      return null;
+    }
+  }).filter((entry) => entry !== null);
+  const disagreements = facts
+    .map((entry) => semanticsDisagreement(entry, expectedPainted))
+    .filter((disagreement) => disagreement !== null);
+  check(
+    rows,
+    `firstPaint.${label}.controlSemanticsMatchPresentedState`,
+    facts.length > 0 && disagreements.length === 0,
+    disagreements.length === 0
+      ? `${observedSemantics(facts)} (${facts.length} frames)`
+      : `${disagreements.length}/${facts.length} frames: ${disagreements[0]}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.neverObservedOppositeSemantics`,
+    facts.length > 0 && facts.every((entry) => semanticsAgree(entry, expectedPainted)),
+    `observed=${observedSemantics(facts)}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.controlSemanticsStableFromFirstFrame`,
+    facts.length > 0 && Boolean(runtime.runtimeProjection) && watch.semanticsProjections[0] === runtime.runtimeProjection,
+    `first=${watch.semanticsProjections[0] ?? "none"} runtime=${runtime.runtimeProjection}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.oneOperableDisclosureControl`,
+    runtime.operableControls === 1,
+    `controls=${runtime.operableControls}`,
+  );
+  check(
+    rows,
+    `firstPaint.${label}.contractDeclaresControlOpenNameHook`,
+    typeof SIDEBAR_OPEN_NAME_ATTRIBUTE === "string" && SIDEBAR_OPEN_NAME_ATTRIBUTE.length > 0,
+    `attribute=${SIDEBAR_OPEN_NAME_ATTRIBUTE}`,
+  );
   return { watch, runtime };
 }
 
@@ -4761,6 +4856,27 @@ async function checkSidebarContinuity(rows, cdp, label, expectedState) {
     `continuity.${label}.commitsNoOppositeState`,
     committedOpposite.length === 0,
     `writes=${JSON.stringify(observed.writes)}`,
+  );
+  // UI1-A3-A1 — AND A FRAME'S CLAIMS NEVER CONTRADICT WHAT THAT FRAME PRESENTS.
+  //
+  // Judged per frame, not per interval: this recorder accumulates every painted frame of the DOCUMENT (the
+  // production proof is the one whose recorder is reset per leg), so a document may legitimately contain CLOSED
+  // frames before the visitor's explicit toggle. What must never happen — in any frame, in either state — is a
+  // control that announces the opposite of what it shows. The interval's own state is what the rows above
+  // assert, through the writes and transitions the visitor's control produced.
+  const watch = await sidebarWatch(cdp);
+  const facts = (watch.semantics ?? []).map((reading) => semanticsOf(reading)).filter((entry) => entry !== null);
+  const selfContradictions = facts
+    .map((entry) => semanticsSelfContradiction(entry))
+    .filter((contradiction) => contradiction !== null);
+  const firstContradiction = facts.findIndex((entry) => semanticsSelfContradiction(entry) !== null);
+  check(
+    rows,
+    `continuity.${label}.controlClaimsAgreeWithPresentedState`,
+    facts.length > 0 && selfContradictions.length === 0,
+    selfContradictions.length === 0
+      ? `${facts.length} frames, each consistent with its own presented state`
+      : `${selfContradictions.length}/${facts.length} frames: ${selfContradictions[0]} — ${(watch.semanticsContext ?? [])[firstContradiction] ?? "n/a"}`,
   );
   check(
     rows,
