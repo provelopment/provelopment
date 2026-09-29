@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { assertReleasePayloadImportsResolve, listTrackedEntries } from "../../scripts/release/release-construction.mjs";
+import { assertReleasePayloadImportsResolve } from "../../scripts/release/release-construction.mjs";
 import {
   RELEASE_CONTENT_POLICY_ID,
   RELEASE_CONTENT_RULES,
@@ -29,9 +29,11 @@ import {
 const ROOT = process.cwd();
 const CLI = path.join(ROOT, "scripts", "release", "index.mjs");
 
-/** Every tracked path at the accepted revision. */
+/** Every tracked path — asked of the index, so this suite also runs in a MATERIALISED release, which has `git init && git add -A` but no commit to name. */
 function trackedPaths(): string[] {
-  return listTrackedEntries(ROOT, "HEAD").map((entry) => entry.path);
+  return execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+    .split("\0")
+    .filter((entry) => entry.length > 0);
 }
 
 /** Run the release CLI exactly as an operator or CI would. */
@@ -124,10 +126,13 @@ describe("the released generic suite never imports an excluded module", () => {
     ).toBeGreaterThan(100);
   });
 
-  it("keeps the CI router and its tests on the SAME side of the boundary", () => {
+  it("keeps the repository-infrastructure tests with their subject", () => {
     expect(classifyReleasePath("scripts/ci/change-scope.mjs").inclusion).toBe("excluded");
     expect(classifyReleasePath("tests/unit/change-scope.test.ts").inclusion).toBe("excluded");
     expect(classifyReleasePath("tests/architecture/ci-routing-contract.test.ts").inclusion).toBe("excluded");
+    // The writer inventory names the excluded router and the capsule's own test tree, so a release
+    // cannot make it match (a clean room proved it) — it stays with the repository it describes.
+    expect(classifyReleasePath("tests/architecture/write-ownership-guard.test.ts").inclusion).toBe("excluded");
   });
 });
 

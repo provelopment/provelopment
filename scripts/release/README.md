@@ -26,11 +26,16 @@ Consequences that follow from that sentence:
 
 - **The release never contains another site.** `deployment/**` — the reference deployment's
   configuration, dictionaries, pages, artwork, acceptance suite and baseline record — is excluded, as
-  is this repository's own CI (`.github/**`, `scripts/ci/**`, and the router's own test, which exists
-  only to protect that excluded subject) and every generated path (`public/**`, `.next/**`,
-  `node_modules/**`). A deployment adopting a release brings **its own** deployment state.
-  A released file never imports an excluded module: `tests/architecture/release-content-boundary.test.ts`
-  proves it over the whole tracked tree.
+  is this repository's own CI and the tests whose subject IS that CI (`.github/**`, `scripts/ci/**`,
+  the router's unit and architecture contracts, and the writer-inventory guard that names it) and
+  every generated path (`public/**`, `.next/**`, `node_modules/**`). A deployment adopting a release
+  brings **its own** deployment state and its own CI.
+  A released file never imports an excluded module: `scripts/release/release-construction.mjs` refuses
+  such a release at construction, and `tests/architecture/release-content-boundary.test.ts` runs that
+  same check over the whole tracked tree.
+- **A materialised release must be able to prove ITSELF.** Its own architecture guards use
+  `git ls-files`, so a consumer runs `git init && git add -A` and the suite works with no commit to
+  name and no history to copy.
 - **The reference deployment stays a bounded compatibility canary.** It is an *input* to canary
   validation, never part of construction, and its files never enter the payload or the digest.
 - **A release is cut from a commit, never from a working tree.** See "Determinism" below.

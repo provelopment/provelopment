@@ -120,6 +120,13 @@ export const RELEASE_CONTENT_RULES = Object.freeze([
     reason: "the router's architecture contract, for the same reason: its subject is this repository's CI routing, which a consumer replaces with its own",
   },
   {
+    id: "exclude-writer-inventory-guard",
+    kind: "exact",
+    match: "tests/architecture/write-ownership-guard.test.ts",
+    inclusion: RELEASE_INCLUSION.EXCLUDED,
+    reason: "it inventories THIS repository's executable writers — including the excluded CI router and the reference capsule's own test tree — so its subject is repository infrastructure rather than the platform a consumer installs (a clean room found it: the inventory cannot match where the router is absent)",
+  },
+  {
     id: "exclude-generated-public",
     kind: "prefix",
     match: "public/",
