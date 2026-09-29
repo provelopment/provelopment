@@ -202,20 +202,46 @@ function sameColor(actual, expectedRgb) {
 }
 
 /**
+ * UI1-A3 — THE DISCLOSURE CONTROL'S PRESENTED VARIANT.
+ *
+ * The show/hide control declares BOTH states' artwork and label (`-open` first, then `-closed`) and the
+ * stylesheet presents exactly one of them through the rail's own `[data-collapsed]` state (globals.css), so a
+ * reader that takes the FIRST match measures the HIDDEN variant whenever the rail is collapsed — a 0x0 box for
+ * the geometry rows, and the other state's copy for the naming rows. This is the rule the P6-3C page-icon pair
+ * already follows ("measure whichever icon element is actually rendered"): every reader below asks for the
+ * variant whose computed `display` is not `none` and whose box is real, and never assumes how many variants
+ * the markup contains — a document with a single React-chosen variant answers identically.
+ */
+const PRESENTED_VARIANT = `const presented = (root, selector) => [...root.querySelectorAll(selector)]
+  .find((el) => getComputedStyle(el).display !== 'none' && el.getBoundingClientRect().width > 0) || null;
+const presentedIcon = (root) => presented(root, '.ui-sidebar-toggle-icon');
+const presentedLabel = (root) => presented(root, '.ui-sidebar-toggle-label');
+/** What the disclosure control PRESENTS — the fingerprint field that makes a boot/runtime mismatch visible. */
+const presentedControl = (rail) => {
+  const icon = rail ? presentedIcon(rail) : null;
+  const label = rail ? presentedLabel(rail) : null;
+  return 'icon=' + (icon ? (icon.getAttribute('src') || '').replace('/assets/', '') : 'none') +
+    '|label=' + (label ? (label.textContent || '').trim() : 'none') +
+    '|variants=' + (rail ? rail.querySelectorAll('.ui-sidebar-toggle-icon').length : 0) + 'icon/' +
+    (rail ? rail.querySelectorAll('.ui-sidebar-toggle-label').length : 0) + 'label';
+};`;
+
+/**
  * Probes everything the closure pass must hold in the canonical presentation: the
  * theme colour
  * consumers, the sidebar CONTROL size/alignment, the shell CTA inset and the
  * logo roles. Returns a JSON string (CDP `returnByValue`).
  */
 const THEME_PROBE = `(() => {
+  ${PRESENTED_VARIANT}
   const r2 = (v) => Math.round(v * 100) / 100;
   const box = (el) => { if (!el) return null; const r = el.getBoundingClientRect(); return { l: r2(r.left), r: r2(r.right), t: r2(r.top), w: r2(r.width), h: r2(r.height), cx: r2(r.left + r.width / 2) }; };
   const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')]
     .find((el) => el && el.getBoundingClientRect().width > 0) || null;
   const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
-  const tIcon = rail ? rail.querySelector('.ui-sidebar-toggle-icon') : null;
-  // The VISIBLE page icon: the state-paired open/closed pair swaps on collapse,
-  // so the hidden variant must not be the one measured.
+  // The CONTROL's artwork (UI1-A3) and the rail's page icon (P6-3C) are both state pairs: read the variant
+  // that is actually rendered, never the first match.
+  const tIcon = rail ? presentedIcon(rail) : null;
   const navIcon = rail
     ? [...rail.querySelectorAll('.ui-nav-item-icon')].find((el) => el.getBoundingClientRect().width > 0) || null
     : null;
@@ -581,16 +607,20 @@ async function runFocusVisibleRing(rows, cdp, label) {
  */
 async function probeAside(cdp, { railSel, panelSel, controlsId }) {
   return cdp.evaluate(`(() => {
+    ${PRESENTED_VARIANT}
     const rail = document.querySelector(${JSON.stringify(railSel)});
     const shell = document.querySelector('.ui-shell-sidebar');
     const panel = document.querySelector(${JSON.stringify(panelSel)});
     const toggle = rail ? rail.querySelector(${JSON.stringify(`[aria-controls="${controlsId}"]`)}) : null;
+    // UI1-A3 — the control declares BOTH states' artwork and label, so every field below reads the variant
+    // this state PRESENTS: the button's own whole-text content would also hold the hidden state's copy.
+    const toggleIcon = toggle ? presentedIcon(toggle) : null;
+    const toggleLabel = toggle ? presentedLabel(toggle) : null;
     const pr = panel ? panel.getBoundingClientRect() : null;
     const tr = toggle ? toggle.getBoundingClientRect() : null;
     const sr = shell ? shell.getBoundingClientRect() : null;
     const firstItem = rail ? rail.querySelector('ul li') : null;
     const fir = firstItem ? firstItem.getBoundingClientRect() : null;
-    const toggleIcon = toggle ? toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon') : null;
     return {
       hasRail: !!rail,
       panelVisible: !!pr && pr.width > 0 && pr.height > 0,
@@ -603,9 +633,10 @@ async function probeAside(cdp, { railSel, panelSel, controlsId }) {
       // P6-1 — the disclosure is a real interactive control with a visible,
       // LOADED icon and the state-correct Show/Hide navigation label.
       toggleTag: toggle ? toggle.tagName : null,
-      toggleText: toggle ? toggle.textContent.trim() : null,
       toggleIcon: !!toggleIcon,
       toggleIconLoaded: !!toggleIcon && toggleIcon.complete && toggleIcon.naturalWidth > 0,
+      // P6-1 — the state-correct Show/Hide navigation copy the control PRESENTS (never the hidden variant).
+      toggleText: toggleLabel ? toggleLabel.textContent.trim() : null,
       // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
       railLeft: sr ? Math.round(sr.left) : null,
       toggleLeft: tr ? Math.round(tr.left) : null,
@@ -729,6 +760,7 @@ const s = await cdp.evaluate(`(() => ({
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const collapsed = await cdp.evaluate(`(() => {
+        ${PRESENTED_VARIANT}
         const rail = document.querySelector("#shell-sidebar-desktop-rail");
         const panel = document.querySelector("#shell-sidebar-desktop-panel");
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
@@ -745,8 +777,9 @@ const s = await cdp.evaluate(`(() => ({
           dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null,
           togglePresent: !!toggle,
           toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null,
-          toggleText: toggle ? toggle.textContent.trim() : null,
-          toggleIcon: !!toggle && !!toggle.querySelector('.ui-sidebar-toggle-icon, .ui-mobile-nav-icon'),
+          // UI1-A3 — the PRESENTED label (the state pair's hidden copy never joins the reading).
+          toggleText: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
+          toggleIcon: !!toggle && !!presentedIcon(toggle),
           // P6-3A — nav stays reachable when collapsed; P6-3C — the CTA is NOT
           // part of the rail (it lives in the top region), so its presence here
           // must be false and its reachability is asserted separately.
@@ -766,6 +799,7 @@ const s = await cdp.evaluate(`(() => ({
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const restored = await cdp.evaluate(`(() => {
+        ${PRESENTED_VARIANT}
         const rail = document.querySelector("#shell-sidebar-desktop-rail");
         const panel = document.querySelector("#shell-sidebar-desktop-panel");
         const toggle = document.querySelector("#shell-sidebar-desktop-rail [aria-controls='shell-sidebar-desktop-panel']");
@@ -775,7 +809,7 @@ const s = await cdp.evaluate(`(() => ({
         const cta = panel ? panel.querySelector('.nav-item-cta') : null;
         const topCta = document.querySelector('.ui-shell-header-row .ui-shell-cta');
         const tr2 = topCta ? topCta.getBoundingClientRect() : null;
-        return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: toggle ? toggle.textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0, ctaInTop: !!tr2 && tr2.width > 0 };
+        return { railWidth: rr ? Math.round(rr.width) : null, dataCollapsed: rail ? rail.getAttribute('data-collapsed') : null, panelVisible: !!pr && pr.width > 0, toggleExpanded: toggle ? toggle.getAttribute('aria-expanded') : null, toggleText: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null, linkReachable: !!link && link.getBoundingClientRect().width > 0, ctaReachable: !!cta && cta.getBoundingClientRect().width > 0, ctaInTop: !!tr2 && tr2.width > 0 };
       })()`);
       check(rows, `${vpName}.aside.expand.restores`, restored.panelVisible && restored.railWidth != null && expandedRailWidth != null && restored.railWidth >= expandedRailWidth - 2, `restored=${restored.railWidth} expanded=${expandedRailWidth}`);
       check(rows, `${vpName}.aside.expand.expandedTrue`, restored.toggleExpanded === "true" && restored.dataCollapsed === "false");
@@ -814,6 +848,7 @@ const s = await cdp.evaluate(`(() => ({
         await sleep(250);
       }
       const sp = await cdp.evaluate(`(() => {
+        ${PRESENTED_VARIANT}
         const rail = document.querySelector('#shell-sidebar-desktop-rail');
         const shell = document.querySelector('.ui-shell-sidebar');
         const toggle = rail ? rail.querySelector("[aria-controls='shell-sidebar-desktop-panel']") : null;
@@ -826,7 +861,8 @@ const s = await cdp.evaluate(`(() => ({
           railLeft: rr ? Math.round(rr.left) : null,
           toggleLeft: tr ? Math.round(tr.left) : null,
           itemLeft: ir ? Math.round(ir.left) : null,
-          text: toggle ? toggle.textContent.trim() : null,
+          // UI1-A3 — the state-correct copy this expanded rail PRESENTS.
+          text: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
           onePerRow: tops.length > 0 && new Set(tops).size === tops.length,
           noBroken: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
         };
@@ -1823,10 +1859,12 @@ async function runP6bSidebarChecks(rows, tag, cdp) {
   await cdp.navigate(`${BASE_URL}/ww/en`);
   await waitReady(cdp);
   const exp = await cdp.evaluate(`(() => {
+    ${PRESENTED_VARIANT}
     const rail = document.querySelector('#shell-sidebar-desktop-rail');
     const main = document.querySelector('#main');
     if (!rail) return null;
-    const toggle = rail.querySelector('.ui-sidebar-toggle-icon');
+    // UI1-A3 — the CONTROL's artwork is a state pair: measure the variant this rail presents.
+    const toggle = presentedIcon(rail);
     const tr = toggle ? toggle.getBoundingClientRect() : null;
     const rr = rail.getBoundingClientRect();
     const mr = main ? main.getBoundingClientRect() : null;
@@ -2159,6 +2197,7 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
   await cdp.clickCenter('#shell-sidebar-desktop-rail [aria-controls="shell-sidebar-desktop-panel"]');
   await sleep(350);
   const col = await cdp.evaluate(`(() => {
+    ${PRESENTED_VARIANT}
     const rail = document.querySelector('#shell-sidebar-desktop-rail');
     if (!rail) return null;
     const vis = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 2 && r.height > 2 && getComputedStyle(el).display !== 'none'; };
@@ -2167,12 +2206,13 @@ async function runP6bCollapsedChecks(rows, tag, cdp) {
     const ir = visibleIcon && getComputedStyle(visibleIcon).display !== 'none' ? visibleIcon.getBoundingClientRect() : null;
     // P6-3C — the collapsed WIDTH derives from the CONTROL (toggle) icon; the
     // navigation-item icons inside it are sized independently (32/16px).
-    const toggleIcon = rail.querySelector('.ui-sidebar-toggle-icon');
-    const tir = toggleIcon && getComputedStyle(toggleIcon).display !== 'none' ? toggleIcon.getBoundingClientRect() : null;
+    // UI1-A3 — the control's artwork is a state pair: measure the variant this collapsed rail PRESENTS
+    // (the '-closed' one), never the first match, which is the hidden '-open' variant.
+    const toggleIcon = presentedIcon(rail);
+    const tir = toggleIcon ? toggleIcon.getBoundingClientRect() : null;
     const railRect = rail.getBoundingClientRect();
     const r2 = (v) => Math.round(v * 100) / 100;
-    const toggleIconVisible = rail.querySelector('.ui-sidebar-toggle-icon');
-    const toggleRect = toggleIconVisible ? toggleIconVisible.getBoundingClientRect() : null;
+    const toggleRect = tir;
     return {
       dataCollapsed: rail.getAttribute('data-collapsed'),
       railWidth: Math.round(railRect.width),
@@ -2238,6 +2278,7 @@ async function runP6bTabletSweep(rows, tag, cdp) {
     await cdp.reload();
     await waitReady(cdp);
     const s = await cdp.evaluate(`(() => {
+      ${PRESENTED_VARIANT}
       const rect = (el) => { if (!el) return null; const b = el.getBoundingClientRect(); return b.width > 0 && b.height > 0 ? { left: Math.round(b.left), right: Math.round(b.right), width: Math.round(b.width) } : null; };
       const rail = rect(document.querySelector('#shell-sidebar-desktop-rail')) || rect(document.querySelector('#shell-sidebar-tablet-rail'));
       // P6-3C — measure the rail band that is actually VISIBLE at this width:
@@ -2245,7 +2286,10 @@ async function runP6bTabletSweep(rows, tag, cdp) {
       // (so a naive first-match query would measure a hidden 0×0 element).
       const railEl = [document.querySelector('#shell-sidebar-desktop-rail'), document.querySelector('#shell-sidebar-tablet-rail')]
         .find((el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }) || null;
-      const t = railEl ? railEl.querySelector('.ui-sidebar-toggle-icon') : null;
+      // UI1-A3 — the control's artwork is a state pair (the tablet band's rail is COLLAPSED by default), so the
+      // presented variant is the one to measure — a first-match query would find the hidden '-open' icon and
+      // silently skip the 24px row below.
+      const t = railEl ? presentedIcon(railEl) : null;
       const tr = t ? t.getBoundingClientRect() : null;
       const tVisible = !!tr && tr.width > 2 && tr.height > 2;
       // The sidebar is COLLAPSED by default in the tablet band, so the visible
@@ -4396,6 +4440,7 @@ const SIDEBAR_PREFERENCE_MARKER = (() => {
 
 /** The rail the visitor is actually looking at, and the state it presents (one band is displayed). */
 const SIDEBAR_STATE_PROBE = `(() => {
+  ${PRESENTED_VARIANT}
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   const rails = [
     { band: 'desktop', el: document.querySelector('#shell-sidebar-desktop-rail') },
@@ -4404,7 +4449,10 @@ const SIDEBAR_STATE_PROBE = `(() => {
   const current = rails.find((rail) => shown(rail.el)) || null;
   const rail = current ? current.el : null;
   const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
-  const label = toggle ? toggle.querySelector('span') : null;
+  // UI1-A3 — the label this control PRESENTS (its own state's), never the state pair's first element: the rows
+  // below read this field as "what the control says right now". The collapsed state's label is sr-only (kept
+  // as the control's name), so it counts as presented — 'presented' asks for a real box, not for visibility.
+  const label = toggle ? presentedLabel(toggle) : null;
   const bottomBar = document.querySelector('.ui-shell-bottom-bar');
   return JSON.stringify({
     path: location.pathname,
@@ -4435,6 +4483,7 @@ const SIDEBAR_STATE_PROBE = `(() => {
  * measured rather than asserted.
  */
 const SIDEBAR_WATCH = `(() => {
+  ${PRESENTED_VARIANT}
   const watch = { frames: [], console: [], bootFp: null };
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
   for (const level of ['error', 'warn']) {
@@ -4467,6 +4516,10 @@ const SIDEBAR_WATCH = `(() => {
       'link=' + (linkCs ? linkCs.display + '|' + linkCs.justifyContent : 'n/a'),
       'listPad=' + (listCs ? listCs.paddingInlineStart : 'n/a'),
       'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+      // UI1-A3 — the disclosure CONTROL's own presented content (artwork + label). Without this field a
+      // document that painted the canonical state's control and swapped it at hydration produced an identical
+      // fingerprint, which is exactly how the owner-observed content flicker passed this gate.
+      'ctl=' + presentedControl(rail),
     ].join('  ');
   };
   const sample = () => {
@@ -4518,6 +4571,7 @@ const SIDEBAR_WATCH_PROBE = `(() => {
  * bridge was relinquished" observations rather than claims.
  */
 const SIDEBAR_RUNTIME_PROBE = `(() => {
+  ${PRESENTED_VARIANT}
   const marker = ${JSON.stringify(SIDEBAR_PREFERENCE_MARKER)};
   const watch = window.__ui1Watch || {};
   const fingerprintOf = (element) => {
@@ -4542,6 +4596,9 @@ const SIDEBAR_RUNTIME_PROBE = `(() => {
       'link=' + (linkCs ? linkCs.display + '|' + linkCs.justifyContent : 'n/a'),
       'listPad=' + (listCs ? listCs.paddingInlineStart : 'n/a'),
       'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+      // UI1-A3 — the same field the recorder captured at boot, so "the control the visitor saw from the first
+      // painted frame IS the control the runtime presents" is compared, not assumed.
+      'ctl=' + presentedControl(element),
     ].join('  ');
   };
   return JSON.stringify({

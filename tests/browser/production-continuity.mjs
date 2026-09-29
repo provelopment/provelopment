@@ -70,11 +70,49 @@ const NARROW_MAX = 64;
  * and the document's boot marker, because the defect this file exists for now includes a FIRST-PAINT defect
  * that no attribute channel can see.
  */
+/**
+ * UI1-A3 — THE DISCLOSURE CONTROL'S PRESENTED CONTENT, as ONE source string shared by the boot recorder and
+ * the runtime reader (they must agree byte-for-byte, so the reader exists once).
+ *
+ * The rail's own geometry being OPEN was never the whole contract: the control at the top of the rail ALSO
+ * presents state — an artwork and a label. UI1-A2's fingerprint ignored both, which is exactly why a
+ * stored-OPEN reload could paint the CLOSED-state control and swap it at hydration while every A2 row stayed
+ * green. What is read here is what the control PRESENTS (the variant whose computed `display` is not `none`),
+ * identified by its stable state-pair hook class and by the asset it actually paints — never by screen
+ * coordinates, and never by assuming how many variants the markup contains.
+ */
+const CONTROL_READER = `const control = (rail) => {
+  const toggle = rail.querySelector('.ui-sidebar-toggle');
+  if (!toggle) return 'none';
+  const icons = [...toggle.querySelectorAll('.ui-sidebar-toggle-icon')];
+  // The label hook marks the state PAIR; markup without it (a single, React-chosen label) is read as the one
+  // label the control declares, so the reading answers in both worlds.
+  const labels = (() => {
+    const paired = [...toggle.querySelectorAll('.ui-sidebar-toggle-label')];
+    return paired.length > 0 ? paired : [...toggle.querySelectorAll('span')];
+  })();
+  const presentedIcon = icons.find((el) => getComputedStyle(el).display !== 'none') || null;
+  const presentedLabel = labels.find((el) => getComputedStyle(el).display !== 'none') || null;
+  const displayed = (els) => els.filter((el) => getComputedStyle(el).display !== 'none').length;
+  const variantOf = (el) => !el ? 'none'
+    : el.classList.contains('ui-sidebar-toggle-icon-open') || el.classList.contains('ui-sidebar-toggle-label-open') ? 'open'
+    : el.classList.contains('ui-sidebar-toggle-icon-closed') || el.classList.contains('ui-sidebar-toggle-label-closed') ? 'closed'
+    : 'unpaired';
+  const assetOf = (el) => el ? (el.getAttribute('src') || '').replace('/assets/', '') : 'none';
+  return [
+    'icon=' + assetOf(presentedIcon) + '@' + variantOf(presentedIcon),
+    'label=' + (presentedLabel ? '"' + (presentedLabel.textContent || '').trim() + '"' : 'none') + '@' + variantOf(presentedLabel),
+    'variants=' + icons.length + 'icon/' + labels.length + 'label',
+    'presented=' + displayed(icons) + 'icon/' + displayed(labels) + 'label',
+  ].join(' ');
+};`;
+
 const RECORDER = `(() => {
   const record = { writes: [], transitions: [], console: [], frames: [], bootFp: null };
   window.__ui1a1 = record;
   const isRail = (el) => !!el && el.nodeType === 1 && typeof el.id === 'string' && el.id.indexOf('shell-sidebar') === 0;
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
+  ${CONTROL_READER}
   const fingerprint = (rail) => {
     if (!rail) return null;
     const cs = (el) => (el ? getComputedStyle(el) : null);
@@ -92,6 +130,7 @@ const RECORDER = `(() => {
       'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
       'listPad=' + cs(rail.querySelector('ul')).paddingInlineStart,
       'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+      'control=' + control(rail),
     ].join('  ');
   };
   const sample = () => {
@@ -104,6 +143,8 @@ const RECORDER = `(() => {
         w: desktop ? Math.round(desktop.getBoundingClientRect().width) : null,
         attr: desktop ? desktop.getAttribute('data-collapsed') : null,
         boot: document.documentElement.getAttribute(${JSON.stringify(BOOT_MARKER)}),
+        // UI1-A3 — what the disclosure CONTROL presents in this very frame.
+        ctl: rail ? control(rail) : null,
       });
     }
     requestAnimationFrame(sample);
@@ -145,6 +186,7 @@ const STATE = `(() => {
 
 const RUNTIME_FINGERPRINT = `(() => {
   const cs = (el) => (el ? getComputedStyle(el) : null);
+  ${CONTROL_READER}
   const rail = document.querySelector('#shell-sidebar-desktop-rail');
   if (!rail) return null;
   const toggle = rail.querySelector('.ui-sidebar-toggle');
@@ -161,8 +203,28 @@ const RUNTIME_FINGERPRINT = `(() => {
     'label=' + (labelCs ? labelCs.position + '|' + labelCs.clipPath + '|' + Math.round(label.getBoundingClientRect().width) : 'n/a'),
     'listPad=' + cs(rail.querySelector('ul')).paddingInlineStart,
     'icons=' + (cs(iconOpen) ? cs(iconOpen).display : 'n/a') + '/' + (cs(iconClosed) ? cs(iconClosed).display : 'n/a'),
+    'control=' + control(rail),
   ].join('  ');
 })()`;
+
+/** The control's PRESENTED content as the runtime has it — the reference every boot frame is compared against. */
+const RUNTIME_CONTROL = `(() => {
+  ${CONTROL_READER}
+  const rail = document.querySelector('#shell-sidebar-desktop-rail');
+  return rail ? control(rail) : null;
+})()`;
+
+/** The state variant a `control` reading says is PRESENTED (`open` | `closed` | `unpaired` | `none`). */
+function presentedIconVariant(reading) {
+  const match = /icon=[^@]*@([a-z]+)/.exec(reading ?? "");
+  return match ? match[1] : "none";
+}
+
+/** How many variants the same reading says are on screen at once. */
+function presentedCounts(reading) {
+  const match = /presented=(\d+)icon\/(\d+)label/.exec(reading ?? "");
+  return match ? { icons: Number(match[1]), labels: Number(match[2]) } : null;
+}
 
 async function waitReady(cdp, path = null) {
   const end = Date.now() + READINESS_TIMEOUT_MS;
@@ -221,6 +283,36 @@ async function firstPaintRows(cdp, label, expected) {
     runtime.collapsed === (expected === "open" ? "false" : "true"),
     JSON.stringify(runtime),
   );
+
+  // ── UI1-A3 — THE DISCLOSURE CONTROL IS PART OF THE STATE, NOT A DECORATION ─────────────────────────
+  // The owner observed a stored-OPEN reload whose RAIL was continuously open (A2 succeeded) while the
+  // control at the top of that rail still flipped its artwork and its label: the canonical CLOSED-state
+  // control was painted first and swapped when React adopted the stored preference. These three rows are
+  // that defect, measured: what the control PRESENTS must be the state's variant from the first painted
+  // frame, it must be the same content the hydrated runtime presents, and exactly one variant may be on
+  // screen at a time (never both, never the wrong one).
+  const runtimeControl = await cdp.evaluate(RUNTIME_CONTROL);
+  const controlFrames = painted.map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  const expectedVariant = expected === "open" ? "open" : "closed";
+  const variants = controlFrames.map(presentedIconVariant);
+  check(
+    `production.firstPaint.${label}.controlPresentsTheStateVariant`,
+    controlFrames.length > 0 && variants.every((variant) => variant === expectedVariant),
+    `firstPresented=${variants[0] ?? "none"} variants=${JSON.stringify([...new Set(variants)])}`,
+  );
+  check(
+    `production.firstPaint.${label}.controlContentStableFromFirstFrame`,
+    controlFrames.length > 0 && controlFrames.every((reading) => reading === runtimeControl),
+    `first=${controlFrames[0] ?? "none"} runtime=${runtimeControl}`,
+  );
+  const ambiguous = controlFrames
+    .map((reading) => ({ reading, counts: presentedCounts(reading) }))
+    .filter((entry) => !entry.counts || entry.counts.icons !== 1 || entry.counts.labels > 1);
+  check(
+    `production.firstPaint.${label}.controlPresentsExactlyOneVariantPerFrame`,
+    controlFrames.length > 0 && ambiguous.length === 0,
+    ambiguous.length === 0 ? `${controlFrames[0]} (${controlFrames.length} frames)` : JSON.stringify(ambiguous.slice(0, 3)),
+  );
   return recorded;
 }
 
@@ -256,6 +348,12 @@ async function waitForServer(url, timeoutMs = 300000) {
   return false;
 }
 
+/** The control reading of the LAST frame the recorder kept (what the observer last saw the control present). */
+function lastControlReading(observed) {
+  const readings = (observed.frames ?? []).map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  return readings.length > 0 ? readings[readings.length - 1] : null;
+}
+
 /**
  * One production-mode navigation, judged by the same invariant as the matrix rows: the rail may be
  * replaced, but it may not commit the opposite state and may not start a width transition.
@@ -277,6 +375,15 @@ async function continuityLeg(cdp, { label, selector, path, expected, expectedSta
     `production.${label}.startsNoWidthTransition`,
     observed.transitions.length === 0,
     `transitions=${JSON.stringify(observed.transitions)}`,
+  );
+  // UI1-A3 — and the control's PRESENTED content never flips to the other state's variant on the way.
+  const expectedVariant = expectedState === "false" ? "open" : "closed";
+  const controlFrames = observed.frames.map((frame) => frame.ctl).filter((reading) => typeof reading === "string");
+  const variants = controlFrames.map(presentedIconVariant);
+  check(
+    `production.${label}.controlPresentsTheStateVariant`,
+    controlFrames.length > 0 && variants.every((variant) => variant === expectedVariant),
+    `variants=${JSON.stringify([...new Set(variants)])} frames=${controlFrames.length}`,
   );
   return observed;
 }
@@ -334,6 +441,13 @@ async function runProductionContinuity() {
       opened.collapsed === "false" && opened.stored === "open" && toggleRecorder.transitions.length > 0,
       `state=${JSON.stringify(opened)} transitions=${JSON.stringify(toggleRecorder.transitions)}`,
     );
+    // UI1-A3 — an explicit toggle is the ONE moment the control's content is ENTITLED to change: it must end
+    // on the OPEN state's variant (and the row above keeps that change an animation, never a jump).
+    check(
+      "production.explicitToggle.openedControlPresentsTheOpenVariant",
+      presentedIconVariant(lastControlReading(toggleRecorder)) === "open",
+      `control=${lastControlReading(toggleRecorder)}`,
+    );
 
     // ── the owner's defect, judged on production-mode output ──────────────────────────────────────
     // UI1-A2 — FIRST, the whole-document case the owner reported: an actual reload with the preference stored
@@ -347,8 +461,15 @@ async function runProductionContinuity() {
     await continuityLeg(cdp, { label: "open.aboutToHome", selector: "#shell-sidebar-desktop-rail ul li:first-child a", path: HOME, expected: "false", expectedState: "false" });
 
     // ── the reciprocal proof for the state that already looked smooth ─────────────────────────────
+    await resetRecorder(cdp);
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
     await sleep(250);
+    const closedToggle = await readRecorder(cdp);
+    check(
+      "production.explicitToggle.closedControlPresentsTheClosedVariant",
+      presentedIconVariant(lastControlReading(closedToggle)) === "closed",
+      `control=${lastControlReading(closedToggle)}`,
+    );
     await continuityLeg(cdp, { label: "closed.homeToAbout", selector: '#shell-sidebar-desktop-rail a[href$="/about"]', path: ABOUT, expected: "true", expectedState: "true" });
 
     // ── the reciprocal whole-document case: a stored CLOSED preference, on an actual reload ───────

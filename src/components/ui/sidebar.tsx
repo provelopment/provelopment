@@ -40,6 +40,43 @@ function stateOf(preference: SidebarPreference): DisclosureState {
   return preference === "closed" ? DISCLOSURE_CLOSED : DISCLOSURE_OPEN;
 }
 
+/** One state's control content as the markup declares it (see `controlContent`). */
+interface ControlContent {
+  readonly icon: string | undefined;
+  readonly text: string;
+  readonly labelled: string | undefined;
+}
+
+/**
+ * UI1-A3 — ONE STATE'S CONTROL CONTENT (the P5-5/P6-1 empty-string semantics, applied PER STATE).
+ *
+ * The two "no text" states are NOT the same thing, and conflating them is a bug:
+ *
+ *   · `text: ""` WITH an icon → ICON-ONLY by contract: no visible text is painted (the accessible name comes
+ *     from `aria-label`), which is what a collapsed rail and an adopter who deliberately removed the label
+ *     rely on;
+ *   · `text: ""` with NO icon (both leaves empty) → P0-1 wins and the localized label is painted, so the
+ *     toggle can never be an empty, unnamed box;
+ *   · `text` ABSENT → the localized fallback label is used.
+ *
+ * `labelled` is the name an icon-only control needs, and is `undefined` exactly when the painted text (or the
+ * adopter's own explicit visible text) already carries the name — so the button's `aria-label` never
+ * duplicates content that is on screen.
+ */
+function controlContent(
+  leaf: { readonly icon?: string; readonly text?: string } | undefined,
+  fallbackLabel: string,
+): ControlContent {
+  const icon = leaf?.icon === undefined || leaf.icon === "" ? undefined : leaf.icon;
+  const explicitText = leaf?.text !== undefined && leaf.text !== "" ? leaf.text : "";
+  const iconOnly = leaf?.text === "" && icon !== undefined;
+  return {
+    icon,
+    text: explicitText !== "" ? explicitText : iconOnly ? "" : fallbackLabel,
+    labelled: explicitText === "" && icon !== undefined ? fallbackLabel : undefined,
+  };
+}
+
 /**
  * THE STATE THE FIRST RENDER USES (UI1-A1).
  *
@@ -102,6 +139,11 @@ function initialDisclosureState(collapsible: boolean, collapsed: boolean): Discl
  *    the localized label; `text: ""` → icon-only (decorative icon, accessible
  *    name via `aria-label`); `icon: ""` → text-only (no `<img>`); BOTH `""` →
  *    P0-1 still wins: the toggle stays reachable with the localized label.
+ *  - UI1-A3 — BOTH states' control content (artwork + label) is DECLARED in the markup as a state pair and
+ *    the stylesheet presents exactly one of them, so the visitor's stored OPEN state is presented before the
+ *    first paint instead of flipping at hydration. This is the same "declare both variants, select by rail
+ *    state" shape the P6-3B page icons use, and the visible result is unchanged: exactly one icon and one
+ *    label are ever on screen, in both states.
  *  - The toggle is a REAL interactive control (shared `.ui-sidebar-toggle`
  *    renderer styling: border, surface, hover/focus-visible/active affordance,
  *    pointer cursor) so it never reads as ordinary static heading text.
@@ -232,25 +274,23 @@ export function Sidebar({
     if (collapsible) storeSidebarPreference(preferenceOf(next));
   }
 
-  // P6-1 — the active control follows the STATE: closed → the "show" (open)
-  // control; open → the "hide" (close) control. Exactly the mobile contract.
-  const active = isCollapsed ? (open ?? {}) : (close ?? {});
-  // P0-1 — never-dead-end fallback: with BOTH leaves empty the toggle stays
-  // reachable using the localized label (never invisible, never an empty box).
-  const fallbackLabel =
-    isCollapsed ? showLabel ?? DEFAULT_SHOW_LABEL : hideLabel ?? DEFAULT_HIDE_LABEL;
-  // P5-5/P6-1 empty-string semantics — the two "no text" states are NOT the
-  // same thing, and conflating them is a bug:
-  //  - `text: ""` WITH an icon → ICON-ONLY by contract: no visible text is
-  //    painted (the accessible name comes from `aria-label`), which is what a
-  //    collapsed rail and an adopter who deliberately removed the label rely on;
-  //  - `text: ""` with NO icon (both leaves empty) → P0-1 wins and the localized
-  //    label is painted, so the toggle can never be an empty, unnamed box;
-  //  - `text` ABSENT → the localized `fallbackLabel` is used.
-  const icon = active.icon === undefined || active.icon === "" ? undefined : active.icon;
-  const iconOnly = active.text === "" && icon !== undefined;
-  const visibleText = active.text !== undefined && active.text !== "" ? active.text : "";
-  const toggleText = visibleText !== "" ? visibleText : iconOnly ? "" : fallbackLabel;
+  // P6-1 — the control follows the STATE: closed → the "show" (open) control; open → the "hide" (close)
+  // control. Exactly the mobile contract.
+  //
+  // UI1-A3 — WHY BOTH STATES ARE RESOLVED HERE. The visitor's preference is browser-local, so a statically
+  // generated document necessarily arrives as the canonical CLOSED rail; the pre-paint bridge
+  // (`./sidebar-preference-boot`) presents that document as the visitor's OPEN one, and a stylesheet can
+  // select between two declared variants but can never INVENT one. The control's artwork and label are
+  // therefore declared for BOTH states, resolved by this ONE rule (never two spellings of the vocabulary —
+  // that is why `controlContent` exists), and the stylesheet presents exactly one of them through the SAME
+  // `[data-collapsed]` seam, guarded by the SAME boot marker, that already presents the rail's geometry, its
+  // label inset and the P6-3B page-icon pair. React still owns the state and still commits
+  // `data-collapsed`; the variant on screen follows it, immediately and with no transition of its own.
+  const collapsedContent = controlContent(open, showLabel ?? DEFAULT_SHOW_LABEL);
+  const expandedContent = controlContent(close, hideLabel ?? DEFAULT_HIDE_LABEL);
+  // The ACTIVE state's facts the RUNTIME owns: the accessible name of a deliberately icon-only control, and
+  // the button's own ARIA attributes (which no statically generated document can know either).
+  const active = isCollapsed ? collapsedContent : expandedContent;
 
   return (
     <nav
@@ -281,11 +321,26 @@ export function Sidebar({
             aria-controls={`${id}-panel`}
             // Icon-only controls (visible text "" with an icon) keep the
             // accessible name from the localized label; decorative icon.
-            aria-label={visibleText === "" && icon !== undefined ? fallbackLabel : undefined}
+            aria-label={active.labelled}
             className="ui-sidebar-toggle"
           >
-            <DisclosureIcon asset={icon} className="ui-sidebar-toggle-icon" />
-            {toggleText !== "" ? <span>{toggleText}</span> : null}
+            {/* UI1-A3 — THE CONTROL'S CONTENT IS A STATE PAIR. Both states' artwork and label are declared
+                here and the stylesheet presents exactly ONE of them (globals.css), so a document whose
+                visitor stored the OPEN preference shows the OPEN control from its first painted frame —
+                before React exists — instead of flipping its icon and its label at hydration (the
+                owner-observed title flicker). The variants are named for the RAIL STATE they are presented
+                in, exactly like the P6-3B page-icon pair (`-open` first, then `-closed`), and the inactive
+                one is `display: none` — never merely visually hidden — so it cannot join the accessible
+                name. Each icon is decorative (`alt="" aria-hidden`), so nothing is announced twice, and the
+                16px/24px size tokens keep exactly one icon in the control's layout in both states. */}
+            <DisclosureIcon asset={expandedContent.icon} className="ui-sidebar-toggle-icon ui-sidebar-toggle-icon-open" />
+            <DisclosureIcon asset={collapsedContent.icon} className="ui-sidebar-toggle-icon ui-sidebar-toggle-icon-closed" />
+            {expandedContent.text !== "" ? (
+              <span className="ui-sidebar-toggle-label ui-sidebar-toggle-label-open">{expandedContent.text}</span>
+            ) : null}
+            {collapsedContent.text !== "" ? (
+              <span className="ui-sidebar-toggle-label ui-sidebar-toggle-label-closed">{collapsedContent.text}</span>
+            ) : null}
           </button>
         ) : null}
         {/* P6-3A persistent rail: the panel is ALWAYS rendered. Collapse narrows

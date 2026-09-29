@@ -444,6 +444,19 @@ Every sidebar disclosure across every breakpoint says the same thing:
   hover / focus-visible / active (pressed) affordances, pointer cursor, a
   recognizable show/hide **icon** beside the label, and keyboard activation.
   It can never look like ordinary static heading text.
+- **Both states' copy are declared in the markup, and the stylesheet presents ONE**
+  (FOUNDATION-UI1-A3). The page is statically generated and the state is
+  browser-local, so the rail toggle can only show the right thing before the page's
+  scripts run if the markup already carries both variants: the show and the hide
+  icon, each with its own state hook (`ui-sidebar-toggle-icon-open` /
+  `-closed`), and the `Show navigation` / `Hide navigation` labels
+  (`ui-sidebar-toggle-label-open` / `-closed`). Exactly one variant is displayed —
+  the other is `display: none`, so it is never visible and can never join the
+  control's accessible name — and the rail's own state selects which. **Do not
+  delete either variant, and do not "tidy up" the duplicate copy:** the one you
+  remove is the one a visitor whose stored state differs would see before the
+  scripts run. The sidebar PAGE icons (`ui-nav-item-icon-open` / `-closed`) are the
+  same pattern at 16×16.
 - **Default icon assets:** `public/assets/sidebar-open.svg` (show) and
   `sidebar-close.svg` (hide) — **project-owned original SVG artwork** (24×24,
   stroke-based, `currentColor`-aware) shipped with the template and replaceable
@@ -523,7 +536,11 @@ and the same left-side vertical position.
   OPEN one while that mark is present, and the rail's runtime relinquishes the mark
   as soon as it represents the resolved preference. Refreshing while the sidebar is
   open therefore shows the OPEN sidebar **from the first painted frame** and never
-  expands into place; nothing about toggling, navigation or later page lifetimes
+  expands into place — including the disclosure control's own artwork and its
+  `Hide navigation` copy, which are presented by that same seam from that same frame
+  (FOUNDATION-UI1-A3; before it, the rail was already open but the control still
+  showed the closed state's show icon and `Show navigation` until the page's scripts
+  ran); nothing about toggling, navigation or later page lifetimes
   changes (the disclosure control remains the only thing that changes the state).
 - **The primary CTA is NEVER part of the rail (P6-3C).** The aside rail and the
   mobile disclosure carry **navigation only**: the single Book Now action lives in
