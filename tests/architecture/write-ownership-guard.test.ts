@@ -132,6 +132,9 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/unit/page-sources.test.ts": "the synthetic deployment's page tree",
   "tests/unit/runtime-asset-lifecycle.test.ts": "OS temp deployment and runtime trees it creates",
   "tests/unit/site-page-isolation.test.ts": "the synthetic deployment's page tree",
+  "tests/unit/synthetic-deployment-lifecycle.test.ts":
+    "the synthetic deployment copies it materialises and removes, plus the look-alike decoys proving the " +
+    "removal is exact rather than a pattern (ISO-B3C2B-A1)",
   "deployment/tests/integration/page-authoring.test.ts":
     "a disposable COPY of the selected deployment (ISO-B3C2B); the shipped tree is proved unchanged",
 };

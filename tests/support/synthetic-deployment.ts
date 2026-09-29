@@ -26,9 +26,14 @@
  *
  * The fixture tree is copied FROM and never written back TO the committed fixture, so repeated runs
  * cannot drift it.
+ *
+ * The copy belongs to ONE test-file context and is removed by that context's teardown
+ * (`cleanupSyntheticDeployment()`, registered by the generic project's setup file), so a run leaves no
+ * deployment copy behind in OS temp (ISO-B3C2B-A1).
  */
 export {
   SYNTHETIC_DEPLOYMENT_FIXTURE_ROOT,
+  cleanupSyntheticDeployment,
   materializeSyntheticDeployment,
   selectSyntheticDeployment,
   syntheticDeploymentConfigFile,
