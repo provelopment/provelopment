@@ -18,10 +18,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ShellEngine } from "@/components/shell";
 import {
   SIDEBAR_PREFERENCE_STORAGE_KEY,
   SIDEBAR_PREFERENCES,
@@ -30,10 +30,24 @@ import {
   storeSidebarPreference,
   subscribeSidebarPreference,
 } from "@/components/ui/sidebar-preference";
+import type { SidebarProps } from "@/components/ui/sidebar";
 import { siteConfig } from "@/config";
 import type { PageRegionBinding } from "@/core/region";
 import { siteSetOf } from "@/core/site";
 import { resolveUiConfig } from "@/core/ui";
+
+/**
+ * A FRESH module instance is a fresh DOCUMENT: the resolved runtime preference lives for the life of the
+ * module, so isolating the registry is exactly how a test starts a new document.
+ */
+async function freshPreferenceModule() {
+  vi.resetModules();
+  const preference = await import("@/components/ui/sidebar-preference");
+  const { Sidebar } = await import("@/components/ui/sidebar");
+  // The composed shell from the SAME fresh registry, so a rendered rail belongs to the same document.
+  const { ShellEngine } = await import("@/components/shell");
+  return { preference, Sidebar, ShellEngine };
+}
 
 /** The shell's required site context — the same projection the other static-markup suites use. */
 const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
@@ -200,14 +214,19 @@ describe("UI1 — navigation cannot own the sidebar state (architectural boundar
     // A layout effect on the client — React flushes it in the same commit, before painting — and an
     // inert one on the server, where there is no browser to read and no warning to emit.
     expect(sidebar).toMatch(/typeof window === "undefined" \? useEffect : useLayoutEffect/);
-    expect(sidebar).toMatch(/useIsomorphicLayoutEffect\(\(\) => \{[\s\S]*?readSidebarPreference\(\)/);
-    // The first render is still the DECLARED state, so hydration cannot disagree with the server.
-    expect(sidebar).toMatch(
-      /useState<DisclosureState>\(\(\) => createInitialDisclosure\(!collapsed\)\)/,
-    );
+    // Resolution goes through the module that owns the preference (UI1-A1: once per document, never a
+    // storage read in the render path).
+    expect(sidebar).toMatch(/useIsomorphicLayoutEffect\(\(\) => \{[\s\S]*?resolveSidebarPreference\(\)/);
+    // The first render is the DECLARED state whenever this document has resolved nothing, so hydration
+    // cannot disagree with the server; the resolved state is used when there IS one (UI1-A1).
+    expect(sidebar).toMatch(/useState<DisclosureState>\(\(\) =>[\s\S]*?initialDisclosureState\(collapsible, collapsed\)/);
+    expect(sidebar).toMatch(/const resolved = resolvedSidebarPreference\(\);[\s\S]*?createInitialDisclosure\(!collapsed\) : stateOf\(resolved\)/);
   });
 describe("UI1 — the canonical no-preference state of a composed rail is CLOSED", () => {
-  it("renders an untoggled collapsible rail collapsed, with its expand control intact", () => {
+  it("renders an untoggled collapsible rail collapsed, with its expand control intact", async () => {
+    // Its OWN document (a fresh module registry): this file's other tests record preferences, and the
+    // canonical state is what a document that has resolved NOTHING composes.
+    const { ShellEngine } = await freshPreferenceModule();
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: resolveUiConfig({}),
@@ -233,4 +252,156 @@ describe("UI1 — the canonical no-preference state of a composed rail is CLOSED
 });
 
 });
+});
+
+/**
+ * UI1-A1 — THE RESOLVED PREFERENCE IS THE AUTHORITY FOR THE LIFE OF THE DOCUMENT.
+ *
+ * The defect this pins down was a VISIBLE one: a client-side navigation re-creates the shell, so a
+ * replacement rail started from the canonical CLOSED state and adopted the stored `open` in an effect. That
+ * correction is invisible as a *state* frame but not as *geometry*: committing `data-collapsed="true"` and
+ * correcting it in the same commit starts the rail's `width 200ms` CSS transition, so an OPEN rail collapsed
+ * and expanded again on every navigation (measured on the live site as `keyframes=["36px","220px"]`).
+ *
+ * The contract that removes it: once a document has resolved the preference, a rail created LATER in the
+ * same document renders that resolved value on its FIRST render — so there is no canonical-state commit to
+ * correct, and therefore no transition and no transient. Storage is read once per document, from an effect;
+ * the render path never touches it, which is what keeps hydration honest.
+ */
+describe("UI1-A1 — a rail created later in the same document renders the resolved state", () => {
+  it("resolves the stored preference ONCE per document, then answers from the running value", async () => {
+    const store: Record<string, string> = { [SIDEBAR_PREFERENCE_STORAGE_KEY]: "open" };
+    let reads = 0;
+    useStorage({
+      getItem: (key) => {
+        reads += 1;
+        return key in store ? store[key] : null;
+      },
+      setItem: (key, value) => {
+        store[key] = value;
+      },
+    });
+    const { preference } = await freshPreferenceModule();
+
+    // Nothing resolved yet (a fresh document): there is no preference to apply.
+    expect(preference.resolvedSidebarPreference()).toBeNull();
+    // Resolution reads the stored choice exactly once…
+    expect(preference.resolveSidebarPreference()).toBe("open");
+    expect(reads).toBe(1);
+    // …and from then on the RUNNING value wins: nothing else — not a later storage value, not a navigation
+    // — may move the rail while the visitor is using the site.
+    store[SIDEBAR_PREFERENCE_STORAGE_KEY] = "closed";
+    expect(preference.resolveSidebarPreference()).toBe("open");
+    expect(preference.resolvedSidebarPreference()).toBe("open");
+    expect(reads).toBe(1);
+  });
+
+  it("never reads storage from the render path (so a fresh document still matches the server)", async () => {
+    let reads = 0;
+    useStorage({
+      getItem: () => {
+        reads += 1;
+        return "open";
+      },
+      setItem: () => {},
+    });
+    const { preference } = await freshPreferenceModule();
+
+    // The value a first render would use — `resolvedSidebarPreference()` — touches no storage at all.
+    expect(preference.resolvedSidebarPreference()).toBeNull();
+    expect(reads).toBe(0);
+    // Only the effect-time resolver reads, and only once.
+    expect(preference.resolveSidebarPreference()).toBe("open");
+    expect(reads).toBe(1);
+  });
+});
+
+
+describe("UI1-A1 — the replacement rail's first render is the repair of the navigation flicker", () => {
+  const clearWindow = () => {
+    (globalThis as { window?: unknown }).window = originalWindow;
+  };
+
+  const rail = (Sidebar: (props: SidebarProps) => ReactElement) => (
+    <Sidebar label="Primary" collapsible={true} collapsed={true} id="shell-sidebar-desktop">
+      <ul>
+        <li>One</li>
+      </ul>
+    </Sidebar>
+  );
+
+  it("renders the resolved state on a replacement rail's FIRST render (nothing left to correct)", async () => {
+    const store: Record<string, string> = { [SIDEBAR_PREFERENCE_STORAGE_KEY]: "open" };
+    useStorage({
+      getItem: (key) => (key in store ? store[key] : null),
+      setItem: (key, value) => {
+        store[key] = value;
+      },
+    });
+    const { preference, Sidebar } = await freshPreferenceModule();
+
+    // A fresh document renders the DECLARED canonical state — the state the server's markup carries.
+    expect(renderToStaticMarkup(rail(Sidebar))).toContain('data-collapsed="true"');
+
+    // The document resolves the visitor's choice…
+    expect(preference.resolveSidebarPreference()).toBe("open");
+    // …and the runtime layer is the authority from then on, independent of storage being readable.
+    // (Restoring the server-like environment also keeps this render on the warning-free `useEffect` path.)
+    clearWindow();
+    expect(preference.resolvedSidebarPreference()).toBe("open");
+
+    // A rail created LATER in the same document — exactly what a navigation creates — is OPEN immediately,
+    // so no canonical-state commit exists to correct and no CSS width transition can start.
+    const replacement = renderToStaticMarkup(rail(Sidebar));
+    expect(replacement).toContain('data-collapsed="false"');
+    expect(replacement).toContain('aria-expanded="true"');
+    expect(replacement).not.toContain('data-collapsed="true"');
+  });
+
+  it("keeps the canonical CLOSED state when storage is blocked, empty or unusable", async () => {
+    useStorage({
+      getItem: () => {
+        throw new Error("storage is blocked");
+      },
+      setItem: () => {
+        throw new Error("storage is blocked");
+      },
+    });
+    const { preference, Sidebar } = await freshPreferenceModule();
+    expect(preference.resolveSidebarPreference()).toBeNull();
+    expect(preference.resolvedSidebarPreference()).toBeNull();
+    clearWindow();
+    expect(renderToStaticMarkup(rail(Sidebar))).toContain('data-collapsed="true"');
+  });
+
+  it("makes the EXPLICIT toggle the writer of the running value (one writer, one authority)", async () => {
+    const store: Record<string, string> = {};
+    useStorage({
+      getItem: (key) => (key in store ? store[key] : null),
+      setItem: (key, value) => {
+        store[key] = value;
+      },
+    });
+    const { preference } = await freshPreferenceModule();
+    expect(preference.resolvedSidebarPreference()).toBeNull();
+
+    preference.storeSidebarPreference("open");
+    expect(preference.resolvedSidebarPreference()).toBe("open");
+    expect(store[SIDEBAR_PREFERENCE_STORAGE_KEY]).toBe("open");
+    preference.storeSidebarPreference("closed");
+    expect(preference.resolvedSidebarPreference()).toBe("closed");
+    expect(store[SIDEBAR_PREFERENCE_STORAGE_KEY]).toBe("closed");
+  });
+
+  it("keeps the running value when persistence fails (a blocked store costs durability only)", async () => {
+    useStorage({
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("quota exceeded");
+      },
+    });
+    const { preference } = await freshPreferenceModule();
+    expect(() => preference.storeSidebarPreference("open")).not.toThrow();
+    expect(preference.resolvedSidebarPreference()).toBe("open");
+  });
 });

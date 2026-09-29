@@ -20,6 +20,7 @@ committed, reproducible version).
 pnpm test:browser              # everything: the Foundation's generic scenarios + the deployment's own
 pnpm test:browser:foundation   # the Foundation's generic scenarios ONLY
 pnpm test:browser:deployment   # the SELECTED deployment's own scenarios ONLY
+node tests/browser/production-continuity.mjs   # the production-mode proof only (builds; not part of any route)
 ```
 
 Every command runs this ONE harness with one ownership scope; the scope semantics live in
@@ -55,6 +56,30 @@ READS are untouched — the shipped configuration a deployment scenario describe
 and the repository's own files are read directly, exactly as before.
 `tests/architecture/write-ownership-guard.test.ts` proves both the guard's answers and that no mutating
 call bypasses it.
+
+### The production-mode proof (`production-continuity.mjs`)
+
+The scenarios above drive a **development** server, which is the right trade-off for a 500+ check suite:
+fast, and honest about the contracts it asserts. It is not, however, what a visitor runs — and one defect
+(FOUNDATION-UI1-A1) was only visible in **production** output: navigating while the sidebar was OPEN
+re-created the rail, the canonical CLOSED state was committed and corrected inside one commit, so no wrong
+frame was painted — but the browser still started the rail's `width 200ms` CSS transition, and the rail
+visibly collapsed and expanded again on the way.
+
+`tests/browser/production-continuity.mjs` is the smallest proof that closes that gap, rather than a second
+suite: it runs `next build` and `next start` against the repository's own (reference) deployment and asserts
+the same continuity invariant through the same real controls — no opposite-state commit on the rail
+(replacement nodes included) and no width transition during a navigation, with the explicit toggle still
+animating as it must. It is **owned by this directory**, deliberately **NOT wired into any CI route** (a
+production build is minutes, not seconds), and writes nothing itself:
+
+```sh
+node tests/browser/production-continuity.mjs
+```
+
+Its `continuity.*` siblings in `matrix.mjs` run the equivalent rows against the development server on every
+browser gate, so the invariant is covered continuously; this script is the production-mode confirmation the
+owner-visible defect requires.
 
 
 ```js
@@ -150,6 +175,20 @@ tree stays clean.
   → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is
   measured on a target the author created; a raw-HTML anchor attempt in the same
   fixture must stay inert, and the scenario asserts both.
+- **sidebar state + navigation continuity** (`sidebar-state` scenario): the rail's
+  open/closed state is the visitor's preference — no preference opens CLOSED, a
+  rejected stored value falls back to CLOSED, a refresh keeps the choice, a real
+  navigation icon keeps it (CLOSED stays CLOSED, OPEN stays OPEN), the tablet band
+  and the desktop band share ONE state, a Site switch does not partition it, the
+  Layout switcher is independent of it, and the `<md` drawer/bottom bar is a
+  separate ephemeral model it never opens. Since FOUNDATION-UI1-A1 the scenario
+  judges the whole navigation INTERVAL rather than its end state: a transition
+  observer records every `data-collapsed` write on a rail and every `width`
+  transition on one, so the interval must commit **no opposite state** (a
+  replacement rail node is permitted, a CLOSED commit on it is not) and start **no
+  width transition** — the owner-visible flicker that a destination-state
+  assertion cannot see. `toggle.stillAnimatesTheRail` calibrates that observer on
+  the one control allowed to move the rail, so the fix can never be "no animation".
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
   sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does

@@ -36,6 +36,31 @@
  *              engine's `collapsedInitial`). A hostile or stale value therefore degrades to the
  *              canonical state instead of being applied.
  *
+ * ONE AUTHORITY PER LIFETIME (UI1-A1)
+ * ----------------------------------
+ * The preference has exactly two layers, and only one of them is the authority at any moment:
+ *
+ *   · the RESOLVED RUNTIME PREFERENCE (`resolvedPreference` below) is the authority for the life of the
+ *     running application: once this document has resolved the visitor's choice, every rail instance —
+ *     including one created later — renders that value on its FIRST render;
+ *   · the STORED PREFERENCE (`foundation.sidebar`) is durable backing persistence, read exactly once per
+ *     document to seed the runtime layer, and written whenever the visitor toggles.
+ *
+ * WHY THE RUNTIME LAYER EXISTS. A client-side navigation re-creates the shell (the shell is composed by
+ * the route's layout, whose segments change), so a replacement rail used to start from the canonical
+ * CLOSED state and adopt the stored preference in an effect — a correction that is correct but VISIBLE:
+ * committing `data-collapsed="true"` and then correcting it makes the browser start the rail's
+ * `width 200ms` CSS transition, so an OPEN rail collapsed and expanded again on every navigation. The
+ * runtime layer removes the correction entirely: a replacement rail is created already OPEN (or already
+ * CLOSED) and nothing has to change, so no transition is triggered and no opposite state exists even
+ * for one frame.
+ *
+ * `resolvedSidebarPreference()` is safe to call DURING RENDER (it never touches storage), which is what
+ * lets a first render be correct while the server's markup stays authoritative for hydration:
+ * `resolveSidebarPreference()` — the storage-reading, once-per-document resolver — belongs in an effect.
+ * On the server there is nothing to resolve, so the runtime layer stays empty, the declared initial
+ * state is rendered, and hydration cannot disagree with it.
+ *
  * ONE STATE, EVERY BAND
  * ---------------------
  * The desktop and tablet rails are two instances of the same preference, and only one of them is
@@ -75,6 +100,40 @@ export function readSidebarPreference(): SidebarPreference | null {
   }
 }
 
+/**
+ * The RESOLVED runtime preference of this document — the authority while the application is alive.
+ *
+ * `null` means "this document has resolved nothing yet" (a fresh document before its first resolution, or
+ * the server, where there is no visitor state to resolve). It is never a third state: the rail reads it as
+ * "no resolved preference" and keeps its declared initial state.
+ */
+let resolvedPreference: SidebarPreference | null = null;
+
+/**
+ * The preference this document has ALREADY resolved, or `null` while it has resolved nothing.
+ *
+ * Safe during render: it never reads storage, so a client render cannot disagree with the server's markup
+ * for a document that has not resolved anything yet. This is what a replacement rail uses — a rail created
+ * by a navigation renders the visitor's already-resolved state on its first render, so it is never created
+ * in the canonical state and then corrected.
+ */
+export function resolvedSidebarPreference(): SidebarPreference | null {
+  return resolvedPreference;
+}
+
+/**
+ * Resolve the visitor's preference ONCE per document: the running value if this document already has one,
+ * otherwise the stored one (which then becomes the running value).
+ *
+ * Effect-only by contract — it is the one function that reads storage (see `resolvedSidebarPreference`).
+ * A blocked, absent or unusable store resolves to `null`, which means "no preference": the rail keeps the
+ * platform's canonical CLOSED state and the runtime layer stays empty.
+ */
+export function resolveSidebarPreference(): SidebarPreference | null {
+  if (resolvedPreference === null) resolvedPreference = readSidebarPreference();
+  return resolvedPreference;
+}
+
 /** The mounted rails that follow the preference (see "ONE STATE, EVERY BAND" above). */
 const listeners = new Set<(preference: SidebarPreference) => void>();
 
@@ -100,6 +159,9 @@ export function subscribeSidebarPreference(
  * looking at has already changed state, and only its persistence is lost.
  */
 export function storeSidebarPreference(preference: SidebarPreference): void {
+  // The running application knows the choice from this moment on — before persistence is attempted, and
+  // whether or not persistence succeeds (a blocked store costs only durability, never the state).
+  resolvedPreference = preference;
   try {
     window.localStorage.setItem(SIDEBAR_PREFERENCE_STORAGE_KEY, preference);
   } catch {
