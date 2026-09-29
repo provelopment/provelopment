@@ -498,6 +498,27 @@ Constraints and rules:
 
 See `DEPLOYMENT.md` for the operational runbook.
 
+## Foundation releases
+
+A Foundation **release** is a deterministic, platform-only **source set** constructed from one accepted
+Foundation `main` commit and identified by an immutable contract tag
+(`v<YYYY.MM.DD>-foundation-release-<slug>`). A deployment **consumes and pins** a release; it never
+consumes another deployment, and no Foundation release requires reference-deployment state to exist.
+
+- The release content boundary is **machine-owned, not prose**: every tracked path is classified by ONE
+  policy as platform content or repository/deployment/build state, and a path nobody classified fails
+  release construction rather than being silently included or silently dropped.
+- `deployment/**` (the reference deployment's authored state and acceptance suite), this repository's
+  own CI and every generated path (`public/**`, build output, dependencies) are excluded. The reference
+  deployment is a bounded compatibility **canary** — never a release input.
+- A release records its **source commit and tree** and a **normalised content digest** of its payload, so
+  an adopted release can be verified by whoever received it and a previously adopted release can be
+  re-materialised deterministically.
+
+The mechanism, the content policy, the manifest schema, the digest definition and the
+construction/verification procedure live in
+[`scripts/release/README.md`](scripts/release/README.md).
+
 ## Re-brandability
 
 A downstream project should be able to change its:

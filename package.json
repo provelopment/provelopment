@@ -17,7 +17,10 @@
     "assets:check": "node scripts/sync-runtime-assets.mjs --check",
     "country-codes:sync": "node scripts/generate-country-code-reference.mjs",
     "country-codes:check": "node scripts/generate-country-code-reference.mjs --check",
-    "postinstall": "node scripts/sync-runtime-assets.mjs --if-deployment"
+    "postinstall": "node scripts/sync-runtime-assets.mjs --if-deployment",
+    "release:classify": "node scripts/release/index.mjs classify",
+    "release:build": "node scripts/release/index.mjs build",
+    "release:verify": "node scripts/release/index.mjs verify"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -40,5 +43,8 @@
     "typescript": "^5",
     "vitest": "^4.1.11"
   },
-  "packageManager": "pnpm@11.6.0"
+  "packageManager": "pnpm@11.6.0",
+  "engines": {
+    "node": ">=22"
+  }
 }
