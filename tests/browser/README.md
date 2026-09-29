@@ -60,18 +60,21 @@ call bypasses it.
 ### The production-mode proof (`production-continuity.mjs`)
 
 The scenarios above drive a **development** server, which is the right trade-off for a 500+ check suite:
-fast, and honest about the contracts it asserts. It is not, however, what a visitor runs — and one defect
-(FOUNDATION-UI1-A1) was only visible in **production** output: navigating while the sidebar was OPEN
-re-created the rail, the canonical CLOSED state was committed and corrected inside one commit, so no wrong
-frame was painted — but the browser still started the rail's `width 200ms` CSS transition, and the rail
-visibly collapsed and expanded again on the way.
+fast, and honest about the contracts it asserts. It is not, however, what a visitor runs — and two defects
+were only visible there: FOUNDATION-UI1-A1, where navigating while the sidebar was OPEN re-created the rail,
+the canonical CLOSED state was committed and corrected inside one commit, so no wrong frame was painted —
+but the browser still started the rail's `width 200ms` CSS transition, and the rail visibly collapsed and
+expanded again on the way; and FOUNDATION-UI1-A2, where a FULL RELOAD with the preference stored OPEN
+painted the canonical CLOSED rail and expanded it after hydration.
 
 `tests/browser/production-continuity.mjs` is the smallest proof that closes that gap, rather than a second
 suite: it runs `next build` and `next start` against the repository's own (reference) deployment and asserts
 the same continuity invariant through the same real controls — no opposite-state commit on the rail
 (replacement nodes included) and no width transition during a navigation, with the explicit toggle still
-animating as it must. It is **owned by this directory**, deliberately **NOT wired into any CI route** (a
-production build is minutes, not seconds), and writes nothing itself:
+animating as it must — plus the whole-document `firstPaint.*` rows (the stored preference must be the first
+painted state and every painted state of a reloaded document, with no boot-induced transition and with the
+boot presentation equal to the runtime presentation). It is **owned by this directory**, deliberately **NOT
+wired into any CI route** (a production build is minutes, not seconds), and writes nothing itself:
 
 ```sh
 node tests/browser/production-continuity.mjs
@@ -189,6 +192,22 @@ tree stays clean.
   width transition** — the owner-visible flicker that a destination-state
   assertion cannot see. `toggle.stillAnimatesTheRail` calibrates that observer on
   the one control allowed to move the rail, so the fix can never be "no animation".
+- **sidebar first paint of a whole document** (`firstPaint.*` rows, same scenario,
+  FOUNDATION-UI1-A2): the frame recorder samples the rail's PAINTED geometry (its
+  rendered width) and its presentation fingerprint, not only its attribute, because
+  the refresh defect was pure geometry: the canonical CLOSED rail was painted and
+  then expanded after hydration. On a REAL reload the rows require the first painted
+  state to be the stored one, **every** painted frame of that document to be the
+  stored state, the presentation captured at boot to be identical to the runtime
+  presentation (geometry, rail padding, control inset/justification, label
+  visibility, list inset and the state-paired icons), the pre-paint bridge marker to
+  have been present at boot and **relinquished** afterwards, and the boot interval
+  to have started no width transition. Reverting the bridge flips them (measured: the
+  first painted state becomes CLOSED and a `36px → 220px` transition starts), which
+  is what makes them the durable proof rather than a description.
+  `toggle.closedActuallyLooksClosed` closes the loop: a document that BOOTED on the
+  bridge must still *look* closed after an explicit toggle, so a stale bridge cannot
+  survive as a competing authority.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
   sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does

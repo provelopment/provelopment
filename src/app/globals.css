@@ -854,9 +854,31 @@ html[data-ui-hero="showcase"] .home-hero {
   transition: width 200ms ease;
 }
 
+/* ── UI1-A2 — THE BOOT PRESENTATION BRIDGE (canonical CLOSED rail, presented as OPEN) ────────────
+ *
+ * The visitor's sidebar preference is browser-local, so a statically generated document arrives as the
+ * canonical CLOSED rail and the browser applies the stored preference before the rail is painted
+ * (`data-ui-sidebar-preference` on `<html>`, set by the pre-paint script — see
+ * `@/components/ui/sidebar-preference-boot`). While that marker is present, the collapsed-state rules in
+ * this block must NOT apply, because the document's boot presentation IS the visitor's open rail.
+ *
+ * WHY THIS FORM. Each collapsed rule below is guarded with
+ * `:where(html:not([data-ui-sidebar-preference="open"]))` rather than overridden by a second copy of the
+ * open-state declarations:
+ *   · `:where()` contributes NO specificity, so every rule keeps the exact specificity it had — the
+ *     cascade between these rules and the expanded-state rules above/below them is untouched;
+ *   · nothing is duplicated, so a later change to the OPEN rail's geometry cannot leave the boot
+ *     presentation behind: with the marker present, the rail renders with exactly the rules an expanded
+ *     rail renders with, and its labels, icons, control inset, list inset and geometry all follow;
+ *   · the marker exists only between document parse and the first runtime commit — the rail relinquishes
+ *     it as soon as its own state represents the resolved preference — so after that every rule below is
+ *     an ordinary collapsed-state rule again, and the explicit toggle animates as it always did.
+ * The marker never selects a state by itself: it only says "this document's boot presentation is OPEN".
+ */
+
 /* P6-3B — collapsed rail: approved geometry (`--ui-sidebar-rail-collapsed` =
  * the former `icon x 1.2`, with `x 0.1` inline padding). */
-.ui-sidebar-rail[data-collapsed="true"] {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] {
   width: var(--ui-sidebar-rail-collapsed);
   padding-inline: var(--ui-sidebar-rail-collapsed-pad);
 }
@@ -898,13 +920,13 @@ html[data-ui-hero="showcase"] .home-hero {
  *    the 16px icon contributes to the visible composition).
  * The EXPANDED rail keeps its own geometry above — these rules are
  * collapsed-state only. */
-.ui-sidebar-rail[data-collapsed="true"] {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] {
   width: var(--ui-sidebar-rail-collapsed);
   padding-inline: var(--ui-sidebar-rail-collapsed-pad)
     calc(var(--ui-sidebar-rail-collapsed-pad) - var(--ui-sidebar-rail-border));
 }
 
-.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle {
   margin-inline: 0;
   width: 100%;
   padding-inline: 0;
@@ -930,13 +952,13 @@ html[data-ui-hero="showcase"] .home-hero {
  * specificity): hover tints the control's own box, exactly as the disclosed
  * control does, and the border stays transparent so hovering can never paint a
  * pill around a collapsed rail's icon. Press keeps the shared `:active` tint. */
-.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:hover {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:hover {
   background-color: var(--muted);
   border-color: transparent;
 }
 
-.ui-sidebar-rail[data-collapsed="true"] li > a,
-.ui-sidebar-rail[data-collapsed="true"] li > span {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] li > a,
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] li > span {
   display: flex;
   justify-content: center;
 }
@@ -949,7 +971,7 @@ html[data-ui-hero="showcase"] .home-hero {
   padding-inline-start: var(--ui-sidebar-rail-inline);
 }
 
-.ui-sidebar-rail[data-collapsed="true"] ul {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] ul {
   padding-inline-start: 0;
 }
 
@@ -1013,8 +1035,8 @@ html[data-ui-hero="showcase"] .home-hero {
  *  - pointer: the icon-bearing sidebar link carries the page name as a native
  *    `title` tooltip (see NavItem), which the browser renders on hover.
  * Both come from the ONE label the expanded rail already shows. */
-.ui-sidebar-rail[data-collapsed="true"] li.ui-nav-item--has-icon .ui-nav-item-label,
-.ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:has(.ui-sidebar-toggle-icon) > span {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] li.ui-nav-item--has-icon .ui-nav-item-label,
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-sidebar-toggle:has(.ui-sidebar-toggle-icon) > span {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1044,11 +1066,11 @@ html[data-ui-hero="showcase"] .home-hero {
   display: none;
 }
 
-.ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-open {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-open {
   display: none;
 }
 
-.ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-closed {
+:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] .ui-nav-item-icon-closed {
   display: inline-block;
 }
 
