@@ -1314,7 +1314,7 @@ items) and never import configuration, core, adapters, `siteConfig`,
 | `NavGroup` | Heading + items; collapsible variant = client disclosure (`aria-expanded`/`aria-controls`) | collapsible |
 | `NavCta` / `NavBadge` | CTA variant + presentational chip | — |
 | `BottomNavigation` | Bottom-bar landmark + list (touch-target spacing via tokens) | — |
-| `Sidebar` | Rail + disclosure toggle (`aria-expanded`/`aria-controls`) | collapsible |
+| `Sidebar` | Rail + disclosure toggle (`aria-expanded`/`aria-controls`). Its open/closed state is the ONE visitor-owned presentation preference of the rail, persisted browser-locally and adopted before the first paint so a reload or a client-side navigation (both of which re-create the rail) keep it; the canonical no-preference state is CLOSED and the toggler is the only thing that changes it (see `CUSTOMIZING.md` — the sidebar disclosure) | collapsible |
 | `Drawer` | Generic overlay/dialog primitive behind the roadmap's "MobileDrawer"/overlay concepts (naming note); `role=dialog` + `aria-modal` + `aria-labelledby`, Escape closes, closed-by-default SSR (nothing rendered when closed) | ✅ |
 | `OverlayNavigation` | Composition over `Drawer` (full-viewport overlay use) | ✅ |
 | `state.ts` | Pure `disclosureReducer` / `createInitialDisclosure` (framework-free) | — |

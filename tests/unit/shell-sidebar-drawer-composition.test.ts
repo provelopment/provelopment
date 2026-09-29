@@ -269,8 +269,10 @@ describe("ShellEngine — Sidebar-drawer tablet (collapsed-sidebar) + mutually e
     // At least one collapse toggle (the desktop band) with deterministic ARIA:
     expect(html).toContain("aria-expanded=");
     expect(html).toContain("aria-controls=");
-    // P6-1 — the disclosure uses the ONE Show/Hide vocabulary.
-    expect(html).toContain("Hide navigation");
+    // P6-1 — the disclosure uses the ONE Show/Hide vocabulary. UI1 — the canonical no-preference state is
+    // CLOSED, so the label the server markup declares is the SHOW half; "Hide navigation" is what the same
+    // control says once the visitor opens the rail.
+    expect(html).toContain("Show navigation");
   });
 
   it("P6-3C — the CTA renders ONCE in the top region, never inside either aside band", () => {

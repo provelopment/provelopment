@@ -80,13 +80,14 @@ describe("ShellEngine — Canonical aside composition (UI-05)", () => {
     expect(html).toContain('class="hidden md:block lg:hidden"');
     expect(html.match(/aria-label="Primary"/g) ?? []).toHaveLength(2);
     expect(html).toContain("flex flex-col flex-1 md:flex-row md:flex-wrap");
-    // P0-1 sidebar capability: the desktop band is collapsible from the
-    // RESOLVED leaf (`shell.sidebar.collapsible`), and the tablet
-    // `collapsed-sidebar` band is collapsed-by-default + always expandable.
+    // P0-1 sidebar capability: BOTH bands are collapsible from the RESOLVED
+    // leaf (`shell.sidebar.collapsible`) and expose the structural toggle.
     expect(html).toContain('aria-controls="shell-sidebar-desktop-panel"');
-    expect(html).toContain('aria-expanded="true"');
     expect(html).toContain('aria-controls="shell-sidebar-tablet-panel"');
-    expect(html).toContain('aria-expanded="false"');
+    // UI1 — the CANONICAL no-preference state is CLOSED in every band, so the
+    // server markup renders both rails collapsed (a stored preference is adopted
+    // on top of it before the first paint, and a navigation can never open one).
+    expect(html).not.toContain('aria-expanded="true"');
     // P6-3A — the tablet `collapsed-sidebar` band is a PERSISTENT rail
     // (collapsed by default via `data-collapsed`), never a display:none panel.
     expect(html).toContain('id="shell-sidebar-tablet-panel" class="ui-sidebar-rail-panel"');

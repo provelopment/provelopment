@@ -319,7 +319,18 @@ export function ShellEngine({
       // state is collapsed; the user must be able to expand it — never a
       // dead-end). Non-collapsed bands follow the configured intent.
       const collapsible = tabletCollapsedSidebar || sidebarCollapsible;
-      const collapsedInitial = tabletCollapsedSidebar;
+      // UI1 — THE CANONICAL NO-PREFERENCE STATE OF A COMPOSED RAIL IS CLOSED. The visitor's
+      // open/closed choice is ONE presentation preference (remembered by the primitive — see
+      // `@/components/ui/sidebar-preference`), so an untoggled sidebar presents the SAME state in
+      // every band instead of inheriting "expanded" from whichever pattern a band resolves to. The
+      // tablet `collapsed-sidebar` composition has always meant "collapsed by default"; the
+      // canonical state is now the platform's one answer for a collapsible rail, and the visitor's
+      // stored preference is layered on top of it (adopted before the first paint, so a document
+      // reload or a client-side navigation never paints a state the visitor did not choose).
+      //
+      // A rail that is NOT collapsible has no disclosure state to remember (it renders no toggle),
+      // so it keeps the expanded geometry its composition declares — exactly as before.
+      const collapsedInitial = collapsible;
       return (
         <Sidebar
           key={band}
