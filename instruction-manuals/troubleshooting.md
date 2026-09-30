@@ -1,14 +1,15 @@
 # Troubleshooting — known, recurring, resolved
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## Scope
 
@@ -20,31 +21,32 @@ Each entry: **symptom → cause → safe resolution → prevention**.
 
 ---
 
-## 1. Vendor/setup operation overwrites adopter assets
+## 1. Business artwork is replaced when platform files land
 
-**Symptom.** After running the platform-reproduction step (`pnpm setup`, re-vendor,
-or equivalent), adopter-customized files under a framework-owned asset directory
-revert to the generic platform originals. Branding silently changes.
+**Symptom.** After platform files are placed into a project (a newer release, a copied platform
+tree, or a project's own reproduction script), adopter-customized artwork under a
+platform-defined asset name reverts to the generic originals. Branding silently changes.
 
-**Cause.** The reproduction step copies the platform asset directory over the site
-asset directory **including files the adopter replaced in place**. The role is the
-platform's, but the *artifact* was the adopter's — the classic category-3 overlap in
-`foundation-upgrade.md`.
+**Cause.** Something copied **over** the project's own files. There is no Foundation command that
+"reproduces platform files into a site", and `pnpm setup` is specifically **not** a Foundation
+script — it is pnpm's own built-in, it changes global pnpm/`PATH` state, and it must never be run
+for this purpose. A project that still carries a reproduction script carries the project's own
+tooling, and this is that tooling's defect: it copied platform assets over files the project had
+replaced.
 
 **Safe resolution.**
 1. Do **not** simply re-apply the artwork by hand and move on — that hides the defect
-   and the next upgrade destroys it again.
-2. Restore the adopter files from Git (`git checkout -- <paths>` / the previous commit).
-3. Fix the reproduction tooling so it **does not overwrite adopter-overseen files** —
-   copying only when the destination is absent (the same rule already used for
-   adopter-owned dictionaries) is a proven, minimal fix.
-4. Verify: every adopter override byte-identical after the operation, **and** new
-   platform assets still present.
+   and the next placement destroys it again.
+2. Restore the project's files from Git (`git checkout -- <paths>` / the previous commit).
+3. Place platform material the supported way instead: an **installation** receives its platform
+   files from establishment (`pnpm installation:establish` — `adoption.md`), and a newer release is
+   obtained as an immutable payload directory. Never copy a release over an installed tree.
+4. Verify with `pnpm assets:check` that the runtime asset mirror and its provenance records agree,
+   and confirm every project-owned override is byte-identical to before (prove it with hashes).
 
-**Prevention.** Keep business artwork in the adopter's own asset area and wire it
-from configuration. If you must override a platform-defined role in place, **record
-it** so upgrades treat it as deliberate. Never run a bare reproduction step on an
-adopter project before you know which files it owns.
+**Prevention.** Keep business artwork in the project's own content area (`content/assets/`) and
+wire it from configuration (`branding-and-assets.md`). If a platform-defined runtime role must be
+replaced in place, record it as deliberate so a later adoption treats it that way.
 
 ---
 
@@ -124,32 +126,29 @@ commit the lockfile, then run the gate. Do not use `--no-frozen-lockfile` in CI.
 
 ---
 
-## 6. A platform asset the release re-drew is silently kept stale after an upgrade
+## 6. A platform asset the release re-drew stays stale after adopting a newer release
 
-**Symptom.** The upgrade is recorded, the fidelity/divergence check passes, every adopter
-builds — yet a platform-defined graphic (favicon, header/footer logo, sidebar icon) still
-renders the **previous** release's artwork. The reproduction step reports those files as
-"preserved adopter override(s)".
+**Symptom.** A newer release is adopted and everything builds — yet a platform-defined graphic
+(favicon, header/footer logo, sidebar icon) still renders the **previous** release's artwork.
 
-**Cause.** Asset ownership is decided by comparing the site file with the *current* platform
-snapshot. Applying the release **replaces** that snapshot, so the comparison now runs against
-the new one: a platform role the release **re-drew** is indistinguishable from an adopter
-override, and the stale copy is "preserved". The evidence needed to classify correctly was
-destroyed by the re-vendor itself.
+**Cause.** A platform role the new release **re-drew** was left in place by a copy that preserved
+files the project appeared to have overridden. Asset ownership is decided by comparing the
+project's file with the release it recorded, and that reference changes the moment the new release
+is placed: a redrawn platform role then looks exactly like a deliberate override, and the stale
+copy is kept. The evidence needed to classify it correctly was destroyed by the placement itself.
 
 **Safe resolution.**
-1. Run the upgrade helper's **compare** step before applying — or read the comparison you
-   already captured. It states which site asset files were **faithful copies** and which were
-   genuine **overrides**. That list is the authority.
-2. For every file the reproduction step preserved that appears on the **faithful** list,
-   refresh it from the new platform snapshot. Genuine adopter artwork never appears on that
-   list, so this recovery cannot damage it.
-3. Re-run the gate, then record the per-file outcome (kept / refreshed / relocated / retired).
+1. Take the platform's files from an intact payload — the release you hold is the authority for
+   what its own files contain, and `pnpm release:verify` proves a payload is the content set its
+   manifest describes.
+2. Refresh the platform-defined roles from that release. Genuine business artwork lives in the
+   project's own content area and is never one of those roles, so this cannot damage it.
+3. Verify with `pnpm assets:check`, re-run the deployment-scoped gate (`validation.md`), and record
+   the per-file outcome (kept / refreshed / relocated / retired).
 
-**Prevention.** Never re-vendor before capturing the comparison. Treat "preserved N
-override(s)" from a reproduction step run immediately after a re-vendor as a claim to verify,
-not a fact — cross-check it against the recorded faithful list. Nothing breaks in tests, so
-this defect is invisible without the comparison.
+**Prevention.** Record what the project owned **before** a newer release is placed, and treat any
+"preserved N override(s)" report from a copy step as a claim to verify, not a fact. Nothing breaks
+in tests, so this defect is invisible without that record.
 
 ---
 

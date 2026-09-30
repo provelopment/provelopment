@@ -1,35 +1,83 @@
 # Foundation Upgrade — absorbing a newer Foundation release
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## What this manual is for
 
-An adopter project runs on a **committed, vendored Foundation snapshot** recorded
-at a specific release tag. When a newer accepted release exists, this procedure
-absorbs it **without destroying the adopter's business content, configuration,
-branding, or assets**.
+A Foundation installation — or a repository-shaped project — runs one **immutable Foundation
+release**. When a newer release exists, adopting it is a **deliberate operator decision**, made
+so that the project's business content, configuration, branding and artwork are never
+accidentally overwritten.
 
-> **A newer release is never installed merely because it exists.** The adopter
-> stays reproducible at its recorded baseline until an upgrade has been
-> deliberately applied, validated, reviewed, and accepted.
+> **A newer release is never installed merely because it exists.** A project stays
+> reproducible at its recorded baseline until an adoption has been deliberately chosen,
+> validated, reviewed and accepted.
 
 **Non-negotiable principle:**
 
-> **Foundation platform code may change; adopter-specific business content,
-> branding, configuration, and assets must never be accidentally overwritten.**
+> **Foundation platform files may change; adopter-specific business content, branding,
+> configuration and assets must never be accidentally overwritten.**
+
+## What the Foundation implements today — and what it does not
+
+Be precise about this boundary: it decides what you may promise an operator.
+
+| Capability | State in this release |
+| --- | --- |
+| Immutable **release identity** — `provelopment-foundation-vYYYYMMDD.HHMM`, with the grandfathered first release `v2026.09.30-foundation-release-initial` | **implemented** (`scripts/release/README.md`, `src/core/foundation-release/README.md`) |
+| **Release acquisition boundary** — one release, obtained as bytes | **implemented**. Establishment takes a local payload directory today; the canonical GitHub repository is the default public *source* of official releases, and any future acquisition source may replace it |
+| **Deterministic establishment** — an immutable release plus an authored capsule becomes one autonomous installation | **implemented** — `pnpm installation:establish` (`scripts/installation/README.md`, `adoption.md`) |
+| **Installation lifecycle** domain contract (created → activated → health) | **implemented as a contract**; only establishment writes it today (`src/core/foundation-installation/README.md`) |
+| Automated **in-place upgrade executor** | **NOT implemented** — no command exists |
+| **Staging deployer** | **NOT implemented** — no command exists |
+| **Health probe** | **NOT implemented** — nothing in the platform evaluates a running installation's health |
+| **Production promoter** | **NOT implemented** — no command exists |
+| **Rollback executor** | **NOT implemented** — no command exists |
+
+There is therefore **no `pnpm` upgrade, staging, promotion, health or rollback command to run**,
+and this manual documents none: a command that does not exist cannot be documented as available.
+
+What *does* exist for adopting a newer release:
+
+1. **Choose** the release deliberately — an immutable identity, never a moving branch.
+2. **Obtain its bytes** — from the canonical GitHub repository, or from any other acquisition
+   source able to give you that same immutable release (establishment consumes a directory).
+3. **Establish** a **new** installation from that release plus your authored capsule
+   (`adoption.md`; `scripts/installation/README.md`). Establishment is the capability the
+   platform actually ships: it creates an installation. It does **not** convert an existing
+   installation in place, and it never modifies the installation it takes a capsule from.
+4. **Prove it** with the installation-owned verification in `validation.md`.
+
+Automating the in-place replacement of an existing installation is **not part of this release**.
+A later release may add such a mechanic; until a release documents a command, none exists, and
+nothing below may be presented as one.
+
+> **HISTORICAL MATERIAL FOLLOWS.** From *Ownership model* onward this manual describes the
+> **vendored-platform compare → apply** procedure that repository-shaped projects followed
+> before the installation model. It is retained as **migration context** and because its
+> ownership classification still governs how a project's files must be treated — not as the
+> current recommended workflow. Where it refers to a project-owned helper script, that script
+> is the project's own and never a Foundation command.
 
 ## Ownership model — the concept that makes this safe
 
-Every file in an adopter repository falls into exactly one category. Classify
+Every file in a project falls into exactly one category. Classify
 before you touch anything.
+
+> In an **installation**, the first category is not a snapshot you carry: the Foundation's own
+> files are what the immutable release wrote, and they are not edited in place. The capsule's
+> authored material (configuration, content, artwork, dictionaries) is yours. The generated
+> `operational-state.json` and the `public/assets/**` mirror are state, not authored material.
+> The classification below still decides what an update may touch.
 
 ### 1. Platform-owned
 
@@ -81,7 +129,25 @@ toggle assets, navigation-item icons, OpenGraph/social art.
 reconciliation step below. Record which files are deliberate adopter overrides so
 the next upgrade does not have to guess.
 
-## One platform, several adopters (shared-architecture sequencing)
+## One platform, several adopters (shared-architecture sequencing) — HISTORICAL
+
+> **HISTORICAL.** This section describes the vendored multi-site model: one repository hosting
+> several sites that reproduce **one shared `platform/` snapshot**. It remains accurate for a
+> project still built that way, and it is the reason the model must not be split casually.
+> The current architecture is different and must not be confused with it:
+
+```text
+Foundation installation
+    ├── own lifecycle / adoption / operational state
+    └── own spokes
+            └── Site contexts
+```
+
+A **Foundation installation** is not a spoke, and a **spoke** is not a **Site**: they are three
+different things, and none of them is a clone, a parent, a sibling or a member of a fleet. An
+installation knows only itself and its own spokes, and it acquires nothing at runtime from any
+other installation. A repository-shaped project that hosts several sites is not thereby a
+fleet — it is one repository with several site profiles.
 
 Some repositories host **several adopters that intentionally share one Foundation-derived
 platform** — typically one vendored `platform/` snapshot reproduced into several sites by a
@@ -117,13 +183,21 @@ success and the other adopters' open work are therefore distinguishable in a sin
 shared-platform upgrade is never blocked simply because one adopter's business layer still
 needs reconciling.
 
-## Procedure
+## Procedure (HISTORICAL — vendored-platform compare → apply)
+
+> **HISTORICAL.** This is the procedure a repository-shaped project followed to absorb a newer
+> platform snapshot. It is retained as **migration context**, not as the current adoption
+> workflow, and none of it may be presented to an operator as a supported current feature: the
+> platform ships no automated upgrade executor, staging deployer, health probe, production
+> promoter or rollback executor (see *What the Foundation implements today*).
 
 `discover → compare → branch → classify → vendor → reconcile → validate → review → accept → record → deploy → verify`
 
 ### 1. Establish the adopter baseline
 
-Record, from the adopter's own records (e.g. `platform/SOURCE.md`):
+Record, from the project's own records (its own governance file — never the Foundation's
+adoption record, which for an installation is `deployment/foundation-baseline.json`, written by
+establishment):
 
 - the Foundation release tag and commit the project currently runs;
 - the recorded manual revision;
@@ -240,9 +314,15 @@ Only a clean comparison means the target is genuinely acquired.
 
 ### 11. Regenerate / reproduce platform-owned site files — pilot first
 
-Run the project's reproduce step (typically `pnpm setup`) so each site receives the
-new platform identity. On a shared platform, reconcile and validate the **pilot adopter**
-first; do not treat the other adopters as a second source of truth in the meantime.
+**HISTORICAL, and project-owned.** The vendored model refreshed each site's platform-owned files
+with a **script belonging to that project**. There is no Foundation command for this and no
+release provides one — in particular the `pnpm setup` name this step once carried is **not** a
+Foundation script (`pnpm setup` is pnpm's own built-in, which must never be run for this
+purpose). If a project still carries such a script, it is that project's own tooling and its rule
+is step 9's: it must never overwrite adopter-owned files.
+
+On a shared platform, reconcile and validate the **pilot adopter** first; do not treat the other
+adopters as a second source of truth in the meantime.
 
 Then verify the protection from step 9 actually held:
 
@@ -310,8 +390,9 @@ Record the outcome (kept / relocated / retired / updated) as part of the upgrade
 
 ### 14. Run the divergence / fidelity check
 
-The adopter's platform-derived source must be byte-faithful to the vendored snapshot,
-except for explicitly approved and recorded deviations.
+The site's platform-derived source must be byte-faithful to the vendored snapshot, except for
+explicitly approved and recorded deviations. **HISTORICAL:** the comparison tooling was the
+project's own; the Foundation ships no fidelity command.
 
 ### 15. Typecheck
 
@@ -392,6 +473,10 @@ recorded baseline; and any deferred item or discovered Foundation deficiency.
 
 ## Rollback
 
+> **There is no Foundation rollback executor.** What follows is ordinary Git and provider
+> recovery for an operator-driven change. The provider's traffic-level promotion is the
+> provider's own capability, never a Foundation command.
+
 1. **Do not merge or deploy** an unvalidated upgrade — validation is the gate.
 2. Merged but not deployed: revert the upgrade commit on a `fix/` branch.
 3. Deployed and broken: promote the previous known-good deployment (traffic-level
@@ -406,19 +491,26 @@ retired.
 
 ## Never
 
-- Never invent a package/dependency mechanism for the Foundation; adoption is a
-  committed vendored snapshot.
-- Never split an intentionally shared Foundation platform into one platform copy per adopter in
-  order to upgrade them separately — upgrade the shared platform once and validate the adopters
-  one at a time.
-- Never treat a reproduce step's "preserved override" as proof on its own, after a re-vendor:
-  classify against the *pre-upgrade* snapshot (step 11).
-- Never record a moving branch as the acquired baseline — pin the exact commit.
+**Any adoption — current or historical:**
+
+- Never record a moving branch as the acquired ref — an immutable release, or an exact commit.
+- Never record a Foundation version you have not actually acquired.
 - Never "upgrade" by deleting or replacing adopter content, configuration or branding.
 - Never overwrite an adopter override just because its pathname is platform-defined —
   and never freeze every old file so legitimate platform defaults can never land.
-- Never record a Foundation version you have not actually acquired.
 - Never deploy a version you have not validated.
-- Never fix a Foundation defect silently inside an adopter upgrade — record it,
+- Never invent a package/dependency mechanism for the Foundation: a Foundation release is an
+  immutable release, not an npm dependency.
+- Never present a command the platform does not implement. In this release there is **no**
+  upgrade, staging, health, promotion or rollback command.
+- Never fix a Foundation defect silently inside an adoption — record it,
   classify it (adopter-specific vs platform-wide), and escalate
   (`agent-operating-rules.md`).
+
+**In the historical vendored procedure:**
+
+- Never split an intentionally shared Foundation platform into one platform copy per adopter in
+  order to upgrade them separately — upgrade the shared platform once and validate the sites
+  one at a time.
+- Never treat a reproduce step's "preserved override" as proof on its own, after a re-vendor:
+  classify against the *pre-upgrade* snapshot (step 11).
