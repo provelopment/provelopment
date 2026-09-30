@@ -52,6 +52,13 @@
 // selects the deployment and INLINES its configuration (`src/config/deployment-build.mjs` ←
 // `next.config.ts` / `vitest.config.mts`), so no application module depends on a file's physical
 // location and B2 can move `site.config.json` into a capsule without a module-resolution change.
+//
+// FOUNDATION-B4A / B4A-A2 — this authority also resolves WHERE the INSTALLATION's own operational record lives (see
+// `operationalStateFile`). The file's NAME belongs to that lifecycle contract; the import below is of its
+// inner MODEL module, whose own imports are type-only, so this module stays CLIENT-SAFE (see the note
+// above) — importing the contract's barrel would pull the release contract and the transitions into a
+// client chunk.
+import { INSTALLATION_OPERATIONAL_STATE_FILE_NAME } from "@/core/foundation-installation/model";
 
 /** Which layout the deployment root resolved to. */
 export type DeploymentLayout = "capsule" | "repository" | "override";
@@ -68,6 +75,13 @@ export interface DeploymentRoot {
   readonly jsonPagesRoot: string;
   /** The deployment's own artwork SOURCES (the `content/assets` tree; B3 narrows this to branding). */
   readonly assetSourceRoot: string;
+  /**
+   * The INSTALLATION's OWN durable operational record (FOUNDATION-B4A / B4A-A2): what is live, how healthy
+   * it is, and how it got here. It is installation-owned state rather than authored content — see
+   * `@/core/foundation-installation`, which owns its name, schema and semantics, while this authority owns
+   * the only place it may live.
+   */
+  readonly operationalStateFile: string;
   /** Next.js' static-file root — GENERATED output, never deployment source (see the module note). */
   readonly publicAssetsDirectory: string;
 }
@@ -136,6 +150,12 @@ export function deploymentPaths(): DeploymentRoot {
     markdownPagesRoot: `${root}/content/pages/markdown`,
     jsonPagesRoot: `${root}/content/pages/json`,
     assetSourceRoot: `${root}/content/assets`,
+    // The INSTALLATION's own operational record (FOUNDATION-B4A / B4A-A2). Its NAME is the lifecycle
+    // contract's (`@/core/foundation-installation`); this authority owns only WHERE it lives. The inner
+    // model module is imported rather than the barrel because this file is CLIENT-SAFE (see the module
+    // note): the barrel would pull the release contract and the transitions into a client chunk, while the
+    // model module's imports are type-only.
+    operationalStateFile: `${root}/${INSTALLATION_OPERATIONAL_STATE_FILE_NAME}`,
     // Platform path: Next.js serves static files from `public/` only (see the module note).
     publicAssetsDirectory: `${repositoryRoot}/public/assets`,
   };

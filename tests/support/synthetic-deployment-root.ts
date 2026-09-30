@@ -138,6 +138,8 @@ export function syntheticDeploymentPaths(root: string = syntheticWritableDeploym
   markdownPagesRoot: string;
   jsonPagesRoot: string;
   assetSourceRoot: string;
+  /** FOUNDATION-B4A — the deployment's own operational record, in the shape the authority publishes. */
+  operationalStateFile: string;
   publicAssetsDirectory: string;
 } {
   const repositoryRoot = process.cwd();
@@ -150,6 +152,7 @@ export function syntheticDeploymentPaths(root: string = syntheticWritableDeploym
     markdownPagesRoot: path.join(root, "content", "pages", "markdown"),
     jsonPagesRoot: path.join(root, "content", "pages", "json"),
     assetSourceRoot: path.join(root, "content", "assets"),
+    operationalStateFile: path.join(root, "operational-state.json"),
     publicAssetsDirectory: path.join(repositoryRoot, "public", "assets"),
   };
 }

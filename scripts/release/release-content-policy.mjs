@@ -32,8 +32,14 @@
  * the repository's actual tracked inventory.
  */
 
-/** The policy's own identity. Recorded in every manifest, so a digest is never scope-ambiguous. */
-export const RELEASE_CONTENT_POLICY_ID = "foundation-source-v1";
+/**
+ * The policy's own identity. Recorded in every manifest, so a digest is never scope-ambiguous.
+ *
+ * The IDENTITY belongs to the immutable release contract (`src/core/foundation-release/manifest.mjs`,
+ * FOUNDATION-B4A-A2) and is re-exported here so every existing caller and document keeps importing it from
+ * this path. The RULES below are this repository's application of that policy and are owned here.
+ */
+export { RELEASE_CONTENT_POLICY_ID } from "../../src/core/foundation-release/manifest.mjs";
 
 /** The two decisions a rule may reach. A path matching no rule is UNCLASSIFIED (see `classifyReleasePath`). */
 export const RELEASE_INCLUSION = Object.freeze({

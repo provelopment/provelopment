@@ -8,13 +8,20 @@ It does **not** publish releases. A release identity (a tag) is created only by 
 outside this directory — this tooling constructs and verifies, and refuses to guess about anything it
 cannot prove.
 
+**The release CONTRACT is not owned here (FOUNDATION-B4A-A2).** What an immutable Foundation release *is* —
+its identity and naming semantics, its canonical provenance, the manifest format, the content-policy
+identity and the manifest's validators — is pure release knowledge and lives in
+`src/core/foundation-release/`. This tooling imports it and re-exports it, because `src/core/**` must never
+depend on `scripts/**`: the dependency points at the contract, from both sides. What remains here is what
+does things: construction, the policy's rules, the digest, Git access, verification, publication, the CLI.
+
 | File | Owns |
 | --- | --- |
-| `release-content-policy.mjs` | what belongs in a release (machine-authoritative; fails closed on an unclassified path) |
+| `release-content-policy.mjs` | what belongs in a release (machine-authoritative; fails closed on an unclassified path). The policy's IDENTITY is the contract's; the RULES are here |
 | `release-construction.mjs` | the construction and verification mechanism (Git objects, one plan, one manifest) |
 | `release-digest.mjs` | the normalised content digest and the payload walk |
-| `release-identity.mjs` | what a release may be CALLED: the canonical UTC identity, the grandfathered first release, and recognition vs publishability |
-| `release-manifest.mjs` | the manifest schema and the ONE authority behind each derived value |
+| `release-identity.mjs` | the tooling's façade onto the identity contract: it re-exports the contract unchanged and owns only "now" (`foundationReleaseIdentityForPublication`) |
+| `release-manifest.mjs` | CONSTRUCTING a manifest: the ONE authority behind each derived value. The manifest's schema and validators are the contract's and are re-exported here |
 | `index.mjs` | the CLI: `classify`, `build`, `verify` |
 
 ## What a Foundation release IS

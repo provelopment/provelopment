@@ -5,3 +5,16 @@
 # Nothing inside it is ever committed — not even a `.gitkeep` — so an agent that needs the
 # directory creates it locally (see `deployment/AGENTS.md`).
 .test/
+
+# The deployment's own OPERATIONAL RECORD (FOUNDATION-B4A) — generated state, never authored content.
+#
+# `operational-state.json` is what this deployment is RUNNING and what has happened to it (the live
+# Foundation release and deployment revision, the candidate in flight, the last failure, the rollback
+# provenance, the bounded history). Its schema and semantics belong to the platform
+# (`src/core/deployment-lifecycle`), and its location is resolved by the deployment-path authority.
+#
+# It is deliberately NOT version controlled: it records what IS running rather than what the owner
+# authors, so committing it would turn every health evaluation and rejected candidate into a source
+# change, and would let a machine's working tree stop matching the immutable revision it is running.
+# Durability comes from the deployment's own filesystem, and a Foundation release never carries it.
+operational-state.json
