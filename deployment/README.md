@@ -87,5 +87,45 @@ immutable**: it is never repointed, deleted or replaced.
 
 ## Another deployment is out of scope
 
-You may read Foundation code and contracts, because that is how you understand the platform you use.
-You may not read, copy from, or modify another deployment — ever.
+You may read Foundation code and contracts, because that is how you understand the platform you use. You
+may not read, copy from, or modify another deployment — ever.
+
+## This deployment's operational record, and establishing a NEW deployment (FOUNDATION-B4B)
+
+The record has a real writer since B4B. `operational-state.json` is written ONCE, as the LAST act of
+establishing an installation — which is exactly why a target without it is visibly incomplete and can never
+be mistaken for a successful one:
+
+| Field | What it says |
+| --- | --- |
+| `schemaVersion` | the record's schema version (1) |
+| `current.installationIdentity` | WHICH installation this record describes — this deployment, by name and its own repository |
+| `current.live` | the immutable release, and the exact revision that is live |
+| `current.health` / `healthEvaluatedAt` | whether the live installation is serving, as of when |
+| `current.lastAttempt` | what is happening, or what last happened, and why it stopped |
+| `history` | the bounded record of how the current state was reached |
+
+It is generated state: never committed, never shipped in a release, never edited by hand, and refused a
+location outside the installation it describes
+(`src/adapters/installation/node-operational-state-store.ts`).
+
+This capsule is this deployment's authored material, and it is also perfectly good **seed** material for
+establishing a NEW, autonomous Foundation installation elsewhere:
+
+```bash
+pnpm release:build  --release <identity> --source <commit> --dest <an empty directory>
+pnpm installation:establish --release <identity> --payload <that directory> --seed deployment \
+                             --target <the new installation root> --name "<its name>" \
+                             --repository "<its own repository>"
+```
+
+Two things about the result are deliberate:
+
+* **The capsule's `foundation-baseline.json` is NOT carried over.** Establishment writes the new
+  installation's own adoption record for the release it actually established from: a copied record would
+  claim an adoption that never happened there. Everything else in this capsule is copied verbatim.
+* **`operational-state.json` may never be inside a seed.** It is generated state describing what an
+  installation is RUNNING, so the new installation gets its own — and this capsule must keep ignoring it
+  (establishment refuses a seed whose capsule does not).
+
+The full procedure, the refusals and the proof are in `scripts/installation/README.md`.

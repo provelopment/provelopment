@@ -297,3 +297,41 @@ application: adopting it never requires one.
    content*, never reusable capability.
 7. **Release the template** with an immutable tag, and record in the site's
    `FOUNDATION_SOURCE.md` that it is a downstream adopter of that release.
+
+## Starting a NEW installation instead of adopting this repository (B4B)
+
+Adopting an existing repository is the workflow above. **Creating a fresh Foundation installation** —
+one autonomous installation, in a directory of its own, running one immutable release — is a different act,
+and since FOUNDATION-B4B the platform does it for you:
+
+```bash
+# 1. Construct the release you want to install (or unpack one you were given).
+pnpm release:build --release <identity> --source <commit> --dest <an empty directory>
+
+# 2. Establish the installation. The target must be ABSENT or EMPTY.
+pnpm installation:establish \
+  --release <identity> \
+  --payload <the directory from step 1> \
+  --seed    <your authored capsule, e.g. this repository's deployment/ directory> \
+  --target  <the installation root> \
+  --name    "<the name you use for this installation>" \
+  --repository "<this installation's own repository>"
+```
+
+The complete procedure — what you get, what establishment refuses, what a re-run does, and how to prove the
+result — is `scripts/installation/README.md`. In one paragraph: it writes the release's platform, copies your
+authored material verbatim into the installation's capsule, writes the installation's adoption record
+(`foundation-baseline.json`) and its generated operational record (`operational-state.json`), and nothing
+else; it never reaches outside the target root, never overwrites and never deletes; and the installation it
+creates needs nothing from the installation it came from.
+
+Then prove it, from INSIDE the new installation: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
+`pnpm build`, `pnpm test:foundation` (plus `pnpm test:deployment` if your capsule ships its own acceptance
+tests). A handful of the platform's architecture tests assert facts about the Foundation project's own
+repository — its tracked inventory's size and shape — rather than about any installation; they are part of
+this project's CI, and `tests/architecture/release-content-boundary.test.ts` says which.
+
+**An installation is not a clone, and not a copy of somebody's site.** Its operational record names the
+installation it describes, it holds no reference to the installation it was created from, and it asks that
+installation for nothing. Version it however you like — establishment deliberately creates no Git
+repository and makes no commit for you.

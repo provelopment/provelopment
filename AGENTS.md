@@ -547,3 +547,49 @@ In practice:
 
 When a change adds or alters a user-facing capability, update the documentation in the
 same change and keep it at this standard.
+
+## 27. Establishing a Foundation installation (B4B)
+A **complete Foundation installation** is not the same thing as a Foundation release, and conflating them is
+the mistake this section exists to prevent:
+
+```text
+complete installation = immutable release content (the platform) + an authored capsule + generated state
+```
+
+A release is deliberately **platform-only**: `scripts/release/release-content-policy.mjs` excludes
+`deployment/**` because a release must never carry one site's authored material. Establishment therefore
+takes the authored material as an input (`--seed`), and it never invents a site.
+
+The ONE supported way to create an installation is:
+
+```text
+pnpm installation:establish --release <identity> --payload <dir> --seed <dir> --target <dir> \
+                             --name <name> --repository <url>
+```
+
+Documented in `scripts/installation/README.md` (the operator surface) and
+`instruction-manuals/adoption.md` (the manual that owns the workflow). The contract that decides what an
+installation is made of is `src/core/foundation-installation/establishment.ts`; the mechanism is
+`src/application/establish-foundation-installation.ts` with the adapters in `src/adapters/installation/**`.
+
+Rules for agents:
+
+- **`src/**` contains exactly two writers**, both in `src/adapters/installation/**`: the target root's
+  guarded writer and the installation's operational-record store. Adding a third is an architectural
+  decision, not a convenience; `tests/architecture/write-ownership-guard.test.ts` refuses it until somebody
+  classifies it, with the ONE domain it owns.
+- **Establishment writes only beneath the target root it was given** — never the source installation,
+  another installation, the release directory, the seed, `01.web-01`, a home directory or global
+  configuration. Temporary working state is either inside the target or a task-owned OS temp path that is
+  removed afterwards.
+- **Generated state is never authored state.** `operational-state.json` describes what an installation is
+  RUNNING: it is ignored by version control, excluded from every release, and outside the authored-state
+  manifest. Do not commit it, do not "fix" it by hand, and do not let a writer put it anywhere but inside
+  the installation it describes.
+- **A release is never weakened to make establishment easier.** If establishment seems to need something a
+  release does not carry, the authored material belongs in the seed.
+- **No fleet, no control plane, no second installation.** An installation knows only itself and its own
+  spokes; establishment must not acquire a relationship (a registry, a parent, a clone, a poll) it would
+  have to keep. `src/**` may never import `scripts/**`, so the pure contracts live in core and the tooling
+  consumes them.
+- **A real Foundation defect is STOP and REPORT**, not a self-patch: a later immutable release is adopted.

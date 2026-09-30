@@ -36,6 +36,27 @@ repository ships its deployment as the capsule `deployment/site.config.json`), t
 starter copy in its `config/i18n/en.json`, and the graphics in its
 `content/assets/placeholders/`.
 
+### Establishing a Foundation installation of your own
+
+A checkout is the quickest way to try the platform. To create **one complete, autonomous installation** in a
+directory of its own — running one immutable Foundation release, with your authored material, independent of
+whatever it was created from — the platform does it for you:
+
+```bash
+pnpm release:build  --release <identity> --source <commit> --dest <an empty directory>
+pnpm installation:establish --release <identity> --payload <that directory> \
+                             --seed <your authored capsule> --target <the installation root> \
+                             --name "<the name you use for this installation>" \
+                             --repository "<this installation's own repository>"
+```
+
+The release is platform-only by design, so the authored material (your `site.config.json`, dictionaries,
+pages and artwork) is an input: in this repository that material is the `deployment/` capsule. The full
+procedure, what establishment refuses, and how to prove the installation you just made are in
+[`scripts/installation/README.md`](scripts/installation/README.md) and
+[`instruction-manuals/adoption.md`](instruction-manuals/adoption.md).
+
+
 ## Repository structure
 
 ```
