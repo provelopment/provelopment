@@ -70,6 +70,20 @@ describe("architectural boundaries", () => {
       "next",
     ]);
   });
+
+  it("platform source never imports platform tooling (scripts/**)", () => {
+    // FOUNDATION-B4A-A2 — the pure contracts live in `src/core/**`, and the procedural release tooling
+    // (`scripts/**`) CONSUMES them. The direction may not reverse: a `src/**` module importing a script
+    // would tie application code to Node CLI tooling, to the filesystem and to Git, and would make the
+    // released platform depend on how this repository happens to build releases.
+    const offenders: string[] = [];
+    for (const file of listTypeScriptFiles(srcDirectory)) {
+      for (const specifier of extractImportSpecifiers(file)) {
+        if (/(^|\/)scripts\//.test(specifier)) offenders.push(`${file} imports "${specifier}"`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });
 
 const APP_DIRECTORY = path.join(process.cwd(), "src", "app");

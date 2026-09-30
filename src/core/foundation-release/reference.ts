@@ -1,33 +1,48 @@
 /**
- * THE FOUNDATION RELEASE A DEPLOYMENT NAMES (FOUNDATION-B4A)
- * =========================================================
+ * THE FOUNDATION RELEASE A CONSUMER NAMES (FOUNDATION-B4A / B4A-A2)
+ * ===============================================================
  *
- * A deployment never says "main", "HEAD", "latest" or a branch. Everywhere the lifecycle has to name
- * the platform it is running, adopting, validating, staging or promoting, it names ONE IMMUTABLE
- * FOUNDATION RELEASE — and this module is that value object.
+ * A Foundation installation — and the tooling that builds, publishes and verifies releases — never says
+ * "main", "HEAD", "latest" or a branch. Wherever the platform has to name the release it is running,
+ * adopting, validating, staging, promoting or constructing, it names ONE IMMUTABLE FOUNDATION RELEASE,
+ * and this module is that value object.
  *
  * WHERE THE CONTRACT COMES FROM (nothing is restated here)
  * -------------------------------------------------------
- * The release contract already has ONE authority per fact, and this module consumes them instead of
- * copying them into a second vocabulary:
+ * Each fact already has ONE authority, and this module consumes them instead of copying them into a
+ * second vocabulary — and all of them are in THIS directory, because `src/core/**` must never depend on
+ * the procedural tooling in `scripts/**`:
  *
- *   the identity question      `scripts/release/release-identity.mjs` — is this a recognized immutable
- *                              release identity at all (the canonical
- *                              `provelopment-foundation-vYYYYMMDD.HHMM`, or the grandfathered first
- *                              release)?
- *   the platform's authority   `scripts/release/release-manifest.mjs` — `FOUNDATION_SOURCE_REPOSITORY`
+ *   the identity question      `./identity.mjs` — is this a recognized immutable release identity at all
+ *                              (the canonical `provelopment-foundation-vYYYYMMDD.HHMM`, or the
+ *                              grandfathered first release)?
+ *   the platform's authority   `./manifest.mjs` — `FOUNDATION_SOURCE_REPOSITORY`
  *   the reference's fields     the shape `deployment/foundation-baseline.json` already records: tag,
  *                              repository, commit, tree, manifestFormat and the content identity
  *                              (policy, digest, fileCount). The adoption record and this lifecycle
  *                              therefore speak the SAME shape — one representation, two consumers —
  *                              rather than a "lifecycle release" that could drift from the adopted one.
  *
+ * PROVENANCE, NOT ACQUISITION
+ * --------------------------
+ * Everything here is IMMUTABLE: the release's identity, the revision it was cut from and the content it
+ * carries. `repository` is CANONICAL PROVENANCE — it answers "which platform is this release OF?" and is
+ * what makes a release recognizable and verifiable. It is NOT where an installation obtained the bytes,
+ * and it establishes NO runtime relationship: the same release may be acquired from the canonical
+ * repository, a local copy, an archive or another configured source, and its immutable identity is
+ * unchanged. "Where the bytes came from" is acquisition, it belongs to an adapter's act, and it is
+ * deliberately absent from this structure (see `@/application/foundation-installation-ports`).
+ *
  * WHAT IS *NOT* DECIDED HERE
  * --------------------------
  * COMPATIBILITY. `manifestFormat` and `content.policy` are recorded as the values the release itself
- * states; this module refuses a malformed record, not an inconvenient one. Whether a given release may
- * be adopted by a given deployment is a lifecycle decision made where the release is RESOLVED and
+ * states; this module refuses a malformed record, not an inconvenient one. Whether a given release may be
+ * adopted by a given installation is a lifecycle decision made where the release is RESOLVED and
  * VALIDATED — never by quietly accepting or rewriting an artifact's self-description here.
+ *
+ * TypeScript ON PURPOSE: its consumers are typed ones (the lifecycle domain, future acquisition and
+ * verification adapters, tests), while the identities it builds on are plain ESM so that the
+ * dependency-free Node tooling can consume them too — see `README.md` in this directory.
  *
  * Framework-neutral: pure data, types and predicates. No React, Next.js, filesystem or configuration.
  */
@@ -35,8 +50,8 @@ import {
   FOUNDATION_INITIAL_RELEASE_IDENTITY,
   FOUNDATION_RELEASE_IDENTITY_CONTRACT,
   isRecognizedFoundationReleaseIdentity,
-} from "../../../scripts/release/release-identity.mjs";
-import { FOUNDATION_SOURCE_REPOSITORY } from "../../../scripts/release/release-manifest.mjs";
+} from "./identity.mjs";
+import { FOUNDATION_SOURCE_REPOSITORY } from "./manifest.mjs";
 
 /** The content identity of one Foundation release: what the release contains, not where it came from. */
 export interface FoundationReleaseContent {
@@ -49,7 +64,7 @@ export interface FoundationReleaseContent {
 }
 
 /**
- * ONE immutable Foundation release, as a deployment names it.
+ * ONE immutable Foundation release, as an installation names it.
  *
  * `tag` is the identity a consumer asks for; `commit`/`tree`/`content` are the provenance and content
  * identity that make the name verifiable — the release identity and the content identity are
@@ -103,7 +118,7 @@ function keySetIssues(value: unknown, keys: readonly string[], what: string): st
  * and the authority, because whoever reads them is repairing a record rather than reading a spec.
  *
  * `content.policy` is deliberately validated as an IDENTITY (non-empty, no whitespace) and not compared
- * with this platform's current policy: a deployment may legitimately run a release whose policy this
+ * with this platform's current policy: an installation may legitimately run a release whose policy this
  * platform version does not name, and compatibility is decided where a release is resolved.
  */
 export function foundationReleaseReferenceIssues(value: unknown): string[] {

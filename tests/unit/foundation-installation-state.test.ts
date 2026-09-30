@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DEPLOYMENT_HEALTH,
-  DEPLOYMENT_LIFECYCLE_HISTORY_LIMIT,
-  deploymentActivationState,
-  deploymentOperationalStateIssues,
-  initialDeploymentOperationalState,
+  INSTALLATION_HEALTH,
+  INSTALLATION_LIFECYCLE_HISTORY_LIMIT,
+  installationActivationState,
+  installationOperationalStateIssues,
+  initialInstallationOperationalState,
   isUtcInstant,
-  parseDeploymentOperationalState,
+  parseInstallationOperationalState,
   utcInstant,
-  type DeploymentOperationalState,
-} from "@/core/deployment-lifecycle";
+  type FoundationInstallationOperationalState,
+} from "@/core/foundation-installation";
 
-import { FIRST_RELEASE, deploymentIdentity, event, operationalState } from "../support/deployment-lifecycle-fixture";
+import { FIRST_RELEASE, installationIdentity, event, operationalState } from "../support/foundation-installation-fixture";
 
 /**
  * THE DURABLE RECORD'S CONTRACT (FOUNDATION-B4A)
@@ -21,7 +21,7 @@ import { FIRST_RELEASE, deploymentIdentity, event, operationalState } from "../s
  * The record is read by people and machines that did not write it, so the two properties that matter are: it
  * says what is true NOW without reading prose or history, and a CONTRADICTION is refused rather than
  * repaired. This suite states the second property exhaustively — every refusal below is a situation that
- * would otherwise be quietly "fixed" into a plausible-looking lie about a deployment.
+ * would otherwise be quietly "fixed" into a plausible-looking lie about an installation.
  *
  * Nothing here touches a filesystem or a clock: the record is data, and every instant is passed in.
  */
@@ -37,35 +37,35 @@ type Loose<T> = T extends readonly (infer U)[]
   : T extends object
     ? { -readonly [K in keyof T]: Loose<T[K]> }
     : T;
-type LooseRecord = Loose<DeploymentOperationalState>;
+type LooseRecord = Loose<FoundationInstallationOperationalState>;
 
 /** The issues of the fixture record with ONE edit applied, so each test states its own contradiction. */
 function issuesAfter(edit: (record: LooseRecord) => void): string[] {
   const record = structuredClone(operationalState()) as LooseRecord;
   edit(record);
-  return deploymentOperationalStateIssues(record);
+  return installationOperationalStateIssues(record);
 }
 
 /** The joined issues, so a failure message is readable rather than a wall of array output. */
 const reported = (issues: readonly string[]): string => issues.join("\n");
 
-describe("a fresh deployment is unestablished rather than assumed healthy", () => {
+describe("a fresh installation is unestablished rather than assumed healthy", () => {
   it("starts with no live identity, OFFLINE health and nothing attempted", () => {
-    const fresh = initialDeploymentOperationalState(deploymentIdentity());
+    const fresh = initialInstallationOperationalState(installationIdentity());
 
-    expect(deploymentOperationalStateIssues(fresh)).toEqual([]);
+    expect(installationOperationalStateIssues(fresh)).toEqual([]);
     expect(fresh.current.live).toBeNull();
     expect(fresh.current.lastAttempt).toBeNull();
-    expect(fresh.current.health).toBe(DEPLOYMENT_HEALTH.OFFLINE);
+    expect(fresh.current.health).toBe(INSTALLATION_HEALTH.OFFLINE);
     // Nothing has been evaluated, so nothing claims a moment: an undated OFFLINE is honest.
     expect(fresh.current.healthEvaluatedAt).toBeNull();
     expect(fresh.history).toEqual([]);
-    expect(deploymentActivationState(fresh)).toBe("unestablished");
+    expect(installationActivationState(fresh)).toBe("unestablished");
   });
 
-  it("refuses to build a state for a deployment identity that is not usable", () => {
-    expect(() => initialDeploymentOperationalState(deploymentIdentity({ name: "   " }))).toThrow(/not a usable/);
-    expect(() => initialDeploymentOperationalState(deploymentIdentity({ repository: "" }))).toThrow(/not a usable/);
+  it("refuses to build a state for an installation identity that is not usable", () => {
+    expect(() => initialInstallationOperationalState(installationIdentity({ name: "   " }))).toThrow(/not a usable/);
+    expect(() => initialInstallationOperationalState(installationIdentity({ repository: "" }))).toThrow(/not a usable/);
   });
 });
 
@@ -73,13 +73,13 @@ describe("a valid record is accepted as written", () => {
   it("accepts the fixture, and accepts it again after a JSON round trip", () => {
     const record = operationalState();
 
-    expect(reported(deploymentOperationalStateIssues(record))).toBe("");
-    expect(parseDeploymentOperationalState(JSON.parse(JSON.stringify(record)))).toEqual(record);
-    expect(deploymentActivationState(record)).toBe("active");
+    expect(reported(installationOperationalStateIssues(record))).toBe("");
+    expect(parseInstallationOperationalState(JSON.parse(JSON.stringify(record)))).toEqual(record);
+    expect(installationActivationState(record)).toBe("active");
   });
 
-  it("names the release the deployment runs, and the exact revision serving it", () => {
-    const record = parseDeploymentOperationalState(operationalState());
+  it("names the release the installation runs, and the exact revision serving it", () => {
+    const record = parseInstallationOperationalState(operationalState());
 
     expect(record.current.live?.release.tag).toBe(record.current.lastAttempt?.target.tag);
     expect(record.current.live?.revision).toBe(record.current.lastAttempt?.candidate?.materialized);
@@ -87,7 +87,7 @@ describe("a valid record is accepted as written", () => {
 
   it("refuses an unknown schema version rather than interpreting it", () => {
     expect(reported(issuesAfter((record) => (record.schemaVersion = 2)))).toMatch(/schemaVersion is 2/);
-    expect(() => parseDeploymentOperationalState({ ...operationalState(), schemaVersion: 1.5 })).toThrow(/FOUNDATION-B4A/);
+    expect(() => parseInstallationOperationalState({ ...operationalState(), schemaVersion: 1.5 })).toThrow(/FOUNDATION-B4A/);
   });
 
   it("refuses a record with a missing or an unexpected field", () => {
@@ -112,7 +112,7 @@ describe("health and activation cannot disagree", () => {
     expect(issues.some((issue) => /cannot be serving/.test(issue))).toBe(true);
   });
 
-  it("refuses a live deployment whose health was never evaluated", () => {
+  it("refuses a live installation whose health was never evaluated", () => {
     expect(reported(issuesAfter((record) => (record.current.healthEvaluatedAt = null)))).toMatch(/undated claim/);
   });
 
@@ -122,7 +122,7 @@ describe("health and activation cannot disagree", () => {
     ).toMatch(/is not "online" or "offline"/);
   });
 
-  it("allows OFFLINE with a dated evaluation — a live deployment that is not serving", () => {
+  it("allows OFFLINE with a dated evaluation — a live installation that is not serving", () => {
     expect(
       reported(
         issuesAfter((record) => {
@@ -272,7 +272,7 @@ describe("an attempt that contradicts the live state is refused", () => {
           record.current.lastAttempt!.kind = "upgrade";
         }),
       ),
-    ).toMatch(/requires a live deployment to move/);
+    ).toMatch(/requires a live installation to move/);
 
     expect(
       reported(
@@ -283,7 +283,7 @@ describe("an attempt that contradicts the live state is refused", () => {
           record.current.lastAttempt!.failure = { category: "build", message: "the site did not build" };
         }),
       ),
-    ).toMatch(/must leave the deployment unestablished/);
+    ).toMatch(/must leave the installation unestablished/);
   });
 
   it("refuses a previous live state that names the live release itself", () => {
@@ -324,7 +324,7 @@ describe("history is an ordered, bounded, closed record of what happened", () =>
     expect(
       reported(
         issuesAfter((record) => {
-          record.history = Array.from({ length: DEPLOYMENT_LIFECYCLE_HISTORY_LIMIT + 1 }, () => event());
+          record.history = Array.from({ length: INSTALLATION_LIFECYCLE_HISTORY_LIMIT + 1 }, () => event());
         }),
       ),
     ).toMatch(/more than the contract's/);

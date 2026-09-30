@@ -1,24 +1,45 @@
 /**
- * THE DEPLOYMENT'S DURABLE OPERATIONAL RECORD (FOUNDATION-B4A)
- * ==========================================================
+ * THE FOUNDATION INSTALLATION'S DURABLE OPERATIONAL RECORD (FOUNDATION-B4A / B4A-A2)
+ * ===============================================================================
  *
- * ONE deployment, ONE machine-readable record of what it is running and what has happened to it. It is
- * the answer to "is this deployment online, on which release, and what was the last thing done to it?"
- * WITHOUT reading prose, a dashboard, a log file or another deployment.
+ * ONE Foundation installation, ONE machine-readable record of what it is running and what has happened to
+ * it: the answer to "is this installation online, on which immutable Foundation release, and what was the
+ * last thing done to it?" — WITHOUT reading prose, a dashboard, a log file, or anything belonging to
+ * another installation (there is no other installation anywhere in this model).
+ *
+ * WHOSE STATE THIS IS: THE COMPLETE FOUNDATION INSTALLATION
+ * --------------------------------------------------------
+ * The subject is the COMPLETE installation — the platform it runs, its authored state, and the spokes it
+ * owns. Every concept in this module and in `transitions.ts` (activation, attempt, health, live state,
+ * candidate, staging, promotion, rollback) belongs to the INSTALLATION, because installing, upgrading and
+ * rolling back a Foundation release are installation acts.
+ *
+ * A SPOKE is one of the websites this installation owns and manages. A SITE (`ww`, `de`) is a country or
+ * global context inside a spoke. Installation ≠ spoke ≠ Site — and this record is none of the three:
+ *
+ *   · it holds NO spoke-level state. A spoke has its own lifecycle, which a later phase adds as its OWN
+ *     record rather than by widening this one (one ambiguous record serving two levels is exactly what
+ *     this note exists to prevent);
+ *   · it names no Site: Sites belong to the installation's authored configuration, not to its operational
+ *     state;
+ *   · it knows NOTHING about another Foundation installation. Another installation is not a parent, a
+ *     child, a sibling, a source or a spoke: there is no registry, no fleet, no clone lifecycle, no
+ *     cross-installation state and no runtime connection between installations — so nothing here can
+ *     name one.
  *
  * THREE CONCERNS, DELIBERATELY SEPARATE (this is the shape of the whole lifecycle)
  * ------------------------------------------------------------------------------
- *   ACTIVATION   what is LIVE — `current.live`, or nothing at all (`null`: a deployment that has never
+ *   ACTIVATION   what is LIVE — `current.live`, or nothing at all (`null`: an installation that has never
  *                been activated). It is never inferred from an attempt's outcome.
  *   ATTEMPT      what is HAPPENING or last happened — `current.lastAttempt`: the desired release, how
- *                far the candidate got, and why it stopped. Attempts come and go; the live deployment
+ *                far the candidate got, and why it stopped. Attempts come and go; the live installation
  *                does not move because one failed.
- *   HEALTH       is the LIVE deployment serving — `current.health`, ONLINE or OFFLINE, dated by
+ *   HEALTH       is the LIVE installation serving — `current.health`, ONLINE or OFFLINE, dated by
  *                `current.healthEvaluatedAt`.
  *
  * The separation is what makes the failure semantics structural rather than prose (see `transitions.ts`):
- * a rejected candidate changes the ATTEMPT and nothing else, so a healthy deployment cannot become
- * OFFLINE merely because an upgrade failed, and a fresh install that fails leaves a deployment that is
+ * a rejected candidate changes the ATTEMPT and nothing else, so a healthy installation cannot become
+ * OFFLINE merely because an upgrade failed, and a fresh install that fails leaves an installation that is
  * not activated (and therefore not serving) — recorded, not invented.
  *
  * CURRENT TRUTH IS NOT HISTORY
@@ -28,21 +49,21 @@
  *   `current`   the snapshot: authoritative, self-contained, and the ONLY thing a reader needs to answer
  *               "what is true now?".
  *   `history`   an append-only list of events, oldest first, BOUNDED by
- *               `DEPLOYMENT_LIFECYCLE_HISTORY_LIMIT`. It explains how the deployment arrived here; it is
- *               never required to determine what is true.
+ *               `INSTALLATION_LIFECYCLE_HISTORY_LIMIT`. It explains how the installation arrived here; it
+ *               is never required to determine what is true.
  *
  * Trimming the oldest events therefore cannot lose current truth — and this is not an event-sourcing
  * framework: there is no replay, no projection and no rebuild from history.
  *
  * WHERE IT IS STORED, AND WHY THAT IS NOT THIS MODULE'S BUSINESS
  * ------------------------------------------------------------
- * The record is a DEPLOYMENT-OWNED file named `operational-state.json`; its LOCATION is the deployment
- * root, resolved by the ONE deployment-path authority (`@/config/deployment-root`) like every other
- * deployment-owned location. This module owns the NAME, the SCHEMA and the SEMANTICS — never a path,
- * never a filesystem, and never a writer.
+ * The record is an INSTALLATION-OWNED file named `operational-state.json`; its LOCATION is the
+ * installation root, resolved by the ONE deployment-path authority (`@/config/deployment-root`, the
+ * reviewed ISO-B1 filesystem seam) like every other installation-owned location. This module owns the
+ * NAME, the SCHEMA and the SEMANTICS — never a path, never a filesystem, and never a writer.
  *
  * It is GENERATED OPERATIONAL STATE rather than authored content: it records what IS running, changes
- * without a human editing it, and must be able to change while the deployment runs one immutable
+ * without a human editing it, and must be able to change while the installation runs one immutable
  * revision. It is therefore not version-controlled — committing it would make every health change a
  * source change, and would let a machine's working tree stop matching the revision it is running (the
  * capsule's `.gitignore` states the policy).
@@ -54,60 +75,61 @@
  *
  * Framework-neutral: pure data, types and predicates. No React, Next.js, filesystem or configuration.
  */
-import type { DeploymentFailure } from "./failures";
-import type { FoundationReleaseReference } from "./release-reference";
+import type { InstallationFailure } from "./failures";
+import type { FoundationReleaseReference } from "@/core/foundation-release/reference";
+
 
 
 /** The record's file name — part of the durable contract; its LOCATION belongs to the path authority. */
-export const DEPLOYMENT_OPERATIONAL_STATE_FILE_NAME = "operational-state.json";
+export const INSTALLATION_OPERATIONAL_STATE_FILE_NAME = "operational-state.json";
 
 /**
  * The schema version of the document below, from the very first release of the contract.
  *
  * It is deliberately NOT called `version`: this is the schema's own number, and a reader must never
- * confuse it with the Foundation release a deployment is running (that is `live.release.tag`). A record
+ * confuse it with the Foundation release an installation is running (that is `live.release.tag`). A record
  * whose `schemaVersion` is not this number is REFUSED — a future migration is a deliberate act that knows
  * both shapes, never a guess made while reading.
  */
-export const DEPLOYMENT_OPERATIONAL_STATE_SCHEMA_VERSION = 1;
+export const INSTALLATION_OPERATIONAL_STATE_SCHEMA_VERSION = 1;
 
 /**
  * How many events `history` keeps: the newest are appended, the oldest are dropped.
  *
  * A bound is a contract rather than an implementation detail, because the record must stay readable and
- * comparable for the life of a deployment. Current truth never depends on history (see the module note),
+ * comparable for the life of an installation. Current truth never depends on history (see the module note),
  * so trimming is safe by construction.
  */
-export const DEPLOYMENT_LIFECYCLE_HISTORY_LIMIT = 100;
+export const INSTALLATION_LIFECYCLE_HISTORY_LIMIT = 100;
 
 /**
- * WHICH deployment this record describes.
+ * WHICH installation this record describes.
  *
- * A record is read by its own deployment — but also, later, by whoever manages several deployments, who
- * must be able to tell one record from another WITHOUT trusting a file path. The identity is therefore
- * part of the record: the name its operator uses, and the repository the deployment's own source lives
- * in (the same kind of authority the platform names for itself in its release manifest).
+ * The identity is part of the record so that the record is SELF-DESCRIBING: whoever holds these bytes
+ * knows they describe THIS installation without trusting the path they were found at. It is the name the
+ * operator uses and the repository the installation's own source lives in — its OWN authority, never the
+ * platform's, never a branch, and never a pointer to another installation.
  */
-export interface DeploymentIdentity {
+export interface FoundationInstallationIdentity {
   readonly name: string;
-  /** The deployment's OWN repository/authority — not the platform's, and never a branch. */
+  /** The installation's OWN repository/authority — not the platform's, and never a branch. */
   readonly repository: string;
 }
 
-/** The two health values of the ACTIVE deployment. There is deliberately no "degraded" and no "unknown". */
-export const DEPLOYMENT_HEALTH = {
-  /** The live deployment is serving. */
+/** The two health values of the ACTIVE installation. There is deliberately no "degraded" and no "unknown". */
+export const INSTALLATION_HEALTH = {
+  /** The live installation is serving. */
   ONLINE: "online",
-  /** The live deployment is not serving — or nothing is live yet (a deployment that is not activated). */
+  /** The live installation is not serving — or nothing is live yet (an installation that is not activated). */
   OFFLINE: "offline",
 } as const;
 
-/** ONLINE or OFFLINE: the health of the ACTIVE deployment, never the outcome of the last attempt. */
-export type DeploymentHealth = (typeof DEPLOYMENT_HEALTH)[keyof typeof DEPLOYMENT_HEALTH];
+/** ONLINE or OFFLINE: the health of the ACTIVE installation, never the outcome of the last attempt. */
+export type InstallationHealth = (typeof INSTALLATION_HEALTH)[keyof typeof INSTALLATION_HEALTH];
 
 /** Whether anything is live at all. Derived from `live` — never stored twice. */
-export const DEPLOYMENT_ACTIVATION = {
-  /** Nothing has ever been activated: no live release, and no live deployment revision. */
+export const INSTALLATION_ACTIVATION = {
+  /** Nothing has ever been activated: no live release, and no live installation revision. */
   UNESTABLISHED: "unestablished",
   /** A live release and revision exist, whatever their health. */
   ACTIVE: "active",
@@ -154,9 +176,9 @@ export function utcInstant(moment: Date): string {
  *
  *   `release`      the Foundation release IDENTITY the candidate contains (an immutable release name,
  *                  never a branch).
- *   `authored`     the identity of the deployment's OWN authored input the candidate was built from:
- *                  a `sha256:` content digest over the deployment's authored surfaces (configuration,
- *                  dictionaries, pages, artwork). A digest rather than a commit, because a deployment
+ *   `authored`     the identity of the installation's OWN authored input the candidate was built from:
+ *                  a `sha256:` content digest over the installation's authored surfaces (configuration,
+ *                  dictionaries, pages, artwork). A digest rather than a commit, because an installation
  *                  need not be a Git checkout at all — and the algorithm is the building phase's, while
  *                  the CONTRACT is that two identical inputs produce one identity.
  *   `materialized` the `sha256:` content digest of the candidate tree itself.
@@ -165,10 +187,10 @@ export function utcInstant(moment: Date): string {
  * inspection and promotion compare THIS value, so promotion can never promote "something equivalent
  * rebuilt for production".
  */
-export interface DeploymentCandidateIdentity {
+export interface InstallationCandidateIdentity {
   /** The release identity the candidate contains (must be the attempt's desired release). */
   readonly release: string;
-  /** The `sha256:` content digest of the deployment's authored input. */
+  /** The `sha256:` content digest of the installation's authored input. */
   readonly authored: string;
   /** The `sha256:` content digest of the materialised candidate tree. */
   readonly materialized: string;
@@ -177,23 +199,23 @@ export interface DeploymentCandidateIdentity {
 /** The ONE digest shape a candidate identity field may take. */
 
 /** WHY a lifecycle attempt was started. The kind decides which preconditions must hold (see `transitions.ts`). */
-export const DEPLOYMENT_ATTEMPT_KINDS = [
-  /** Establish a deployment that has nothing live yet. */
+export const INSTALLATION_ATTEMPT_KINDS = [
+  /** Establish an installation that has nothing live yet. */
   "install",
-  /** Move a LIVE deployment to the desired release. */
+  /** Move a LIVE installation to the desired release. */
   "upgrade",
-  /** Return a live deployment to the previously known-good live state. */
+  /** Return a live installation to the previously known-good live state. */
   "rollback",
 ] as const;
 
 /** `install`, `upgrade` or `rollback`. */
-export type DeploymentAttemptKind = (typeof DEPLOYMENT_ATTEMPT_KINDS)[number];
+export type InstallationAttemptKind = (typeof INSTALLATION_ATTEMPT_KINDS)[number];
 
 /**
  * HOW FAR an attempt got. Stages are the lifecycle's own steps, so a reader sees where work stopped
  * without reading a log — and the terminal stages are the only ones that also settle the outcome.
  */
-export const DEPLOYMENT_ATTEMPT_STAGES = [
+export const INSTALLATION_ATTEMPT_STAGES = [
   /** The candidate is being materialised; no candidate tree exists yet. */
   "preparing",
   /** A candidate tree exists and is being validated. */
@@ -206,20 +228,20 @@ export const DEPLOYMENT_ATTEMPT_STAGES = [
   "inspected",
   /** Promotion is in flight. */
   "promoting",
-  /** Promotion completed: this candidate IS the live deployment. Terminal, successful. */
+  /** Promotion completed: this candidate IS the live installation. Terminal, successful. */
   "live",
   /** The attempt ended without becoming live. Terminal, failed. */
   "failed",
 ] as const;
 
 /** One lifecycle step. */
-export type DeploymentAttemptStage = (typeof DEPLOYMENT_ATTEMPT_STAGES)[number];
+export type InstallationAttemptStage = (typeof INSTALLATION_ATTEMPT_STAGES)[number];
 
 /** Whether an attempt is still moving, and how it ended. */
-export const DEPLOYMENT_ATTEMPT_OUTCOMES = ["pending", "succeeded", "failed"] as const;
+export const INSTALLATION_ATTEMPT_OUTCOMES = ["pending", "succeeded", "failed"] as const;
 
 /** `pending` while an attempt is in flight; `succeeded`/`failed` once it is done. */
-export type DeploymentAttemptOutcome = (typeof DEPLOYMENT_ATTEMPT_OUTCOMES)[number];
+export type InstallationAttemptOutcome = (typeof INSTALLATION_ATTEMPT_OUTCOMES)[number];
 
 /**
  * ONE lifecycle attempt: the desired release, the candidate, how far it got, and why it stopped.
@@ -228,66 +250,66 @@ export type DeploymentAttemptOutcome = (typeof DEPLOYMENT_ATTEMPT_OUTCOMES)[numb
  * configuration to keep in step with reality: an operator (or a control plane) asks for a release by
  * STARTING an attempt, and the attempt records the request until it is settled.
  */
-export interface DeploymentLifecycleAttempt {
-  readonly kind: DeploymentAttemptKind;
+export interface FoundationInstallationAttempt {
+  readonly kind: InstallationAttemptKind;
   /** The release the attempt asked for, in full — identity, provenance and content identity. */
   readonly target: FoundationReleaseReference;
-  readonly stage: DeploymentAttemptStage;
-  readonly outcome: DeploymentAttemptOutcome;
+  readonly stage: InstallationAttemptStage;
+  readonly outcome: InstallationAttemptOutcome;
   /** The candidate identity, or `null` while the attempt is still `preparing`. */
-  readonly candidate: DeploymentCandidateIdentity | null;
+  readonly candidate: InstallationCandidateIdentity | null;
   /** When the attempt was recorded as started (UTC instant). */
   readonly startedAt: string;
   /** When the attempt settled (UTC instant), or `null` while it is `pending`. */
   readonly endedAt: string | null;
   /** Why the attempt failed, or `null` when it has not failed. */
-  readonly failure: DeploymentFailure | null;
+  readonly failure: InstallationFailure | null;
 }
 
 /**
- * A deployment state that is NO LONGER live, kept as the rollback provenance.
+ * An installation state that is NO LONGER live, kept as the rollback provenance.
  *
- * It records the exact release AND the exact deployment revision that were live, so "return to the
+ * It records the exact release AND the exact installation revision that were live, so "return to the
  * previously known-good state" names a revision rather than a mood — and so a rollback cannot quietly
  * mean "re-materialise whatever that release builds today".
  */
-export interface PreviousLiveDeployment {
+export interface PreviousLiveInstallation {
   readonly release: FoundationReleaseReference;
-  /** The `sha256:` digest of the deployment revision that was live. */
+  /** The `sha256:` digest of the installation revision that was live. */
   readonly revision: string;
   /** When this state stopped being live (UTC instant). */
   readonly retiredAt: string;
 }
 
 /**
- * WHAT IS LIVE: the Foundation release, and the EXACT deployment revision serving it.
+ * WHAT IS LIVE: the Foundation release, and the EXACT installation revision serving it.
  *
- * The two are different facts: several deployment revisions may exist for one release (an authored
+ * The two are different facts: several installation revisions may exist for one release (an authored
  * change), so the release identity alone could not name what is running.
  */
-export interface LiveDeployment {
+export interface LiveInstallation {
   readonly release: FoundationReleaseReference;
-  /** The `sha256:` digest of the live deployment revision. */
+  /** The `sha256:` digest of the live installation revision. */
   readonly revision: string;
   /** When this state became live (UTC instant). */
   readonly activatedAt: string;
   /** The state that was live before it — the rollback provenance, or `null` for a first activation. */
-  readonly previous: PreviousLiveDeployment | null;
+  readonly previous: PreviousLiveInstallation | null;
 }
 
-export const DEPLOYMENT_CONTENT_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
+export const INSTALLATION_CONTENT_DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/;
 
 /** True when two identities name the SAME candidate in every respect a promotion must prove. */
 
 /**
  * WHAT HAPPENED, in a small closed vocabulary.
  *
- * Events explain how the deployment reached its current state; they never determine it. Each one names
+ * Events explain how the installation reached its current state; they never determine it. Each one names
  * the release it concerns, so a reader can follow one release through an upgrade without cross-referencing
  * anything else. A refusal, a cancelled idea or a validation error thrown at a caller is NOT an event:
- * the history records what the deployment actually became, never every question that was asked of it.
+ * the history records what the installation actually became, never every question that was asked of it.
  */
-export const DEPLOYMENT_LIFECYCLE_EVENT_TYPES = [
+export const INSTALLATION_LIFECYCLE_EVENT_TYPES = [
   /** An attempt was started for a desired release. */
   "attempt-started",
   /** A candidate tree was materialised with a known identity, and validation may begin. */
@@ -300,52 +322,50 @@ export const DEPLOYMENT_LIFECYCLE_EVENT_TYPES = [
   "candidate-inspected",
   /** The attempt ended without becoming live. */
   "attempt-failed",
-  /** A candidate became the live deployment (an install, an upgrade or a rollback). */
+  /** A candidate became the live installation (an install, an upgrade or a rollback). */
   "promoted",
-  /** The live deployment's health became (or was re-asserted as) ONLINE. */
+  /** The live installation's health became (or was re-asserted as) ONLINE. */
   "health-online",
-  /** The live deployment's health became OFFLINE. */
+  /** The live installation's health became OFFLINE. */
   "health-offline",
 ] as const;
 
 /** One recorded lifecycle event type. */
-export type DeploymentLifecycleEventType = (typeof DEPLOYMENT_LIFECYCLE_EVENT_TYPES)[number];
+export type InstallationLifecycleEventType = (typeof INSTALLATION_LIFECYCLE_EVENT_TYPES)[number];
 
-/** ONE appended fact about this deployment's lifecycle. */
-export interface DeploymentLifecycleEvent {
-  readonly type: DeploymentLifecycleEventType;
+/** ONE appended fact about this installation's lifecycle. */
+export interface InstallationLifecycleEvent {
+  readonly type: InstallationLifecycleEventType;
   /** When it happened (UTC instant) — provenance, never identity. */
   readonly at: string;
   /** The release identity the event concerns. */
   readonly release: string;
-  /** One human sentence: what happened, in the deployment's own words. */
+  /** One human sentence: what happened, in the installation's own words. */
   readonly detail: string;
 }
 
 /**
- * THE SNAPSHOT: everything that is true about the deployment right now.
+ * THE SNAPSHOT: everything that is true about the installation right now.
  *
  * `healthEvaluatedAt` is the instant the current health value was established. It is `null` only for a
- * deployment that has never been evaluated at all — which is why a record with a LIVE deployment must
- * carry one: "the live deployment is online" is a claim about a moment, and an undated claim is not one.
+ * installation that has never been evaluated at all — which is why a record with a LIVE installation must
+ * carry one: "the live installation is online" is a claim about a moment, and an undated claim is not one.
  */
-export interface DeploymentCurrentState {
+export interface FoundationInstallationState {
   /**
-   * WHICH deployment this record describes (its identity, never a path).
+   * WHICH installation this record describes — its identity, never a path and never another installation.
    *
-   * The field is spelled `deploymentIdentity` rather than the bare word for a mechanical reason worth
-   * knowing: a quoted `deployment` in application source is a CAPSULE-DIRECTORY spelling, and
-   * `tests/architecture/deployment-root-guard.test.ts` keeps that spelling in the ONE path authority.
-   * That rule is about PATHS; this is a field name, so it says what it holds and the guard stays a rule
-   * about locations.
+   * It is the only field that says whose state these bytes are, which is what makes the record
+   * self-describing: a reader that finds this file does not have to know where it was found, and does not
+   * have to ask any other installation what it is.
    */
-  readonly deploymentIdentity: DeploymentIdentity;
-  readonly health: DeploymentHealth;
+  readonly installationIdentity: FoundationInstallationIdentity;
+  readonly health: InstallationHealth;
   readonly healthEvaluatedAt: string | null;
-  /** What is live, or `null` when this deployment has never been activated. */
-  readonly live: LiveDeployment | null;
-  /** What is happening, or what last happened — `null` only for a deployment nothing has acted on. */
-  readonly lastAttempt: DeploymentLifecycleAttempt | null;
+  /** What is live, or `null` when this installation has never been activated. */
+  readonly live: LiveInstallation | null;
+  /** What is happening, or what last happened — `null` only for an installation nothing has acted on. */
+  readonly lastAttempt: FoundationInstallationAttempt | null;
 }
 
 /**
@@ -354,15 +374,15 @@ export interface DeploymentCurrentState {
  * This is the WHOLE record — the exact thing serialised to `operational-state.json`. Its two parts are
  * deliberate (see the module note): `current` answers "what is true?", `history` answers "how?".
  */
-export interface DeploymentOperationalState {
+export interface FoundationInstallationOperationalState {
   readonly schemaVersion: number;
-  readonly current: DeploymentCurrentState;
-  readonly history: readonly DeploymentLifecycleEvent[];
+  readonly current: FoundationInstallationState;
+  readonly history: readonly InstallationLifecycleEvent[];
 }
 
-export function identicalDeploymentCandidates(
-  left: DeploymentCandidateIdentity,
-  right: DeploymentCandidateIdentity,
+export function identicalInstallationCandidates(
+  left: InstallationCandidateIdentity,
+  right: InstallationCandidateIdentity,
 ): boolean {
   return (
     left.release === right.release &&
@@ -372,4 +392,4 @@ export function identicalDeploymentCandidates(
 }
 
 /** `unestablished` or `active`. */
-export type DeploymentActivation = (typeof DEPLOYMENT_ACTIVATION)[keyof typeof DEPLOYMENT_ACTIVATION];
+export type InstallationActivation = (typeof INSTALLATION_ACTIVATION)[keyof typeof INSTALLATION_ACTIVATION];

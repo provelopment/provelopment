@@ -1,6 +1,6 @@
 /**
- * A VALID DEPLOYMENT OPERATIONAL RECORD, BUILT IN PIECES (FOUNDATION-B4A)
- * =====================================================================
+ * A VALID FOUNDATION-INSTALLATION OPERATIONAL RECORD, BUILT IN PIECES (FOUNDATION-B4A / B4A-A2)
+ * ==========================================================================================
  *
  * The lifecycle contract's tests describe STATES, and a state has many fields. These builders name each
  * one once so a test can say exactly what it is about ("health online while nothing is live") without
@@ -8,21 +8,24 @@
  * tree to follow.
  *
  * They build DATA, never files: the record's persistence is a port's business (`@/application/
- * deployment-lifecycle-ports`), and nothing in `tests/**` writes a deployment.
+ * foundation-installation-ports`), and nothing in `tests/**` writes an installation.
+ *
+ * The RELEASE side comes from the pure release contract (`@/core/foundation-release`), which the lifecycle
+ * domain consumes too — so a test never has to reach into the release tooling for an identity.
  */
 import type {
-  DeploymentCandidateIdentity,
-  DeploymentHealth,
-  DeploymentIdentity,
-  DeploymentLifecycleAttempt,
-  DeploymentLifecycleEvent,
-  DeploymentOperationalState,
-  FoundationReleaseReference,
-  LiveDeployment,
-  PreviousLiveDeployment,
-} from "@/core/deployment-lifecycle";
-import { DEPLOYMENT_OPERATIONAL_STATE_SCHEMA_VERSION } from "@/core/deployment-lifecycle";
-import { FOUNDATION_INITIAL_RELEASE_IDENTITY } from "../../scripts/release/release-identity.mjs";
+  FoundationInstallationAttempt,
+  FoundationInstallationIdentity,
+  FoundationInstallationOperationalState,
+  InstallationCandidateIdentity,
+  InstallationHealth,
+  InstallationLifecycleEvent,
+  LiveInstallation,
+  PreviousLiveInstallation,
+} from "@/core/foundation-installation";
+import { INSTALLATION_OPERATIONAL_STATE_SCHEMA_VERSION } from "@/core/foundation-installation";
+import { FOUNDATION_INITIAL_RELEASE_IDENTITY } from "@/core/foundation-release/identity.mjs";
+import type { FoundationReleaseReference } from "@/core/foundation-release/reference";
 
 /** The platform authority a Foundation release comes from. */
 export const FOUNDATION_REPOSITORY = "https://github.com/provelopment/provelopment-foundation";
@@ -56,23 +59,23 @@ export function releaseReference(
   };
 }
 
-/** The deployment's own identity: its name, and the repository its source lives in. */
-export function deploymentIdentity(overrides: Partial<DeploymentIdentity> = {}): DeploymentIdentity {
-  return { name: "reference-deployment", repository: "https://github.com/example/reference-site", ...overrides };
+/** The installation's own identity: its name, and the repository its source lives in. */
+export function installationIdentity(overrides: Partial<FoundationInstallationIdentity> = {}): FoundationInstallationIdentity {
+  return { name: "reference-installation", repository: "https://github.com/example/reference-site", ...overrides };
 }
 
 /** ONE candidate identity: the release it contains, its authored input, and the materialised tree. */
-export function candidateIdentity(overrides: Partial<DeploymentCandidateIdentity> = {}): DeploymentCandidateIdentity {
+export function candidateIdentity(overrides: Partial<InstallationCandidateIdentity> = {}): InstallationCandidateIdentity {
   return { release: CANONICAL_RELEASE, authored: digest("a"), materialized: digest("b"), ...overrides };
 }
 
 /** A state that stopped being live, as rollback provenance records it. */
-export function previousLive(overrides: Partial<PreviousLiveDeployment> = {}): PreviousLiveDeployment {
+export function previousLive(overrides: Partial<PreviousLiveInstallation> = {}): PreviousLiveInstallation {
   return { release: releaseReference({ tag: FIRST_RELEASE }), revision: digest("c"), retiredAt: "2026-10-01T09:00:00Z", ...overrides };
 }
 
-/** What is live: the release, the exact deployment revision, and the state it replaced. */
-export function liveState(overrides: Partial<LiveDeployment> = {}): LiveDeployment {
+/** What is live: the release, the exact installation revision, and the state it replaced. */
+export function liveState(overrides: Partial<LiveInstallation> = {}): LiveInstallation {
   return {
     release: releaseReference(),
     revision: digest("b"),
@@ -83,7 +86,7 @@ export function liveState(overrides: Partial<LiveDeployment> = {}): LiveDeployme
 }
 
 /** ONE settled attempt, as a record stores the last one. */
-export function attempt(overrides: Partial<DeploymentLifecycleAttempt> = {}): DeploymentLifecycleAttempt {
+export function attempt(overrides: Partial<FoundationInstallationAttempt> = {}): FoundationInstallationAttempt {
   return {
     kind: "install",
     target: releaseReference(),
@@ -98,16 +101,16 @@ export function attempt(overrides: Partial<DeploymentLifecycleAttempt> = {}): De
 }
 
 /** ONE history event, in the closed vocabulary. */
-export function event(overrides: Partial<DeploymentLifecycleEvent> = {}): DeploymentLifecycleEvent {
+export function event(overrides: Partial<InstallationLifecycleEvent> = {}): InstallationLifecycleEvent {
   return { type: "promoted", at: "2026-10-01T09:00:00Z", release: CANONICAL_RELEASE, detail: "a candidate became live", ...overrides };
 }
 
-/** A COMPLETE, VALID record: an established deployment serving one release, with no attempt in flight. */
-export function operationalState(overrides: Partial<DeploymentOperationalState> = {}): DeploymentOperationalState {
+/** A COMPLETE, VALID record: an established installation serving one release, with no attempt in flight. */
+export function operationalState(overrides: Partial<FoundationInstallationOperationalState> = {}): FoundationInstallationOperationalState {
   return {
-    schemaVersion: DEPLOYMENT_OPERATIONAL_STATE_SCHEMA_VERSION,
+    schemaVersion: INSTALLATION_OPERATIONAL_STATE_SCHEMA_VERSION,
     current: {
-      deploymentIdentity: deploymentIdentity(),
+      installationIdentity: installationIdentity(),
       health: "online",
       healthEvaluatedAt: "2026-10-01T09:00:00Z",
       live: liveState(),
@@ -119,6 +122,6 @@ export function operationalState(overrides: Partial<DeploymentOperationalState> 
 }
 
 /** The record with ONE health value, so a test can state the situation it means. */
-export function withHealth(state: DeploymentOperationalState, health: DeploymentHealth): DeploymentOperationalState {
+export function withHealth(state: FoundationInstallationOperationalState, health: InstallationHealth): FoundationInstallationOperationalState {
   return { ...state, current: { ...state.current, health } };
 }
