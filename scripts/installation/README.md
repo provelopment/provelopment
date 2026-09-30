@@ -88,9 +88,14 @@ installation:
   commit it if you want version control — that is your decision, and establishment deliberately does not
   make it for you. The generated `public/assets/**` mirror and `operational-state.json` are already excluded
   by the policies the release ships, so they cannot become commits.
-* A handful of the platform's own architecture tests assert facts about **this project's repository**
-  (its tracked inventory's size and shape) rather than about any installation. They are part of the
-  Foundation project's CI, and `instruction-manuals/adoption.md` records how to read them.
+* **The platform's generic test suite contains repository-shaped suites.** Several of them describe the
+  FOUNDATION PROJECT's own repository — its git history, its release tags and its tracked inventory — rather
+  than any installation, so `pnpm test:foundation` inside an installation reports those suites as failures
+  while everything the installation actually runs (install, typecheck, lint, build, its own tooling, its own
+  capsule's acceptance) is green. Separating "the platform contract" from "this project's repository" is
+  recorded as a Foundation freeze-audit item; until it is done, treat `pnpm test:foundation` in an
+  installation as informative rather than conclusive, and use the list above as the installation's own
+  verification.
 
 The record of what the installation runs is in its capsule: `foundation-baseline.json` names the immutable
 release it adopted, and `operational-state.json` names the exact revision that became live.

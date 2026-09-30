@@ -326,10 +326,12 @@ else; it never reaches outside the target root, never overwrites and never delet
 creates needs nothing from the installation it came from.
 
 Then prove it, from INSIDE the new installation: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
-`pnpm build`, `pnpm test:foundation` (plus `pnpm test:deployment` if your capsule ships its own acceptance
-tests). A handful of the platform's architecture tests assert facts about the Foundation project's own
-repository — its tracked inventory's size and shape — rather than about any installation; they are part of
-this project's CI, and `tests/architecture/release-content-boundary.test.ts` says which.
+`pnpm build`, `pnpm lint` and `pnpm assets:check` (plus `pnpm test:deployment` if your capsule ships its own
+acceptance tests). The platform's generic suite (`pnpm test:foundation`) is INFORMATIVE rather than
+conclusive inside an installation: several of its suites describe the Foundation PROJECT's own repository —
+its git history, its release tags and its tracked inventory — rather than any installation, so they fail
+where the installation is a different repository. Separating "the platform contract" from "this project's
+repository" is a recorded Foundation freeze-audit item.
 
 **An installation is not a clone, and not a copy of somebody's site.** Its operational record names the
 installation it describes, it holds no reference to the installation it was created from, and it asks that
