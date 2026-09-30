@@ -108,6 +108,15 @@ const SANCTIONED_DOMAIN_WRITERS: Record<string, string> = {
   "scripts/ci/change-scope.mjs": "$GITHUB_OUTPUT — the CI runner's own file, never repository state (ISO-B3B)",
   "scripts/release/release-construction.mjs":
     "the EMPTY destination directory the caller names — a release construction area outside the source repository. It reads committed bytes only, and writes no repository, deployment or generated state (R1B)",
+  // ── FOUNDATION-B4B: the FIRST writers inside `src/**`, each owning exactly ONE installation ──────────
+  // Establishment must run the platform's own TypeScript contract, so the mechanism cannot live in a
+  // `.mjs` tool: it is an adapter, and these two are the only executable writers in application source.
+  "src/adapters/installation/node-installation-target.ts":
+    "the ONE target root establishment was constructed for, and nothing else: every path is resolved INSIDE that root by `absolutePathFor`, which refuses absolute paths, `..`, drive letters and anything resolving outside it (B4B)",
+  "src/adapters/installation/node-operational-state-store.ts":
+    "<installation root>/<capsule>/operational-state.json — THIS installation's own operational record, refused a location outside the root it was constructed for. The first legitimate writer of B4A's record (B4B)",
+  "scripts/installation/platform-typescript.mjs":
+    "OS temp only — a per-process TypeScript resolver it writes and removes before returning, so a plain Node process can run the platform's own TypeScript tooling (B4B)",
 };
 
 /**
@@ -135,6 +144,16 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/unit/release-construction.test.ts":
     "synthetic source repositories and construction destinations under OS temp — the release mechanism proved on disposable repositories, never on this one (R1B)",
   "tests/unit/runtime-asset-lifecycle.test.ts": "OS temp deployment and runtime trees it creates",
+  "tests/support/installation-establishment-fixture.ts":
+    "disposable platforms, releases, seeds and target roots under OS temp — the establishment proof's own " +
+    "throwaway tree, removed by exact ownership (B4B)",
+  "tests/integration/foundation-installation-bootstrap.test.ts":
+    "OS temp target roots and one deliberately half-written materialisation, plus the installation's own " +
+    "generated asset mirror when the established tree is proved self-contained (B4B)",
+  "tests/integration/foundation-installation-operational-state.test.ts":
+    "disposable target roots it establishes into, and the seeded capsule whose ignore rule it proves (B4B)",
+  "tests/integration/foundation-installation-cli.test.ts":
+    "disposable target roots it establishes into through the command line (B4B)",
   "tests/unit/site-page-isolation.test.ts": "the synthetic deployment's page tree",
   "tests/unit/synthetic-deployment-lifecycle.test.ts":
     "the synthetic deployment copies it materialises and removes, plus the look-alike decoys proving the " +
@@ -175,8 +194,8 @@ describe("the executable writer inventory is explicit", () => {
     ).toEqual(classified);
   });
 
-  it("names the four sanctioned durable domains, each as ONE document/domain and no more", () => {
-    expect(Object.keys(SANCTIONED_DOMAIN_WRITERS)).toHaveLength(4);
+  it("names the sanctioned durable domains, each as ONE document/domain and no more", () => {
+    expect(Object.keys(SANCTIONED_DOMAIN_WRITERS)).toHaveLength(7);
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/sync-runtime-assets.mjs"]).toContain("public/assets");
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/generate-country-code-reference.mjs"]).toContain(
       "COUNTRY-CODES.md",
@@ -184,10 +203,40 @@ describe("the executable writer inventory is explicit", () => {
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/ci/change-scope.mjs"]).toContain("GITHUB_OUTPUT");
     // R1B — the release tool names its destination as the ONE thing it writes, and writes nothing else.
     expect(SANCTIONED_DOMAIN_WRITERS["scripts/release/release-construction.mjs"]).toContain("destination");
+    // B4B — establishment's two writers, each naming the ONE installation it may touch.
+    expect(SANCTIONED_DOMAIN_WRITERS["src/adapters/installation/node-installation-target.ts"]).toContain(
+      "target root",
+    );
+    expect(SANCTIONED_DOMAIN_WRITERS["src/adapters/installation/node-operational-state-store.ts"]).toContain(
+      "operational-state.json",
+    );
+    expect(SANCTIONED_DOMAIN_WRITERS["scripts/installation/platform-typescript.mjs"]).toContain("OS temp");
   });
 
-  it("keeps Foundation application code (src/**) free of writers entirely", () => {
-    expect(writerFiles().filter((file) => file.startsWith("src/"))).toEqual([]);
+  it("keeps Foundation application code free of writers — except establishment's two, each in one root", () => {
+    // B4B is the phase that first writes an installation, and the mechanism must run the platform's own
+    // TypeScript contract, so it cannot be a `.mjs` script. `src/**` therefore has EXACTLY two writers, both
+    // in the installation adapter, and the guard above states the ONE domain each owns. Nothing else in
+    // application source may mutate anything, ever.
+    expect(writerFiles().filter((file) => file.startsWith("src/"))).toEqual([
+      "src/adapters/installation/node-installation-target.ts",
+      "src/adapters/installation/node-operational-state-store.ts",
+    ]);
+
+    // The boundary is code, not documentation: the target's writes are resolved by its own guard …
+    const target = readFileSync(
+      path.join(ROOT, "src", "adapters", "installation", "node-installation-target.ts"),
+      "utf8",
+    );
+    expect(target).toContain("absolutePathFor");
+    expect(target).toContain("is outside the target root");
+    // … and the record's location is refused unless it is inside the installation it describes.
+    const store = readFileSync(
+      path.join(ROOT, "src", "adapters", "installation", "node-operational-state-store.ts"),
+      "utf8",
+    );
+    expect(store).toContain("INSTALLATION-LOCAL");
+    expect(store).toContain("path.relative");
   });
 });
 

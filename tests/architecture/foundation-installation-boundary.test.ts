@@ -77,7 +77,7 @@ describe("the lifecycle is ONE installation's, and there is no other installatio
 
   it("is the contract's own module set, and nothing else", () => {
     expect(files.map((file) => path.basename(file)).sort()).toEqual(
-      ["failures.ts", "index.ts", "model.ts", "state.ts", "transitions.ts"].sort(),
+      ["establishment.ts", "failures.ts", "index.ts", "model.ts", "state.ts", "transitions.ts"].sort(),
     );
   });
 
@@ -218,7 +218,57 @@ describe("the ports are contracts, and nothing implements them yet", () => {
       importsOf(file).some((specifier) => specifier.includes("foundation-installation-ports")),
     );
 
-    expect(importers.map(relative)).toEqual([]);
+    // FOUNDATION-B4B: the port is now implemented by exactly the installation adapters that establish an
+    // installation (a release directory, an authored capsule, a guarded target root, the operational record)
+    // — and by nothing else. No materialiser, validator, staging deployer, promoter, rollback executor or
+    // health probe exists yet, and no adapter reaches for a network.
+    expect(importers.map(relative)).toEqual([
+      "src/adapters/installation/establish.ts",
+      "src/adapters/installation/local-release-source.ts",
+      "src/adapters/installation/node-operational-state-store.ts",
+    ]);
+
+    // …and the establishment PORTS B4B declared are implemented by exactly the adapters that read the
+    // material an installation is made of: the release directory, the authored seed and the target root.
+    const establishmentImporters = adapters.filter((file) =>
+      importsOf(file).some((specifier) => specifier.includes("foundation-establishment-ports")),
+    );
+    expect(establishmentImporters.map(relative)).toEqual([
+      "src/adapters/installation/directory-seed-source.ts",
+      "src/adapters/installation/local-release-source.ts",
+      "src/adapters/installation/node-content-files.ts",
+      "src/adapters/installation/node-installation-target.ts",
+    ]);
+  });
+
+  it("reaches no network, and knows no other installation, from the adapters that establish one", () => {
+    // A Foundation installation must be able to operate with NO network at all, and establishment must not
+    // acquire a relationship it would have to keep: the only mechanism B4B implements reads a local
+    // directory, and nothing here may open a socket, poll, or name another installation.
+    const adapters = sourceFiles(path.join(ROOT, "src", "adapters", "installation"));
+    expect(adapters.length).toBeGreaterThan(4);
+    for (const file of adapters) {
+      const code = codeLines(file).join("\n");
+      for (const forbidden of [
+        /node:https?/,
+        /node:net/,
+        /node:dgram/,
+        /\bfetch\s*\(/,
+        /XMLHttpRequest/,
+        /octokit/i,
+        /api\.github\.com/,
+        /clone/i,
+        /parent/i,
+        /sibling/i,
+        /peer/i,
+        /registry/i,
+        /fleet/i,
+        /polling/i,
+        /latest-version/i,
+      ]) {
+        expect(forbidden.test(code), `${relative(file)} must not contain ${String(forbidden)}`).toBe(false);
+      }
+    }
   });
 });
 
@@ -226,13 +276,14 @@ describe("the ports are contracts, and nothing implements them yet", () => {
 describe("one pure release contract, consumed by BOTH sides", () => {
   it("is the domain's own module, and the release tooling imports it rather than owning it", () => {
     const contract = codeFiles(RELEASE_DIRECTORY).map((file) => path.basename(file)).sort();
-    expect(contract).toEqual(["identity.mjs", "manifest.mjs", "reference.ts"]);
+    expect(contract).toEqual(["content-digest.mjs", "identity.mjs", "manifest.mjs", "reference.ts"]);
 
     const toolingImporters = codeFiles(TOOLING_DIRECTORY).filter((file) =>
       importsOf(file).some((specifier) => specifier.includes("core/foundation-release/")),
     );
     expect(toolingImporters.map((file) => path.basename(file)).sort()).toEqual([
       "release-content-policy.mjs",
+      "release-digest.mjs",
       "release-identity.mjs",
       "release-manifest.mjs",
     ]);
@@ -240,7 +291,12 @@ describe("one pure release contract, consumed by BOTH sides", () => {
     const domainImporters = sourceFiles(INSTALLATION_DIRECTORY).filter((file) =>
       importsOf(file).some((specifier) => specifier.includes("core/foundation-release/")),
     );
-    expect(domainImporters.map((file) => path.basename(file)).sort()).toEqual(["model.ts", "state.ts", "transitions.ts"]);
+    expect(domainImporters.map((file) => path.basename(file)).sort()).toEqual([
+      "establishment.ts",
+      "model.ts",
+      "state.ts",
+      "transitions.ts",
+    ]);
   });
 
   it("spells the canonical release identity in exactly ONE place", () => {

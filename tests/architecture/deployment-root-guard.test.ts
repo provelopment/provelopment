@@ -176,6 +176,7 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     const approved = [
       "next.config.ts",
       "scripts/generate-country-code-reference.mjs",
+      "scripts/installation/index.mjs",
       "scripts/sync-runtime-assets.mjs",
       "tests/architecture/deployment-root-guard.test.ts",
       "tests/architecture/write-ownership-guard.test.ts",
@@ -184,8 +185,14 @@ describe("deployment-owned paths are spelled in ONE place", () => {
       "tests/setup/production-state-integrity.ts",
       "tests/setup/real-deployment.ts",
       "tests/support/disposable-deployment.ts",
+      "tests/support/installation-establishment-fixture.ts",
       "tests/support/synthetic-deployment-root.ts",
+      "tests/unit/foundation-installation-establishment.test.ts",
     ];
+    // FOUNDATION-B4B adds three of these, and for the same reason the list already had entries: they must
+    // know WHERE an installation's authored material lives, and asking the authority is the only sanctioned
+    // way to know it. `scripts/installation/index.mjs` is Foundation Node tooling (like the asset mirror),
+    // and it passes the answer to establishment because `src/**` may not import this module;
     const unapproved = sourceFiles(path.join(ROOT, "tests"))
       .concat(sourceFiles(path.join(ROOT, "scripts")), [path.join(ROOT, "next.config.ts")])
       .filter(importsHarness)
