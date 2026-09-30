@@ -71,7 +71,12 @@ describe("the release content policy classifies the repository's real inventory"
       if (tracked.includes(surface)) expect(excluded, surface).toContain(surface);
     }
     const capsule = tracked.filter((file) => file.startsWith("deployment/"));
-    if (capsule.length > 0) expect(capsule.length).toBeGreaterThan(100);
+    // The CAPSULE's own paths must all be excluded — the property, not a count. An earlier form of this
+    // assertion required more than a hundred capsule paths, which described THIS repository's reference
+    // capsule rather than the boundary: a Foundation installation established from a smaller authored
+    // capsule classifies correctly and failed it (FOUNDATION-B4B's establishment proof found it), and a
+    // release constructed elsewhere has no capsule at all.
+    for (const file of capsule) expect(classifyReleasePath(file).inclusion, file).toBe("excluded");
   });
 
   it("keeps the platform surfaces a consumer needs IN a release", () => {

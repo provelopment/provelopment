@@ -58,6 +58,29 @@ export type {
 export { INSTALLATION_FAILURE_CATEGORIES, isInstallationFailureCategory } from "./failures";
 export type { InstallationFailure, InstallationFailureCategory } from "./failures";
 
+/**
+ * WHAT A COMPLETE INSTALLATION IS MADE OF (FOUNDATION-B4B). The rules establishment obeys: the seed's
+ * required shape, the generated state a seed may never contain, the ignore rule that keeps the operational
+ * record out of authored state, the content scopes a candidate identity is built from, the adoption record
+ * it writes, and the predicate that answers "is this installation established from exactly this release and
+ * candidate?". The MECHANICS are `@/application/establish-foundation-installation` and
+ * `src/adapters/installation/**`.
+ */
+export {
+  INSTALLATION_ADOPTION_RECORD_FILE_NAME,
+  INSTALLATION_CONTENT_SCOPE,
+  INSTALLATION_GENERATED_STATE_IGNORE_RULE,
+  INSTALLATION_SEED_REFUSED_PATHS,
+  INSTALLATION_SEED_REQUIREMENTS,
+  foundationInstallationAdoptionRecord,
+  installationIsEstablishedFrom,
+  offsetInstant,
+} from "./establishment";
+export type {
+  FoundationInstallationAdoptionRecord,
+  InstallationSeedRequirement,
+} from "./establishment";
+
 // The release contract is NOT re-exported here: it is its own authority (`@/core/foundation-release`),
 // consumed by this lifecycle, by the release tooling and by future acquisition/verification adapters. One
 // authority, one import path — a second door would only invite the two to drift apart.

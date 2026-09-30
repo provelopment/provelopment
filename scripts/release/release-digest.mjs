@@ -34,16 +34,26 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
+import {
+  compareContentPaths,
+  contentDigestSubject,
+  RELEASE_DIGEST_SCOPE_ID,
+  RELEASE_PAYLOAD_FORMAT,
+} from "../../src/core/foundation-release/content-digest.mjs";
+import { RELEASE_MANIFEST_FILE_NAME } from "../../src/core/foundation-release/manifest.mjs";
 import { RELEASE_CONTENT_POLICY_ID } from "./release-content-policy.mjs";
 
+// THE ENCODING IS THE CONTRACT'S (FOUNDATION-B4B). The scope line, the record format and the byte-wise
+// path order live in `src/core/foundation-release/content-digest.mjs`, because a Foundation installation
+// digests content too (the authored input it was established from, and the materialised tree that became
+// live) and `src/**` must never import `scripts/**`. This module remains the tooling's surface: it
+// re-exports the shared vocabulary and owns the RELEASE-specific application of it — the payload
+// exclusions, the hashing, and the payload walk.
+
 /** The manifest's fixed name inside a constructed release. Excluded from the digest, always. */
-export const RELEASE_MANIFEST_FILE = "foundation-release.json";
+export const RELEASE_MANIFEST_FILE = RELEASE_MANIFEST_FILE_NAME;
 
-/** The digest scope's own identity, so a future change of encoding cannot silently keep the old digest meaning. */
-export const RELEASE_DIGEST_SCOPE_ID = "release-content-v1";
-
-/** The payload format the digest header claims. Bumped only with the encoding itself. */
-export const RELEASE_PAYLOAD_FORMAT = 1;
+export { RELEASE_DIGEST_SCOPE_ID, RELEASE_PAYLOAD_FORMAT };
 
 /**
  * The SHA-256 of exact bytes, lowercase hex.
@@ -77,7 +87,7 @@ export function isReleasePayloadPath(file) {
  * @returns {number} negative, zero or positive
  */
 export function compareReleasePaths(a, b) {
-  return Buffer.compare(Buffer.from(a, "utf8"), Buffer.from(b, "utf8"));
+  return compareContentPaths(a, b);
 }
 
 /**
@@ -85,6 +95,11 @@ export function compareReleasePaths(a, b) {
  *
  * Kept separate from the filesystem walk so the digest can be proved independently of how the files
  * were obtained (constructed bytes, a directory walk, or a test's synthetic pairs).
+ *
+ * The RELEASE-specific rules live here — the manifest and a checksum sidecar are not payload, and a
+ * duplicate or malformed entry is refused by name — while the encoding itself is the shared contract's
+ * (`contentDigestSubject`), so a release digest and an installation digest can never disagree about how
+ * a content set is described.
  *
  * @param {Iterable<{ path: string, sha256: string }>} entries the payload entries
  * @param {{ policyId?: string, format?: number }} [options] the scope identity recorded in the header
@@ -111,13 +126,12 @@ export function digestReleaseEntries(entries, options = {}) {
     unique.set(entry.path, entry.sha256);
   }
 
-  const hash = createHash("sha256");
-  hash.update(`release-content-v1 ${policyId} manifest-format:${format}\n`);
-  for (const file of [...unique.keys()].sort(compareReleasePaths)) {
-    hash.update(`${file}\0${unique.get(file)}\n`);
-  }
+  const subject = contentDigestSubject(
+    [...unique].map(([file, sha256]) => ({ path: file, sha256 })),
+    { scope: `${RELEASE_DIGEST_SCOPE_ID} ${policyId} manifest-format:${format}` },
+  );
 
-  return { digest: `sha256:${hash.digest("hex")}`, fileCount: unique.size };
+  return { digest: `sha256:${sha256Hex(subject)}`, fileCount: unique.size };
 }
 
 /**

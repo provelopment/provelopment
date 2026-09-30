@@ -144,15 +144,20 @@ describe("a fresh installation establishes live identity and health by promoting
     expect(inspectedState.current.health).toBe(INSTALLATION_HEALTH.OFFLINE);
   });
 
-  it("becomes live and ONLINE when that candidate is promoted — and records how", () => {
+  it("becomes live when that candidate is promoted — and leaves health UNEVALUATED, not ONLINE", () => {
     const live = becameLive(promotable());
 
     expect(installationActivationState(live)).toBe("active");
     expect(live.current.live?.release.tag).toBe(CANONICAL_RELEASE);
     expect(live.current.live?.revision).toBe(candidateIdentity().materialized);
     expect(live.current.live?.previous).toBeNull();
-    expect(live.current.health).toBe(INSTALLATION_HEALTH.ONLINE);
-    expect(live.current.healthEvaluatedAt).toBe(T.live);
+
+    // ACTIVATION IS NOT HEALTH (FOUNDATION-B4B-A1). Promotion happened; no health check did. The record
+    // therefore says exactly that: the installation IS active (`live` above), it is NOT proven to be serving
+    // (`offline`), and nothing has judged it (`healthEvaluatedAt: null`) — with no `health-online` invented.
+    expect(live.current.health).toBe(INSTALLATION_HEALTH.OFFLINE);
+    expect(live.current.healthEvaluatedAt).toBeNull();
+
     expect(live.current.lastAttempt?.stage).toBe("live");
     expect(live.current.lastAttempt?.outcome).toBe("succeeded");
     expect(live.current.lastAttempt?.endedAt).toBe(T.live);
@@ -164,8 +169,13 @@ describe("a fresh installation establishes live identity and health by promoting
       "candidate-staged",
       "candidate-inspected",
       "promoted",
-      "health-online",
     ]);
+
+    // ONLY a real evaluation — someone actually observing the live installation — can make it ONLINE.
+    const evaluated = valid(recordInstallationHealth(live, { health: "online", at: T.evaluated }));
+    expect(evaluated.current.health).toBe(INSTALLATION_HEALTH.ONLINE);
+    expect(evaluated.current.healthEvaluatedAt).toBe(T.evaluated);
+    expect(historyTypes(evaluated)).toEqual([...historyTypes(live), "health-online"]);
   });
 
   it("keeps history bounded, dropping the OLDEST events and keeping current truth", () => {
@@ -349,7 +359,9 @@ describe("rollback returns to the previously known-good live state", () => {
     expect(rolledBack.current.live?.release.tag).toBe(CANONICAL_RELEASE);
     // The state it moved away from is now the provenance, so the installation can go forward again.
     expect(rolledBack.current.live?.previous?.release.tag).toBe(NEXT_RELEASE);
-    expect(rolledBack.current.health).toBe(INSTALLATION_HEALTH.ONLINE);
+    // A rollback ACTIVATES the previous live state; it does not evaluate it either (FOUNDATION-B4B-A1).
+    expect(rolledBack.current.health).toBe(INSTALLATION_HEALTH.OFFLINE);
+    expect(rolledBack.current.healthEvaluatedAt).toBeNull();
     expect(rolledBack.current.lastAttempt?.kind).toBe("rollback");
     expect(rolledBack.current.lastAttempt?.outcome).toBe("succeeded");
   });

@@ -20,7 +20,8 @@
     "postinstall": "node scripts/sync-runtime-assets.mjs --if-deployment",
     "release:classify": "node scripts/release/index.mjs classify",
     "release:build": "node scripts/release/index.mjs build",
-    "release:verify": "node scripts/release/index.mjs verify"
+    "release:verify": "node scripts/release/index.mjs verify",
+    "installation:establish": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/installation/index.mjs establish"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

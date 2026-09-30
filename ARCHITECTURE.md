@@ -1679,3 +1679,44 @@ shared language base (e.g. config/i18n/fr.json answering fr, fr-ca and fr-fr)
 
 An unknown key in an override is refused; another site's override is never read.
 
+## Establishment: making ONE complete installation (FOUNDATION-B4B)
+
+The domain model of an installation is `src/core/foundation-installation/**`; the act of creating one is
+**establishment**, and its shape follows from one distinction the platform keeps deliberately:
+
+```text
+complete Foundation installation = immutable release content + authored capsule + generated state
+                                   (the platform)           (the seed)          (the operational record)
+```
+
+* A Foundation **release** is platform-only (`scripts/release/release-content-policy.mjs` excludes
+  `deployment/**`), because a release must never carry one site's authored material. A release is therefore
+  NOT a complete installation, and establishment cannot invent the rest: the authored material is an input.
+* The authored material is a **seed**: `site.config.json`, `config/i18n/**`, `content/**` — the capsule, in
+  this repository `deployment/`. Establishment copies it verbatim and refuses generated state inside it.
+* Establishment writes exactly two things of its own: the installation's **adoption record**
+  (`foundation-baseline.json`: which immutable release this installation adopted, written from the release it
+  established) and its **operational record** (`operational-state.json`: generated state, never authored).
+
+The dependency direction is unchanged and load-bearing:
+
+```text
+release tooling (scripts/release/**)  →  pure release contract (src/core/foundation-release)
+                                      →  installation lifecycle (src/core/foundation-installation)
+```
+
+`src/**` never imports `scripts/**`. The establishment mechanism is
+`src/application/establish-foundation-installation.ts` (a use case over ports) with
+`src/adapters/installation/**` (the Node mechanisms: reading a release directory, reading a seed, the guarded
+target writer, the operational-record store), and the operator surface is
+`scripts/installation/index.mjs`. It writes ONLY beneath the target root it is given, it never overwrites or
+deletes, and it records no connection to anything: an installation needs no network, no GitHub and no other
+installation to operate.
+
+**What the record may claim (FOUNDATION-B4B-A1).** A durable operational event describes an operation that
+actually happened, and health is an OBSERVATION rather than a step. Establishment therefore records a
+COMPLETE, verified, ACTIVATED installation — `live` names the exact candidate that became this installation's
+Foundation state — and leaves health unevaluated (`offline`, `healthEvaluatedAt: null`), because no health
+check ran. Promotion is not health, and only `recordInstallationHealth` — a real evaluation of the live
+installation — can make it `online`.
+

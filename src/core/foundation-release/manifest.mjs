@@ -32,6 +32,15 @@ import { assertReleaseIdentity } from "./identity.mjs";
 export const RELEASE_MANIFEST_FORMAT = 1;
 
 /**
+ * The manifest's own file name inside a constructed release.
+ *
+ * A contract fact, because two consumers need it: release construction (which writes it) and a verification
+ * or ACQUISITION adapter (which must exclude it from the payload — it describes the content set rather than
+ * belonging to it) without importing the tooling that builds releases.
+ */
+export const RELEASE_MANIFEST_FILE_NAME = "foundation-release.json";
+
+/**
  * The canonical upstream identity every Foundation release records — CANONICAL PROVENANCE, not a runtime
  * relationship.
  *

@@ -141,9 +141,16 @@ transition can never produce a record the contract would refuse to read.
 | `recordInstallationCandidateStaged` | `validated` | `staged` | `candidate-staged` | the candidate was not validated in this attempt |
 | `recordInstallationStagingInspected` | `staged` | `inspected` | `candidate-inspected` | the candidate was not staged in this attempt |
 | `beginInstallationPromotion` | `inspected` | `promoting` | — | the candidate is not promotable |
-| `completeInstallationPromotion` | `promoting` | `live` (`succeeded`) | `promoted` (+ `health-online` if it was offline) | the named candidate is not the one this attempt validated and inspected |
+| `completeInstallationPromotion` | `promoting` | `live` (`succeeded`) | `promoted` | the named candidate is not the one this attempt validated and inspected |
 | `failInstallationAttempt` | any in-flight stage | `failed` | `attempt-failed` | nothing is in flight; the category is outside the vocabulary; no message |
 | `recordInstallationHealth` | any state | unchanged | `health-online` / `health-offline` on a CHANGE | `online` while nothing is live |
+
+**Activity is described by these rows; health is described by ONE of them.** A transition records what
+actually happened — a candidate was prepared, validated, staged, inspected, promoted, an attempt failed —
+and `recordInstallationHealth` is the ONLY transition that speaks about serving, because a health value is an
+OBSERVATION rather than a step. Activation is not health (FOUNDATION-B4B-A1): promotion makes a candidate the
+installation's ACTIVE state and leaves health untouched — `offline`, with `healthEvaluatedAt: null` — because
+no health check ran. Nothing can become `online` except through an evaluation somebody actually performed.
 
 `isInstallationCandidatePromotable(state)` and `isInstallationAttemptPending(state)` are DERIVED from the
 attempt's stage and identity. There is no promotable flag to set, forget or forge.
@@ -167,10 +174,16 @@ or the live state — it is not passed them. Therefore:
 
 * a failed fresh install leaves an installation that was never activated, and therefore offline;
 * a rejected upgrade leaves the live release untouched and the installation online;
-* only `recordInstallationHealth` (a live-health failure) and a completed promotion move health.
+* establishing or activating an installation leaves health EXACTLY as unjudged as it was: promotion records
+  `offline` with `healthEvaluatedAt: null` (FOUNDATION-B4B-A1);
+* only `recordInstallationHealth` (a live-health evaluation) moves health, and only it can make an
+  installation `online`.
 
-`ONLINE` means the live installation is serving; `OFFLINE` means it is not serving, or that nothing is live
-yet. Health never describes an attempt, and an attempt's outcome never explains health.
+`ONLINE` means somebody OBSERVED the live installation serving; `OFFLINE` means it is not serving, or that
+nothing is live yet, or that nothing has judged it (`healthEvaluatedAt: null` — the structural statement of
+"never evaluated"). Health never describes an attempt, an attempt's outcome never explains health, and
+**activation is not health**: a record that is active and undated is exactly what a lifecycle without a
+health probe should say about itself.
 
 ## Exact promotion, and rollback provenance
 
@@ -195,6 +208,10 @@ deployment-path authority (`src/config/deployment-root.ts`, the reviewed ISO-B1 
 nothing in the application spells it. (That authority keeps its own `deployment-*` vocabulary because its
 contract was reviewed before this model existed: it names the ROOT that holds a deployment — this
 installation — and it is a filesystem seam, not the lifecycle subject.)
+
+An installation that has just been ESTABLISHED (FOUNDATION-B4B) reads `"health": "offline"` with
+`"healthEvaluatedAt": null` and a `live` state that names the exact candidate: it is active, and nothing has
+judged whether it serves. The example below shows the same installation AFTER a real health evaluation.
 
 ```jsonc
 {
@@ -307,7 +324,9 @@ operational state is unestablished. Reading a store that answers `null` is the h
 `parseFoundationInstallationOperationalState` refuses, rather than repairs:
 
 * an unknown `schemaVersion` (a future migration is a deliberate act, never a guess made while reading);
-* health `online` with nothing live, or a live installation whose health has no evaluation instant;
+* health `online` with nothing live, or health `online` with no evaluation instant — being online is an
+  observation somebody made, and an undated claim is refused (an ACTIVATED installation with no evaluation
+  instant is not a contradiction: it is an installation nothing has judged yet, FOUNDATION-B4B-A1);
 * a `live.previous` that names the live release itself, or a rollback provenance that is not a complete
   state;
 * a release identity no Foundation release could have (a branch, a bare commit, a checkpoint, an impossible
@@ -348,3 +367,58 @@ written in advance.
 A later phase that needs a new STATE adds it here, with its transition and its refusal cases, rather than
 inventing workflow flags beside this model. A later phase that needs SPOKE state adds its own record, at its
 own level, rather than widening this one.
+
+## Establishment: what a COMPLETE installation is made of (FOUNDATION-B4B)
+
+`establishment.ts` in this directory is the pure half of the act that creates an installation. It states the
+one relationship the phase exists to keep, and it refuses rather than repairs:
+
+```text
+complete installation = immutable release content + authored capsule (a SEED) + generated state
+```
+
+* `INSTALLATION_SEED_REQUIREMENTS` — the authored surfaces every installation needs (`site.config.json`,
+  `config/i18n`, `content/pages`, `content/assets`), each with the reason it is load-bearing. A seed may
+  carry any additional authored material, and it is copied verbatim.
+* `INSTALLATION_SEED_REFUSED_PATHS` — generated state a seed may never contain: the operational record above
+  all. A seed is authorship, so a seed carrying generated state is not authored material, and copying it
+  would give the new installation a history it never had.
+* `INSTALLATION_GENERATED_STATE_IGNORE_RULE` — the rule the capsule's `.gitignore` must carry, so the
+  record can never become authored, version-controlled state. Establishment refuses a seed without it.
+* `INSTALLATION_CONTENT_SCOPE` — the two scopes a candidate identity is built from (`authored`, the seed as
+  supplied; `materialized`, the whole tree establishment wrote), in the platform's ONE content encoding
+  (`@/core/foundation-release/content-digest.mjs`). One encoding, distinct scopes: never a second digest
+  flavour.
+* `foundationInstallationAdoptionRecord` / `offsetInstant` — the adoption record this installation writes,
+  carrying immutable release provenance and NO acquisition field: where the bytes came from is the act's
+  business, and belongs in diagnostics rather than in the installation's durable state.
+* `installationIsEstablishedFrom` — the completion question: is something live, is it EXACTLY this release
+  in every respect the release contract records, and is the live revision this candidate's materialised
+  digest? Only that counts as established.
+
+The mechanics are `@/application/establish-foundation-installation` (the use case, which drives the
+transitions below in their approved order for a fresh install) and `src/adapters/installation/**` (the Node
+mechanisms, including the guard that keeps every write inside the target root). The operator surface is
+`scripts/installation/README.md`.
+
+**A failed establishment records no operational record at all**, because the record is written once, last:
+that is what makes an incomplete target visibly incomplete and impossible to mistake for a successful
+installation. A re-run refuses it like any other non-empty target — nothing is ever overwritten or deleted.
+
+### What establishment's events actually mean (FOUNDATION-B4B-A1)
+
+Establishment drives this contract for one installation inside one target root, so the events it records must
+describe operations that really happened there. They do, and the mapping is exact:
+
+| Event | The real operation it records |
+| --- | --- |
+| `candidate-staged` | the exact candidate has been COMPLETELY materialised into the target root, which is not yet the active installation |
+| `candidate-inspected` | the materialised candidate passed the checks establishment actually performs: the seed's required surfaces, the site configuration, and the candidate's own content identity (recomputed from the bytes written) |
+| `promoted` | the exact inspected candidate became this installation's ACTIVE Foundation state, at the moment the completion boundary was crossed |
+
+**What these events do NOT claim.** They describe the installation's own root and nothing else: establishment
+does not deploy to a provider, does not restart a process, does not serve a request, and does not evaluate
+health. `promoted` therefore means "this installation's active state IS this candidate" — which is exactly
+what the record's `live` field says — and never "something is serving on the internet". A completed promotion
+leaves the installation ACTIVE, `offline`, and unevaluated, because no health check ran; the first real
+health evaluation is what may make it `online` (§"Failure semantics").
