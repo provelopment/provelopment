@@ -1,14 +1,15 @@
 # Site Customization — configuration-first operation
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## The principle
 
@@ -17,8 +18,8 @@
 The Foundation is a validated configuration-driven platform. Almost everything a
 business needs — identity, navigation, calls to action, presentation, locale,
 feature enablement — is **data**, validated at build time. Reaching into the
-platform source to change behaviour breaks the upgrade path and the fidelity
-guard, and is almost always unnecessary.
+platform's own files to change behaviour breaks the upgrade path, and is almost
+always unnecessary.
 
 Full schema reference: the Foundation's `CUSTOMIZING.md`. This manual is the
 **procedure**; that document is the **specification**. Do not duplicate the schema here.
@@ -36,8 +37,11 @@ Full schema reference: the Foundation's `CUSTOMIZING.md`. This manual is the
 
 ## What you must not change
 
-- platform implementation reproduced into the site (the fidelity/divergence guard
-  enforces byte-fidelity; see `validation.md`).
+- the Foundation's own implementation. In an **installation** those files are what the immutable
+  release wrote: they are never edited in place, and a later release replaces them. In a
+  repository-shaped project, the platform copy it carries must stay faithful to the release the
+  project records — an unrecorded local edit to it is a defect, not a customization (see
+  `validation.md` and `foundation-upgrade.md`).
 
 If a requirement genuinely cannot be met by configuration, content or assets, that
 is an escalation — see `agent-operating-rules.md` — not a licence to fork the platform.
@@ -142,15 +146,22 @@ the real business. Metadata must not make claims the business cannot support.
 
 ### Configuration validation
 
-Every configuration change ends with the gate (`validation.md`):
+Every configuration change ends with the validation that matches what changed (`validation.md`).
+A configuration or content change is a **deployment-scoped** change:
 
 ```bash
-pnpm validate        # schema, typecheck, lint, routes, build
-pnpm test:browser    # rendered contract, responsive, accessibility
+pnpm exec tsc --noEmit        # the configuration still type-checks against the schema
+pnpm lint
+pnpm assets:check             # if artwork or an asset role changed
+pnpm country-codes:check      # if a site or locale code changed
+pnpm test:deployment          # the deployment's own acceptance tests
+pnpm build
+pnpm test:browser:deployment  # rendered contract, responsive, accessibility, where required
 ```
 
-A schema failure is a **loud, intended** signal — never work around it by editing
-the schema.
+**Test scope follows change ownership:** a page or configuration edit does not require the
+Foundation repository's own maintainer suite. A schema failure is a **loud, intended** signal —
+never work around it by editing the schema.
 
 ## Common mistakes
 

@@ -1,35 +1,147 @@
 # Adoption — creating a new Foundation-derived project
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## What this manual is for
 
-Creating a **new** Foundation-derived project — a programme demo (Demo 3, Demo 4)
-or a real customer site — from an **approved Foundation release**, so that the new
-project starts with the platform *and* the operating knowledge it needs.
+Creating a **new** Foundation project from an **immutable Foundation release**, so that it starts
+with the platform *and* the operating knowledge it needs.
+
+There are two starting points. Choose deliberately:
+
+| Starting point | Use it when | Where its procedure is |
+| --- | --- | --- |
+| **A new Foundation installation** | you are starting a site or business that should run one immutable release, in a directory of its own, autonomously | *Creating a Foundation installation* (below) — **this is the current workflow** |
+| **Repository-shaped project** | the project is a Foundation-derived Git repository, or predates the installation model | *Repository-shaped adoption* (below) — **HISTORICAL**, retained for existing projects and migration |
 
 This manual is generic. It is not specific to any one business or directory name.
 
-## Adoption shapes
+## Creating a Foundation installation (the current workflow)
 
-A Foundation-derived project is created in one of two shapes. Choose deliberately — both are
-supported, and neither is a fork.
+One autonomous installation, in a directory of its own, running **one immutable release**. The
+platform does the work:
+
+```bash
+# 1. Construct the release you want to install (or unpack one you were given).
+pnpm release:build --release <identity> --source <commit> --dest <an empty directory>
+
+# 2. Establish the installation. The target must be ABSENT or EMPTY.
+pnpm installation:establish \
+  --release <identity> \
+  --payload <the directory from step 1> \
+  --seed    <your authored capsule> \
+  --target  <the installation root> \
+  --name    "<the name you use for this installation>" \
+  --repository "<this installation's own repository>"
+```
+
+Then prove it, from INSIDE the new installation:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm build
+pnpm assets:check
+pnpm country-codes:check
+pnpm test:deployment          # if your capsule ships its own acceptance tests
+pnpm test:browser:deployment  # where browser acceptance is required
+```
+
+The platform's generic suite (`pnpm test:foundation`) is **informative** rather than conclusive
+inside an installation: some of its suites describe the Foundation PROJECT's own repository — its
+Git history, its release tags and its tracked inventory — rather than any installation. Use the
+installation-owned list above (`validation.md`).
+
+### What you need
+
+- An **immutable Foundation release**: `provelopment-foundation-vYYYYMMDD.HHMM`, or the
+  grandfathered first release `v2026.09.30-foundation-release-initial`. You obtain its **bytes** —
+  from the canonical public repository, or from any other acquisition source able to give you that
+  same immutable release. Establishment today consumes a **directory** (`--payload`).
+  > The historical checkpoint tags of the form `v<YYYY.MM.DD>-foundation-<slug>` are **HISTORY**:
+  > they record past checkpoints and are never an identity to supply to current tooling.
+- An **authored capsule** — the material that makes the installation *yours*: configuration,
+  content, artwork, dictionaries (`site.config.json`, `config/`, `content/`). An existing
+  installation's capsule is a perfectly good seed.
+- Node.js 22+, pnpm 11, Git if you want the installation version-controlled (establishment creates
+  no repository and makes no commit for you), and provider access if you are deploying.
+
+### What establishment writes — and what it refuses
+
+The complete procedure — what you get, what it refuses, what a re-run does, and how to prove the
+result — is `scripts/installation/README.md`. In one paragraph: it writes the release's platform,
+copies your authored material verbatim into the installation's capsule, writes the installation's
+adoption record (`foundation-baseline.json`) and its generated operational record
+(`operational-state.json`), and nothing else. It never reaches outside the target root, never
+overwrites and never deletes.
+
+### An existing installation's capsule is a valid seed
+
+That is the ordinary case, and the capsule you point `--seed` at keeps its own records. Its
+`foundation-baseline.json` names the release THAT installation adopted, so it is **not carried
+over**: the new installation gets its own record for the release you are establishing, the source
+file is never modified, and the operator report names it as `not inherited`. Generated
+`operational-state.json` is never portable authored content — machine state describing what an
+installation runs — so it may not be inside a seed at all.
+
+### Established is not the same as serving
+
+Establishment records what it actually did: the installation is now ACTIVE, and its record names
+the exact release that became its Foundation state. It does **not** record health, because it never
+evaluated any — the record reads `offline` with `healthEvaluatedAt: null` ("nothing has judged it
+yet"), and the command says so in its report. Only a real health evaluation, performed later
+against the running installation, can record it `online`. Nothing in the platform claims an
+installation is serving until somebody has actually observed it serve.
+
+> **There is no health probe, no staging deployer, no production promoter and no rollback executor
+> in this release.** If an operator asks how the platform checks, stages or promotes an
+> installation, the honest answer is that it does not — yet.
+
+### An installation is not a clone, and it has no parent
+
+```text
+Foundation installation
+    ├── own lifecycle / adoption / operational state
+    └── own spokes
+            └── Site contexts
+```
+
+A **Foundation installation** is not a spoke, and a spoke is not a **Site**. The installation's
+operational record names the installation it describes, it holds no reference to the installation
+it was created from, and it asks that installation for nothing: there is no clone relationship, no
+parent, no sibling and no fleet, and **no runtime dependency on GitHub** — the platform never
+polls, never discovers "latest", and never maintains an upstream connection. Acquisition is an
+operator action, and it is replaceable.
+
+## Repository-shaped adoption shapes — HISTORICAL
+
+> **HISTORICAL.** These are the two shapes a project took **before** the installation model. They
+> remain accurate for a repository still built that way — and are the reason a migration must be
+> deliberate — but they are not how a new project starts today (see *Creating a Foundation
+> installation* above). The **source record** row below names a file belonging to the *project's
+> own governance*: it is **not** the Foundation's adoption record. An installation's adoption
+> record is `deployment/foundation-baseline.json`, written by establishment and never by hand.
+
+A repository-shaped Foundation-derived project was created in one of two shapes. Choose
+deliberately — both are supported, and neither is a fork.
 
 | | **Vendored** | **Direct downstream clone** |
 | --- | --- | --- |
 | Shape | the Foundation lives under a `platform/` directory inside the project | the project **is** a Foundation checkout, re-branded and re-configured |
 | Use it when | one repository hosts **several** sites, or the platform and business layers must be held apart with a divergence check | the project is **one site** and its owner wants the Foundation in place, with no vendoring layer |
 | Foundation arrives as | a committed snapshot under `platform/`, reproduced into each site | the repository's own tree at the Foundation commit |
-| Source record | `platform/SOURCE.md` | `FOUNDATION_SOURCE.md` |
-| Upgraded by | `foundation-upgrade.md` — compare → apply | `foundation-upgrade.md`, treating the repository root as the platform tree |
+| Source record (the project's own governance — **not** the Foundation's adoption record) | `platform/SOURCE.md` | `FOUNDATION_SOURCE.md` |
+| Updated by | `foundation-upgrade.md` — the compare → apply procedure, marked **HISTORICAL** there | `foundation-upgrade.md`, treating the repository root as the platform tree |
 | Worked example | a multi-site adopter: several sites reproducing **one shared** snapshot | a single-site adopter: one re-branded checkout |
 
 Either way the Foundation relationship must be **explicit in the repository**: a source record
@@ -47,13 +159,16 @@ origin       → the project's own repository
 foundation   → provelopment/provelopment-foundation
 ```
 
-## Prerequisites
+## Prerequisites (repository-shaped path)
 
-- An **approved Foundation release tag** (annotated, e.g.
-  `v<YYYY.MM.DD>-foundation-<slug>`) and its commit.
+- An **immutable Foundation release** — `provelopment-foundation-vYYYYMMDD.HHMM`, or the
+  grandfathered `v2026.09.30-foundation-release-initial` — and its commit. The checkpoint tags of
+  the form `v<YYYY.MM.DD>-foundation-<slug>` in the product's history are **HISTORY**: evidence of
+  past checkpoints, never an identity to supply to current tooling.
 - Git, Node.js 22+, pnpm 11, GitHub CLI (`gh`) with `repo` scope.
-- Vercel access for deployment (owner-managed).
-- `foundation-upgrade.md` describes the same mechanics for an **existing** project.
+- Provider access for deployment (owner-managed).
+- `foundation-upgrade.md` describes the same mechanics for an **existing** project, and states
+  plainly which parts of it are historical.
 
 > **Never** run adoption steps inside an existing Foundation or Foundation-derived
 > repository. Adoption creates a **new, independent** repository.
@@ -61,17 +176,17 @@ foundation   → provelopment/provelopment-foundation
 ## Lifecycle
 
 ```text
-Foundation (approved release)
+immutable Foundation release
     ↓
-new project repository (independent Git repo)
-    ↓
-instruction-manuals distributed
+autonomous installation (own root, own capsule, own records)
     ↓
 project configuration (identity, navigation, CTA, presentation)
     ↓
 business content + assets
     ↓
-first green validation
+instruction-manuals carried by the installation
+    ↓
+first green validation (installation-owned)
     ↓
 deployment
     ↓
@@ -80,7 +195,15 @@ live verification
 handoff record
 ```
 
-## Procedure
+A repository-shaped project follows the same sequence with a **committed snapshot** where the
+installation has its release.
+
+## Procedure (repository-shaped path) — HISTORICAL
+
+> **HISTORICAL.** This is how a repository-shaped project was created before the installation
+> model: retained for existing projects and for migration. A new project starts with *Creating a
+> Foundation installation* above. The commands named in each step are the real Foundation commands
+> for the context that step describes.
 
 ### 1. Create the project directory and repository
 
@@ -90,15 +213,17 @@ deployable unit (plus, if the project hosts several sites, one directory per sit
 
 ### 2. Adopt the Foundation release
 
-Vendor the approved Foundation release as a **committed snapshot** under a
-platform directory (a compare-then-apply helper is the safe mechanism — see
-`foundation-upgrade.md` §10). Do **not** invent a package/dependency mechanism;
-adoption is a committed snapshot by design.
+Vendor the Foundation release as a **committed snapshot** under a platform directory (a
+compare-then-apply helper is the safe mechanism — see `foundation-upgrade.md`, which marks that
+procedure HISTORICAL). Do **not** invent a package/dependency mechanism: acquisition is an
+immutable release, not an npm dependency. An installation, by contrast, is *established* from the
+release's bytes — it never copies a snapshot into a `platform/` directory.
 
 ### 3. Record the Foundation baseline
 
-Create the project's source-of-record file (conventionally `platform/SOURCE.md`)
-recording:
+Create the project's **own** source-of-record file (conventionally `platform/SOURCE.md`). It is the
+project's governance record — the Foundation never reads it, and it is **not** an installation's
+adoption record (that is `deployment/foundation-baseline.json`, written by establishment). Record:
 
 - source repository;
 - release tag and **exact commit**;
@@ -138,15 +263,26 @@ business imagery/artwork. These are never overwritten by platform reproduction
 (see the ownership model in `foundation-upgrade.md`). Wire business artwork
 deliberately (see `branding-and-assets.md`).
 
-### 8. Reproduce platform-owned files and run the first green gate
+### 8. Place platform-owned files and run the first green gate
 
-Reproduce the platform identity into each site, then run the full gate:
+**HISTORICAL, and project-owned.** The vendored model placed the platform identity into each site
+with a **script belonging to the project**: there is no Foundation command for this and no release
+provides one. The `pnpm setup` name this step once carried is **not** a Foundation script — it is
+pnpm's own built-in, it changes global pnpm/`PATH` state, and it must never be run for this
+purpose. A project that still carries such a script owns its behaviour, including the rule that it
+must never overwrite adopter-owned files.
+
+Then run the repository-shaped project's own gate:
 
 ```bash
-pnpm install
-pnpm setup        # reproduce platform-owned files into each site
-pnpm validate     # fidelity/divergence → typecheck → lint → routes → build
-pnpm test:browser # browser/accessibility matrix
+pnpm install --frozen-lockfile
+pnpm assets:check
+pnpm country-codes:check
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm test
+pnpm build
+pnpm test:browser
 ```
 
 The project is not adopted until these are green. See `validation.md`.
@@ -172,7 +308,14 @@ recommended next step. The project must remain **self-describing** — a future
 agent should recover context from the project's own files and Git history without
 the original conversation.
 
-## Downstream clone bootstrap (single-site)
+## Downstream clone bootstrap (single-site) — HISTORICAL
+
+> **HISTORICAL.** The runbook actually exercised **before** the installation model, when a new
+> single-site project was created by cloning the Foundation from GitHub. It is retained as
+> migration context. A new project does not start this way: it is **established** (*Creating a
+> Foundation installation* above), which needs no clone, no remote renaming and no Git history at
+> all. Where a step names the project's own record file, that file is the project's governance —
+> never the Foundation's adoption record.
 
 The runbook actually exercised to create a new single-site project by cloning the Foundation
 from GitHub. Run it from the workspace root, with the project's numbered directory name already
@@ -200,9 +343,10 @@ reserved.
    do not `git init` a fresh history beside it.
 9. **Branch** — `bootstrap/<project>-foundation` for all identity work, so the acquisition point
    and the customization stay separately reviewable.
-10. **Record provenance** — `FOUNDATION_SOURCE.md` (source repository, canonical URL, exact
-    SHA/tag, acquisition date and method, downstream repository, remote topology, adoption
-    shape, adoption status).
+10. **Record provenance** — the project's own `FOUNDATION_SOURCE.md` (source repository, canonical
+    URL, exact SHA/tag, acquisition date and method, downstream repository, remote topology,
+    adoption shape, adoption status). That file is the project's governance record; it is not the
+    Foundation's adoption record, which for an installation is `deployment/foundation-baseline.json`.
 11. **Apply the approved identity** — from the brand pack in the root governance project; follow
     `branding-and-assets.md`. Never design a new identity; never edit the master pack to fit a
     site.
@@ -233,28 +377,45 @@ reserved.
 
 ## Completion criteria
 
+**A new Foundation installation (current workflow):**
+
+- [ ] the target was absent or empty, and establishment reported success;
+- [ ] the capsule is your authored material, copied verbatim;
+- [ ] `deployment/foundation-baseline.json` names the release **you** established — no record was
+      inherited from the seed;
+- [ ] `operational-state.json` is generated locally, and **no** health claim was recorded
+      (`offline`, `healthEvaluatedAt: null`);
+- [ ] the installation builds and passes its own gate (`validation.md` → installation gate);
+- [ ] the installation's `instruction-manuals/` is byte-identical to the master (`README.md`);
+- [ ] handoff record written.
+
+**A repository-shaped project (historical path):**
+
 - [ ] independent repository with its own remote;
-- [ ] approved Foundation release vendored, with the exact commit recorded;
+- [ ] immutable Foundation release vendored, with the exact commit recorded;
 - [ ] `instruction-manuals/` present and byte-identical to the distributed package;
 - [ ] project rules + brief + directive present;
-- [ ] adopter configuration validates;
+- [ ] project configuration validates;
 - [ ] business-owned directories established;
-- [ ] `validate` and browser matrix green;
+- [ ] the repository gate green (`validation.md` → maintainer gate);
 - [ ] deployment live and verified (or explicitly handed to the owner);
 - [ ] handoff record written.
 
 ## Never
 
-- Never adopt an unapproved or unverified Foundation revision.
-- Never place business content, branding or configuration where platform
-  reproduction will overwrite it.
-- Never configure DNS/Vercel/GitHub settings on the owner's behalf without an
-  explicit instruction.
+- Never adopt a revision you have not verified: an immutable release, never a moving branch.
+- Never place business content, branding or configuration where platform files will overwrite it.
+- Never configure DNS/provider/GitHub settings on the owner's behalf without an explicit
+  instruction.
 - Never claim a green gate that was not actually run (see `validation.md`).
-- Never push the upstream Foundation's release tags into the downstream repository — a
-  downstream project owns only its own version history.
-- Never acquire the Foundation from a local sibling copy when the canonical GitHub repository is
-  reachable; the GitHub clone is the auditable acquisition.
+- Never push the upstream Foundation's release tags into a project repository — a project owns only
+  its own version history.
+- Never write a version or a release identity a project is not actually running, and never treat a
+  historical checkpoint tag as a current release identity (`README.md`).
+- Never describe an installation as "upgraded in place": the platform ships **no** upgrade,
+  staging, health, promotion or rollback command (`foundation-upgrade.md`).
+- Never treat a project's own governance record as the Foundation's adoption record. An
+  installation's adoption record is `deployment/foundation-baseline.json`.
 
 ## When the upstream product and the live site are the same codebase
 
@@ -270,13 +431,16 @@ superseded by the consolidated downstream application, 2026-09):
 | **The template (the product)** | `provelopment-foundation` | public | **none** — Git hosting is the distribution surface |
 | **The live site (a downstream implementation)** | a private downstream application (for example `provelopment-web`) | private | the live domain (e.g. `foundation.provelopment.com`) |
 
-Dependency direction is **template -> downstream application**. A downstream
-application is an ordinary downstream clone (see *The two adoption shapes* above)
-whose `origin` is its own private repository and whose `foundation` remote is the
-template. One downstream application may implement **several** sites as separate
-site profiles; that is a property of the downstream application, not of Foundation.
-The public template remains fully and independently usable without any downstream
-application: adopting it never requires one.
+Dependency direction is **template -> downstream application** (historical, repository-shaped
+material; see *Repository-shaped adoption shapes* above). A downstream application is an ordinary
+downstream clone whose `origin` is its own private repository and whose `foundation` remote is the
+template. One downstream application may implement **several** sites as separate site profiles;
+that is a property of the downstream application, not of Foundation. The public template remains
+fully and independently usable without any downstream application: adopting it never requires one.
+
+In the **installation** model the same independence is stated more strongly, and it is the current
+contract: an installation is autonomous — no parent, no sibling, no clone relationship, no fleet,
+and no runtime relationship to the product repository or to any other installation.
 
 ### Procedure actually followed (FS1)
 
@@ -295,59 +459,5 @@ application: adopting it never requires one.
 6. **Only then de-bloat the public repository**, on a branch, and land it by PR once
    the provider no longer builds from it. De-bloating removes *site identity and
    content*, never reusable capability.
-7. **Release the template** with an immutable tag, and record in the site's
-   `FOUNDATION_SOURCE.md` that it is a downstream adopter of that release.
-
-## Starting a NEW installation instead of adopting this repository (B4B)
-
-Adopting an existing repository is the workflow above. **Creating a fresh Foundation installation** —
-one autonomous installation, in a directory of its own, running one immutable release — is a different act,
-and since FOUNDATION-B4B the platform does it for you:
-
-```bash
-# 1. Construct the release you want to install (or unpack one you were given).
-pnpm release:build --release <identity> --source <commit> --dest <an empty directory>
-
-# 2. Establish the installation. The target must be ABSENT or EMPTY.
-pnpm installation:establish \
-  --release <identity> \
-  --payload <the directory from step 1> \
-  --seed    <your authored capsule, e.g. this repository's deployment/ directory> \
-  --target  <the installation root> \
-  --name    "<the name you use for this installation>" \
-  --repository "<this installation's own repository>"
-```
-
-The complete procedure — what you get, what establishment refuses, what a re-run does, and how to prove the
-result — is `scripts/installation/README.md`. In one paragraph: it writes the release's platform, copies your
-authored material verbatim into the installation's capsule, writes the installation's adoption record
-(`foundation-baseline.json`) and its generated operational record (`operational-state.json`), and nothing
-else; it never reaches outside the target root, never overwrites and never deletes; and the installation it
-creates needs nothing from the installation it came from.
-
-**An existing installation's capsule is a valid seed** — that is the ordinary case, and the capsule you point
-`--seed` at keeps its own records. Its `foundation-baseline.json` names the release THAT installation adopted,
-so it is not carried over: the new installation gets its own record for the release you are establishing, the
-source file is never modified, and the operator report names it as `not inherited`. Generated
-`operational-state.json` is never portable authored content — machine state describing what an installation
-runs — so it may not be inside a seed at all.
-
-Then prove it, from INSIDE the new installation: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
-`pnpm build`, `pnpm lint` and `pnpm assets:check` (plus `pnpm test:deployment` if your capsule ships its own
-acceptance tests). The platform's generic suite (`pnpm test:foundation`) is INFORMATIVE rather than
-conclusive inside an installation: several of its suites describe the Foundation PROJECT's own repository —
-its git history, its release tags and its tracked inventory — rather than any installation, so they fail
-where the installation is a different repository. Separating "the platform contract" from "this project's
-repository" is a recorded Foundation freeze-audit item.
-
-**An installation is not a clone, and not a copy of somebody's site.** Its operational record names the
-installation it describes, it holds no reference to the installation it was created from, and it asks that
-installation for nothing. Version it however you like — establishment deliberately creates no Git
-repository and makes no commit for you.
-
-**Established is not the same as serving.** Establishment records what it actually did: the installation is
-now ACTIVE, and its record names the exact candidate that became its Foundation state. It does NOT record
-health, because it never evaluated any — the record reads `offline` with `healthEvaluatedAt: null` ("nothing
-has judged it yet"), and the command says so in its report. Only a real health evaluation, performed later
-against the running installation, can record it `online`. Nothing in the platform claims an installation is
-serving until somebody has actually observed it serve.
+7. **Release the template** with an immutable tag, and record in the site's own governance record
+   that it is a downstream adopter of that release.

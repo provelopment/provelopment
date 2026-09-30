@@ -1,14 +1,15 @@
 # Provelopment Foundation Instruction Manuals
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## How to read the version header
 
@@ -19,23 +20,24 @@ nowhere else; every manual's header uses exactly these terms.
 | Term | Meaning | Where it lives |
 | --- | --- | --- |
 | **Manual revision** | The version of this manual **set**. Bumped when the procedures change. Not a Foundation release. | The header of every manual + the version table below. |
-| **Procedure validated against** | The exact Foundation ref on which this manual **set** was last exercised **end to end, with recorded evidence** — for *any* procedure in the set. A procedure statement is only trustworthy to the ref at which *that* procedure was last exercised; the version table records which run produced the current revision. | The header of every manual. |
-| **Content model described** | The Foundation ref whose **content-authoring model** this manual set teaches — the authoring layout, the page modes and the URLs a page gets. It is recorded **separately** from *procedure validated against* because a model can be documented truthfully before its procedures are re-exercised end to end: the two move independently, exactly as the manual revision and an adopter baseline do. A manual may therefore describe a newer model than the ref its procedures were last exercised at — and it says so rather than implying a validation run that did not happen. | The header of every manual. |
-| **Adopter baseline** | The Foundation ref a **specific adopter project** actually runs. Independent per adopter. | That project's `platform/SOURCE.md`. |
-| **Target ref** | The immutable ref **selected for one upgrade** (a release tag, or a full commit SHA when no tag covers the accepted state — never a moving branch name). | The upgrade record + `platform/SOURCE.md` after acceptance. |
+| **Content model described** | The **model this manual set teaches**: the installation model (one immutable release → one autonomous installation with its own capsule, adoption record and generated state, serving its own spokes and Sites) plus the authoring model an installation serves (the two page modes, the single-H1 rule, pages addressed per site and language). It is recorded separately from *procedure validation* because a model can be documented truthfully before its procedures are re-exercised end to end; the two move independently. | The header of every manual. |
+| **Procedure validation** | The ref and date at which this manual set's procedures were last exercised **end to end, with recorded evidence** — for *any* procedure in the set. It states what was actually run. Where no immutable release exists at that ref, the header says so instead of implying a release it was validated against. | The header of every manual. |
+| **Adopter baseline** | The Foundation release a **specific project** actually runs. Independent per project. For an installation, the authority is its own adoption record, `deployment/foundation-baseline.json`, written by establishment. | The installation's capsule. A repository-shaped project keeps its own governance record for this, and that file is **not** the Foundation's adoption record. |
+| **Target ref** | The immutable ref an operator **deliberately chooses when adopting a newer release** (an immutable release identity, or a full commit SHA — never a moving branch name). | The operator's own record of that adoption. The platform ships no automated upgrade executor (`foundation-upgrade.md`). |
 
-A manual revision and an adopter baseline move **independently**: the manuals can
-improve without any adopter moving, and an adopter can upgrade without the manuals
-changing. `2026-09-11.1`, for example, was the manual revision a `f5c94da` adopter
+A manual revision and a project baseline move **independently**: the manuals can
+improve without any project moving, and a project can adopt a newer release without
+the manuals changing. `2026-09-11.1`, for example, was the manual revision a `f5c94da` adopter
 recorded while the master was already documenting `1114759`.
 
 ## Purpose
 
 A Foundation adoption delivers **two** things, and both are required:
 
-1. **The source code** — the reusable platform snapshot.
-2. **The operating knowledge** — how to configure, customize, upgrade, validate,
-   deploy, and maintain that source code correctly.
+1. **The platform** — an immutable Foundation release. An installation is *established* from one;
+   a repository-shaped project carries a committed snapshot of one.
+2. **The operating knowledge** — how to configure, customize, adopt a newer release, validate,
+   deploy and maintain it correctly.
 
 This package is item 2. Without it an adopter receives a code snapshot and no
 safe way to operate it: they cannot know which material is platform-owned, which
@@ -91,8 +93,10 @@ governance documentation, not to these distributed manuals.
 4. **Verify the exact file list** — the copies must contain exactly the master's
    files: no extras, no omissions.
 5. **Verify byte/hash parity** — see below. Not optional.
-6. **Update the receiving project's records** — an adopter records a row in
-   `platform/SOURCE.md` linking the manual revision to the Foundation baseline.
+6. **Update the receiving project's records** — the receiving project records the manual revision it
+   now carries in its own governance. Never write a manual revision into an installation's adoption
+   record (`deployment/foundation-baseline.json`): that file describes the release an installation
+   runs, and establishment owns it.
 7. **Commit the receiving repository** — separately from the master commit, with
    a conventional message naming the manual revision.
 
@@ -128,8 +132,9 @@ is verified after every propagation, and additionally whenever a receiving
 project is adopted.
 ## Version table
 
-| Manual revision | Procedure validated against | Commit | Date |
+| Manual revision | Procedure validation | Commit | Date |
 | --- | --- | --- | --- |
+| `2026-09-30.1` | the public Foundation product at `3698c318` — repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable release existed to be validated against, and the header says so. | `3698c318` (product) | 2026-09-30 |
 | `2026-09-27.3` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
 | `2026-09-27.2` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
 | `2026-09-27.1` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
@@ -142,6 +147,32 @@ project is adopted.
 | `2026-09-16.1` | `main` (single canonical presentation) | `1114759` | 2026-09-16 |
 | `2026-09-15.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-15 |
 | `2026-09-11.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-11 |
+
+> `2026-09-30.1` reconciles this manual set with the **implemented Foundation model** and closes
+> two release-audit blockers that lived in the documentation layer:
+>
+> - **Every command named is a command the platform implements.** The previously published
+>   `pnpm validate` and `pnpm setup` were **never** Foundation scripts (`validate` does not exist;
+>   `setup` is pnpm's own built-in, which changes global pnpm/`PATH` state). The gate is now stated
+>   per **ownership context** — Foundation repository, independent installation, and
+>   deployment/spoke change — in `validation.md`; each context names only real commands, and
+>   `pnpm test:foundation` is no longer presented as an installation acceptance gate.
+> - **Release identity, provenance and acquisition are stated as implemented.**
+>   `provelopment-foundation-vYYYYMMDD.HHMM` is the identity future releases use;
+>   `v2026.09.30-foundation-release-initial` is the grandfathered first release; historical
+>   checkpoint tags (`v<YYYY.MM.DD>-foundation-<slug>`) are **evidence**, never a current identity;
+>   the installation's adoption record is `deployment/foundation-baseline.json`; the canonical
+>   GitHub repository is the default public **source** of releases, never a runtime dependency; and
+>   a project's own `platform/SOURCE.md`/`FOUNDATION_SOURCE.md` is the project's governance record,
+>   not the Foundation's.
+>
+> The vendored-platform adoption and upgrade material is **retained but explicitly marked
+> HISTORICAL** (`adoption.md`, `foundation-upgrade.md`), and `foundation-upgrade.md` now states
+> plainly that the automated in-place upgrade executor, staging deployer, health probe, production
+> promoter and rollback executor are **not implemented** in this release.
+>
+> This revision was propagated to **every** documented receiver as one change, and byte parity was
+> re-verified (see *Parity verification*).
 
 > `2026-09-27.3` updates this set to the **final delivered Foundation architecture**: the
 > authoring model has a **site** segment, and the Markdown mode has a **single level-1
@@ -235,9 +266,11 @@ project is adopted.
 > every manual's header. **No procedure was exercised**, so *Procedure validated against*
 > is unchanged — this is again a documentation reconciliation, not a validation run.
 >
-> **Still not propagated.** Both receivers remain at `2026-09-25.1`; propagation is a
-> separate task, to run after this revision is reviewed/merged and the Foundation
-> implementation lane is clear (procedure: `deployment-info/manual-propagation.md`).
+> **SUPERSEDED by `2026-09-30.1`.** At the time of `2026-09-27.2` this reconciliation had not been
+> propagated: the receivers sat at `2026-09-25.1`. `2026-09-30.1` carried the complete set to every
+> documented receiver as one change and re-verified byte parity, so the "not propagated" state
+> described below no longer exists. Propagation remains a maintainer action in the private
+> workspace, using the procedure the master repository documents.
 >
 > `2026-09-27.1` reconciles the **content-authoring model** these manuals teach to the
 > **one-page model** of Foundation release `v2026.09.27-foundation-one-page-model`
@@ -332,7 +365,6 @@ project is adopted.
 > can **block** a deployment whose commit author is not a member of the platform account, so a
 > green gate can coexist with an unchanged production site.
 
-> `2026-09-16.2` re-issues the same procedures with the workspace paths updated by
 > `2026-09-17.3` removes references to the maintainer's private governance locations
 > from these distributed manuals. No procedure changed: the propagation commands
 > and the parity check now use `<master>`/`<receiver>` placeholders, and the
@@ -352,8 +384,8 @@ project is adopted.
 
 | Manual | Use it when |
 | --- | --- |
-| [`foundation-upgrade.md`](foundation-upgrade.md) | A newer Foundation release must be absorbed without damaging adopter-owned material. |
-| [`adoption.md`](adoption.md) | Creating a new Foundation-derived project (a single-site **downstream clone**, or a multi-site **vendored** adopter, or a real customer). |
+| [`foundation-upgrade.md`](foundation-upgrade.md) | Adopting a newer Foundation release without damaging project-owned material — and knowing what the platform does and does not implement. |
+| [`adoption.md`](adoption.md) | Creating a new project: the current **Foundation installation** workflow first, with repository-shaped adoption kept as clearly marked historical context. |
 | [`site-customization.md`](site-customization.md) | Changing identity, navigation, CTA, presentation, theme, contact or metadata **without touching source**. |
 | [`branding-and-assets.md`](branding-and-assets.md) | Replacing logos, favicon, banners, sidebar icons or imagery; runtime roles vs business files. |
 | [`content-management.md`](content-management.md) | Writing/editing pages (the simple Markdown mode, or the **delivered** advanced declarative JSON mode), the artwork under `content/assets/`, legal documents and dictionaries. |
@@ -365,6 +397,18 @@ project is adopted.
 Full configuration schema reference lives in the Foundation's `CUSTOMIZING.md`;
 architecture in `ARCHITECTURE.md`. These manuals point at them rather than
 duplicating them.
+
+Lower-level contracts live with the code that owns them; these manuals link rather than copy:
+
+| Contract | Document |
+| --- | --- |
+| Release construction, verification and classification | `scripts/release/README.md` |
+| Establishment (release + capsule → installation) | `scripts/installation/README.md` |
+| The release identity / manifest / digest contract | `src/core/foundation-release/README.md` |
+| The installation lifecycle contract | `src/core/foundation-installation/README.md` |
+
+Broader public information and documentation for the Foundation lives at
+<https://foundation.provelopment.com/>.
 
 ## Retirement policy
 

@@ -1,14 +1,15 @@
 # Validation — what "done" means
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-27.3`
-> **Procedure validated against:** Foundation template release `v2026.09.17-foundation-generic-template` (`b9f7a18`) + the current public/private topology (the public reusable product `provelopment-foundation`, and the live Foundation site implemented as a site profile in the private downstream `provelopment-web`)
-> **Content model described:** Foundation release `v2026.09.27-foundation-markdown-single-h1` (`df50fc250c6beb1c237f32b7f0a0d91fd55b0c37`) — the **final multisite model**: the one-page authoring model (author-facing collections retired by `FOUNDATION-PAGES-A1E`) with the **delivered declarative JSON authoring mode** (`FOUNDATION-PAGES-A2`), **independent sites and localization** (`FOUNDATION-S1`, `v2026.09.27-foundation-multisite-localization`) — the page address is authoring mode → site → language → page, so a page is identified by site + locale path key + route path — and the **single-H1 Markdown closure** (`FOUNDATION-PAGES-H1`): the page title is a page's only level-1 heading
-> **Adopter baseline:** per adopter — recorded in that project's `platform/SOURCE.md`
+> **Manual revision:** `2026-09-30.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
+> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
-> This copy is **distributed**. It is byte-identical to the master. Edit the master
-> upstream and propagate; never edit a distributed copy in place.
+> This copy is **distributed** and byte-identical to the master revision above — SHA-256
+> verified at propagation — and is never edited in place: edit the master upstream and
+> propagate.
 
 ## The rule
 
@@ -32,20 +33,82 @@ git branch --show-current
 Commit or stash unrelated work first. An unexplained dirty tree makes every result
 ambiguous.
 
-## The gate (run in order)
+## The gates, by ownership
+
+There is no single gate. Which commands are yours depends on **what you own**, and a check run
+in the wrong context proves nothing about the thing you changed.
+
+> **A check not run cannot be reported as passed** — and neither can a check run somewhere else.
+> Report the context you ran, and the context you did not.
+
+### Foundation project / repository (the maintainer gate)
+
+For the public Foundation product itself, and for a repository-shaped project built from it:
 
 ```bash
-pnpm validate        # fidelity → typecheck → lint → routes → build
-pnpm test:browser    # browser/accessibility matrix against production builds
+pnpm assets:check          # runtime asset mirror, provenance and drift
+pnpm country-codes:check   # the maintained country-code reference is consistent
+pnpm exec tsc --noEmit     # configuration and content contracts
+pnpm lint                  # style and architecture-boundary rules
+pnpm test                  # the combined repository suite (both projects)
+pnpm build                 # the real production build
+pnpm test:browser          # browser/accessibility matrix against production builds
 ```
 
-### 1. Fidelity / divergence check
+Add `pnpm release:classify` before a release (every tracked path must be classified), and
+`pnpm release:build` / `pnpm release:verify` when release provenance is the subject.
 
-Proves the platform-derived source is byte-faithful to the vendored Foundation
-snapshot, except for explicitly approved and recorded deviations.
+### An independent Foundation installation (the installation gate)
 
-- Failure means either the platform copy drifted, or a deviation was not recorded.
-- **An unapproved divergence is a failure, not a warning.**
+Inside an installation — one immutable release established into its own root, with its own
+authored capsule — the acceptance suite is the installation's own:
+
+```bash
+pnpm install --frozen-lockfile    # the installation's resolved dependency tree
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm build
+pnpm assets:check
+pnpm country-codes:check
+pnpm test:deployment              # the deployment's own acceptance tests
+pnpm test:browser:deployment      # where browser acceptance is required
+```
+
+`pnpm test:foundation` is **repository-owned**, not installation-owned, and must never be
+reported as an installation acceptance gate: some of its suites describe the Foundation
+PROJECT's own repository — its Git history, its release tags and its tracked inventory — so they
+are informative rather than conclusive where the installation is a different repository. Use the
+installation-owned list above.
+
+### A deployment / spoke authoring change
+
+A page, dictionary, configuration or artwork change is validated **in the scope it touches** —
+test scope follows change ownership:
+
+```bash
+pnpm exec tsc --noEmit        # the change still type-checks
+pnpm lint
+pnpm assets:check             # if artwork or a runtime asset role changed
+pnpm country-codes:check      # if a site or locale code changed
+pnpm test:deployment          # the deployment's own acceptance tests
+pnpm build
+pnpm test:browser:deployment  # where browser acceptance is required
+```
+
+Do not run the whole repository-maintainer suite merely because a page changed, and do not treat
+a green deployment build as evidence about the platform it runs.
+
+### 1. Asset integrity and the country-code reference
+
+`pnpm assets:check` proves the runtime asset mirror and its provenance records agree with the
+source artwork the project ships, and names any file that is missing, unreferenced or stale — see
+`branding-and-assets.md`. A runtime asset role that renders nothing, or the wrong file, is this
+check's business.
+
+`pnpm country-codes:check` proves the maintained country-code reference the product ships is
+internally consistent and agrees with the codes the content tree actually uses. It is the same
+rule that refuses an invented site code, so a failing country-code check is a
+content/configuration defect, not a tooling defect.
 
 ### 2. Typecheck
 
@@ -128,8 +191,10 @@ The repository gate proves the *working tree* is healthy. It does not prove that
 that matters to an external user. Run it after every change that touches the shipped
 tree, and always before releasing a template:
 
-1. Clone the released ref into a directory **outside** the working workspace.
-2. `pnpm install`, then run the repository's whole gate in that clone.
+1. Clone the released ref into a directory **outside** the working workspace. (For an
+   **installation**, establish a disposable one instead and prove that — `adoption.md`.)
+2. `pnpm install --frozen-lockfile`, then run the gate that belongs to what you are proving: the
+   maintainer gate for a clone of the product, the installation gate for an installation.
 3. Start the documented quick start and confirm the site renders.
 4. Assert the stand-alone properties: one default locale, only the intended starter
    content, no upstream identity, no live domain in configuration, and **no
@@ -142,13 +207,18 @@ that Git cannot track. Anything that scans such a directory then passes locally 
 fails in CI and in every fresh clone with `ENOENT`. Treat an absent scanned directory
 as nothing to scan - never as an error.
 
-### Template vs adopter test responsibility
+### Test responsibility, by owner
 
 | Suite | Owner | Question it answers |
 | --- | --- | --- |
-| Template tests | the product | does the **reusable architecture** work? |
-| Site tests | the site owner | does **this site** still look and behave as accepted? |
-| Adopter tests | each adopter | does **this deployment** satisfy its own acceptance? |
+| Repository-owned Foundation tests (`pnpm test:foundation`, `pnpm test:browser:foundation`) | the product | does the **reusable architecture** work? |
+| Deployment tests (`pnpm test:deployment`, `pnpm test:browser:deployment`) | the deployment | does **this deployment** satisfy its own acceptance? |
+| Site assertions (routes, brand identity, activated artwork) | the site owner | does **this site** still look and behave as accepted? |
+
+Some repository-owned Foundation suites depend on Git history and on tracked-repository state, so
+inside an installation they are **informative rather than installation-owned acceptance checks**.
+That is a known limitation, not a failure of the installation: prove an installation with
+`pnpm test:deployment`, and `pnpm test:browser:deployment` where browser acceptance is required.
 
 Site-specific assertions (real content routes, brand identity, activated artwork)
 belong to the site, never to the product; capability assertions belong to the product
