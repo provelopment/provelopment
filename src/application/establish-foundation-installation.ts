@@ -453,4 +453,3 @@ export async function establishFoundationInstallation(
     return refused(category, error instanceof Error ? error.message : String(error));
   }
 }
-

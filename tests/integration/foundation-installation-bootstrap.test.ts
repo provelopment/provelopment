@@ -455,4 +455,3 @@ describe("establishing an installation in a disposable target root", () => {
     expect(snapshotTree(payloadDirectory)).toEqual(sources);
   });
 });
-
