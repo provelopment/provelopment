@@ -45,8 +45,8 @@ import {
   listPayloadFiles,
   sha256Hex,
 } from "./release-digest.mjs";
+import { assertReleaseIdentity } from "./release-identity.mjs";
 import {
-  assertReleaseIdentity,
   buildReleaseManifest,
   parseReleaseManifest,
   readReleaseAuthorities,

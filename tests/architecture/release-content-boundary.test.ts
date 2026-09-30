@@ -164,7 +164,7 @@ describe("the release CLI answers as an operator or CI would", () => {
   });
 
   it("refuses to build without a named source commit", () => {
-    const result = runCli(["build", "--release", "v2099.01.01-foundation-release-r1b-test", "--dest", "unused"]);
+    const result = runCli(["build", "--release", "provelopment-foundation-v20990101.0000", "--dest", "unused"]);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("requires --source");
   });
@@ -173,7 +173,7 @@ describe("the release CLI answers as an operator or CI would", () => {
     const result = runCli([
       "build",
       "--release",
-      "v2099.01.01-foundation-release-r1b-test",
+      "provelopment-foundation-v20990101.0000",
       "--source",
       "main",
       "--dest",

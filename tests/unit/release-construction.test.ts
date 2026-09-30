@@ -24,7 +24,7 @@ import { parseReleaseManifest } from "../../scripts/release/release-manifest.mjs
  *
  * Nothing here creates a tag, publishes anything or touches this repository's own state.
  */
-const IDENTITY = "v2099.01.01-foundation-release-r1b-test";
+const IDENTITY = "provelopment-foundation-v20990101.0000";
 
 // EVERY TEST HERE SPAWNS GIT — a synthetic repository, then one or more constructions that read it
 // through the object database. On a loaded CI runner those spawns are an order of magnitude slower
@@ -241,15 +241,42 @@ describe("release construction refuses what it cannot release faithfully", () =>
       constructRelease({ sourceRepository: source.root, revision: source.commit, release: IDENTITY, destination: occupied }),
     ).toThrow(/is not empty/);
 
-    const fresh = path.join(temporaryDirectory("foundation-release-dest-"), "payload");
-    expect(() =>
-      constructRelease({
-        sourceRepository: source.root,
-        revision: source.commit,
-        release: "v2026.09.27-foundation-markdown-single-h1",
-        destination: fresh,
-      }),
-    ).toThrow(/is not a contract release identity/);
+    // A new release is named by the canonical UTC identity, so a historical checkpoint, an old-style
+    // release name and a canonical-LOOKING name that breaks the contract are all refused.
+    for (const refused of [
+      "v2026.09.27-foundation-markdown-single-h1",
+      "v2099.01.01-foundation-release-r1b-test",
+      "provelopment-foundation-v20261301.1200",
+      "provelopment-foundation-v20260930.1200Z",
+    ]) {
+      const fresh = path.join(temporaryDirectory("foundation-release-dest-"), "payload");
+      expect(() =>
+        constructRelease({ sourceRepository: source.root, revision: source.commit, release: refused, destination: fresh }),
+      ).toThrow(/is not a contract release identity/);
+    }
+  });
+
+  it("keeps release identity and platform content identity separate — two identities, one digest", () => {
+    const source = createSourceRepository();
+    const first = construct(source.root, source.commit);
+    const second = constructRelease({
+      sourceRepository: source.root,
+      revision: source.commit,
+      release: "provelopment-foundation-v20990101.0001",
+      destination: path.join(temporaryDirectory("foundation-release-dest-"), "payload"),
+    });
+
+    // The CONTENT digest is an identity of the payload, so it does not depend on what the release is
+    // called… and the manifest does differ, because it records which release this construction is.
+    expect(second.digest).toBe(first.result.digest);
+    expect(second.fileCount).toBe(first.result.fileCount);
+    const firstManifest = readFileSync(first.result.manifestPath, "utf8");
+    const secondManifest = readFileSync(second.manifestPath, "utf8");
+    expect(secondManifest).not.toBe(firstManifest);
+    expect(secondManifest).toContain("provelopment-foundation-v20990101.0001");
+    expect(firstManifest).toContain(IDENTITY);
+    // Same manifest FILENAME in two destinations: the identity is a value inside it, never its location.
+    expect(path.basename(second.manifestPath)).toBe(path.basename(first.result.manifestPath));
   });
 
   it("fails loudly when an authority it derives a value from disappears", () => {

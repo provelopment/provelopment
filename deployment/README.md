@@ -53,7 +53,7 @@ adopts — never a moving branch, and never "whatever `main` is today":
 
 | Field | What it is |
 | --- | --- |
-| `release.tag` | the release identity (`v<date>-foundation-release-<slug>`, the immutable name of one release) |
+| `release.tag` | the release identity — the immutable name of one Foundation release. The first release is grandfathered as `v2026.09.30-foundation-release-initial`; every later one is canonical (`provelopment-foundation-vYYYYMMDD.HHMM`, UTC — see `scripts/release/README.md`) |
 | `release.repository` | the upstream platform authority the release came from |
 | `release.commit` / `release.tree` | provenance: the source revision the release was cut from |
 | `release.manifestFormat` | the release manifest format this adoption speaks |
