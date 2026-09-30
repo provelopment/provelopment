@@ -104,10 +104,39 @@ into a new release.
 
 **The identity is named at the publication boundary** — after construction, the deterministic checks,
 the clean room, the bounded canary and every gate, immediately before the irreversible tag step — so the
-minute records when the release actually became immutable. If that name already exists, locally or
-remotely, **publication STOPs**: a second release in the same UTC minute cannot use it. Do not append
-seconds or a counter, do not overwrite, delete, recreate or repoint the tag; obtain another unique
-publication minute.
+minute records when the release actually became immutable. `YYYYMMDD.HHMM` is therefore the ACTUAL UTC
+publication minute: an identity is never pre-allocated for a minute the clock has not reached, and when
+the candidate minute turns out to be occupied, publication moves to the next genuinely available minute —
+never to a second identity inside the same minute.
+
+### Same-minute collisions: two layers, one contract (FOUNDATION-R1C-N1-A1)
+
+Two releases that become ready inside the same UTC minute must both be publishable, and neither may
+sacrifice the truthfulness of its timestamp. The collision contract has **two layers** and one atomic
+authority:
+
+1. **Orchestrated publication (future control plane)** — queued publications are **serialized**. The
+   first release takes the current available UTC minute; a later queued release **waits until the next
+   available real UTC minute**, re-checks local and remote availability, derives its identity *then*, and
+   publishes atomically. A collision inside a minute is resolved by queueing, never by inventing a second
+   name for that minute.
+2. **Direct / manual publication (low level)** — a direct attempt whose exact canonical identity already
+   exists **fails closed**. It never overwrites, force-updates, deletes, recreates, repoints, appends
+   seconds or a counter, or silently substitutes another identity. The operator is told, in effect:
+   *"Foundation release publication is already in progress for this UTC minute; retry after the next UTC
+   minute."* (Exact wording is settled when a publisher exists.)
+
+**The atomic authority is the remote tag.** Two publishers can both observe a minute as free; the
+authoritative boundary is the successful creation/push of the immutable remote tag. A publisher that
+loses that race must not overwrite the winner: an orchestrated workflow treats it as **busy**, waits for
+the next available UTC minute, derives a new canonical identity, re-runs its preconditions and attempts
+publication again; a direct workflow reports the collision instead.
+
+**Queueing belongs ABOVE construction, never inside it.** "Delay the release by one minute" is
+orchestration semantics — construction, tag creation and verification never `sleep`, block or retry, and
+stay deterministic. The queue, scheduler, lock or reservation service is **not implemented in this
+directory**: no publisher exists at this layer yet, and R1C-N1-A1 records the policy that the future
+publisher must implement.
 
 ## The manifest (`foundation-release.json`)
 
@@ -211,10 +240,11 @@ resolve to the recorded commit — the check the release process (R1C) makes bef
    for the recorded commit.
 5. **Clean room** — materialise the payload as its own Git work tree and validate it there with a
    *synthetic* deployment (see below).
-6. **Publish (R1C, not this tooling)** — name the canonical identity from the UTC publication minute,
-   then create the annotated tag, then optionally mirror a deterministic archive + `.sha256` beside it.
-   A published release is never repointed or replaced, and a minute whose name is already taken STOPs
-   the publication instead of being adjusted (see "Identity and provenance" above).
+6. **Publish (R1C, not this tooling)** — name the canonical identity from the **actual** UTC publication
+   minute at the final boundary, then create the annotated tag, then optionally mirror a deterministic
+   archive + `.sha256` beside it. A published release is never repointed or replaced; a collision is
+   resolved by queueing (orchestrated publication) or by failing closed (direct publication), never by
+   adjusting the identity (see "Same-minute collisions" above).
 
 ## Consuming a release
 

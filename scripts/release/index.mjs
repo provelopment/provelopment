@@ -199,8 +199,8 @@ export function runBuild(options) {
   console.log(`  manifest:    ${path.basename(result.manifestPath)}`);
   console.log(
     "\nThe tag is NOT created by this tool. The canonical identity is named at the publication boundary " +
-      "from the UTC publication minute, and a name that already exists stops the publication rather than " +
-      "being adjusted.",
+      "from the actual UTC publication minute; a direct publication that collides fails closed, while " +
+      "queued publication waits for the next available minute (scripts/release/README.md).",
   );
   return 0;
 }

@@ -38,10 +38,14 @@
  * calendar instant — month 01–12, a day that exists in that month and year, hour 00–23, minute 00–59.
  * `...v20261301.1200`, `...v20260931.1200`, `...v20260930.2460` and `...v20260930.1261` are refused.
  *
- * Collision is not a naming problem to solve here: if the canonical name for a publication minute
- * already exists (locally or remotely), publication STOPS — a second release in that UTC minute simply
- * cannot use that identity, and seconds, counters, `.01`, deletion, recreation and repointing are all
- * forbidden. The operator obtains another unique publication minute (see `README.md`).
+ * Collision is not a naming problem to solve here, and never by adjusting the name: the minute is the
+ * ACTUAL UTC publication minute, so seconds, counters, `.01`, `Z`, offsets, deletion, recreation and
+ * repointing are all forbidden. Resolution has two layers (FOUNDATION-R1C-N1-A1): ORCHESTRATED
+ * publication serialises queued releases and waits for the next genuinely available UTC minute before it
+ * derives an identity, while a DIRECT publication attempt whose exact canonical identity already exists
+ * FAILS CLOSED. The authoritative race boundary is the remote tag itself, and nothing in this layer
+ * sleeps, blocks or retries — queueing is orchestration, above deterministic construction and
+ * verification. See `README.md` for the contract the future publisher must implement.
  *
  * This module decides what a tag may BE. It never creates one: publication belongs to the release
  * process (R1C), which names the identity at the FINAL publication boundary — after construction, the
