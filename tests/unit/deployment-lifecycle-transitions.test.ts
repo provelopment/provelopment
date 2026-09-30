@@ -439,4 +439,3 @@ describe("one attempt at a time, and only the moves the lifecycle has", () => {
     expect(() => promoting(promotable())).toThrow(/cannot begin promotion/);
   });
 });
-

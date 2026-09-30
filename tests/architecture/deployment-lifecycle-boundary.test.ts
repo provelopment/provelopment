@@ -128,4 +128,3 @@ describe("the deployment owns WHERE the record lives, the contract owns what it 
     expect(readFileSync(PATH_AUTHORITY, "utf8")).toContain("DEPLOYMENT_OPERATIONAL_STATE_FILE_NAME");
   });
 });
-

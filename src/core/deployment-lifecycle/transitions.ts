@@ -510,4 +510,3 @@ export function isDeploymentCandidatePromotable(state: DeploymentOperationalStat
     attempt.candidate !== null
   );
 }
-

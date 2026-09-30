@@ -374,4 +374,3 @@ describe("recorded instants are UTC, and are provenance rather than identity", (
     );
   });
 });
-

@@ -266,4 +266,3 @@ written in advance.
 
 A later phase that needs a new STATE adds it here, with its transition and its refusal cases, rather than
 inventing workflow flags beside this model.
-
