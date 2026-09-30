@@ -12,14 +12,20 @@
  * transition that contract already defines for a FRESH INSTALL:
  *
  *   startInstallationAttempt(install, target = the release)   the attempt begins, stage "preparing"
- *   … materialise into the target root …                      platform payload + seed + adoption record
+ *   … materialise into the target root …                      payload + PORTABLE seed + adoption record
  *   recordInstallationCandidate(candidate)                    the candidate tree exists, identity known
  *   recordInstallationCandidateValidated()                    identity checked: seed shape, release continuity
  *   recordInstallationCandidateStaged()                       materialised into the installation root
  *   recordInstallationStagingInspected()                      the installation verified itself
  *   beginInstallationPromotion() / completeInstallationPromotion(candidate)
- *                                                             the candidate becomes LIVE, health ONLINE
+ *                                                             the candidate becomes LIVE; health stays
+ *                                                             offline until something really evaluates it
  *   the operational record is written                         the LAST act — the completion marker
+ *
+ * A SEED MAY BE ANOTHER INSTALLATION'S CAPSULE, and then what travels is its PORTABLE authored material: the
+ * source installation's own records — its adoption record, and generated operational state, which is refused
+ * outright — are never inherited, so the new installation records its OWN adoption of the release it is
+ * established from (`@/core/foundation-installation/establishment`).
  *
  * A candidate is the only thing that can be promoted, and promotion re-checks the exact identity (release +
  * authored digest + materialised digest), so what goes live is provably the artifact this establishment
@@ -70,6 +76,7 @@ import {
   foundationInstallationAdoptionRecord,
   installationIsEstablishedFrom,
   offsetInstant,
+  portableInstallationSeed,
 } from "@/core/foundation-installation/establishment";
 import {
   beginInstallationPromotion,
@@ -215,6 +222,14 @@ export interface FoundationEstablishmentResult {
   readonly targetRoot: string;
   /** Every file establishment wrote, target-relative, in the order it wrote them. */
   readonly writtenFiles: readonly string[];
+  /**
+   * Records the seed carried that establishment deliberately did NOT inherit, target-relative.
+   *
+   * Normally exactly one: the source installation's own adoption record, which describes an adoption that
+   * happened in THAT installation. Reported rather than dropped, because what an operator handed over and
+   * what an installation inherited are two different facts.
+   */
+  readonly notInherited: readonly string[];
   /** The lifecycle history the operational record carries. */
   readonly events: readonly InstallationLifecycleEvent[];
   /** The operational record establishment wrote — target-relative, and the completion marker. */
@@ -329,9 +344,11 @@ export async function establishFoundationInstallation(
     }
 
     // 4. THE AUTHORED INPUT MUST BE USABLE — its shape, its generated state, and its configuration.
+    //    The refusals are decided on the seed AS SUPPLIED: a capsule is judged by what it contains, never by
+    //    what establishment is about to leave behind.
     category = FAILURE_CATEGORY.installation;
-    const seedFiles = await seed.files();
-    const seedIssues = seedRefusals(seedFiles);
+    const suppliedSeedFiles = await seed.files();
+    const seedIssues = seedRefusals(suppliedSeedFiles);
     if (seedIssues.length > 0) {
       return refused(
         FAILURE_CATEGORY.installation,
@@ -339,6 +356,14 @@ export async function establishFoundationInstallation(
         seedIssues,
       );
     }
+
+    // 4b. THE PORTABLE CAPSULE. A source installation's capsule is the ordinary seed, and it carries that
+    //     installation's own records: its adoption record names the release THAT installation adopted, so it
+    //     is not authored material and does not travel. Excluding it here is what makes the documented
+    //     procedure work, and excluding it EXACTLY ONCE is why it reaches neither the authored digest nor the
+    //     target. `notInherited` is carried out to the operator rather than dropped, and the source is never
+    //     read again, never modified and never deleted.
+    const { portable: seedFiles, notInherited } = portableInstallationSeed(suppliedSeedFiles);
 
     const configProblems: string[] = [];
     let config: unknown = null;
@@ -380,7 +405,8 @@ export async function establishFoundationInstallation(
 
     // 6. THE CANDIDATE IDENTITY — release, authored input, materialised tree. The materialised digest covers
     //    every file establishment writes, at the path it writes it to, so the artifact that becomes live is
-    //    the artifact that was materialised.
+    //    the artifact that was materialised. The AUTHORED digest covers the PORTABLE authored material: a
+    //    source installation's own records cannot influence the identity of what was adopted.
     const authored = contentDigest(seedFiles, INSTALLATION_CONTENT_SCOPE.AUTHORED, hasher);
     const materialisedFiles: readonly FoundationContentFile[] = [
       ...payloadFiles,
@@ -445,6 +471,7 @@ export async function establishFoundationInstallation(
         seedFrom: seed.description,
         targetRoot: request.targetRoot,
         writtenFiles: materialisedFiles.map((file) => file.path),
+        notInherited: notInherited.map((file) => inCapsule(file.path)),
         events: stored.history,
         operationalStateFile: inCapsule(INSTALLATION_OPERATIONAL_STATE_FILE_NAME),
       },

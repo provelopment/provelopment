@@ -325,6 +325,13 @@ authored material verbatim into the installation's capsule, writes the installat
 else; it never reaches outside the target root, never overwrites and never deletes; and the installation it
 creates needs nothing from the installation it came from.
 
+**An existing installation's capsule is a valid seed** — that is the ordinary case, and the capsule you point
+`--seed` at keeps its own records. Its `foundation-baseline.json` names the release THAT installation adopted,
+so it is not carried over: the new installation gets its own record for the release you are establishing, the
+source file is never modified, and the operator report names it as `not inherited`. Generated
+`operational-state.json` is never portable authored content — machine state describing what an installation
+runs — so it may not be inside a seed at all.
+
 Then prove it, from INSIDE the new installation: `pnpm install --frozen-lockfile`, `pnpm exec tsc --noEmit`,
 `pnpm build`, `pnpm lint` and `pnpm assets:check` (plus `pnpm test:deployment` if your capsule ships its own
 acceptance tests). The platform's generic suite (`pnpm test:foundation`) is INFORMATIVE rather than

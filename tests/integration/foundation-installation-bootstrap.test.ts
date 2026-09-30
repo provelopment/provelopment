@@ -36,7 +36,10 @@ import {
   INSTALLATION_ACTIVATION,
   INSTALLATION_HEALTH,
 } from "@/core/foundation-installation/index";
-import { installationIsEstablishedFrom } from "@/core/foundation-installation/establishment";
+import {
+  installationIsEstablishedFrom,
+  INSTALLATION_ADOPTION_RECORD_FILE_NAME,
+} from "@/core/foundation-installation/establishment";
 import { RELEASE_MANIFEST_FILE_NAME } from "@/core/foundation-release/manifest.mjs";
 
 import { constructRelease } from "../../scripts/release/release-construction.mjs";
@@ -48,7 +51,10 @@ import {
   snapshotTree,
   SYNTHETIC_ESTABLISHMENT_MOMENT,
   SYNTHETIC_RELEASE_IDENTITY,
+  SYNTHETIC_SOURCE_RELEASE,
   syntheticSeed,
+  syntheticSeedFromExistingInstallation,
+  syntheticSourceAdoptionRecordText,
   targetCapsule,
 } from "../support/installation-establishment-fixture";
 
@@ -474,5 +480,121 @@ describe("establishing an installation in a disposable target root", () => {
 
     // The sources establishment READ are byte-identical: it wrote the target and nothing else.
     expect(snapshotTree(payloadDirectory)).toEqual(sources);
+  });
+});
+
+/**
+ * AN EXISTING INSTALLATION'S CAPSULE IS A VALID SEED (FOUNDATION-B4B-A2)
+ * ====================================================================
+ *
+ * The documented procedure seeds an establishment with an established installation's own capsule
+ * (`--seed deployment`), and such a capsule carries that installation's adoption record. A fixture without
+ * that expected file is what let the duplicate-path failure reach a released amendment, so these proofs use
+ * a seed that really contains one: the record must be recognized, excluded from the PORTABLE authored
+ * material (from the authored digest and from the target), and replaced by the target's own record, written
+ * freshly from the release being established — with the source left exactly as it was.
+ */
+describe("an existing installation's capsule as a seed", () => {
+  it("establishes, writing ONE new adoption record and leaving the source's own untouched", async () => {
+    const release = constructSyntheticRelease();
+    const seed = syntheticSeedFromExistingInstallation();
+    const sourceRecord = readFileSync(path.join(seed, INSTALLATION_ADOPTION_RECORD_FILE_NAME), "utf8");
+    const sourcesBefore = snapshotTree(seed);
+    const workspace = disposableTree("foundation-b4b-existing-capsule-");
+    const targetRoot = path.join(workspace, "target");
+
+    const result = await establish({
+      payloadDirectory: release.payloadDirectory,
+      seedDirectory: seed,
+      targetRoot,
+    });
+
+    // WHAT DID NOT TRAVEL IS REPORTED, so an operator never has to guess what their seed contributed.
+    expect(result.notInherited).toEqual([
+      `${INSTALLATION_CAPSULE_RELATIVE_PATH}/${INSTALLATION_ADOPTION_RECORD_FILE_NAME}`,
+    ]);
+
+    // EXACTLY ONE adoption record exists in the installation — no duplicate path, no second copy anywhere.
+    const records: string[] = [];
+    const walk = (directory: string, prefix: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+        if (entry.isDirectory()) walk(path.join(directory, entry.name), relative);
+        else if (entry.name === INSTALLATION_ADOPTION_RECORD_FILE_NAME) records.push(relative);
+      }
+    };
+    walk(targetRoot, "");
+    expect(records).toEqual([
+      `${INSTALLATION_CAPSULE_RELATIVE_PATH}/${INSTALLATION_ADOPTION_RECORD_FILE_NAME}`,
+    ]);
+
+    // …and it describes the release established HERE. The source's release is deliberately a DIFFERENT one,
+    // so this cannot pass because two equal records happened to look alike.
+    const recordPath = path.join(targetCapsule(targetRoot), INSTALLATION_ADOPTION_RECORD_FILE_NAME);
+    const established = JSON.parse(readFileSync(recordPath, "utf8")) as {
+      release: { tag: string; commit: string };
+    };
+    expect(established.release).toEqual(result.release);
+    expect(established.release.tag).toBe(SYNTHETIC_RELEASE_IDENTITY);
+    expect(established.release.tag).not.toBe(SYNTHETIC_SOURCE_RELEASE.tag);
+    expect(readFileSync(recordPath, "utf8")).not.toBe(sourceRecord);
+
+    // NOTHING IN THE INSTALLATION INHERITED THE SOURCE'S ADOPTION: not its release, not its provenance.
+    const inherited: string[] = [];
+    for (const [relative, base64] of snapshotTree(targetRoot)) {
+      const text = Buffer.from(base64, "base64").toString("utf8");
+      if (text.includes(SYNTHETIC_SOURCE_RELEASE.tag) || text.includes(SYNTHETIC_SOURCE_RELEASE.commit)) {
+        inherited.push(relative);
+      }
+    }
+    expect(inherited).toEqual([]);
+
+    // THE SOURCE IS EXACTLY AS IT WAS: establishment reads it, never modifies it and never deletes it.
+    expect(snapshotTree(seed)).toEqual(sourcesBefore);
+  });
+
+  it("keeps the source's records out of the candidate identity, and still reflects authored changes", async () => {
+    const release = constructSyntheticRelease();
+    const targetFor = (suffix: string): string =>
+      path.join(disposableTree(`foundation-b4b-portable-${suffix}-`), "target");
+
+    // The SAME capsule, three ways: no record at all, one source record, and a source record with entirely
+    // different provenance. Were the source's record part of the authored material, these would differ.
+    const withoutRecord = await establish({
+      payloadDirectory: release.payloadDirectory,
+      seedDirectory: syntheticSeed(),
+      targetRoot: targetFor("a"),
+    });
+    const withRecord = await establish({
+      payloadDirectory: release.payloadDirectory,
+      seedDirectory: syntheticSeedFromExistingInstallation(),
+      targetRoot: targetFor("b"),
+    });
+    const otherRecord = await establish({
+      payloadDirectory: release.payloadDirectory,
+      seedDirectory: syntheticSeedFromExistingInstallation({
+        record: syntheticSourceAdoptionRecordText({
+          tag: "provelopment-foundation-v20990103.0000",
+          adoptedAt: "2097-06-01T12:00:00+02:00",
+          establishedBy: "a different work order",
+        }),
+      }),
+      targetRoot: targetFor("c"),
+    });
+    expect(withRecord.candidate.authored).toBe(withoutRecord.candidate.authored);
+    expect(otherRecord.candidate.authored).toBe(withoutRecord.candidate.authored);
+    expect(withRecord.candidate.materialized).toBe(withoutRecord.candidate.materialized);
+    expect(otherRecord.candidate.materialized).toBe(withoutRecord.candidate.materialized);
+
+    // But REAL authored capsule material does move the identity — the exclusion is a rule, not a hole.
+    const changed = await establish({
+      payloadDirectory: release.payloadDirectory,
+      seedDirectory: syntheticSeedFromExistingInstallation({
+        extra: { "content/pages/markdown/extra.md": "# Extra\n" },
+      }),
+      targetRoot: targetFor("d"),
+    });
+    expect(changed.candidate.authored).not.toBe(withoutRecord.candidate.authored);
+    expect(changed.candidate.materialized).not.toBe(withoutRecord.candidate.materialized);
   });
 });

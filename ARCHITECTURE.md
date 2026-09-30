@@ -1693,7 +1693,11 @@ complete Foundation installation = immutable release content + authored capsule 
   `deployment/**`), because a release must never carry one site's authored material. A release is therefore
   NOT a complete installation, and establishment cannot invent the rest: the authored material is an input.
 * The authored material is a **seed**: `site.config.json`, `config/i18n/**`, `content/**` — the capsule, in
-  this repository `deployment/`. Establishment copies it verbatim and refuses generated state inside it.
+  this repository `deployment/`. What establishment copies is the seed's **portable** authored material, so
+  an existing installation's capsule is the ordinary seed: the records a capsule carries about ITSELF — its
+  `foundation-baseline.json`, which names the release that installation adopted — are excluded rather than
+  refused (an installation always has one), while generated `operational-state.json` is machine state rather
+  than authorship and is refused outright.
 * Establishment writes exactly two things of its own: the installation's **adoption record**
   (`foundation-baseline.json`: which immutable release this installation adopted, written from the release it
   established) and its **operational record** (`operational-state.json`: generated state, never authored).

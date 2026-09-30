@@ -158,6 +158,12 @@ export async function runEstablish(options) {
   console.log(`                      authored      ${result.candidate.authored}`);
   console.log(`                      materialised  ${result.candidate.materialized}`);
   console.log(`  files written:      ${result.writtenFiles.length}`);
+  // A SOURCE INSTALLATION'S OWN RECORDS DO NOT TRAVEL (FOUNDATION-B4B-A2): using another installation's
+  // capsule as the seed is the ordinary case, so the operator is told which of its files were deliberately
+  // not inherited rather than left to discover it.
+  if (result.notInherited.length > 0) {
+    console.log(`  not inherited:      ${result.notInherited.join(", ")}`);
+  }
   console.log(`  operational record: ${result.operationalStateFile}`);
   console.log(`  recorded history:   ${result.events.length} lifecycle event(s)`);
   // ESTABLISHED IS NOT THE SAME AS SERVING (FOUNDATION-B4B-A1): establishment activates the installation

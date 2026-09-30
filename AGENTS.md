@@ -586,6 +586,11 @@ Rules for agents:
   RUNNING: it is ignored by version control, excluded from every release, and outside the authored-state
   manifest. Do not commit it, do not "fix" it by hand, and do not let a writer put it anywhere but inside
   the installation it describes.
+- **A seed may be another installation's capsule, and then only its PORTABLE authored material travels.** The
+  source's own `foundation-baseline.json` records an adoption that happened in THAT installation, so
+  establishment excludes it from the portable seed — from the authored identity and from the target — and
+  writes the new installation's record from the release being established; generated `operational-state.json`
+  is refused outright. Never let a source installation's lifecycle records become a target's.
 - **A release is never weakened to make establishment easier.** If establishment seems to need something a
   release does not carry, the authored material belongs in the seed.
 - **No fleet, no control plane, no second installation.** An installation knows only itself and its own

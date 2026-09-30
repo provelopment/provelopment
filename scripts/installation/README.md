@@ -35,6 +35,14 @@ pnpm installation:establish \
 `config/i18n/**` and `content/**` (in this repository that is the `deployment/` capsule). `--name` and
 `--repository` describe **this installation**, and are recorded in its operational record.
 
+**An existing installation's capsule is a valid seed** — it is the ordinary case. Such a capsule carries its
+own `foundation-baseline.json`, and establishment does not inherit it: the record names the release THAT
+installation adopted, so it is left behind (the report prints it as `not inherited`) and the new installation
+gets its own record for the release you are establishing. Nothing in the seed is modified or deleted, and its
+record is never trusted as the new installation's provenance. Generated `operational-state.json` is different
+in kind — machine state rather than authored material — so a seed that contains it is refused, and the
+capsule's `.gitignore` must keep ignoring it.
+
 ## What you get, and what establishment never does
 
 ```

@@ -11,13 +11,16 @@ import { describe, expect, it, vi } from "vitest";
 vi.setConfig({ testTimeout: 60_000 });
 
 import { parseInstallationOperationalState } from "@/core/foundation-installation/index";
+import { INSTALLATION_ADOPTION_RECORD_FILE_NAME } from "@/core/foundation-installation/establishment";
 
 import {
   constructSyntheticRelease,
   disposableTree,
+  INSTALLATION_CAPSULE_RELATIVE_PATH,
   operationalStateFileOf,
   SYNTHETIC_RELEASE_IDENTITY,
   syntheticSeed,
+  syntheticSeedFromExistingInstallation,
 } from "../support/installation-establishment-fixture";
 
 /**
@@ -75,6 +78,47 @@ describe("the installation establishment command", () => {
       JSON.parse(readFileSync(operationalStateFileOf(targetRoot), "utf8")) as unknown,
     );
     expect(record.current.live?.release.tag).toBe(SYNTHETIC_RELEASE_IDENTITY);
+  });
+
+  it("accepts an existing installation's capsule as the seed, and says what it did not inherit", () => {
+    // THE DOCUMENTED PATH, VERBATIM: `--seed` is an established installation's own capsule, so it carries
+    // that installation's adoption record. Establishment must succeed, must say what did not travel, and
+    // must leave the seed exactly as it found it.
+    const release = constructSyntheticRelease();
+    const seed = syntheticSeedFromExistingInstallation();
+    const sourceRecord = readFileSync(path.join(seed, INSTALLATION_ADOPTION_RECORD_FILE_NAME), "utf8");
+    const targetRoot = path.join(disposableTree("foundation-b4b-cli-existing-"), "target");
+
+    const result = run([
+      "establish",
+      "--release",
+      SYNTHETIC_RELEASE_IDENTITY,
+      "--payload",
+      release.payloadDirectory,
+      "--seed",
+      seed,
+      "--target",
+      targetRoot,
+      "--name",
+      "b4b cli existing-capsule proof",
+      "--repository",
+      "https://example.invalid/b4b-cli-existing",
+    ]);
+
+    expect(result.stderr).toBe("");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("not inherited");
+    expect(result.stdout).toContain(
+      `${INSTALLATION_CAPSULE_RELATIVE_PATH}/${INSTALLATION_ADOPTION_RECORD_FILE_NAME}`,
+    );
+    const established = JSON.parse(
+      readFileSync(
+        path.join(targetRoot, INSTALLATION_CAPSULE_RELATIVE_PATH, INSTALLATION_ADOPTION_RECORD_FILE_NAME),
+        "utf8",
+      ),
+    ) as { release: { tag: string } };
+    expect(established.release.tag).toBe(SYNTHETIC_RELEASE_IDENTITY);
+    expect(readFileSync(path.join(seed, INSTALLATION_ADOPTION_RECORD_FILE_NAME), "utf8")).toBe(sourceRecord);
   });
 
   it("refuses a target it must not use, with a non-zero exit code and the reason printed", () => {
