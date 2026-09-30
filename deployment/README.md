@@ -19,7 +19,7 @@ each other.
 | `tests/integration/` | This deployment's durable integration acceptance: its authored pages served through the real application. |
 | `tests/browser/` | This deployment's browser acceptance scenario, run by the Foundation's browser harness. |
 | `.test/` | **Ignored ephemeral workspace, never committed.** Temporary fixtures, screenshots, generated reports, browser artifacts, probes, throwaway copies. It is created locally when needed (`deployment/.gitignore` keeps it and everything inside it out of version control) and it must be **empty — or removed — again when the work is finished**: nothing is left behind for the owner to tidy. |
-| `foundation-baseline.json` | The Foundation version this deployment was established from (see below). |
+| `foundation-baseline.json` | The immutable Foundation release this deployment adopts (see below). |
 | `AGENTS.md` | The contract for an agent working on this deployment. |
 
 **The capsule owns the whole deployment.** Its configuration, dictionaries, authored pages and artwork
@@ -48,10 +48,42 @@ The paths in this section are relative to this capsule.
 
 ## The Foundation baseline
 
-`foundation-baseline.json` records the exact Foundation commit and tree this deployment was established
-from. It exists so that a future Foundation update is a *deliberate, reviewable* act — compare, decide,
+`foundation-baseline.json` records the **immutable Foundation release** this deployment deliberately
+adopts — never a moving branch, and never "whatever `main` is today":
+
+| Field | What it is |
+| --- | --- |
+| `release.tag` | the release identity (`v<date>-foundation-release-<slug>`, the immutable name of one release) |
+| `release.repository` | the upstream platform authority the release came from |
+| `release.commit` / `release.tree` | provenance: the source revision the release was cut from |
+| `release.manifestFormat` | the release manifest format this adoption speaks |
+| `release.content.policy`, `.digest`, `.fileCount` | the platform-content identity: what the release actually contains |
+| `adoptedAt` / `establishedBy` | when, and by which work, this deployment adopted it |
+
+The source tree and the content digest are **different identities on purpose**: the tree is the whole
+source revision (a release excludes this capsule, the repository's CI and generated state), while the
+digest covers exactly the platform content a consumer receives.
+
+The record exists so that a Foundation update is a *deliberate, reviewable* act — compare, decide,
 adopt — rather than an accident of pulling the newest code. There is no upgrade mechanism yet; the
-record is the starting point.
+record is the starting point, and `deployment/tests/unit/foundation-baseline.test.ts` keeps an invalid
+record from entering this deployment.
+
+To re-prove the record against the published release (the release mechanism itself is documented once,
+in `scripts/release/README.md`):
+
+```bash
+git rev-parse v2026.09.30-foundation-release-initial^{commit}   # must equal release.commit
+git rev-parse v2026.09.30-foundation-release-initial^{tree}     # must equal release.tree
+
+pnpm release:build --release v2026.09.30-foundation-release-initial \
+                   --source <release.commit> --dest <an empty directory>
+pnpm release:verify --payload <that directory> --source-repository . --expect-tag
+```
+
+The verification prints the payload digest and file count the record must equal, and `--expect-tag`
+refuses a release whose tag no longer resolves to that commit. **A published release identity is
+immutable**: it is never repointed, deleted or replaced.
 
 ## Another deployment is out of scope
 

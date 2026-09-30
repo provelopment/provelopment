@@ -107,6 +107,9 @@ another deployment
 
 ## Provenance
 
-`deployment/foundation-baseline.json` records the Foundation commit and tree this deployment was
-established from. Treat it as the version of the platform this site is known to work against; a
-Foundation update is a deliberate, reviewed adoption, not an automatic pull.
+`deployment/foundation-baseline.json` records the immutable Foundation RELEASE this deployment
+deliberately adopts — the release tag, the source commit and tree it was cut from, the release content
+policy and the normalized platform-content digest — never a moving branch. Treat it as the version of
+the platform this site is known to work against; a Foundation update is a deliberate, reviewed
+adoption, not an automatic pull, and `deployment/tests/unit/foundation-baseline.test.ts` keeps an
+invalid record from entering this deployment.
