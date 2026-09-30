@@ -31,7 +31,12 @@ import {
   verifyRelease,
 } from "./release-construction.mjs";
 import { RELEASE_CONTENT_POLICY_ID, classifyReleaseInventory } from "./release-content-policy.mjs";
-import { FOUNDATION_SOURCE_REPOSITORY, RELEASE_IDENTITY_PATTERN } from "./release-manifest.mjs";
+import {
+  FOUNDATION_INITIAL_RELEASE_IDENTITY,
+  FOUNDATION_RELEASE_IDENTITY_CONTRACT,
+  isPublishableFoundationReleaseIdentity,
+} from "./release-identity.mjs";
+import { FOUNDATION_SOURCE_REPOSITORY } from "./release-manifest.mjs";
 
 /** The repository this tooling belongs to. `--source-repository` may point somewhere else (a clone). */
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -43,7 +48,9 @@ const USAGE = `FOUNDATION-R1B release tooling
 
   build --release <identity> --source <commit SHA> --dest <dir> [--source-repository <dir>]
       Construct the Foundation release source set and its manifest into an EMPTY destination.
-      The identity must match ${RELEASE_IDENTITY_PATTERN.source}
+      The identity must be a recognized Foundation release identity: the canonical
+      ${FOUNDATION_RELEASE_IDENTITY_CONTRACT} for a new release — or the grandfathered
+      ${FOUNDATION_INITIAL_RELEASE_IDENTITY} when re-constructing the first release.
 
   verify --payload <dir> [--source-repository <dir>] [--expect-tag]
       Verify a constructed release: its boundary, its digest, its derived values, and — with a
@@ -53,7 +60,7 @@ const USAGE = `FOUNDATION-R1B release tooling
     --source <rev>              the revision to inspect (classify only; defaults to HEAD)
     --source <commit SHA>       the commit to release (build only; a full 40-character SHA)
     --source-repository <dir>   the repository to read (defaults to ${ROOT})
-    --release <identity>        the contract release identity, e.g. v2099.01.01-foundation-release-r1b-test
+    --release <identity>        the release identity, e.g. provelopment-foundation-v20261003.1427
     --dest <dir>                construction destination (created; must be absent or empty)
     --payload <dir>             the constructed release to verify
     --expect-tag                with verify: require the release identity to resolve to the recorded commit
@@ -177,6 +184,12 @@ export function runBuild(options) {
   const result = constructRelease({ sourceRepository, revision: source, release, destination });
 
   console.log(`Foundation release constructed — ${result.release}`);
+  if (!isPublishableFoundationReleaseIdentity(result.release)) {
+    console.log(
+      "  identity:    recognized existing release — re-constructed for verification only; a NEW release " +
+        `is published as ${FOUNDATION_RELEASE_IDENTITY_CONTRACT}`,
+    );
+  }
   console.log(`  source:      ${result.commit}  (tree ${result.tree})`);
   console.log(`  repository:  ${FOUNDATION_SOURCE_REPOSITORY}`);
   console.log(`  destination: ${result.destination}`);
@@ -184,7 +197,11 @@ export function runBuild(options) {
   console.log(`  digest:      ${result.digest}`);
   console.log(`  excluded:    ${result.excluded.length} tracked path(s) — deployment, CI and generated state stay out`);
   console.log(`  manifest:    ${path.basename(result.manifestPath)}`);
-  console.log("\nThe tag is NOT created by this tool. Construct a second copy and compare the digests before publishing.");
+  console.log(
+    "\nThe tag is NOT created by this tool. The canonical identity is named at the publication boundary " +
+      "from the UTC publication minute, and a name that already exists stops the publication rather than " +
+      "being adjusted.",
+  );
   return 0;
 }
 

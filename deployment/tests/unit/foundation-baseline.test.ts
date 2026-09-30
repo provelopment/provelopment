@@ -27,11 +27,8 @@ import { describe, expect, it } from "vitest";
 import { deploymentPaths } from "@/config/deployment-root";
 
 import { RELEASE_CONTENT_POLICY_ID } from "../../../scripts/release/release-content-policy.mjs";
-import {
-  FOUNDATION_SOURCE_REPOSITORY,
-  RELEASE_IDENTITY_PATTERN,
-  RELEASE_MANIFEST_FORMAT,
-} from "../../../scripts/release/release-manifest.mjs";
+import { isRecognizedFoundationReleaseIdentity } from "../../../scripts/release/release-identity.mjs";
+import { FOUNDATION_SOURCE_REPOSITORY, RELEASE_MANIFEST_FORMAT } from "../../../scripts/release/release-manifest.mjs";
 
 const BASELINE_FILE = path.join(deploymentPaths().root, "foundation-baseline.json");
 
@@ -73,12 +70,14 @@ describe("the recorded Foundation baseline is a valid adoption record", () => {
     expect(keysOf(baseline.release.content)).toBe(sorted(CONTENT_KEYS));
   });
 
-  it("names an immutable release identity, never a mutable branch or a bare commit", () => {
-    expect(baseline.release.tag).toMatch(RELEASE_IDENTITY_PATTERN);
+  it("names a recognized immutable release identity, never a mutable branch or a bare commit", () => {
+    // RECOGNITION, not publishability (FOUNDATION-R1C-N1): a record adopts a release that EXISTS, so the
+    // grandfathered first release stays valid here even though a NEW release must be named canonically.
+    expect(isRecognizedFoundationReleaseIdentity(baseline.release.tag)).toBe(true);
     // The identity namespace is what makes the record immutable: a branch, a tag-like pointer or a
     // historical checkpoint identity can never satisfy it.
     for (const mutable of ["main", "HEAD", "origin/main", baseline.release.commit, "v2026.09.27-foundation-two-mode-pages"]) {
-      expect(RELEASE_IDENTITY_PATTERN.test(mutable), mutable).toBe(false);
+      expect(isRecognizedFoundationReleaseIdentity(mutable), mutable).toBe(false);
     }
   });
 

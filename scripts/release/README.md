@@ -13,6 +13,7 @@ cannot prove.
 | `release-content-policy.mjs` | what belongs in a release (machine-authoritative; fails closed on an unclassified path) |
 | `release-construction.mjs` | the construction and verification mechanism (Git objects, one plan, one manifest) |
 | `release-digest.mjs` | the normalised content digest and the payload walk |
+| `release-identity.mjs` | what a release may be CALLED: the canonical UTC identity, the grandfathered first release, and recognition vs publishability |
 | `release-manifest.mjs` | the manifest schema and the ONE authority behind each derived value |
 | `index.mjs` | the CLI: `classify`, `build`, `verify` |
 
@@ -70,15 +71,43 @@ A **mirrored archive** (a future GitHub Release asset, say) is derived distribut
 published *beside* the tag for convenience, and its `.sha256` describes the archive, but it is never a
 competing identity. The tag and the commit remain the authority.
 
-The release identity namespace is deliberately distinct from the historical checkpoint tags:
+The release identity namespace is the contract for what a Foundation release may be **called**, and there
+are exactly three classes of tag-shaped name (FOUNDATION-R1C-N1):
 
 ```text
-contract release    v<YYYY.MM.DD>-foundation-release-<slug>    e.g. v2099.01.01-foundation-release-r1b-test
-historical tags     v<YYYY.MM.DD>-foundation-<slug>            immutable historical evidence, NOT release identities
+historical checkpoint tags    v<YYYY.MM.DD>-foundation-<slug>
+                              immutable historical EVIDENCE — not release identities
+
+the first release             v2026.09.30-foundation-release-initial
+                              the first immutable Foundation release, GRANDFATHERED: it was published
+                              before this convention existed, so it keeps its name forever
+
+every future release          provelopment-foundation-vYYYYMMDD.HHMM
+                              the canonical identity of every NEW release
 ```
 
-The tooling validates the contract pattern and **refuses** a historical-style identity, so the two can
-never be confused in a manifest.
+`YYYYMMDD.HHMM` is the **UTC release-publication minute** — not the repository machine's local time, not
+the operator's timezone, not a deployment's timezone. Seconds are omitted and nothing is appended: no
+`Z`, no offset, no counter. The timestamp is validated **semantically**, so an impossible instant
+(`…v20260931.1200`, `…v20260930.2460`) is refused rather than merely looking plausible.
+
+The ONE authority is `release-identity.mjs`, and it answers **two different questions**:
+
+| Question | Answer | Who asks it |
+| --- | --- | --- |
+| `isRecognizedFoundationReleaseIdentity` — does an immutable release exist under this name? | the grandfathered first release, plus canonical identities | a **baseline record**, a manifest, verification |
+| `isPublishableFoundationReleaseIdentity` — may a **new** release be published under this name? | canonical identities **only** | publication |
+
+The grandfather is an exact identity, never a reusable pattern: no old-style
+(`v<date>-foundation-release-<slug>`) name is recognized, so the previous convention cannot creep back
+into a new release.
+
+**The identity is named at the publication boundary** — after construction, the deterministic checks,
+the clean room, the bounded canary and every gate, immediately before the irreversible tag step — so the
+minute records when the release actually became immutable. If that name already exists, locally or
+remotely, **publication STOPs**: a second release in the same UTC minute cannot use it. Do not append
+seconds or a counter, do not overwrite, delete, recreate or repoint the tag; obtain another unique
+publication minute.
 
 ## The manifest (`foundation-release.json`)
 
@@ -88,7 +117,7 @@ cannot be mistaken for a finished release):
 ```json
 {
   "format": 1,
-  "release": "v2099.01.01-foundation-release-r1b-test",
+  "release": "provelopment-foundation-v20990101.1200",
   "source": {
     "repository": "https://github.com/provelopment/provelopment-foundation",
     "commit": "<40-character commit SHA>",
@@ -158,7 +187,7 @@ pnpm release:classify
 pnpm release:classify -- --source 63656c23b6f0d1ba79398f4886a45a6d9168754f
 
 # Construct a release into an EMPTY destination — this publishes nothing
-pnpm release:build -- --release v2099.01.01-foundation-release-r1b-test \
+pnpm release:build -- --release provelopment-foundation-v20990101.1200 \
                      --source 63656c23b6f0d1ba79398f4886a45a6d9168754f \
                      --dest /tmp/foundation-release-a
 pnpm release:build -- ... --dest /tmp/foundation-release-b     # then compare the two digests
@@ -182,8 +211,10 @@ resolve to the recorded commit — the check the release process (R1C) makes bef
    for the recorded commit.
 5. **Clean room** — materialise the payload as its own Git work tree and validate it there with a
    *synthetic* deployment (see below).
-6. **Publish (R1C, not this tooling)** — create the annotated tag, then optionally mirror a
-   deterministic archive + `.sha256` beside it. A published release is never repointed or replaced.
+6. **Publish (R1C, not this tooling)** — name the canonical identity from the UTC publication minute,
+   then create the annotated tag, then optionally mirror a deterministic archive + `.sha256` beside it.
+   A published release is never repointed or replaced, and a minute whose name is already taken STOPs
+   the publication instead of being adjusted (see "Identity and provenance" above).
 
 ## Consuming a release
 

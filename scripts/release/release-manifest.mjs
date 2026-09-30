@@ -27,6 +27,7 @@
  */
 
 import { RELEASE_CONTENT_POLICY_ID } from "./release-content-policy.mjs";
+import { assertReleaseIdentity } from "./release-identity.mjs";
 
 /** The manifest schema's own version. Bumped only when the schema below changes shape. */
 export const RELEASE_MANIFEST_FORMAT = 1;
@@ -35,15 +36,12 @@ export const RELEASE_MANIFEST_FORMAT = 1;
 export const FOUNDATION_SOURCE_REPOSITORY = "https://github.com/provelopment/provelopment-foundation";
 
 /**
- * The contract release identity shape (FOUNDATION-R1A, refined by R1B):
- *
- *   v<YYYY.MM.DD>-foundation-release-<slug>
- *
- * It is deliberately distinct from the historical checkpoint tags (`v<date>-foundation-<slug>`): those
- * are immutable historical evidence and are NOT contract-conformant releases. A tag is never created
- * by this tooling — construction only encodes the identity it is given (R1C publishes).
+ * The release identity is NOT owned here. A manifest records the identity it was constructed under,
+ * and whether that identity may exist at all is the identity authority's question
+ * (`release-identity.mjs`): the canonical `provelopment-foundation-vYYYYMMDD.HHMM`, or the
+ * grandfathered first release. A tag is never created by this tooling — construction only encodes the
+ * identity it is given (R1C publishes).
  */
-export const RELEASE_IDENTITY_PATTERN = /^v\d{4}\.\d{2}\.\d{2}-foundation-release-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** The exact key set of a manifest. An unknown or missing key is a schema failure, not a warning. */
 const MANIFEST_TOP_LEVEL_KEYS = ["format", "release", "source", "content", "requirements", "compatibility"];
@@ -51,24 +49,6 @@ const MANIFEST_SOURCE_KEYS = ["repository", "commit", "tree"];
 const MANIFEST_CONTENT_KEYS = ["policy", "digest", "fileCount"];
 const MANIFEST_REQUIREMENT_KEYS = ["node", "pnpm"];
 const MANIFEST_COMPATIBILITY_KEYS = ["pageDocumentSchema", "deploymentLayouts"];
-
-/**
- * Assert a release identity is contract-conformant.
- *
- * @param {string} identity the candidate identity, e.g. `v2099.01.01-foundation-release-r1b-test`
- * @returns {string} the identity, when conformant
- */
-export function assertReleaseIdentity(identity) {
-  const candidate = String(identity ?? "").trim();
-  if (!RELEASE_IDENTITY_PATTERN.test(candidate)) {
-    throw new Error(
-      `FOUNDATION-R1B: "${candidate}" is not a contract release identity. A Foundation release is ` +
-        "identified as v<YYYY.MM.DD>-foundation-release-<slug> (the historical " +
-        "v<date>-foundation-<slug> checkpoints are evidence, not releases).",
-    );
-  }
-  return candidate;
-}
 
 /**
  * Read one extracted value, or fail with the authority that refused to answer.

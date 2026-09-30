@@ -501,9 +501,11 @@ See `DEPLOYMENT.md` for the operational runbook.
 ## Foundation releases
 
 A Foundation **release** is a deterministic, platform-only **source set** constructed from one accepted
-Foundation `main` commit and identified by an immutable contract tag
-(`v<YYYY.MM.DD>-foundation-release-<slug>`). A deployment **consumes and pins** a release; it never
-consumes another deployment, and no Foundation release requires reference-deployment state to exist.
+Foundation `main` commit and identified by an immutable contract tag: the canonical
+`provelopment-foundation-vYYYYMMDD.HHMM` (the UTC publication minute) for every release after the first,
+which is grandfathered as `v2026.09.30-foundation-release-initial`. A deployment **consumes and pins** a
+release; it never consumes another deployment, and no Foundation release requires reference-deployment
+state to exist.
 
 - The release content boundary is **machine-owned, not prose**: every tracked path is classified by ONE
   policy as platform content or repository/deployment/build state, and a path nobody classified fails
