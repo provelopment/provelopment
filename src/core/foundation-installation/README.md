@@ -383,12 +383,18 @@ complete installation = immutable release content + authored capsule (a SEED) + 
 * `INSTALLATION_SEED_REFUSED_PATHS` — generated state a seed may never contain: the operational record above
   all. A seed is authorship, so a seed carrying generated state is not authored material, and copying it
   would give the new installation a history it never had.
+* `INSTALLATION_SEED_NON_PORTABLE_PATHS` / `portableInstallationSeed` — the PORTABLE capsule: records a seed
+  MAY carry that are not authored material and therefore do not travel. A real capsule always carries its own
+  adoption record (`foundation-baseline.json`), which names the release THAT installation adopted, so it is
+  EXCLUDED — from the authored digest and from the target — while the new installation's own record is
+  written from the release being established. Excluded rather than refused, because it is expected: the two
+  rules differ by OWNERSHIP, not severity. Nothing in the source is parsed as authority, modified or deleted.
 * `INSTALLATION_GENERATED_STATE_IGNORE_RULE` — the rule the capsule's `.gitignore` must carry, so the
   record can never become authored, version-controlled state. Establishment refuses a seed without it.
-* `INSTALLATION_CONTENT_SCOPE` — the two scopes a candidate identity is built from (`authored`, the seed as
-  supplied; `materialized`, the whole tree establishment wrote), in the platform's ONE content encoding
-  (`@/core/foundation-release/content-digest.mjs`). One encoding, distinct scopes: never a second digest
-  flavour.
+* `INSTALLATION_CONTENT_SCOPE` — the two scopes a candidate identity is built from (`authored`, the PORTABLE
+  seed as supplied; `materialized`, the whole tree establishment wrote), in the platform's ONE content
+  encoding (`@/core/foundation-release/content-digest.mjs`). One encoding, distinct scopes: never a second
+  digest flavour. A source installation's own records are in neither scope, so they can move neither identity.
 * `foundationInstallationAdoptionRecord` / `offsetInstant` — the adoption record this installation writes,
   carrying immutable release provenance and NO acquisition field: where the bytes came from is the act's
   business, and belongs in diagnostics rather than in the installation's durable state.

@@ -125,6 +125,65 @@ export const INSTALLATION_SEED_REFUSED_PATHS: readonly { path: string; reason: s
 ]);
 
 /**
+ * Records a seed MAY contain that are NOT portable authored material, and are therefore not inherited
+ * (FOUNDATION-B4B-A2).
+ *
+ * USING AN EXISTING INSTALLATION'S CAPSULE AS A SEED IS THE ORDINARY CASE. Such a capsule carries its own
+ * adoption record, because every installation has one — so a seed containing
+ * `foundation-baseline.json` is a capsule doing its job, not a mistake. That record is not authorship: it
+ * states which immutable release THAT installation adopted, and inheriting it would give the new
+ * installation a claim about an adoption that never happened there, against a release it may never have
+ * run. Establishment therefore EXCLUDES it from the PORTABLE seed — so it reaches neither the authored
+ * digest nor the target — and writes the new installation's own record from the release it is establishing.
+ *
+ * EXCLUDED, NOT REFUSED, AND THE DISTINCTION IS OWNERSHIP RATHER THAN SEVERITY: an adoption record belongs
+ * to the installation whose adoption it describes and simply does not travel, while generated runtime state
+ * (`INSTALLATION_SEED_REFUSED_PATHS`) is not authored material at all and is refused so a mistake is
+ * visible. The portable capsule is therefore:
+ *
+ *   portable capsule = authored capsule − the source's own records − generated operational state
+ *
+ * Named as data, so the rule is stated once and the use case, its tests and the documentation cannot drift
+ * apart. Nothing here parses, repairs or rewrites a supplied file: the source is left exactly as it is.
+ */
+export const INSTALLATION_SEED_NON_PORTABLE_PATHS: readonly { path: string; reason: string }[] =
+  Object.freeze([
+    {
+      path: INSTALLATION_ADOPTION_RECORD_FILE_NAME,
+      reason:
+        "the source installation's own adoption record: it names the release THAT installation adopted, so " +
+        "it is not portable authored material — this installation records its own adoption, from the " +
+        "release being established",
+    },
+  ]);
+
+/** A seed split into what a new installation inherits and what it deliberately does not. */
+export interface PortableInstallationSeed<T> {
+  /** The authored material the new installation adopts, in the seed's own order. */
+  readonly portable: readonly T[];
+  /** The seed's own records, in the seed's own order — named so that nothing about them is silent. */
+  readonly notInherited: readonly T[];
+}
+
+/**
+ * THE PORTABLE CAPSULE: a seed as the authored material a new installation may inherit.
+ *
+ * Pure and generic over anything carrying a seed-relative `path`, so the use case, a test and a future
+ * caller cannot disagree about what travels. `notInherited` is returned rather than discarded because the
+ * excluded files are a fact about the act the operator performed, not an implementation detail to hide.
+ */
+export function portableInstallationSeed<T extends { readonly path: string }>(
+  files: readonly T[],
+): PortableInstallationSeed<T> {
+  const inherited = (file: T): boolean =>
+    !INSTALLATION_SEED_NON_PORTABLE_PATHS.some((record) => record.path === file.path);
+  return {
+    portable: files.filter(inherited),
+    notInherited: files.filter((file) => !inherited(file)),
+  };
+}
+
+/**
  * Generated state the installation MUST keep out of version control: the ignore rule its capsule carries.
  *
  * A seed without it is refused, deliberately — the operational record is written on establishment and on

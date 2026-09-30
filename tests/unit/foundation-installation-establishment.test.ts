@@ -11,9 +11,11 @@ import {
   foundationInstallationAdoptionRecord,
   installationIsEstablishedFrom,
   offsetInstant,
+  portableInstallationSeed,
   INSTALLATION_ADOPTION_RECORD_FILE_NAME,
   INSTALLATION_CONTENT_SCOPE,
   INSTALLATION_GENERATED_STATE_IGNORE_RULE,
+  INSTALLATION_SEED_NON_PORTABLE_PATHS,
   INSTALLATION_SEED_REFUSED_PATHS,
   INSTALLATION_SEED_REQUIREMENTS,
 } from "@/core/foundation-installation/establishment";
@@ -181,5 +183,67 @@ describe("establishment reports failures in the platform's own vocabulary", () =
     for (const category of ["release-resolution", "installation-validation", "materialization", "promotion"]) {
       expect(INSTALLATION_FAILURE_CATEGORIES).toContain(category);
     }
+  });
+});
+
+/**
+ * AN EXISTING INSTALLATION'S CAPSULE IS A VALID SEED (FOUNDATION-B4B-A2)
+ * ====================================================================
+ *
+ * The documented procedure seeds an establishment with an established installation's own capsule
+ * (`--seed deployment`), and such a capsule carries that installation's adoption record. Treating that
+ * record as authored material made the documented path fail, so the rule is stated here, once: the seed's
+ * own records are EXCLUDED from the portable capsule rather than refused, because a capsule is expected to
+ * have them.
+ */
+describe("a source installation's own records are not portable authored material", () => {
+  const encode = (text: string) => new TextEncoder().encode(text);
+  const files = [
+    { path: "site.config.json", bytes: encode("{}\n") },
+    { path: INSTALLATION_ADOPTION_RECORD_FILE_NAME, bytes: encode("the source installation's own adoption\n") },
+    { path: "content/pages/home.md", bytes: encode("# Home\n") },
+    { path: "content/assets/logo.svg", bytes: encode("<svg/>\n") },
+  ];
+
+  it("names the source's adoption record as the record that does not travel", () => {
+    expect(INSTALLATION_SEED_NON_PORTABLE_PATHS.map((record) => record.path)).toEqual([
+      INSTALLATION_ADOPTION_RECORD_FILE_NAME,
+    ]);
+    expect(INSTALLATION_SEED_NON_PORTABLE_PATHS[0].reason).toMatch(/adoption record/);
+  });
+
+  it("EXCLUDES it rather than refusing it: an existing capsule is the ordinary seed", () => {
+    // Ownership, not severity. A capsule is EXPECTED to carry its own adoption record, so that record must
+    // not make the seed unusable; generated runtime state is not authored material at all, so it is still
+    // refused outright and stays visible as a mistake.
+    const refused = INSTALLATION_SEED_REFUSED_PATHS.map((entry) => entry.path);
+    expect(refused).not.toContain(INSTALLATION_ADOPTION_RECORD_FILE_NAME);
+    expect(refused).toContain(INSTALLATION_OPERATIONAL_STATE_FILE_NAME);
+  });
+
+  it("splits a seed into what travels and what is left behind, losing nothing", () => {
+    const { portable, notInherited } = portableInstallationSeed(files);
+    expect(portable.map((file) => file.path)).toEqual([
+      "site.config.json",
+      "content/pages/home.md",
+      "content/assets/logo.svg",
+    ]);
+    expect(notInherited.map((file) => file.path)).toEqual([INSTALLATION_ADOPTION_RECORD_FILE_NAME]);
+    expect(portable.length + notInherited.length).toBe(files.length);
+  });
+
+  it("leaves a capsule without such a record exactly as it is", () => {
+    const { portable, notInherited } = portableInstallationSeed([files[0], files[2], files[3]]);
+    expect(notInherited).toEqual([]);
+    expect(portable).toHaveLength(3);
+  });
+
+  it("excludes the capsule's OWN record, not a same-named file a page author wrote deeper in the tree", () => {
+    // Equality on the seed-relative path: a page document that happens to share the name travels like any
+    // other page, and only the capsule's own lifecycle record is left behind.
+    const page = { path: "content/pages/json/ww/en/foundation-baseline.json", bytes: encode("{}\n") };
+    const { portable, notInherited } = portableInstallationSeed([page]);
+    expect(notInherited).toEqual([]);
+    expect(portable).toEqual([page]);
   });
 });

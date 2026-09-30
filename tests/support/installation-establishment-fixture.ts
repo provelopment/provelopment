@@ -20,7 +20,16 @@ import path from "node:path";
 import { afterEach } from "vitest";
 
 import { capsuleDirectory } from "@/config/deployment-build.mjs";
+import {
+  foundationInstallationAdoptionRecord,
+  INSTALLATION_ADOPTION_RECORD_FILE_NAME,
+} from "@/core/foundation-installation/establishment";
 import { INSTALLATION_OPERATIONAL_STATE_FILE_NAME } from "@/core/foundation-installation/model";
+import {
+  FOUNDATION_SOURCE_REPOSITORY,
+  RELEASE_CONTENT_POLICY_ID,
+} from "@/core/foundation-release/manifest.mjs";
+import type { FoundationReleaseReference } from "@/core/foundation-release/reference";
 
 import { constructRelease } from "../../scripts/release/release-construction.mjs";
 import { SYNTHETIC_DEPLOYMENT_FIXTURE_ROOT } from "./synthetic-deployment-root";
@@ -139,6 +148,55 @@ export function syntheticSeed(extra: Record<string, string> = {}): string {
   writeFileSync(path.join(seed, ".gitignore"), `${INSTALLATION_OPERATIONAL_STATE_FILE_NAME}\n`, "utf8");
   writeFiles(seed, extra);
   return seed;
+}
+
+/**
+ * A DIFFERENT immutable release: the one a SOURCE installation adopted (FOUNDATION-B4B-A2).
+ *
+ * Deliberately its own release, so a target's adoption record can be proved FRESH rather than inherited by
+ * comparison: equal bytes would prove nothing if source and target had adopted the same release, and the
+ * real-world case is exactly that they may not.
+ */
+export const SYNTHETIC_SOURCE_RELEASE: FoundationReleaseReference = {
+  tag: "provelopment-foundation-v20980101.0000",
+  repository: FOUNDATION_SOURCE_REPOSITORY,
+  commit: "9".repeat(40),
+  tree: "8".repeat(40),
+  manifestFormat: 1,
+  content: { policy: RELEASE_CONTENT_POLICY_ID, digest: `sha256:${"7".repeat(64)}`, fileCount: 12 },
+};
+
+/**
+ * The adoption record text a SOURCE installation's capsule carries — built by the platform's own record
+ * function, so the fixture cannot drift from the shape an installation really writes.
+ */
+export function syntheticSourceAdoptionRecordText(
+  overrides: { tag?: string; adoptedAt?: string; establishedBy?: string } = {},
+): string {
+  const record = foundationInstallationAdoptionRecord(
+    { ...SYNTHETIC_SOURCE_RELEASE, tag: overrides.tag ?? SYNTHETIC_SOURCE_RELEASE.tag },
+    {
+      adoptedAt: overrides.adoptedAt ?? "2098-01-01T00:00:00+00:00",
+      establishedBy: overrides.establishedBy ?? "FOUNDATION-B4B-A2 fixture",
+    },
+  );
+  return `${JSON.stringify(record, null, 2)}\n`;
+}
+
+/**
+ * AN EXISTING INSTALLATION'S CAPSULE AS A SEED — the real-world case FOUNDATION-B4B-A2 exists for.
+ *
+ * The ordinary synthetic capsule PLUS the adoption record every installation carries. The earlier fixtures
+ * omitted that expected file, which is exactly why they never exercised the documented procedure: an
+ * operator's seed is `deployment/`, and `deployment/` is an established installation's own capsule.
+ */
+export function syntheticSeedFromExistingInstallation(
+  options: { record?: string; extra?: Record<string, string> } = {},
+): string {
+  return syntheticSeed({
+    [INSTALLATION_ADOPTION_RECORD_FILE_NAME]: options.record ?? syntheticSourceAdoptionRecordText(),
+    ...options.extra,
+  });
 }
 
 /** The capsule directory inside a target root, asked of the platform's own authority. */
