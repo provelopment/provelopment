@@ -1,9 +1,16 @@
 {
-  "upstream": "https://github.com/provelopment/provelopment-foundation",
-  "branch": "main",
-  "commit": "2f8bb9a49e02ef355404d7c6e528901b58edf6fe",
-  "tree": "4b433456ca084646beb80d2f59c3b5243dad68a9",
-  "adoptedAt": "2026-09-28T20:31:59+07:00",
-  "establishedBy": "FOUNDATION-DEPLOYMENT-ISO-U1",
-  "note": "The baseline commit is not itself a tagged release. `git describe` reports it as v2026.09.27-foundation-markdown-single-h1-11-g2f8bb9a."
+  "release": {
+    "tag": "v2026.09.30-foundation-release-initial",
+    "repository": "https://github.com/provelopment/provelopment-foundation",
+    "commit": "e4978ab59d3c27f775aa3a342d3b951032baf018",
+    "tree": "b263734c5211130553f5b0898f4e4d141f2f1e48",
+    "manifestFormat": 1,
+    "content": {
+      "policy": "foundation-source-v1",
+      "digest": "sha256:9c59fc2767d6584fa734306a7bc6e9260c4ae3b8c3bedd23d93808490151d2c0",
+      "fileCount": 332
+    }
+  },
+  "adoptedAt": "2026-09-30T10:17:43+07:00",
+  "establishedBy": "FOUNDATION-R1C"
 }
