@@ -348,3 +348,40 @@ written in advance.
 A later phase that needs a new STATE adds it here, with its transition and its refusal cases, rather than
 inventing workflow flags beside this model. A later phase that needs SPOKE state adds its own record, at its
 own level, rather than widening this one.
+
+## Establishment: what a COMPLETE installation is made of (FOUNDATION-B4B)
+
+`establishment.ts` in this directory is the pure half of the act that creates an installation. It states the
+one relationship the phase exists to keep, and it refuses rather than repairs:
+
+```text
+complete installation = immutable release content + authored capsule (a SEED) + generated state
+```
+
+* `INSTALLATION_SEED_REQUIREMENTS` — the authored surfaces every installation needs (`site.config.json`,
+  `config/i18n`, `content/pages`, `content/assets`), each with the reason it is load-bearing. A seed may
+  carry any additional authored material, and it is copied verbatim.
+* `INSTALLATION_SEED_REFUSED_PATHS` — generated state a seed may never contain: the operational record above
+  all. A seed is authorship, so a seed carrying generated state is not authored material, and copying it
+  would give the new installation a history it never had.
+* `INSTALLATION_GENERATED_STATE_IGNORE_RULE` — the rule the capsule's `.gitignore` must carry, so the
+  record can never become authored, version-controlled state. Establishment refuses a seed without it.
+* `INSTALLATION_CONTENT_SCOPE` — the two scopes a candidate identity is built from (`authored`, the seed as
+  supplied; `materialized`, the whole tree establishment wrote), in the platform's ONE content encoding
+  (`@/core/foundation-release/content-digest.mjs`). One encoding, distinct scopes: never a second digest
+  flavour.
+* `foundationInstallationAdoptionRecord` / `offsetInstant` — the adoption record this installation writes,
+  carrying immutable release provenance and NO acquisition field: where the bytes came from is the act's
+  business, and belongs in diagnostics rather than in the installation's durable state.
+* `installationIsEstablishedFrom` — the completion question: is something live, is it EXACTLY this release
+  in every respect the release contract records, and is the live revision this candidate's materialised
+  digest? Only that counts as established.
+
+The mechanics are `@/application/establish-foundation-installation` (the use case, which drives the
+transitions below in their approved order for a fresh install) and `src/adapters/installation/**` (the Node
+mechanisms, including the guard that keeps every write inside the target root). The operator surface is
+`scripts/installation/README.md`.
+
+**A failed establishment records no operational record at all**, because the record is written once, last:
+that is what makes an incomplete target visibly incomplete and impossible to mistake for a successful
+installation. A re-run refuses it like any other non-empty target — nothing is ever overwritten or deleted.
