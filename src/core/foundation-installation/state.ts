@@ -297,11 +297,21 @@ function currentIssues(value: unknown): string[] {
   if (current.health !== INSTALLATION_HEALTH.ONLINE && current.health !== INSTALLATION_HEALTH.OFFLINE) {
     issues.push(`current.health "${String(current.health)}" is not "online" or "offline"`);
   }
+  // HEALTH IS DATED WHEN — AND ONLY WHEN — IT WAS ACTUALLY EVALUATED (FOUNDATION-B4B-A1).
+  //
+  // `healthEvaluatedAt: null` is the record's STRUCTURAL statement that health has never been evaluated for
+  // this installation, which is a truthful state for an installation that IS activated (FOUNDATION-B4B
+  // activates an installation without probing it: establishing files cannot prove that anything serves).
+  // The two facts remain distinguishable without prose — `current.live !== null` says the installation is
+  // activated, `healthEvaluatedAt === null` says nothing has judged it.
+  //
+  // What is REFUSED is the genuinely contradictory claim: ONLINE with no evaluation instant. An ONLINE
+  // installation is serving because somebody observed it serving, and an undated observation is refused.
   if (current.healthEvaluatedAt === null) {
-    if (current.live !== null) {
+    if (current.health === INSTALLATION_HEALTH.ONLINE) {
       issues.push(
-        "current.live exists but healthEvaluatedAt is null — a live installation's health is a claim about a " +
-          "moment, and an undated claim is refused",
+        "current.health is ONLINE but healthEvaluatedAt is null — being online is an observation, and an " +
+          "undated claim is refused",
       );
     }
   } else if (!isUtcInstant(current.healthEvaluatedAt)) {
@@ -378,9 +388,11 @@ export function parseInstallationOperationalState(value: unknown): FoundationIns
  * THE FIRST STATE OF AN INSTALLATION: nothing is live, nothing has been attempted, health is OFFLINE.
  *
  * It is offline because an installation that has never been activated is not serving — not because anything
- * was judged: `healthEvaluatedAt` stays `null` until health is first established
- * (`recordInstallationHealth`) or a candidate becomes live. That is what lets a failed first installation be
- * recorded as "not activated, offline, and here is why" without inventing an evaluation nobody made.
+ * was judged: `healthEvaluatedAt` stays `null` until health is first established by an actual evaluation
+ * (`recordInstallationHealth`), and ACTIVATION does not establish one (FOUNDATION-B4B-A1). That is what lets
+ * a failed first installation be recorded as "not activated, offline, and here is why" — and an established
+ * one as "activated, offline, never evaluated, and here is which candidate became live" — without inventing
+ * an evaluation nobody made.
  */
 export function initialInstallationOperationalState(installation: FoundationInstallationIdentity): FoundationInstallationOperationalState {
   const issues = identityIssues(installation);

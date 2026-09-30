@@ -1713,3 +1713,10 @@ target writer, the operational-record store), and the operator surface is
 deletes, and it records no connection to anything: an installation needs no network, no GitHub and no other
 installation to operate.
 
+**What the record may claim (FOUNDATION-B4B-A1).** A durable operational event describes an operation that
+actually happened, and health is an OBSERVATION rather than a step. Establishment therefore records a
+COMPLETE, verified, ACTIVATED installation — `live` names the exact candidate that became this installation's
+Foundation state — and leaves health unevaluated (`offline`, `healthEvaluatedAt: null`), because no health
+check ran. Promotion is not health, and only `recordInstallationHealth` — a real evaluation of the live
+installation — can make it `online`.
+

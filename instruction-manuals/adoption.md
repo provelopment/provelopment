@@ -337,3 +337,10 @@ repository" is a recorded Foundation freeze-audit item.
 installation it describes, it holds no reference to the installation it was created from, and it asks that
 installation for nothing. Version it however you like — establishment deliberately creates no Git
 repository and makes no commit for you.
+
+**Established is not the same as serving.** Establishment records what it actually did: the installation is
+now ACTIVE, and its record names the exact candidate that became its Foundation state. It does NOT record
+health, because it never evaluated any — the record reads `offline` with `healthEvaluatedAt: null` ("nothing
+has judged it yet"), and the command says so in its report. Only a real health evaluation, performed later
+against the running installation, can record it `online`. Nothing in the platform claims an installation is
+serving until somebody has actually observed it serve.

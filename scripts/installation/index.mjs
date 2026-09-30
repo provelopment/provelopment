@@ -160,6 +160,12 @@ export async function runEstablish(options) {
   console.log(`  files written:      ${result.writtenFiles.length}`);
   console.log(`  operational record: ${result.operationalStateFile}`);
   console.log(`  recorded history:   ${result.events.length} lifecycle event(s)`);
+  // ESTABLISHED IS NOT THE SAME AS SERVING (FOUNDATION-B4B-A1): establishment activates the installation
+  // and never probes it, so the operator is told which of the two actually happened.
+  console.log(
+    "  runtime health:     NOT evaluated — establishment activates the installation; it does not prove\n" +
+      "                      that anything serves yet (the record says so: offline, with no evaluation instant)",
+  );
   console.log(
     "\nThe installation is complete and its own records name the release it runs. It has NOT been installed,\n" +
       "built or tested yet — do that inside the installation itself (`pnpm install`, then the checks its own\n" +

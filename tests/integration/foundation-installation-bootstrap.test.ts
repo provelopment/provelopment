@@ -32,6 +32,7 @@ import {
   installationActivationState,
   installationHealthOf,
   parseInstallationOperationalState,
+  recordInstallationHealth,
   INSTALLATION_ACTIVATION,
   INSTALLATION_HEALTH,
 } from "@/core/foundation-installation/index";
@@ -191,13 +192,33 @@ describe("establishing an installation in a disposable target root", () => {
     const record = readRecord(targetRoot);
     expect(record.schemaVersion).toBe(INSTALLATION_OPERATIONAL_STATE_SCHEMA_VERSION);
     expect(installationActivationState(record)).toBe(INSTALLATION_ACTIVATION.ACTIVE);
-    expect(installationHealthOf(record)).toBe(INSTALLATION_HEALTH.ONLINE);
     expect(installationIsEstablishedFrom(record, { release: result.release, candidate: result.candidate })).toBe(
       true,
     );
     expect(record.current.installationIdentity).toEqual(INSTALLATION);
     expect(record.current.lastAttempt?.kind).toBe("install");
     expect(record.current.lastAttempt?.outcome).toBe("succeeded");
+
+    // ACTIVATION IS NOT HEALTH (FOUNDATION-B4B-A1): establishing files proves nothing about serving, so the
+    // record says exactly what happened — the installation IS active (above), is NOT proven to be serving,
+    // and has never been evaluated — and no `health-online` event was invented to say otherwise.
+    expect(installationHealthOf(record)).toBe(INSTALLATION_HEALTH.OFFLINE);
+    expect(record.current.healthEvaluatedAt).toBeNull();
+    expect(record.history.map((event) => event.type)).not.toContain("health-online");
+
+    // ONLY a real health evaluation — someone actually observing the established installation, later — can
+    // make it ONLINE. Establishment itself never can, and never does.
+    const evaluated = recordInstallationHealth(record, {
+      health: INSTALLATION_HEALTH.ONLINE,
+      at: "2099-01-02T00:00:00Z",
+      detail: "the established installation answered a real request",
+    });
+    expect(installationHealthOf(evaluated)).toBe(INSTALLATION_HEALTH.ONLINE);
+    expect(evaluated.current.healthEvaluatedAt).toBe("2099-01-02T00:00:00Z");
+    expect(evaluated.history.map((event) => event.type)).toContain("health-online");
+    // …and the record establishment wrote is untouched by that later evaluation: activation is what it
+    // recorded, and the completion marker never claimed more.
+    expect(installationHealthOf(record)).toBe(INSTALLATION_HEALTH.OFFLINE);
 
     // EVERY WRITTEN PATH addresses the installation root, relative and downward only.
     for (const file of result.writtenFiles) {

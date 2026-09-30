@@ -99,3 +99,10 @@ installation:
 
 The record of what the installation runs is in its capsule: `foundation-baseline.json` names the immutable
 release it adopted, and `operational-state.json` names the exact revision that became live.
+
+**Established is not the same as serving.** The record establishment writes says the installation is ACTIVE
+(`live` names the exact candidate) and `offline` with no evaluation instant — `healthEvaluatedAt: null` —
+because no health check ran: establishing files cannot prove that anything answers a request. Only a real
+health evaluation, performed later by whoever operates the installation, can record it `online`. Read the
+record as two separate facts: `current.live` says WHAT is active, `current.health`/`healthEvaluatedAt` say
+whether anyone has judged it, and when.

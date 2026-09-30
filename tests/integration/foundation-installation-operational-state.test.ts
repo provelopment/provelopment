@@ -160,7 +160,8 @@ describe("the operational record is generated state, never authored state", () =
     // It names the release it runs, and the exact revision that became live.
     expect(record.current.live?.release.tag).toBe(SYNTHETIC_RELEASE_IDENTITY);
     expect(record.current.live?.revision).toMatch(/^sha256:[0-9a-f]{64}$/);
-    // It is written ONCE, carrying the whole establishment in its history.
+    // It is written ONCE, carrying the whole establishment in its history — and NOT a health claim: the
+    // installation was activated, not evaluated (FOUNDATION-B4B-A1).
     expect(record.history.map((event) => event.type)).toEqual([
       "attempt-started",
       "candidate-prepared",
@@ -168,8 +169,9 @@ describe("the operational record is generated state, never authored state", () =
       "candidate-staged",
       "candidate-inspected",
       "promoted",
-      "health-online",
     ]);
+    expect(record.current.health).toBe("offline");
+    expect(record.current.healthEvaluatedAt).toBeNull();
   });
 
   it("leaves the installation that established it without a record of its own, and its sources intact", async () => {

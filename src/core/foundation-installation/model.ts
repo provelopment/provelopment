@@ -35,7 +35,10 @@
  *                far the candidate got, and why it stopped. Attempts come and go; the live installation
  *                does not move because one failed.
  *   HEALTH       is the LIVE installation serving — `current.health`, ONLINE or OFFLINE, dated by
- *                `current.healthEvaluatedAt`.
+ *                `current.healthEvaluatedAt`. A `null` instant is the STRUCTURAL statement that health has
+ *                never been evaluated, which is exactly what ACTIVATION leaves behind: becoming live is not
+ *                an observation that anything serves (FOUNDATION-B4B-A1). Only a real health evaluation
+ *                (`recordInstallationHealth`) makes an installation ONLINE.
  *
  * The separation is what makes the failure semantics structural rather than prose (see `transitions.ts`):
  * a rejected candidate changes the ATTEMPT and nothing else, so a healthy installation cannot become
@@ -120,7 +123,11 @@ export interface FoundationInstallationIdentity {
 export const INSTALLATION_HEALTH = {
   /** The live installation is serving. */
   ONLINE: "online",
-  /** The live installation is not serving — or nothing is live yet (an installation that is not activated). */
+  /**
+   * The live installation is not serving — or nothing is live yet (an installation that is not activated),
+   * or nothing has ever judged it (an ACTIVATED installation whose `healthEvaluatedAt` is `null`: becoming
+   * live is not an observation that anything serves — FOUNDATION-B4B-A1).
+   */
   OFFLINE: "offline",
 } as const;
 
@@ -347,9 +354,11 @@ export interface InstallationLifecycleEvent {
 /**
  * THE SNAPSHOT: everything that is true about the installation right now.
  *
- * `healthEvaluatedAt` is the instant the current health value was established. It is `null` only for a
- * installation that has never been evaluated at all — which is why a record with a LIVE installation must
- * carry one: "the live installation is online" is a claim about a moment, and an undated claim is not one.
+ * `healthEvaluatedAt` is the instant the current health value was ACTUALLY evaluated. It stays `null` until
+ * a real evaluation happens — including for a live installation, because ACTIVATION IS NOT HEALTH
+ * (FOUNDATION-B4B-A1): becoming live is not an observation that anything serves. It is therefore the
+ * record's structural way of saying "health has never been evaluated", while `current.live` independently
+ * says whether the installation is activated.
  */
 export interface FoundationInstallationState {
   /**

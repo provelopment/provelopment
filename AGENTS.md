@@ -593,3 +593,9 @@ Rules for agents:
   have to keep. `src/**` may never import `scripts/**`, so the pure contracts live in core and the tooling
   consumes them.
 - **A real Foundation defect is STOP and REPORT**, not a self-patch: a later immutable release is adopted.
+- **ACTIVATION IS NOT HEALTH.** A durable event must describe an operation that actually happened, so
+  establishment records a completed, verified, ACTIVATED installation — and no health claim, because it
+  never evaluated any (`offline`, `healthEvaluatedAt: null`). `recordInstallationHealth` is the ONE
+  transition that speaks about serving, and nothing may record `online` without a real evaluation. Do not
+  advance a lifecycle transition merely because a later state would be convenient to reach, and never add a
+  fake health probe, staging deployer or promoter to make a bootstrap look complete.

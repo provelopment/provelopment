@@ -101,7 +101,7 @@ be mistaken for a successful one:
 | `schemaVersion` | the record's schema version (1) |
 | `current.installationIdentity` | WHICH installation this record describes — this deployment, by name and its own repository |
 | `current.live` | the immutable release, and the exact revision that is live |
-| `current.health` / `healthEvaluatedAt` | whether the live installation is serving, as of when |
+| `current.health` / `healthEvaluatedAt` | whether the live installation is serving, and when that was actually evaluated. `healthEvaluatedAt: null` means nothing has judged it yet — which is exactly how an installation that has just been established reads (`offline`, never evaluated): establishing an installation ACTIVATES it, and activation is not proof that it serves |
 | `current.lastAttempt` | what is happening, or what last happened, and why it stopped |
 | `history` | the bounded record of how the current state was reached |
 

@@ -19,9 +19,12 @@
  *       with the failure recorded as the attempt's outcome. The installation does not become offline because
  *       an upgrade failed.
  *   Health moves only where the ACTIVE installation is described: `recordInstallationHealth` (the live-health
- *   contract) and `completeInstallationPromotion` (something new is now serving). Turning a failed candidate
- *   into OFFLINE therefore requires calling a function that describes the live installation — no code path
- *   does it by accident.
+ *   contract) is the ONE function that writes it, and it is the only way an installation can become ONLINE.
+ *   Activation is NOT health (FOUNDATION-B4B-A1): `completeInstallationPromotion` records what actually
+ *   happened — something became the installation's active state — and therefore records the activated
+ *   installation as OFFLINE with `healthEvaluatedAt: null` (never evaluated), because no health check ran.
+ *   Turning a failed candidate into OFFLINE therefore requires calling a function that describes the live
+ *   installation — no code path does it by accident — and no code path claims ONLINE without a check.
  *
  * EXACT PROMOTION
  * ---------------
@@ -339,11 +342,24 @@ export function beginInstallationPromotion(
  * The caller names the candidate it is promoting, and it must be the attempt's own candidate in every
  * respect — release, authored input and materialised revision. Nothing here rebuilds, re-resolves or
  * substitutes: the revision that becomes live is that candidate's digest, the release that becomes live is
- * the one this attempt asked for, and the state that was live becomes the rollback provenance. The
- * installation is now serving, so its health is recorded ONLINE at this instant.
+ * the one this attempt asked for, and the state that was live becomes the rollback provenance.
+ *
+ * ACTIVATION IS NOT HEALTH, AND THIS FUNCTION CANNOT SPEAK FOR BOTH (FOUNDATION-B4B-A1)
+ * ------------------------------------------------------------------------------------
+ * What happened here is real and nameable: something became this installation's ACTIVE state. What did NOT
+ * happen is any HEALTH EVALUATION — nothing served a request, nothing was probed, nothing was observed — so
+ * the record must not claim the installation is ONLINE, and must not date an evaluation nobody made. The
+ * activated installation is therefore recorded OFFLINE (the honest default: not proven to be serving) with
+ * `healthEvaluatedAt: null` (the structural statement that health has never been evaluated for it).
+ *
+ * The two facts stay distinguishable WITHOUT prose: `current.live !== null` says the installation IS
+ * activated, and `current.healthEvaluatedAt === null` says its serving state has never been judged. A real
+ * health check is what turns it ONLINE, and that is `recordInstallationHealth`'s business — it needs
+ * something to be live (so this function must have completed first), and nothing else may write health.
  *
  * A promoted candidate therefore cannot differ from the validated one — there is no parameter through which
- * a different, "equivalent" candidate could arrive.
+ * a different, "equivalent" candidate could arrive — and no `health-online` event can be produced by
+ * becoming live.
  */
 export function completeInstallationPromotion(
   state: FoundationInstallationOperationalState,
@@ -374,22 +390,18 @@ export function completeInstallationPromotion(
   const current: FoundationInstallationState = {
     ...state.current,
     live,
-    health: INSTALLATION_HEALTH.ONLINE,
-    healthEvaluatedAt: at,
+    health: INSTALLATION_HEALTH.OFFLINE,
+    healthEvaluatedAt: null,
     lastAttempt: { ...atStage(attempt, "live"), outcome: "succeeded", endedAt: at },
   };
 
-  const promoted = appendEvent(
+  const history = appendEvent(
     state.history,
     "promoted",
     candidate.release,
     `${attempt.kind} promoted candidate ${candidate.materialized} — ${foundationReleaseLabel(attempt.target)} is live`,
     at,
   );
-  const history =
-    state.current.health === INSTALLATION_HEALTH.ONLINE
-      ? promoted
-      : appendEvent(promoted, "health-online", candidate.release, "the live installation is serving", at);
 
   return settled(state, current, history);
 }
