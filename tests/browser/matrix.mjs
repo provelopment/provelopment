@@ -3819,27 +3819,45 @@ async function runAdvancedJsonScenario(chrome) {
  *   · the choice survives client-side navigation AND a full reload (browser-local
  *     preference), an unusable stored value falls back to the configured default, and
  *     clearing storage returns to it;
- *   · below `md` both layouts share the SAME mobile navigation and the control is not
- *     offered, so no second mobile navigation and no mobile clutter appear.
+ *   · NAV1A — the CONFIGURED mode owns the navigation at EVERY width: the control stays
+ *     available on a phone, the sidebar layout presents its own off-canvas drawer below
+ *     `md` (closed by default, reopenable, never the menu-bar's bottom bar), and the
+ *     menu-bar layout presents the sticky bottom bar. Real resizes and real mode
+ *     switches preserve the mode, and exactly one primary navigation is ever exposed —
+ *     including for the withdrawn mobile surface, which leaves the focus order.
  */
 const LAYOUT_PROBE = `(() => {
   const root = document.documentElement;
   const control = document.querySelector('[data-ui-layout-switcher]');
   const rail = document.querySelector('[data-ui-shell-part="rail"]');
+  const railLg = document.querySelector('#shell-sidebar-desktop-panel');
+  const railMd = document.querySelector('#shell-sidebar-tablet-panel');
   const topNav = document.querySelector('[data-ui-shell-part="top-nav"]');
   const top = document.querySelector('.ui-shell-top');
   const main = document.querySelector('main');
   const rect = main ? main.getBoundingClientRect() : { left: 0, width: 0 };
   const shown = (el) => !!el && el.getClientRects().length > 0;
+  const bar = document.querySelector('.ui-shell-bottom-bar');
+  const barList = bar ? bar.querySelector('ul') : null;
+  const barItems = barList ? Array.from(barList.querySelectorAll(':scope > li')) : [];
+  const barLinks = barItems
+    .map((li) => li.querySelector('a, span'))
+    .filter((link) => !!link && link.getClientRects().length > 0);
+  const barPad = bar ? parseFloat(getComputedStyle(bar).paddingLeft) || 0 : 0;
+  const dialog = document.querySelector('[role="dialog"]');
   return {
     active: root.getAttribute('data-ui-shell-layout'),
     lang: root.lang,
     path: location.pathname,
+    innerWidth: root.clientWidth,
+    windowWidth: window.innerWidth,
     controlLabel: control ? control.getAttribute('aria-label') : null,
     controlValue: control ? control.value : null,
     options: control ? Array.from(control.options).map((option) => option.textContent) : [],
     controlVisible: shown(control),
     railVisible: shown(rail),
+    railLgVisible: shown(railLg),
+    railMdVisible: shown(railMd),
     topNavVisible: shown(topNav),
     topPosition: top ? getComputedStyle(top).position : null,
     scrollPadding: getComputedStyle(root).scrollPaddingTop,
@@ -3847,7 +3865,21 @@ const LAYOUT_PROBE = `(() => {
     mainText: main ? (main.textContent || '').trim() : null,
     mainLeft: Math.round(rect.left),
     mainWidth: Math.round(rect.width),
-    bottomBarVisible: shown(document.querySelector('.ui-shell-bottom-bar')),
+    bottomBarVisible: shown(bar),
+    drawerVisible: shown(document.querySelector('[data-ui-shell-part="mobile-drawer"]')),
+    dialogPresent: !!dialog,
+    dialogLinks: dialog ? dialog.querySelectorAll('a').length : 0,
+    barLinkCount: barLinks.length,
+    barRowCount: new Set(barItems.map((li) => Math.round(li.getBoundingClientRect().top))).size,
+    barWrapActive: !!barList && getComputedStyle(barList).flexWrap === 'wrap',
+    barPad: Math.round(barPad),
+    barLinksInsideInset:
+      barPad > 0 &&
+      barLinks.length > 0 &&
+      barLinks.every((link) => {
+        const linkRect = link.getBoundingClientRect();
+        return linkRect.left >= barPad - 1 && linkRect.right <= window.innerWidth - barPad + 1;
+      }),
   };
 })()`;
 
@@ -4019,36 +4051,190 @@ async function runLayoutSwitcherScenario(chrome) {
       `active=${afterClear && afterClear.active}`,
     );
 
-    // ── MOBILE: one shared mobile navigation, and no second control ───────────
-    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    // ── NAV1A: the configured MODE owns the navigation at EVERY width ────────
+    // The visitor's control stays available on a phone, and the mode decides WHICH mobile
+    // navigation is presented: the sidebar layout's own off-canvas drawer, or the menu-bar
+    // layout's sticky bottom bar — never one shared surface for both.
+    const RESPONSIVE_WIDTHS = [
+      [1280, 900],
+      [1024, 820],
+      [900, 800],
+      [768, 820],
+      [767, 820],
+      [390, 844],
+      [360, 740],
+      [320, 700],
+    ];
+    const settle = () => sleep(300);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await cdp.navigate(url);
     await waitReady(cdp);
-    const mobileSidebar = await cdp.evaluate(LAYOUT_PROBE);
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await settle();
+    check(
+      rows,
+      "sidebarMobile.closedByDefault",
+      await cdp.evalBool("!document.querySelector('[role=\"dialog\"]')"),
+    );
+    for (const [width, height] of RESPONSIVE_WIDTHS) {
+      await cdp.setViewport(width, height);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const inner = probe && probe.innerWidth;
+      const tag = `nav1a.sidebar.w${width}`;
+      const mobile = width < 768;
+      check(rows, `${tag}.modePreserved`, !!probe && probe.active === "sidebar", `inner=${inner} attr=${probe && probe.active}`);
+      check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
+      check(rows, `${tag}.topNavHidden`, !!probe && probe.topNavVisible === false, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
+      if (mobile) {
+        check(rows, `${tag}.sidebarDrawerVisible`, !!probe && probe.drawerVisible === true, `inner=${inner} drawer=${probe && probe.drawerVisible}`);
+        check(rows, `${tag}.menuBarBottomBarWithdrawn`, !!probe && probe.bottomBarVisible === false, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
+      } else {
+        check(
+          rows,
+          `${tag}.railVisible`,
+          !!probe && (width >= 1024 ? probe.railLgVisible === true : probe.railMdVisible === true),
+          `inner=${inner} rail-lg=${probe && probe.railLgVisible} rail-md=${probe && probe.railMdVisible}`,
+        );
+      }
+      check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
+    }
+
+    // The sidebar layout's mobile navigation is the EXISTING disclosure primitive: it opens
+    // from its own trigger, carries the navigation, and closes with Escape.
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    check(
+      rows,
+      "sidebarMobile.drawerOpens",
+      (await openTrigger(cdp, "#shell-mobile-nav", "#shell-mobile-nav-panel")) === true,
+    );
+    const openedDrawer = await cdp.evaluate(LAYOUT_PROBE);
+    check(rows, "sidebarMobile.drawerCarriesNavigation", !!openedDrawer && openedDrawer.dialogLinks >= 2, `links=${openedDrawer && openedDrawer.dialogLinks}`);
+    check(rows, "sidebarMobile.bottomBarStillWithdrawn", !!openedDrawer && openedDrawer.bottomBarVisible === false, `bar=${openedDrawer && openedDrawer.bottomBarVisible}`);
+    await cdp.pressKey("Escape");
+    await settle();
+    check(
+      rows,
+      "sidebarMobile.drawerClosesOnEscape",
+      await cdp.evalBool("!document.querySelector('[role=\"dialog\"]') && document.body.style.overflow !== 'hidden'"),
+    );
+
+    // ── MENU-BAR mode at every width: the top menu ≥md, the sticky bar below ───
     await cdp.evaluate(chooseLayout("menu-bar"));
-    await waitReady(cdp);
-    const mobileMenuBar = await cdp.evaluate(LAYOUT_PROBE);
+    await settle();
+    for (const [width, height] of RESPONSIVE_WIDTHS) {
+      await cdp.setViewport(width, height);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const inner = probe && probe.innerWidth;
+      const tag = `nav1a.menuBar.w${width}`;
+      const mobile = width < 768;
+      check(rows, `${tag}.modePreserved`, !!probe && probe.active === "menu-bar", `inner=${inner} attr=${probe && probe.active}`);
+      check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
+      check(rows, `${tag}.sidebarDrawerWithdrawn`, !!probe && probe.drawerVisible === false, `inner=${inner} drawer=${probe && probe.drawerVisible}`);
+      check(rows, `${tag}.railHidden`, !!probe && probe.railVisible === false, `inner=${inner} rail=${probe && probe.railVisible}`);
+      if (mobile) {
+        check(rows, `${tag}.bottomBarVisible`, !!probe && probe.bottomBarVisible === true, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
+        check(rows, `${tag}.bottomBar.listWraps`, !!probe && probe.barWrapActive === true, `inner=${inner} wrap=${probe && probe.barWrapActive}`);
+        check(rows, `${tag}.bottomBar.linksInsideInset`, !!probe && probe.barLinksInsideInset === true, `inner=${inner} pad=${probe && probe.barPad}`);
+        check(
+          rows,
+          `${tag}.bottomBar.linksShareRows`,
+          !!probe && probe.barLinkCount > 1 && probe.barRowCount < probe.barLinkCount,
+          `inner=${inner} rows=${probe && probe.barRowCount} links=${probe && probe.barLinkCount}`,
+        );
+      } else {
+        check(rows, `${tag}.topNavVisible`, !!probe && probe.topNavVisible === true, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
+      }
+      check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
+    }
+
+    // ── TRANSITIONS: real resizes, no reload ─────────────────────────────────
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    const beforeResize = await cdp.evaluate(LAYOUT_PROBE);
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    const afterResize = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "mobile.controlNotOffered",
-      !!mobileSidebar && mobileSidebar.controlVisible === false,
-      `controlVisible=${mobileSidebar && mobileSidebar.controlVisible}`,
+      "transition.desktopToMobile.modePreserved",
+      !!beforeResize && !!afterResize && beforeResize.active === "sidebar" && afterResize.active === "sidebar",
+      `attr ${beforeResize && beforeResize.active}->${afterResize && afterResize.active}`,
     );
     check(
       rows,
-      "mobile.sameMobileNavigationInBothLayouts",
-      !!mobileSidebar &&
-        !!mobileMenuBar &&
-        mobileSidebar.bottomBarVisible === mobileMenuBar.bottomBarVisible &&
-        mobileSidebar.bottomBarVisible === true &&
-        mobileMenuBar.railVisible === false,
-      `bottomBar ${mobileSidebar && mobileSidebar.bottomBarVisible}->${mobileMenuBar && mobileMenuBar.bottomBarVisible}`,
+      "transition.desktopToMobile.drawerSubstitutesRail",
+      !!beforeResize &&
+        !!afterResize &&
+        beforeResize.railVisible === true &&
+        afterResize.railVisible === false &&
+        afterResize.drawerVisible === true &&
+        afterResize.bottomBarVisible === false,
+      `rail ${beforeResize && beforeResize.railVisible}->${afterResize && afterResize.railVisible} drawer=${afterResize && afterResize.drawerVisible} bar=${afterResize && afterResize.bottomBarVisible}`,
     );
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    const backToDesktop = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "mobile.noHorizontalOverflow",
-      await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"),
-      "page fits the mobile viewport in both layouts",
+      "transition.mobileToDesktop.railRestored",
+      !!backToDesktop &&
+        backToDesktop.active === "sidebar" &&
+        backToDesktop.railVisible === true &&
+        backToDesktop.drawerVisible === false,
+      `attr=${backToDesktop && backToDesktop.active} rail=${backToDesktop && backToDesktop.railVisible}`,
     );
+
+    // ── MOBILE MODE SWITCHING: sidebar ↔ menu-bar at <md, no reload ───────────
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    await openTrigger(cdp, "#shell-mobile-nav", "#shell-mobile-nav-panel");
+    await settle();
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await settle();
+    const switchedToMenuBar = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "mobileSwitch.toMenuBar.barIsSolePrimaryNav",
+      !!switchedToMenuBar &&
+        switchedToMenuBar.active === "menu-bar" &&
+        switchedToMenuBar.bottomBarVisible === true &&
+        switchedToMenuBar.drawerVisible === false,
+      `attr=${switchedToMenuBar && switchedToMenuBar.active} bar=${switchedToMenuBar && switchedToMenuBar.bottomBarVisible} drawer=${switchedToMenuBar && switchedToMenuBar.drawerVisible}`,
+    );
+    check(rows, "mobileSwitch.toMenuBar.staleDrawerClosed", !!switchedToMenuBar && switchedToMenuBar.dialogPresent === false, `dialog=${switchedToMenuBar && switchedToMenuBar.dialogPresent}`);
+    check(rows, "mobileSwitch.toMenuBar.scrollNotLocked", await cdp.evalBool("document.body.style.overflow !== 'hidden'"));
+    check(rows, "mobileSwitch.toMenuBar.controlReflectsMode", !!switchedToMenuBar && switchedToMenuBar.controlValue === "menu-bar", `control=${switchedToMenuBar && switchedToMenuBar.controlValue}`);
+
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await settle();
+    const switchedToSidebar = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "mobileSwitch.toSidebar.drawerReturns",
+      !!switchedToSidebar &&
+        switchedToSidebar.active === "sidebar" &&
+        switchedToSidebar.drawerVisible === true &&
+        switchedToSidebar.bottomBarVisible === false,
+      `attr=${switchedToSidebar && switchedToSidebar.active} drawer=${switchedToSidebar && switchedToSidebar.drawerVisible} bar=${switchedToSidebar && switchedToSidebar.bottomBarVisible}`,
+    );
+    check(rows, "mobileSwitch.toSidebar.drawerStartsClosed", !!switchedToSidebar && switchedToSidebar.dialogPresent === false, `dialog=${switchedToSidebar && switchedToSidebar.dialogPresent}`);
+    check(rows, "mobileSwitch.toSidebar.controlReflectsMode", !!switchedToSidebar && switchedToSidebar.controlValue === "sidebar", `control=${switchedToSidebar && switchedToSidebar.controlValue}`);
+
+    // Exactly ONE primary navigation is reachable: in sidebar mode the withdrawn bar is
+    // never a Tab stop, whatever else the page exposes.
+    await cdp.evaluate("document.body.focus(); true");
+    let landedInWithdrawnBar = false;
+    for (let step = 0; step < 12; step += 1) {
+      await cdp.pressKey("Tab");
+      if (await cdp.evalBool(`!!document.activeElement && !!document.activeElement.closest('[data-ui-shell-part="bottom-bar"]')`)) {
+        landedInWithdrawnBar = true;
+      }
+    }
+    check(rows, "mobileSwitch.sidebarMode.bottomBarNeverFocusable", landedInWithdrawnBar === false, `landed=${landedInWithdrawnBar}`);
   // __SCENARIO_REST__
   } catch (error) {
     check(rows, "layout-switcher.scenario.error", false, String(error));
@@ -4057,6 +4243,110 @@ async function runLayoutSwitcherScenario(chrome) {
     await rm(pagePath, { force: true });
     if (cdp) await cdp.close();
     await stopServer(server);
+  }
+  return rows;
+}
+
+/**
+ * NAV1A — THE STICKY BOTTOM BAR'S LINK LAYOUT, IN A REAL BROWSER.
+ *
+ * The bar's rows are the `<li>` children of its `<ul>`, so the LIST owns their flow and
+ * wrapping. The historical defect put the horizontal intent on the `<nav>` — whose single
+ * child is that list — so every link stacked one per row and the bar grew a row per link.
+ *
+ * Proven with TEST-OWNED fixtures (written to the disposable deployment copy and restored
+ * by the scenario), in the layout whose MOBILE composition IS the bottom bar:
+ *
+ *   · SHORT labels share ONE row at a phone width — the bar neither forces one item per
+ *     row nor wraps when it does not need to, and every link sits inside the page-edge
+ *     inset with no horizontal overflow;
+ *   · LONG labels WRAP: the extra row is genuinely required by the available width
+ *     (`rowCount < links`), the bar GROWS in height (never a fixed one-row height) and
+ *     nothing is clipped, with the links still inside the inset.
+ */
+async function runBottomNavWrapScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  const SHORT = [
+    { label: "Home", href: "/" },
+    { label: "About", href: "/about" },
+  ];
+  // The labels must survive the content layer's dictionary projection
+  // (`@/components/site/nav-links` maps a KNOWN href to its localized label), so the
+  // long-label fixture uses synthetic destinations no dictionary declares.
+  const LONG = [
+    { label: "Destinations we offer", href: "/zz-destinations" },
+    { label: "Customer stories", href: "/zz-testimonials" },
+    { label: "Case studies", href: "/zz-case-studies" },
+    { label: "Get in touch", href: "/zz-contact" },
+  ];
+
+  const phase = async (label, navigation, portSuffix) => {
+    const port = BASE_PORT + 360 + portSuffix;
+    const url = `http://localhost:${port}/ww/en`;
+    BASE_URL = `http://localhost:${port}`;
+    const config = JSON.parse(original);
+    config.navigation = navigation;
+    // The MENU-BAR layout: its mobile composition is the sticky bottom bar.
+    config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "menu-bar" } };
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+    const server = startDevServer(port);
+    let cdp = null;
+    try {
+      await waitForServer(url);
+      cdp = await Cdp.connect(chrome);
+      await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const overflow = await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1");
+      const clipped = await cdp.evalBool(
+        `(() => { const bar = document.querySelector('.ui-shell-bottom-bar'); if (!bar) return true; const b = bar.getBoundingClientRect(); return Array.from(bar.querySelectorAll('ul > li')).some((li) => { const r = li.getBoundingClientRect(); return r.bottom > b.bottom + 1 || r.top < b.top - 1; }); })()`,
+      );
+      const barHeight = await cdp.evaluate(
+        `(() => { const b = document.querySelector('.ui-shell-bottom-bar'); return b ? Math.round(b.getBoundingClientRect().height) : 0; })()`,
+      );
+      const itemHeight = await cdp.evaluate(
+        `(() => { const li = document.querySelector('.ui-shell-bottom-bar ul > li'); return li ? Math.round(li.getBoundingClientRect().height) : 0; })()`,
+      );
+      return { probe, label, overflow, clipped, barHeight, itemHeight };
+    } finally {
+      if (cdp) await cdp.close();
+      await stopServer(server);
+    }
+  };
+
+  try {
+    const short = await phase("short", SHORT, 0);
+    const long = await phase("long", LONG, 1);
+    const shortProbe = short.probe;
+    check(rows, "barWrap.short.barVisible", !!shortProbe && shortProbe.bottomBarVisible === true, `bar=${shortProbe && shortProbe.bottomBarVisible}`);
+    check(rows, "barWrap.short.oneRow", !!shortProbe && shortProbe.barRowCount === 1, `inner=${shortProbe && shortProbe.innerWidth} rows=${shortProbe && shortProbe.barRowCount} links=${shortProbe && shortProbe.barLinkCount}`);
+    check(rows, "barWrap.short.bothLinksRendered", !!shortProbe && shortProbe.barLinkCount === 2, `links=${shortProbe && shortProbe.barLinkCount}`);
+    check(rows, "barWrap.short.listWraps", !!shortProbe && shortProbe.barWrapActive === true, `wrap=${shortProbe && shortProbe.barWrapActive}`);
+    check(rows, "barWrap.short.linksInsideInset", !!shortProbe && shortProbe.barLinksInsideInset === true, `pad=${shortProbe && shortProbe.barPad}`);
+    check(rows, "barWrap.short.noHorizontalOverflow", short.overflow === true);
+    check(rows, "barWrap.short.notClipped", short.clipped === false, `barHeight=${short.barHeight} itemHeight=${short.itemHeight}`);
+
+    const longProbe = long.probe;
+    check(rows, "barWrap.long.barVisible", !!longProbe && longProbe.bottomBarVisible === true, `bar=${longProbe && longProbe.bottomBarVisible}`);
+    check(rows, "barWrap.long.linksRendered", !!longProbe && longProbe.barLinkCount === 4, `links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.wrapsWhenRequired", !!longProbe && longProbe.barRowCount >= 2, `inner=${longProbe && longProbe.innerWidth} rows=${longProbe && longProbe.barRowCount} links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.linksShareRows", !!longProbe && longProbe.barRowCount < longProbe.barLinkCount, `rows=${longProbe && longProbe.barRowCount} links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.listWraps", !!longProbe && longProbe.barWrapActive === true, `wrap=${longProbe && longProbe.barWrapActive}`);
+    check(rows, "barWrap.long.linksInsideInset", !!longProbe && longProbe.barLinksInsideInset === true, `pad=${longProbe && longProbe.barPad}`);
+    check(
+      rows,
+      "barWrap.long.barGrowsWithRows",
+      long.barHeight >= 2 * long.itemHeight,
+      `barHeight=${long.barHeight} rows=${longProbe && longProbe.barRowCount} itemHeight=${long.itemHeight}`,
+    );
+    check(rows, "barWrap.long.notClipped", long.clipped === false, `barHeight=${long.barHeight}`);
+    check(rows, "barWrap.long.noHorizontalOverflow", long.overflow === true);
+  } catch (error) {
+    check(rows, "barWrap.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
   }
   return rows;
 }
@@ -4485,6 +4775,7 @@ const SIDEBAR_STATE_PROBE = `(() => {
     width: rail ? Math.round(rail.getBoundingClientRect().width) : null,
     stored: window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)}),
     drawer: !!document.querySelector('[role="dialog"]'),
+    mobileDrawer: shown(document.querySelector('[data-ui-shell-part="mobile-drawer"]')),
     mobileBar: shown(bottomBar),
   });
 })()`;
@@ -5162,11 +5453,19 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "bands.shareOnePreference", desktopAfterTablet.collapsed === "false", JSON.stringify(desktopAfterTablet));
 
     // ── THE MOBILE LAYER IS A DIFFERENT INTERACTION MODEL: a rail preference must not open it ──
+    // NAV1A — at <md the ACTIVE layout owns the navigation: the sidebar layout presents its own
+    // drawer disclosure (present, and CLOSED because the rail preference is not a drawer state),
+    // and the menu-bar layout's bottom bar is NOT the sidebar's mobile surface.
     await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
     await cdp.navigate(url);
     await waitReady(cdp);
     const mobile = await sidebarState(cdp);
-    check(rows, "mobile.preferenceDoesNotOpenMobileNavigation", mobile.drawer === false && mobile.mobileBar === true, JSON.stringify(mobile));
+    check(
+      rows,
+      "mobile.preferenceDoesNotOpenMobileNavigation",
+      mobile.drawer === false && mobile.mobileDrawer === true && mobile.mobileBar === false,
+      JSON.stringify(mobile),
+    );
 
     // ── NO HYDRATION WARNING AND NO CONSOLE ERROR anywhere in this scenario (§11) ───────────────
     const finalWatch = await sidebarWatch(cdp);
@@ -5329,6 +5628,13 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
       const layoutFails = layoutRows.filter((r) => !r.ok).length;
       console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV1A — BOTTOM NAVIGATION LAYOUT: the sticky bar's list owns its
+      // rows, so links share a row and wrap only when the available width requires it (own
+      // servers + test-owned navigation fixtures, the disposable copy restored).
+      const wrapRows = await runBottomNavWrapScenario(chrome);
+      allRows = allRows.concat(wrapRows.map((r) => ({ presentation: "bottom-nav-wrap", ...r })));
+      const wrapFails = wrapRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] bottom-nav-wrap: ${wrapRows.length - wrapFails}/${wrapRows.length} checks passed${wrapFails ? ` FAIL=${wrapFails}` : ""}`);
       // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
       // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
       // deployment (own server + fixtures, configuration and content all restored).

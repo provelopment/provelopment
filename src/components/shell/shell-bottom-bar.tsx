@@ -66,9 +66,52 @@ export interface ShellBottomBarProps {
   readonly closeLabel?: string;
   /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
   readonly mode?: MenuMode;
+  /**
+   * N2/NAV1A — inert layout-scope markers (`data-ui-shell-part` /
+   * `data-ui-shell-layouts`): which composed layout(s) this bar IS the mobile
+   * navigation for. The stylesheet exposes exactly one mobile surface per active
+   * layout, so a bar owned by another layout is `display: none` — outside the
+   * accessibility tree and the tab order. Absent → no attributes (one-composition
+   * sites are byte-identical).
+   */
+  readonly scope?: Readonly<Record<string, string>>;
+  /**
+   * NAV1A — the layouts this bar presents, forwarded to its "More" drawer so an
+   * open overflow dialog is withdrawn (and closed) when the visitor switches away
+   * from this layout. See `ShellMobileNav`.
+   */
+  readonly activeLayouts?: readonly string[];
   /** P5-5 — configuration for the shared "Hide navigation" disclosure control. */
   readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
 }
+
+/**
+ * NAV1A — THE STICKY BAR'S LINK LAYOUT, OWNED BY THE LIST (not the landmark).
+ *
+ * The rows are the `<li>` children of the `<ul>`, so this class belongs there: horizontal
+ * flow, natural wrapping, and a consistent inter-link gap. The container's `px-4` page-edge
+ * inset (`PAGE_EDGE_INSET_CLASS` below) IS the width the rows wrap inside, so no link text
+ * can touch the viewport edge. The bar keeps its natural height and grows only when another
+ * row is genuinely required — a fixed single-row height is never imposed.
+ */
+export const BOTTOM_NAV_LIST_CLASS = "flex flex-wrap items-center gap-x-4 gap-y-2";
+
+/**
+ * NAV1A — the bar's LINK box. A flex item's automatic minimum size is its min-content size,
+ * so a label allowed to break inside itself would let a row SQUASH its links instead of
+ * moving one onto the next line. Keeping each label on one line makes the item's minimum
+ * the full label, so a row wraps exactly when the next link genuinely does not fit — which
+ * is what the wrapping contract requires.
+ */
+export const BOTTOM_NAV_LINK_CLASS = "whitespace-nowrap";
+
+/**
+ * NAV1A — the bar's horizontal PAGE-EDGE INSET. It is the same `px-4` the header and the
+ * footer use (`ui-site-header` / footer bands), so the bar shares the platform's existing
+ * page-edge convention instead of introducing a second spacing system. The bar spans the
+ * viewport below `md`, so no bounded page-width container applies at those widths.
+ */
+export const PAGE_EDGE_INSET_CLASS = "px-4";
 
 export function ShellBottomBar({
   label,
@@ -80,6 +123,8 @@ export function ShellBottomBar({
   demoBadgeLabel,
   closeLabel,
   mode,
+  scope,
+  activeLayouts,
   sidebarClose,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
@@ -119,8 +164,16 @@ export function ShellBottomBar({
   const { primary, remainder } = splitBottomNavItems(resolved);
 
   return (
-    <div className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}>
-      <BottomNavigation label={label} items={primary} className="flex items-center justify-around gap-x-1" />
+    <div
+      className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background ${PAGE_EDGE_INSET_CLASS} md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}
+      {...scope}
+    >
+      <BottomNavigation
+        label={label}
+        items={primary}
+        listClassName={BOTTOM_NAV_LIST_CLASS}
+        linkClassName={BOTTOM_NAV_LINK_CLASS}
+      />
       {remainder.length > 0 ? (
         <ShellMobileNav
           pattern="drawer"
@@ -128,6 +181,7 @@ export function ShellBottomBar({
           triggerLabel={moreLabel}
           closeLabel={closeLabel}
           close={sidebarClose}
+          activeLayouts={activeLayouts}
         >
           <ul>
             {remainder.map((item) => (

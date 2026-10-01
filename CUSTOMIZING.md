@@ -276,11 +276,14 @@ disclosure's trigger owns the id the dialog is named by
 the committed **CDP browser matrix** (`pnpm test:browser`, also run in CI) at
 desktop / tablet / mobile.
 
-**Responsive behavior:** desktop/tablet (≥`md`) uses the canonical aside
-composition (collapsible rail ≥`lg`, collapsed rail ≥`md`); mobile (<`md`) is the
-bottom navigation. The bottom bar's content rule is deterministic: the first
-**4** configured `navigation` items render in the bar; the remainder (when
-non-empty) is exposed through the "More" drawer.
+**Responsive behavior:** the CONFIGURED layout owns the navigation at every width. In the
+canonical `sidebar` layout that is a collapsible rail ≥`lg`, a collapsed rail ≥`md`, and the
+sidebar's own off-canvas **drawer** below `md` (closed by default, reopened from its
+`Show navigation` disclosure). In the `menu-bar` layout it is the header navigation ≥`md`
+and the sticky **bottom bar** below `md`. The bottom bar's content rule is deterministic:
+the first **4** configured `navigation` items render in the bar; the remainder (when
+non-empty) is exposed through the "More" drawer. The bar's links flow horizontally inside
+the page-edge inset and wrap onto another row only when the width requires it.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
@@ -789,18 +792,22 @@ switcher:
 What it does:
 
 - renders one secondary **Layout** dropdown in the header (`Sidebar` / `Menu bar`),
-  labelled for screen readers from the dictionary and offered at `md` and up;
+  labelled for screen readers from the dictionary and offered at **every** width;
 - switches the **shell layout only** — the page, its route, its locale, its content, its
-  assets and every other `ui` leaf are untouched. Both layouts share the SAME mobile
-  navigation, so below `md` nothing changes (and the control is therefore not offered);
+  assets and every other `ui` leaf are untouched. Each layout brings its OWN mobile
+  presentation, so the mode you are in is the mode you navigate at every width: the sidebar
+  layout presents its off-canvas drawer below `md`, the menu-bar layout the sticky bottom
+  bar. Switching the mode on a phone is therefore a real change — the surface follows the
+  mode immediately, without a reload;
 - remembers the visitor's choice in browser-local storage (that preference and nothing
   else — no cookie, no session, no account, and no route becomes dynamically rendered);
   storage that is blocked, empty or holds a value the vocabulary does not declare falls
   back to your configured `default`;
 - exposes exactly ONE navigation structure at a time: the inactive one is removed from the
   accessibility tree and the focus order, so there is never a second focusable navigation
-  system, and persistent navigation plus fragment clearance follow the active layout
-  automatically.
+  system — including the withdrawn mobile surface — and persistent navigation plus fragment
+  clearance follow the active layout automatically. An open mobile drawer whose layout stops
+  being active closes itself, so nothing invisible keeps the page's scroll lock.
 
 | Leaf | Values |
 | --- | --- |
@@ -809,16 +816,16 @@ What it does:
 
 The two layouts are named presets of existing vocabulary, nothing more:
 
-| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` |
-| --- | --- | --- |
-| `sidebar` | `sidebar` | `collapsed-sidebar` |
-| `menu-bar` | `top` | `top-compact` |
+| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` | `ui.navigation.mobile` |
+| --- | --- | --- | --- |
+| `sidebar` | `sidebar` | `collapsed-sidebar` | `drawer` |
+| `menu-bar` | `top` | `top-compact` | `bottom-bar` |
 
-Because a layout IS those two leaves, enabling the switcher **and** setting
-`ui.navigation.desktop`/`ui.navigation.tablet` is refused at build time with an actionable
-message — remove those two leaves, or leave the switcher off. Everything else
-(`ui.navigation.mobile`, the sidebar/top/bottom modes, density, width, theme, CTA and the
-P5-3 presentation intent) still applies to both layouts.
+Because a layout IS those three leaves, enabling the switcher **and** setting
+`ui.navigation.desktop`, `ui.navigation.tablet` or `ui.navigation.mobile` is refused at
+build time with an actionable message — remove those leaves, or leave the switcher off.
+Everything else (the sidebar/top/bottom presentation modes, density, width, theme, CTA and
+the P5-3 presentation intent) still applies to both layouts.
 
 The active layout is observable on `<html>` as `data-ui-shell-layout` (the same inert
 attribute surface as `data-ui-typography`, `data-ui-sidebar-mode`, …), so downstream CSS

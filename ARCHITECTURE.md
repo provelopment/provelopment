@@ -1315,7 +1315,7 @@ items) and never import configuration, core, adapters, `siteConfig`,
 | `Navigation` / `NavItem` | Landing landmark + list; NavItem is server-safe and data-only (label/href/active/external/badge/variant), `aria-current="page"` | — |
 | `NavGroup` | Heading + items; collapsible variant = client disclosure (`aria-expanded`/`aria-controls`) | collapsible |
 | `NavCta` / `NavBadge` | CTA variant + presentational chip | — |
-| `BottomNavigation` | Bottom-bar landmark + list (touch-target spacing via tokens) | — |
+| `BottomNavigation` | Bottom-bar landmark + list (touch-target spacing via tokens). The LANDMARK box and the LIST are separate props: the list owns its item rows, so horizontal flow, wrapping and the gap belong to it — never to the `<nav>` that wraps it (NAV1A) | — |
 | `Sidebar` | Rail + disclosure toggle (`aria-expanded`/`aria-controls`). Its open/closed state is the ONE visitor-owned presentation preference of the rail: persisted browser-locally (`foundation.sidebar` open\|closed — the contract lives once, beside the primitive, in `src/components/ui/sidebar-contract.ts`) and resolved ONCE per document, so a rail re-created by a reload or a client-side navigation renders the visitor's state from its first render — no correction, and therefore no collapse/expand flicker while a destination loads. On a FRESH document the preference is applied by a synchronous pre-paint bridge (`@/components/ui/sidebar-preference-boot` + `src/components/ui/sidebar-contract.ts`, marking `<html>` for the boot interval only) so a stored OPEN rail is painted OPEN before hydration and the marker is relinquished at the first runtime commit; that same seam presents the rail's state-dependent CONTENT, because the disclosure CONTROL declares both states' artwork and label and the stylesheet presents exactly one of them (FOUNDATION-UI1-A3) — so the control's icon and its Show/Hide navigation copy belong to the visitor from the first painted frame as well, instead of being swapped at hydration — and it applies the OPEN state's SEMANTICS too (FOUNDATION-UI1-A3-A1): `aria-expanded` and the control's accessible name are single-valued attributes a static document can only carry canonically, so the same script writes them for every control as it appears (in the author-supplied-name modes the name is declared in the control's own markup) and stops at `DOMContentLoaded`, after which the runtime owns them — the presented state and what the control claims about it are therefore the same state from first paint through hydration; the canonical no-preference state is CLOSED and the toggler is the only thing that changes it (see `CUSTOMIZING.md` — the sidebar disclosure) | collapsible |
 | `Drawer` | Generic overlay/dialog primitive behind the roadmap's "MobileDrawer"/overlay concepts (naming note); `role=dialog` + `aria-modal` + `aria-labelledby`, Escape closes, closed-by-default SSR (nothing rendered when closed) | ✅ |
 | `OverlayNavigation` | Composition over `Drawer` (full-viewport overlay use) | ✅ |
@@ -1493,31 +1493,42 @@ visitor to choose between the platform's two layouts — a desktop **sidebar** a
 **menu bar** — which exists so a deployment can demonstrate the same site in two
 presentations.
 
-- **A layout is a PRESET, not a second shell system.** It names two existing vocabulary
-  leaves: `sidebar` = `navigation.desktop: "sidebar"` + `navigation.tablet:
-  "collapsed-sidebar"`; `menu-bar` = `"top"` + `"top-compact"`
-  (`@/core/ui/layout.ts`). Every decision still flows through the ONE decision core
-  (`resolveShellPattern`), so a layout cannot invent a composition the shell engine does
-  not already implement, and the mobile leaf is deliberately **not** part of a layout —
-  both layouts share the same mobile navigation, so a visitor never gets a second mobile
-  product.
+- **A layout is a PRESET, not a second shell system.** It names three existing vocabulary
+  leaves — one per viewport width: `sidebar` = `navigation.desktop: "sidebar"` +
+  `navigation.tablet: "collapsed-sidebar"` + `navigation.mobile: "drawer"`; `menu-bar` =
+  `"top"` + `"top-compact"` + `"bottom-bar"` (`@/core/ui/layout.ts`). Every decision still
+  flows through the ONE decision core (`resolveShellPattern`), so a layout cannot invent a
+  composition the shell engine does not already implement.
+- **The viewport changes HOW a mode is presented, never WHICH mode it is** (NAV1A). The
+  mobile leaf belongs to the layout precisely so that narrowing a window cannot turn a
+  sidebar site into a menu-bar site: below `md` the sidebar layout presents its own
+  off-canvas drawer and the menu-bar layout its sticky bottom bar. One shared mobile
+  surface for both — the shipped behaviour this contract corrects — made viewport width the
+  owner of the navigation architecture, removed the mode control below `md` because there
+  was "nothing to switch", and left the sidebar layout's bottom bar stacking its links one
+  per row. No new mode was introduced: each preset names one of the four already-shipped
+  `navigation.mobile` patterns, and no navigation data is duplicated.
 - **Configuration decides whether it exists.** `ui.layoutSwitcher: { enabled, default }`
   (`@/core/ui/defaults.ts` → `FOUNDATION_UI_DEFAULTS.layoutSwitcher`) is **disabled by
   default**: the Foundation's own composition offers no choice, exactly as it renders no
   CTA. When it is enabled the default layout's patterns ARE the resolved
-  `navigation.desktop`/`tablet`, and the schema REFUSES enabling it alongside those two
-  leaves (two answers to one question is a contradiction, and the Foundation fails loudly
-  rather than picking one).
+  `navigation.desktop`/`tablet`/`mobile`, and the schema REFUSES enabling it alongside any
+  of those three leaves (two answers to one question is a contradiction, and the Foundation
+  fails loudly rather than picking one).
 - **One exposed navigation, by construction.** The shell composes the structures of both
   layouts and marks each one with the layouts it is the active navigation for
-  (`data-ui-shell-part="rail" | "top-nav"` + `data-ui-shell-layouts`); the stylesheet
-  (`globals.css` — shell layout presentation) exposes exactly one for the active
-  `data-ui-shell-layout` value on `<html>`. The gate is `display: none`, which is
-  SEMANTIC: the inactive structure leaves the accessibility tree and the focus order, so
-  there is never a second focusable navigation system and never a duplicate landmark.
-  Persistent navigation and fragment clearance follow the active layout in the same CSS
-  layer (in the menu-bar layout the top region becomes the persistent navigation at the
-  widths where a hidden rail structure is also composed).
+  (`data-ui-shell-part="rail" | "top-nav" | "bottom-bar" | "mobile-drawer"` +
+  `data-ui-shell-layouts`); the stylesheet (`globals.css` — shell layout presentation)
+  exposes exactly one for the active `data-ui-shell-layout` value on `<html>`. The gate is
+  `display: none`, which is SEMANTIC: the inactive structure leaves the accessibility tree
+  and the focus order, so there is never a second focusable navigation system and never a
+  duplicate landmark. The MOBILE surfaces are part of that same contract (NAV1A): below
+  `md` the sidebar layout exposes its drawer and the menu-bar layout its bar, never both.
+  An open drawer whose layout stops being active also CLOSES itself (the active layout is
+  watched on `<html>`), so a withdrawn disclosure can never keep the body scroll lock or
+  the background `inert` it applied. Persistent navigation and fragment clearance follow
+  the active layout in the same CSS layer (in the menu-bar layout the top region becomes
+  the persistent navigation at the widths where a hidden rail structure is also composed).
 - **Static generation is untouched.** The server emits the attribute for the configured
   default and the preference lives in browser-local storage (`foundation.layout`) read by
   one small client control (`@/components/site/layout-switcher.tsx`) after hydration — no
@@ -1529,13 +1540,18 @@ presentations.
 - **Content is never duplicated.** There is one content tree, one route namespace and one
   locale model; `/ww/de/about` stays `/ww/de/about` under both layouts, and switching changes no
   DOM content — only which of the two composed navigation structures is exposed.
-- Asserted by `tests/unit/ui-layout-switcher.test.ts` (vocabulary, resolution,
-  configuration coherence, completeness), by `tests/unit/shell-layout-presentation.test.ts`
-  (the composed markup, the scope markers, the byte-identity guarantee, and the stylesheet
+- Asserted by `tests/unit/ui-layout-switcher.test.ts` (vocabulary, resolution, the mobile
+  leaf each layout owns, configuration coherence, completeness), by
+  `tests/unit/shell-layout-presentation.test.ts` (the composed markup, the scope markers
+  including the two mobile surfaces, the byte-identity guarantee, and the stylesheet
   contract) and by the browser matrix's `layout-switcher` scenario (rendered behaviour:
-  one exposed navigation, Tab never reaching the hidden rail, unchanged content/route/
-  locale, persistence through client navigation and reload, an unusable stored value
-  ignored, and the shared mobile composition).
+  one exposed navigation, Tab never reaching the hidden structure, unchanged
+  content/route/locale, persistence through client navigation and reload, an unusable
+  stored value ignored, the control available at every width, the per-layout mobile
+  presentation at 1280/1024/900/768/767/390/360/320, real resize transitions, and mobile
+  mode switching) plus its `bottom-nav-wrap` scenario (the sticky bar's list layout: one
+  row when the links fit, genuine wrapping when they do not, page-edge inset, no
+  horizontal overflow, no clipping).
 
 ### Boundaries
 

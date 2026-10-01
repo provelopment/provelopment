@@ -9,6 +9,8 @@ import {
     headerNavigationLayouts,
     layoutScopeAttributes,
     menuModeClass,
+    mobileDisclosureCompositions,
+    mobileDisclosureLayouts,
     resolveShellPattern,
     type ResolvedUiConfig,
 } from "@/core/ui";
@@ -78,9 +80,28 @@ export const HEADER_NAV_LINK_CLASS = `${TOUCH_TARGET_BOX_CLASS} text-sm text-mut
 export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderProps) {
     const dictionary = getDictionary(locale, siteId);
     const decision = resolveShellPattern(resolved);
-    const mobilePattern = decision.mobile.primitiveKind;
     const desktopSlot = decision.desktop.slot;
     const tabletSlot = decision.tablet.slot;
+    // NAV1A — the MOBILE disclosure is a per-layout surface, exactly like the ≥md navigation
+    // above. The header composes the disclosure of every layout whose MOBILE composition is a
+    // disclosure (the `sidebar` layout's off-canvas drawer), marks it with the layouts it IS
+    // the mobile navigation for, and the stylesheet exposes exactly one mobile navigation per
+    // active layout — so a sidebar site is never presented through the menu-bar's bottom bar.
+    // With the switcher disabled this is the single configured composition and no markers are
+    // emitted, which keeps a one-composition site byte-identical.
+    const mobileDisclosures = mobileDisclosureCompositions(resolved);
+    const mobileDisclosureLayoutList = mobileDisclosureLayouts(resolved);
+    // The shipped vocabulary maps both layouts onto ONE disclosure pattern (`drawer`); the
+    // first composed disclosure therefore names the pattern the shell's mobile layer renders.
+    const mobilePattern: "drawer" | "overlay" | null =
+        mobileDisclosures.length > 0
+            ? (mobileDisclosures[0].decision.mobile.primitiveKind as "drawer" | "overlay")
+            : null;
+    const mobileDisclosureScope = layoutScopeAttributes(
+        "mobile-drawer",
+        mobileDisclosureLayoutList,
+        resolved.layoutSwitcher.enabled,
+    );
     // N2 — when the layout switcher is enabled the header must ALSO carry the
     // navigation for every composed layout that uses the header slot, because which
     // structure is displayed is decided client-side: the header's nav and the rail
@@ -256,21 +277,21 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
                                 label={dictionary.language.label}
                             />
                         ) : null}
-                        {/* N2 — the layout presentation control: secondary, ≥md only.
-                            Below md both layouts compose the SAME mobile navigation, so
-                            there is nothing to switch and the mobile header stays
-                            uncluttered. */}
+                        {/* N2/NAV1A — the layout presentation control is available at EVERY
+                            width. The configured mode is authoritative at every viewport (the
+                            sidebar layout presents its own mobile drawer, the menu-bar layout
+                            its sticky bottom bar), so switching the mode is meaningful on a
+                            phone too: this is the ONE owned control — never a second,
+                            mobile-only selector. */}
                         {resolved.layoutSwitcher.enabled ? (
-                            <div className="hidden md:block">
-                                <LayoutSwitcher
-                                    label={dictionary.layout.label}
-                                    defaultLayout={resolved.layoutSwitcher.default}
-                                    labels={{
-                                        sidebar: dictionary.layout.sidebar,
-                                        "menu-bar": dictionary.layout.menuBar,
-                                    }}
-                                />
-                            </div>
+                            <LayoutSwitcher
+                                label={dictionary.layout.label}
+                                defaultLayout={resolved.layoutSwitcher.default}
+                                labels={{
+                                    sidebar: dictionary.layout.sidebar,
+                                    "menu-bar": dictionary.layout.menuBar,
+                                }}
+                            />
                         ) : null}
                     </Stack>
                 </Stack>
@@ -282,6 +303,14 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
                         triggerLabel={dictionary.navigation.showSidebar}
                         className="md:hidden"
                         closeLabel={dictionary.navigation.hideSidebar}
+                        // NAV1A — inert layout-scope markers + the layouts this disclosure
+                        // serves: the stylesheet exposes exactly one mobile navigation, and an
+                        // open drawer withdraws (and closes) when the visitor switches away
+                        // from this layout.
+                        scope={mobileDisclosureScope}
+                        activeLayouts={
+                            resolved.layoutSwitcher.enabled ? mobileDisclosureLayoutList : undefined
+                        }
                         // P5-5/P6-1 — the sidebar disclosure content is configured by
                         // `ui.navigation.sidebar` (icon asset + visible text). Icons are
                         // screened against public/assets here (the framework boundary) so

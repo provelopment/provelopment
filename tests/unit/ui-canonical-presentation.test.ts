@@ -65,12 +65,14 @@ describe("Canonical Foundation presentation — flattened defaults", () => {
 
   it("the shipped Foundation reference site resolves the canonical composition (FS-2)", () => {
     // `site.config.json` declares no presentation key and no navigation/shell
-    // leaves, so the canonical defaults govern: sidebar ≥md / collapsed-sidebar
-    // tablet / bottom-bar <md.
+    // leaves, so the Foundation defaults govern: sidebar ≥md / collapsed-sidebar
+    // tablet. NAV1A — the site DOES enable the layout switcher, so the mobile leaf
+    // comes from the switcher's default layout (sidebar → its own off-canvas drawer),
+    // which is what keeps the configured mode authoritative below `md`.
     const demoResolved = resolveUiConfig(siteConfig.ui ?? {});
     expect(demoResolved.navigation.desktop).toBe("sidebar");
     expect(demoResolved.navigation.tablet).toBe("collapsed-sidebar");
-    expect(demoResolved.navigation.mobile).toBe("bottom-bar");
+    expect(demoResolved.navigation.mobile).toBe("drawer");
     expect(demoResolved.shell).toEqual({ header: "standard", footer: "standard", sidebar: { collapsible: true } });
     expect(demoResolved.navigation.sidebar.mode).toBe("open");
     expect(demoResolved.navigation.top.mode).toBe("open");

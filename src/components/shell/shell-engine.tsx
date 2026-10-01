@@ -7,6 +7,8 @@ import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
 import {
+  bottomBarCompositions,
+  bottomBarLayouts,
   contentWidthClass,
   DEFAULT_SIDEBAR_CLOSE_ICON,
   DEFAULT_SIDEBAR_OPEN_ICON,
@@ -141,14 +143,21 @@ export function ShellEngine({
   // structures of BOTH layouts and marks each one with the layouts it IS the active
   // navigation for (`layoutScopeAttributes`); the stylesheet then exposes exactly one
   // of them for the active `data-ui-shell-layout` value, so two structures can never
-  // be focusable or announced at once. The MOBILE composition is shared by both
-  // layouts, so it is composed once, unchanged, from the resolved decision.
+  // be focusable or announced at once. NAV1A — the MOBILE surface is one of those
+  // structures: the sticky bar below `md` belongs to the layout whose mobile
+  // composition IS the bottom bar, and a sidebar layout presents its own drawer
+  // instead (composed by the content layer in the shell's top region).
   const layoutCompositions = shellLayoutCompositions(resolved);
   const scopedLayouts = layoutCompositions.some((composition) => composition.scoped);
   const desktopRail = railCompositions(resolved, "desktop");
   const tabletRail = railCompositions(resolved, "tablet");
   const desktopRailLayouts = railLayouts(resolved, "desktop");
   const tabletRailLayouts = railLayouts(resolved, "tablet");
+  // NAV1A — the composed mobile BARS (one per layout whose mobile composition is the
+  // bottom bar). At most one is ever exposed; with the switcher disabled this is the
+  // single unscoped composition, so a one-composition site is byte-identical.
+  const mobileBarCompositions = bottomBarCompositions(resolved);
+  const mobileBarLayouts = bottomBarLayouts(resolved);
   const asideActive = (desktopRail.length > 0 || tabletRail.length > 0) && asideContent !== undefined;
 
   // Default (header-slot) path stays byte-identical (UI-04): flex column,
@@ -376,22 +385,26 @@ export function ShellEngine({
   }
 
   function buildMobile() {
-    if (decision.mobile.primitiveKind === "bottom-bar" && bottomNav) {
+    // NAV1A — the sticky bar is exposed by the layout whose MOBILE composition IS the
+    // bottom bar (`menu-bar`); the marker pair is inert DOM state the stylesheet uses to
+    // keep exactly ONE mobile navigation present at a time. `activeLayouts` lets an open
+    // More drawer withdraw itself when the visitor switches to another layout.
+    if (mobileBarCompositions.length > 0 && bottomNav) {
       return (
-        <>
-          <ShellBottomBar
-            label={bottomNav.label}
-            moreLabel={bottomNav.moreLabel}
-            links={bottomNav.links}
-            locale={locale}
-            pageBindings={pageBindings}
-            siteSet={siteSet}
-            demoBadgeLabel={bottomNav.demoBadgeLabel}
-            closeLabel={bottomNav.closeLabel}
-            mode={bottomNav.mode}
-            sidebarClose={bottomNav.sidebarClose}
-          />
-        </>
+        <ShellBottomBar
+          label={bottomNav.label}
+          moreLabel={bottomNav.moreLabel}
+          links={bottomNav.links}
+          locale={locale}
+          pageBindings={pageBindings}
+          siteSet={siteSet}
+          demoBadgeLabel={bottomNav.demoBadgeLabel}
+          closeLabel={bottomNav.closeLabel}
+          mode={bottomNav.mode}
+          sidebarClose={bottomNav.sidebarClose}
+          scope={layoutScopeAttributes("bottom-bar", mobileBarLayouts, scopedLayouts)}
+          activeLayouts={scopedLayouts ? mobileBarLayouts : undefined}
+        />
       );
     }
     return mobileNavigation;

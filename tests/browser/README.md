@@ -236,14 +236,26 @@ tree stays clean.
   rule are shared (`tests/browser/sidebar-semantics.mjs`), so both gates judge the same
   facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
-  enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
-  sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does
-  the reverse — and a Tab sweep proves the hidden structure is never focusable. The
-  document, its main content, the route, the locale and the usable content column are
-  unchanged, persistent navigation and fragment clearance follow the active layout, the
-  choice survives client-side navigation and a full reload (and an unusable stored value
-  falls back to the configured default), and at mobile width the control is not offered
-  because both layouts share the same mobile navigation.
+  enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar), at
+  EVERY width. The sidebar layout exposes the rail ≥`md` and hides the header navigation;
+  choosing Menu bar does the reverse — and a Tab sweep proves the hidden structure is never
+  focusable. The document, its main content, the route, the locale and the usable content
+  column are unchanged, persistent navigation and fragment clearance follow the active
+  layout, and the choice survives client-side navigation and a full reload (an unusable
+  stored value falls back to the configured default). NAV1A adds the MOBILE contract: the
+  configured mode owns the navigation below `md` too — the sidebar layout presents its own
+  off-canvas drawer (closed by default, opened from its disclosure, closed by Escape) and
+  the menu-bar layout the sticky bottom bar — proven at 1280/1024/900/768/767/390/360/320,
+  through real resize transitions (mode preserved, drawer substituting the rail and back),
+  and through real mode switches made while already at a phone width (the withdrawn surface
+  never keeps a stale dialog or the body's scroll lock).
+- **bottom navigation layout** (`bottom-nav-wrap` scenario, NAV1A): the sticky bar's rows
+  are the `<li>` children of its `<ul>`, so the LIST owns their flow and wrapping. Proven
+  with test-owned navigation fixtures on the disposable copy: SHORT labels share ONE row at
+  a phone width (no forced one-item-per-row, no needless wrapping) and LONG labels WRAP
+  onto another row because the available width genuinely requires it — every link stays
+  inside the `px-4` page-edge inset, the bar GROWS in height instead of clipping, and the
+  page never scrolls horizontally.
 - **advanced JSON** (`advanced-json` scenario): a declarative document authored under
   `content/pages/json/en/` is discovered, validated and served by the real application —
   exactly one `<h1>` (the document title), a Markdown field rendered (`**bold**`), a table

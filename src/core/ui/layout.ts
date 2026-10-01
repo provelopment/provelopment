@@ -1,4 +1,8 @@
-import type { DesktopNavigationPattern, TabletNavigationPattern } from "./vocabulary";
+import type {
+  DesktopNavigationPattern,
+  MobileNavigationPattern,
+  TabletNavigationPattern,
+} from "./vocabulary";
 import type { ResolvedUiConfig } from "./resolve";
 import { resolveShellPattern, type ShellPatternDecision } from "./shell";
 
@@ -36,22 +40,37 @@ export type ShellLayout = (typeof SHELL_LAYOUTS)[number];
 
 /**
  * Each layout's navigation composition, expressed in the EXISTING pattern
- * vocabulary:
+ * vocabulary — all THREE viewport leaves, so a layout is the whole responsive
+ * presentation of its configured mode:
  *
- *  - `sidebar`   the canonical Foundation composition: a desktop sidebar and a
- *                collapsed rail on tablet;
- *  - `menu-bar`  a top navigation bar on desktop and its compact tablet form.
+ *  - `sidebar`   the canonical Foundation composition: a desktop sidebar, a
+ *                collapsed rail on tablet, and the sidebar's own off-canvas
+ *                drawer (`navigation.mobile: "drawer"`) below `md`;
+ *  - `menu-bar`  a top navigation bar on desktop, its compact tablet form, and
+ *                the sticky bottom bar (`navigation.mobile: "bottom-bar"`)
+ *                below `md`.
  *
- * The mobile leaf is deliberately NOT part of a layout (both share it).
+ * FOUNDATION-DEFECT-NAV1A — the mobile leaf IS part of a layout. It used to be
+ * excluded so that "both layouts shared one mobile navigation", which made
+ * VIEWPORT WIDTH decide the navigation architecture: at <md a sidebar site was
+ * presented through the menu-bar's bottom bar and the mode-selection control was
+ * withdrawn, so the configured mode stopped being the visitor's navigation. The
+ * viewport now only changes HOW the configured mode is presented, never WHICH
+ * mode it is. No new mode is introduced — each preset names one of the four
+ * already-shipped `navigation.mobile` patterns.
  */
 export const SHELL_LAYOUT_PATTERNS: Readonly<
   Record<
     ShellLayout,
-    { readonly desktop: DesktopNavigationPattern; readonly tablet: TabletNavigationPattern }
+    {
+      readonly desktop: DesktopNavigationPattern;
+      readonly tablet: TabletNavigationPattern;
+      readonly mobile: MobileNavigationPattern;
+    }
   >
 > = {
-  sidebar: { desktop: "sidebar", tablet: "collapsed-sidebar" },
-  "menu-bar": { desktop: "top", tablet: "top-compact" },
+  sidebar: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+  "menu-bar": { desktop: "top", tablet: "top-compact", mobile: "bottom-bar" },
 };
 
 /** Whether a value is a layout this platform implements (never a free-form name). */
@@ -59,12 +78,23 @@ export function isShellLayout(value: unknown): value is ShellLayout {
   return typeof value === "string" && (SHELL_LAYOUTS as readonly string[]).includes(value);
 }
 
-/** The same resolved configuration, composed as `layout` instead of another layout. */
+/**
+ * The same resolved configuration, composed as `layout` instead of another layout.
+ *
+ * All three viewport leaves are substituted (desktop, tablet AND mobile): a layout
+ * describes the whole responsive presentation of one configured mode, so choosing
+ * it at any width presents THAT mode (NAV1A).
+ */
 export function applyShellLayout(resolved: ResolvedUiConfig, layout: ShellLayout): ResolvedUiConfig {
   const patterns = SHELL_LAYOUT_PATTERNS[layout];
   return {
     ...resolved,
-    navigation: { ...resolved.navigation, desktop: patterns.desktop, tablet: patterns.tablet },
+    navigation: {
+      ...resolved.navigation,
+      desktop: patterns.desktop,
+      tablet: patterns.tablet,
+      mobile: patterns.mobile,
+    },
   };
 }
 
@@ -142,6 +172,53 @@ export function headerNavigationLayouts(resolved: ResolvedUiConfig): readonly Sh
 }
 
 /**
+ * The compositions whose MOBILE viewport (<md) is served by the sticky bottom bar
+ * (`navigation.mobile: "bottom-bar"`).
+ *
+ * NAV1A — the mobile surface is a property of the COMPOSITION, exactly like the rail
+ * bands above: the shell renders every composed mobile surface and the stylesheet
+ * exposes the one the active layout owns, so a sidebar site is never presented through
+ * the menu-bar's bottom bar. With the switcher disabled this is the single
+ * (unscoped) composition, so a one-composition site is unchanged.
+ */
+export function bottomBarCompositions(resolved: ResolvedUiConfig): readonly ShellLayoutComposition[] {
+  return shellLayoutCompositions(resolved).filter(
+    (composition) => composition.decision.mobile.primitiveKind === "bottom-bar",
+  );
+}
+
+/** The layouts whose mobile viewport is the bottom bar (empty → no layout-scoped bar). */
+export function bottomBarLayouts(resolved: ResolvedUiConfig): readonly ShellLayout[] {
+  return bottomBarCompositions(resolved)
+    .map((composition) => composition.layout)
+    .filter((layout): layout is ShellLayout => layout !== null);
+}
+
+/**
+ * The compositions whose MOBILE viewport (<md) is a DISCLOSURE — the off-canvas
+ * drawer/overlay the shell's mobile navigation layer already implements
+ * (`navigation.mobile: "drawer" | "overlay"`). For the `sidebar` layout this is the
+ * sidebar's own mobile presentation: closed by default, reopened through its visible
+ * disclosure control, carrying the same navigation model as every other surface.
+ */
+export function mobileDisclosureCompositions(
+  resolved: ResolvedUiConfig,
+): readonly ShellLayoutComposition[] {
+  return shellLayoutCompositions(resolved).filter(
+    (composition) =>
+      composition.decision.mobile.primitiveKind === "drawer" ||
+      composition.decision.mobile.primitiveKind === "overlay",
+  );
+}
+
+/** The layouts whose mobile viewport is a disclosure (empty when none composes one). */
+export function mobileDisclosureLayouts(resolved: ResolvedUiConfig): readonly ShellLayout[] {
+  return mobileDisclosureCompositions(resolved)
+    .map((composition) => composition.layout)
+    .filter((layout): layout is ShellLayout => layout !== null);
+}
+
+/**
  * The attribute the renderer sets on `<html>` to name the ACTIVE layout, and the
  * browser-local key that remembers a visitor's choice.
  *
@@ -163,9 +240,18 @@ export function layoutDataAttributes(
     : {};
 }
 
+/**
+ * The structures a layout scope marker may name — every navigation surface that exactly
+ * ONE layout exposes (`data-ui-shell-part`). The ≥md rail and header navigation were the
+ * first two; NAV1A added the two MOBILE surfaces, so a sidebar site and a menu-bar site
+ * can never present the same mobile navigation.
+ */
+export const SHELL_SCOPE_PARTS = ["rail", "top-nav", "bottom-bar", "mobile-drawer"] as const;
+export type ShellScopePart = (typeof SHELL_SCOPE_PARTS)[number];
+
 /** The scope markers one structure carries: the layouts it IS the active navigation for. */
 export function layoutScopeAttributes(
-  part: "rail" | "top-nav",
+  part: ShellScopePart,
   layouts: readonly ShellLayout[],
   scoped: boolean,
 ): Readonly<Record<string, string>> {

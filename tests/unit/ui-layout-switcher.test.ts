@@ -3,18 +3,24 @@ import { describe, expect, it } from "vitest";
 import { siteConfigFileSchema } from "@/config/schema";
 import {
   DESKTOP_NAVIGATION_PATTERNS,
+  MOBILE_NAVIGATION_PATTERNS,
   SHELL_LAYOUT_ATTRIBUTE,
   SHELL_LAYOUT_PATTERNS,
   SHELL_LAYOUT_STORAGE_KEY,
   SHELL_LAYOUTS,
+  SHELL_SCOPE_PARTS,
   TABLET_NAVIGATION_PATTERNS,
   applyShellLayout,
   assertResolvedUiConfigComplete,
+  bottomBarCompositions,
+  bottomBarLayouts,
   headerNavigationCompositions,
   headerNavigationLayouts,
   isShellLayout,
   layoutDataAttributes,
   layoutScopeAttributes,
+  mobileDisclosureCompositions,
+  mobileDisclosureLayouts,
   railCompositions,
   railLayouts,
   resolveShellPattern,
@@ -26,11 +32,13 @@ import {
 /**
  * N2 — THE SHELL LAYOUT PRESENTATION (core contract + configuration).
  *
- * The platform keeps ONE shell decision core: a layout is a preset of exactly two
- * existing vocabulary leaves (`navigation.desktop`/`tablet`), so these assertions pin
- * the mapping, the resolution, the configuration coherence rule (a layout IS those two
- * leaves, so configuring both is refused), and the fact that nothing else moves —
- * mobile, density, width, theme, CTA and the P5-3 presentation intent are untouched.
+ * The platform keeps ONE shell decision core: a layout is a preset of exactly THREE
+ * existing vocabulary leaves (`navigation.desktop`/`tablet`/`mobile`, the mobile leaf
+ * added by FOUNDATION-DEFECT-NAV1A), so these assertions pin the mapping, the
+ * resolution, the configuration coherence rule (a layout IS those three leaves, so
+ * configuring any of them is refused), the fact that nothing else moves (density,
+ * width, theme, CTA, the P5-3 presentation intent), and that the two layouts present
+ * GENUINELY DIFFERENT mobile navigation.
  */
 
 const sidebarEnabled = resolveUiConfig({ layoutSwitcher: { enabled: true } });
@@ -43,15 +51,23 @@ describe("the shell layout vocabulary", () => {
     expect(SHELL_LAYOUT_PATTERNS.sidebar).toEqual({
       desktop: "sidebar",
       tablet: "collapsed-sidebar",
+      mobile: "drawer",
     });
     expect(SHELL_LAYOUT_PATTERNS["menu-bar"]).toEqual({
       desktop: "top",
       tablet: "top-compact",
+      mobile: "bottom-bar",
     });
     for (const [layout, patterns] of Object.entries(SHELL_LAYOUT_PATTERNS)) {
       expect(DESKTOP_NAVIGATION_PATTERNS, layout).toContain(patterns.desktop);
       expect(TABLET_NAVIGATION_PATTERNS, layout).toContain(patterns.tablet);
+      expect(MOBILE_NAVIGATION_PATTERNS, layout).toContain(patterns.mobile);
     }
+    // NAV1A — the two layouts must not present the same mobile navigation: the sidebar
+    // layout owns an off-canvas drawer, the menu-bar layout the sticky bottom bar.
+    expect(SHELL_LAYOUT_PATTERNS.sidebar.mobile).not.toBe(
+      SHELL_LAYOUT_PATTERNS["menu-bar"].mobile,
+    );
   });
 
   it("refuses an arbitrary layout value", () => {
@@ -61,7 +77,7 @@ describe("the shell layout vocabulary", () => {
     }
   });
 
-  it("applies a layout to the two navigation leaves and NOTHING else", () => {
+  it("applies a layout to the THREE navigation leaves and NOTHING else", () => {
     const base = resolveUiConfig({
       density: "spacious",
       content: { width: "wide" },
@@ -72,6 +88,9 @@ describe("the shell layout vocabulary", () => {
     const applied = applyShellLayout(base, "menu-bar");
     expect(applied.navigation.desktop).toBe("top");
     expect(applied.navigation.tablet).toBe("top-compact");
+    // NAV1A — the mobile leaf belongs to the layout too.
+    expect(applied.navigation.mobile).toBe("bottom-bar");
+    expect(applyShellLayout(base, "sidebar").navigation.mobile).toBe("drawer");
     expect({ ...applied, navigation: base.navigation }).toEqual(base);
   });
 
@@ -84,10 +103,74 @@ describe("the shell layout vocabulary", () => {
     const menuBar = resolveShellPattern(applyShellLayout(sidebarEnabled, "menu-bar"));
     expect(menuBar.desktop.slot).toBe("header");
     expect(menuBar.tablet.slot).toBe("header");
-    // The mobile composition is IDENTICAL under both layouts.
-    expect(menuBar.mobile).toEqual(sidebar.mobile);
+    // NAV1A — the MOBILE composition follows the configured mode, never the viewport:
+    // the sidebar layout presents its own disclosure (drawer + its trigger), the
+    // menu-bar layout the sticky bottom bar (no disclosure trigger).
+    expect(sidebar.mobile).toEqual({
+      primitiveKind: "drawer",
+      slot: "header",
+      ctaSlot: "none",
+      trigger: true,
+    });
+    expect(menuBar.mobile).toEqual({
+      primitiveKind: "bottom-bar",
+      slot: "header",
+      ctaSlot: "none",
+      trigger: false,
+    });
+    expect(menuBar.mobile).not.toEqual(sidebar.mobile);
   });
 });
+describe("the mobile navigation each layout owns (NAV1A)", () => {
+  it("gives the sidebar layout a drawer and the menu-bar layout the bottom bar", () => {
+    // The switcher composes BOTH layouts, so both mobile surfaces exist in the markup and
+    // the stylesheet exposes the one the ACTIVE layout owns.
+    expect(mobileDisclosureLayouts(sidebarEnabled)).toEqual(["sidebar"]);
+    expect(bottomBarLayouts(sidebarEnabled)).toEqual(["menu-bar"]);
+    expect(
+      mobileDisclosureCompositions(sidebarEnabled)[0].decision.mobile.primitiveKind,
+    ).toBe("drawer");
+    expect(bottomBarCompositions(sidebarEnabled)[0].decision.mobile.primitiveKind).toBe(
+      "bottom-bar",
+    );
+  });
+
+  it("never lets one layout own BOTH mobile surfaces, and composes one for every layout", () => {
+    for (const resolved of [sidebarEnabled, menuBarDefault, disabled]) {
+      const drawers = new Set(mobileDisclosureLayouts(resolved));
+      for (const layout of bottomBarLayouts(resolved)) expect(drawers.has(layout)).toBe(false);
+      // Every composition presents exactly one mobile navigation (no layout is left with
+      // none, and none composes two).
+      expect(
+        mobileDisclosureCompositions(resolved).length + bottomBarCompositions(resolved).length,
+      ).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps a one-composition site on its configured surface, unscoped", () => {
+    // The canonical default resolves `navigation.mobile: "bottom-bar"`, so a site that
+    // offers no choice composes exactly that bar and emits no layout markers at all.
+    expect(bottomBarCompositions(disabled)).toHaveLength(1);
+    expect(bottomBarLayouts(disabled)).toEqual([]);
+    expect(mobileDisclosureCompositions(disabled)).toEqual([]);
+  });
+
+  it("declares the mobile surfaces in the scope-part vocabulary", () => {
+    expect(SHELL_SCOPE_PARTS).toEqual(["rail", "top-nav", "bottom-bar", "mobile-drawer"]);
+    expect(layoutScopeAttributes("mobile-drawer", ["sidebar"], true)).toEqual({
+      "data-ui-shell-part": "mobile-drawer",
+      "data-ui-shell-layouts": "sidebar",
+    });
+    expect(layoutScopeAttributes("bottom-bar", ["menu-bar"], true)).toEqual({
+      "data-ui-shell-part": "bottom-bar",
+      "data-ui-shell-layouts": "menu-bar",
+    });
+    // Unscoped (or an unknown layout) → no markers at all.
+    expect(layoutScopeAttributes("bottom-bar", [], true)).toEqual({});
+    expect(layoutScopeAttributes("mobile-drawer", ["sidebar"], false)).toEqual({});
+  });
+});
+
 describe("the shell layout switcher configuration", () => {
   it("is DISABLED by default, and then composes exactly one unscoped layout", () => {
     expect(disabled.layoutSwitcher).toEqual({
@@ -116,8 +199,13 @@ describe("the shell layout switcher configuration", () => {
     expect(sidebarEnabled.navigation.desktop).toBe("sidebar");
   });
 
-  it("leaves the mobile leaf, density, width, theme, CTA and presentation intent alone", () => {
-    expect(sidebarEnabled.navigation.mobile).toBe(disabled.navigation.mobile);
+  it("owns the three navigation leaves and leaves density, width, theme, CTA and presentation alone", () => {
+    // NAV1A — the switcher's default layout owns the mobile leaf as well as
+    // desktop/tablet, so the configured mode is what the visitor navigates at EVERY
+    // width. Everything that is not a viewport navigation leaf stays untouched.
+    expect(sidebarEnabled.navigation.mobile).toBe(
+      SHELL_LAYOUT_PATTERNS[SHELL_LAYOUTS[0]].mobile,
+    );
     expect(sidebarEnabled.density).toBe(disabled.density);
     expect(sidebarEnabled.content).toEqual(disabled.content);
     expect(sidebarEnabled.theme).toEqual(disabled.theme);
@@ -246,13 +334,14 @@ describe("the layout switcher in `site.config.json`", () => {
     ).toBe(false);
   });
 
-  it("refuses enabling the switcher alongside an explicit desktop/tablet pattern", () => {
-    // A layout IS those two leaves, so two answers to one question fail loudly rather
-    // than one silently winning.
+  it("refuses enabling the switcher alongside an explicit desktop/tablet/mobile pattern", () => {
+    // A layout IS those three leaves (NAV1A includes the mobile leaf), so two answers to
+    // one question fail loudly rather than one silently winning.
     for (const navigation of [
       { desktop: "minimal" },
       { tablet: "minimal" },
-      { desktop: "top", tablet: "top-compact" },
+      { mobile: "overlay" },
+      { desktop: "top", tablet: "top-compact", mobile: "drawer" },
     ]) {
       const result = siteConfigFileSchema.safeParse(
         configWith({ layoutSwitcher: { enabled: true }, navigation }),
@@ -267,7 +356,10 @@ describe("the layout switcher in `site.config.json`", () => {
     for (const layoutSwitcher of [undefined, { enabled: false }]) {
       expect(
         siteConfigFileSchema.safeParse(
-          configWith({ layoutSwitcher, navigation: { desktop: "minimal", tablet: "minimal" } }),
+          configWith({
+            layoutSwitcher,
+            navigation: { desktop: "minimal", tablet: "minimal", mobile: "drawer" },
+          }),
         ).success,
         JSON.stringify(layoutSwitcher),
       ).toBe(true);

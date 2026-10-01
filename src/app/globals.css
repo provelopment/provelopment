@@ -1236,18 +1236,32 @@ html:has(.ui-shell-top) {
  * accessibility tree AND from the focus order, so there is never a second focusable
  * navigation system and never a duplicate landmark — hiding-with-opacity would be
  * neither. The classes above are width-scoped (`hidden md:block`, `hidden
- * lg:block`), and these two rules add the LAYOUT dimension; the attributes carry
+ * lg:block`), and these rules add the LAYOUT dimension; the attributes carry
  * more specificity than Tailwind's single-class utilities, so no `!important` is
  * needed and no arbitrary CSS is introduced.
  *
- * The MOBILE composition is shared by both layouts, so nothing here touches it: below
- * `md` the site behaves exactly as it always has.
+ * NAV1A (FOUNDATION-DEFECT-NAV1A) — the MOBILE navigation is part of this contract,
+ * not an exception to it. Below `md` the sidebar layout presents its own off-canvas
+ * drawer (`data-ui-shell-part="mobile-drawer"`) and the menu-bar layout its sticky
+ * bottom bar (`data-ui-shell-part="bottom-bar"`), so the CONFIGURED mode owns the
+ * navigation at every width and the viewport only changes how it is presented.
  */
 html[data-ui-shell-layout="menu-bar"] [data-ui-shell-part="rail"] {
   display: none;
 }
 
 html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="top-nav"] {
+  display: none;
+}
+
+/* Mobile navigation (<md): the same one-exposed-structure rule. A sidebar site is
+ * never presented through the menu-bar's bottom bar, and a menu-bar site never
+ * through the sidebar's drawer. */
+html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="bottom-bar"] {
+  display: none;
+}
+
+html[data-ui-shell-layout="menu-bar"] [data-ui-shell-part="mobile-drawer"] {
   display: none;
 }
 

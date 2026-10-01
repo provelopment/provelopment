@@ -997,9 +997,10 @@ const uiThemeSchema = z
  *
  * Strict and cross-checked: `default` must be a member of the shipped layout
  * vocabulary (never a free-form name), and enabling the switcher while ALSO
- * configuring `navigation.desktop`/`navigation.tablet` is REFUSED, because a layout
- * IS those two leaves — two answers to one question is a contradiction, not a
- * preference, and the Foundation fails loudly instead of silently picking one.
+ * configuring `navigation.desktop`/`navigation.tablet`/`navigation.mobile` is
+ * REFUSED, because a layout IS those three leaves (NAV1A) — two answers to one
+ * question is a contradiction, not a preference, and the Foundation fails loudly
+ * instead of silently picking one.
  */
 const uiLayoutSwitcherSchema = z
   .object({
@@ -1029,13 +1030,15 @@ export const uiConfigSchema = z
   .refine(
     (ui) =>
       ui.layoutSwitcher?.enabled !== true ||
-      (ui.navigation?.desktop === undefined && ui.navigation?.tablet === undefined),
+      (ui.navigation?.desktop === undefined &&
+        ui.navigation?.tablet === undefined &&
+        ui.navigation?.mobile === undefined),
     {
       message:
-        "the layout switcher defines ui.navigation.desktop/tablet itself, so setting " +
-        "ui.layoutSwitcher.enabled: true together with ui.navigation.desktop or " +
-        "ui.navigation.tablet is ambiguous — remove those two leaves (the layouts supply " +
-        "them), or leave ui.layoutSwitcher.enabled unset",
+        "the layout switcher defines ui.navigation.desktop/tablet/mobile itself, so setting " +
+        "ui.layoutSwitcher.enabled: true together with ui.navigation.desktop, " +
+        "ui.navigation.tablet or ui.navigation.mobile is ambiguous — remove those leaves " +
+        "(the layouts supply them), or leave ui.layoutSwitcher.enabled unset",
       path: ["layoutSwitcher", "enabled"],
     },
   );
