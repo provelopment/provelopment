@@ -303,4 +303,3 @@ describe("NAV1D — the Menu Bar surface spans the viewport", () => {
     );
   });
 });
-
