@@ -347,10 +347,15 @@ tree stays clean.
   must resolve to the dark tokens. The Menu Bar's sticky full-width surface is proven as a PAINT
   contract: it spans the whole client width, paints `--background` across it, carries `--border` on
   top and `--foreground` links, and is hit-testable at BOTH edges — so a min-content block with an
-  unpainted remainder fails. Interaction states are only the three the platform really implements: a
-  sidebar navigation link's hover moves `--muted-foreground` → `--foreground`, the global
-  `:focus-visible` ring resolves to `--ring`, and an ordinary footer link's hover resolves to
-  `--primary` (all measured with real input). ONE test-owned configuration phase then proves the
+  unpainted remainder fails. Interaction states: the current page is deliberately NOT asserted to look
+  different (the platform conveys it by `aria-current`), while hover and focus are — with the right
+  subject. Tailwind compiles every `hover:` utility inside `@media (hover: hover)` (the rows report that
+  query), and a headless renderer may answer `:hover` while reporting the query FALSE, so the durable
+  assertion is each control's own hover DECLARATION resolved through the engine (a sidebar navigation
+  link's `hover:text-foreground` → `--foreground`; an ordinary footer link's `hover:text-primary` →
+  `--primary`), and the runtime pointer behaviour is asserted on top whenever the runner really has
+  hover (the row then reports a value, not a skip); the global `:focus-visible` ring is measured with
+  real `Tab` presses and must resolve to `--ring`. ONE test-owned configuration phase then proves the
   propagation end to end on its own server: `ui.theme.background: "#00ff00"` appears on `<html>`, and
   the body, the sidebar rail, the selector and the Menu Bar surface all render exactly that colour
   while the text and the transparent footer keep their tokens; `site.assets.backgrounds.all` and

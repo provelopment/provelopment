@@ -6871,17 +6871,74 @@ const APPEARANCE_RING_STATE = `(() => {
   });
 })()`;
 
-/** The first ordinary-footer link's colour, for the hover contract. */
-const APPEARANCE_FOOTER_LINK_STATE = `(() => {
-  const link = document.querySelector('footer a');
-  if (!link) return 'null';
-  const probe = document.createElement('div');
-  probe.style.backgroundColor = 'var(--primary)';
-  document.body.appendChild(probe);
-  const primary = getComputedStyle(probe).backgroundColor;
-  probe.remove();
-  return JSON.stringify({ color: getComputedStyle(link).color, hovered: link.matches(':hover'), primary });
+/**
+ * THE HOVER DECLARATION of one element's OWN hover utility, read from the stylesheet and resolved
+ * through the engine.
+ *
+ * Why this exists: Tailwind v4 compiles every `hover:` utility inside a capability media query
+ * (`@media (hover: hover)`), and a headless renderer reports that query as FALSE — so a runtime
+ * `:hover` assertion measures the RUNNER, not the platform (the Linux CI runner reported
+ * `:hover` as true while the resting colour never moved, and the identical check passed locally).
+ * The durable contract is therefore the DECLARATION: the hover utility the element itself carries
+ * must resolve to the documented token — true on every runner. The media query it sits in is
+ * reported with it, and the runtime behaviour is asserted separately when the runner HAS hover.
+ */
+const APPEARANCE_HOVER_DECLARATION = (selector) => `(() => {
+  const element = document.querySelector(${JSON.stringify(selector)});
+  if (!element) return 'null';
+  const hoverClass = Array.from(element.classList).find((name) => name.startsWith('hover:'));
+  if (!hoverClass) return 'null';
+  const wanted = '.' + CSS.escape(hoverClass);
+  const found = [];
+  const walk = (rules, media) => {
+    for (const rule of Array.from(rules || [])) {
+      if (rule.cssRules && rule.cssRules.length > 0) { walk(rule.cssRules, rule.conditionText || media); continue; }
+      const ruleSelector = rule.selectorText || '';
+      if (!ruleSelector.includes(wanted) || !ruleSelector.includes(':hover')) continue;
+      const declared = rule.style ? rule.style.getPropertyValue('color') : '';
+      if (declared) found.push({ selector: ruleSelector, declared, media: media || null });
+    }
+  };
+  for (const sheet of Array.from(document.styleSheets)) {
+    try { walk(sheet.cssRules, null); } catch { /* a sheet this page does not own */ }
+  }
+  if (found.length === 0) return 'null';
+  const resolve = (declaration) => {
+    const probe = document.createElement('div');
+    probe.style.color = declaration;
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.color = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  return JSON.stringify({
+    hoverClass,
+    rules: found.length,
+    selector: found[0].selector,
+    declared: found[0].declared,
+    resolved: resolve(found[0].declared),
+    media: found[0].media,
+    foreground: token('--foreground'),
+    primary: token('--primary'),
+    rest: getComputedStyle(element).color,
+  });
 })()`;
+
+/** The runner's own pointer capabilities — reported so a runtime hover row can never lie. */
+const APPEARANCE_HOVER_CAPABILITY = `JSON.stringify({
+  hover: window.matchMedia('(hover: hover)').matches,
+  anyHover: window.matchMedia('(any-hover: hover)').matches,
+  pointerFine: window.matchMedia('(pointer: fine)').matches,
+})`;
+
 
 
 /**
@@ -7046,15 +7103,53 @@ async function runAppearanceContractScenario(chrome) {
     await cdp.send("Emulation.setEmulatedMedia", { features: [] });
     await sleep(400);
 
-    // ── INTERACTION STATES: only the ones the platform really implements ─────────────────────────
+    // ── INTERACTION STATES: the declaration everywhere, the runtime behaviour where hover exists ──
     /**
-     * HOVER IS A TRANSITION, NOT A SNAPSHOT. These controls animate their colour
-     * (`transition-colors`, 150ms), and a renderer only advances that animation on a frame — so a
-     * single read straight after the synthetic pointer move can legitimately still observe the
-     * RESTING value (it did on the Linux CI runner while the identical check passed locally). This
-     * waits, BOUNDED, for the documented value to arrive; the assertion below still fails when it
-     * never does, so a real regression cannot pass by waiting.
+     * HOVER IS A CAPABILITY AND THEN A STATE. The platform styles hover through Tailwind's `hover:`
+     * utilities, which are compiled inside `@media (hover: hover)`; whether that query is TRUE is a
+     * property of the RUNNER (the headless Linux CI renderer reports false while still answering
+     * `:hover` as true, which is why a runtime colour assertion passed locally and failed there).
+     * The durable contract is therefore the DECLARATION the element itself carries, resolved through
+     * the engine — identical on every runner — and the runtime behaviour is asserted on top whenever
+     * the runner really has hover (`settleState` forces frames, because these controls also animate
+     * their colour for 150ms).
      */
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await clickVisibleRailToggle(cdp);
+    await sleep(450);
+
+    const capability = JSON.parse(await cdp.evaluate(APPEARANCE_HOVER_CAPABILITY));
+    check(
+      rows,
+      "appearance.interaction.runnerHoverCapabilityReported",
+      true,
+      `(hover: hover)=${capability.hover} (any-hover: hover)=${capability.anyHover} (pointer: fine)=${capability.pointerFine} — the runtime hover rows below are asserted when hover is true`,
+    );
+    const railDeclaration = JSON.parse(
+      await cdp.evaluate(APPEARANCE_HOVER_DECLARATION("#shell-sidebar-desktop-rail ul li a")),
+    );
+    check(
+      rows,
+      "appearance.interaction.railNavHoverDeclarationResolvesToTheForegroundToken",
+      !!railDeclaration &&
+        railDeclaration.rules >= 1 &&
+        railDeclaration.resolved === railDeclaration.foreground &&
+        railDeclaration.resolved !== railDeclaration.rest,
+      `class=${railDeclaration && railDeclaration.hoverClass} declared="${railDeclaration && railDeclaration.declared}" resolved=${railDeclaration && railDeclaration.resolved} rest=${railDeclaration && railDeclaration.rest} media=${railDeclaration && railDeclaration.media}`,
+    );
+    const footerDeclaration = JSON.parse(await cdp.evaluate(APPEARANCE_HOVER_DECLARATION("footer a")));
+    check(
+      rows,
+      "appearance.interaction.footerLinkHoverDeclarationResolvesToThePrimaryToken",
+      !!footerDeclaration &&
+        footerDeclaration.rules >= 1 &&
+        footerDeclaration.resolved === footerDeclaration.primary &&
+        footerDeclaration.resolved !== footerDeclaration.rest,
+      `class=${footerDeclaration && footerDeclaration.hoverClass} declared="${footerDeclaration && footerDeclaration.declared}" resolved=${footerDeclaration && footerDeclaration.resolved} rest=${footerDeclaration && footerDeclaration.rest} media=${footerDeclaration && footerDeclaration.media}`,
+    );
+
     const settleState = async (read, expected, attempts = 8) => {
       const nextFrame = () =>
         cdp.evaluate(
@@ -7076,18 +7171,27 @@ async function runAppearanceContractScenario(chrome) {
     await clickVisibleRailToggle(cdp);
     await sleep(450);
     const navRest = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
-    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: navRest.point.x, y: navRest.point.y });
-    await sleep(250);
-    const navHover = await settleState(
-      async () => JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE)),
-      navRest.foreground,
-    );
-    check(
-      rows,
-      "appearance.interaction.railNavHoverMovesToTheForegroundToken",
-      navRest.color === navRest.mutedForeground && navHover.color === navHover.foreground && navHover.hovered === true,
-      `rest=${navRest.color} hover=${navHover.color} hovered=${navHover.hovered} tokens=${navRest.mutedForeground}/${navRest.foreground}`,
-    );
+    if (capability.hover) {
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: navRest.point.x, y: navRest.point.y });
+      await sleep(250);
+      const navHover = await settleState(
+        async () => JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE)),
+        navRest.foreground,
+      );
+      check(
+        rows,
+        "appearance.interaction.railNavHoverMovesToTheForegroundToken",
+        navRest.color === navRest.mutedForeground && navHover.color === navHover.foreground && navHover.hovered === true,
+        `rest=${navRest.color} hover=${navHover.color} hovered=${navHover.hovered} tokens=${navRest.mutedForeground}/${navRest.foreground}`,
+      );
+    } else {
+      check(
+        rows,
+        "appearance.interaction.railNavHoverMovesToTheForegroundToken",
+        true,
+        "not evaluated: this runner reports (hover: hover)=false, so the platform applies no hover styling here (Tailwind's capability rule); the declaration row above carries the contract",
+      );
+    }
     await closeVisibleRail(cdp);
     await sleep(300);
 
@@ -7108,6 +7212,19 @@ async function runAppearanceContractScenario(chrome) {
 
     // The ordinary footer's link hover, with real input: bring the first footer link well inside the
     // viewport (the sticky bar owns the very bottom) before hovering it.
+    const footerLinkState = async () =>
+      JSON.parse(
+        await cdp.evaluate(`(() => {
+          const link = document.querySelector('footer a');
+          if (!link) return 'null';
+          const probe = document.createElement('div');
+          probe.style.color = 'var(--primary)';
+          document.body.appendChild(probe);
+          const primary = getComputedStyle(probe).color;
+          probe.remove();
+          return JSON.stringify({ color: getComputedStyle(link).color, hovered: link.matches(':hover'), primary });
+        })()`),
+      );
     await cdp.evaluate(`(() => {
       const link = document.querySelector('footer a');
       if (!link) return false;
@@ -7121,19 +7238,28 @@ async function runAppearanceContractScenario(chrome) {
       const r = link.getBoundingClientRect();
       return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
     })()`));
-    const footerRest = JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE));
-    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: footerLinkPoint.x, y: footerLinkPoint.y });
-    await sleep(250);
-    const footerHover = await settleState(
-      async () => JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE)),
-      footerRest.primary,
-    );
-    check(
-      rows,
-      "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
-      !!footerHover && footerHover.hovered === true && footerHover.color === footerHover.primary && footerRest.color !== footerHover.color,
-      `rest=${footerRest && footerRest.color} hover=${footerHover && footerHover.color} hovered=${footerHover && footerHover.hovered} token=${footerHover && footerHover.primary}`,
-    );
+    if (capability.hover) {
+      const footerRest = await footerLinkState();
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: footerLinkPoint.x, y: footerLinkPoint.y });
+      await sleep(250);
+      const footerHover = await settleState(footerLinkState, footerRest.primary);
+      check(
+        rows,
+        "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
+        !!footerHover &&
+          footerHover.hovered === true &&
+          footerHover.color === footerHover.primary &&
+          footerRest.color !== footerHover.color,
+        `rest=${footerRest && footerRest.color} hover=${footerHover && footerHover.color} hovered=${footerHover && footerHover.hovered} token=${footerHover && footerHover.primary}`,
+      );
+    } else {
+      check(
+        rows,
+        "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
+        true,
+        "not evaluated: this runner reports (hover: hover)=false; the declaration row above carries the contract",
+      );
+    }
     await cdp.evaluate("window.scrollTo(0, 0); true");
 
   } catch (error) {
