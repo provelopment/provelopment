@@ -357,5 +357,3 @@ Deliberately **not** retained here, to keep the register free of noise: items al
 visibility), items that are merely cleanup or documentation, and speculative features nobody has
 asked for. A missing entry means "no useful, unimplemented, decision-requiring idea exists" — not
 that the idea is impossible.
-
-
