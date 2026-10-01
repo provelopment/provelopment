@@ -28,8 +28,8 @@ import { ShellMobileNav } from "./shell-mobile-nav";
  *  - composes ONLY the shared primitives (`BottomNavigation`, `NavItem`,
  *    `ShellMobileNav`) — no presentation identity, no business rules.
  *
- * A11y contract: single `<nav>` landmark (the bar) at <md; the More drawer is
- * a `role=dialog` overlay (closed-by-default SSR, Escape closes) that is never
+ * A11y contract: one `<nav>` landmark (the bar) wherever the composition presents it; the More
+ * drawer is a `role=dialog` overlay (closed-by-default SSR, Escape closes) that is never
  * simultaneously present in the tab order with the bar. ≥44px touch targets.
  */
 export interface ShellBottomBarLink {
@@ -66,9 +66,64 @@ export interface ShellBottomBarProps {
   readonly closeLabel?: string;
   /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
   readonly mode?: MenuMode;
+  /**
+   * N2/NAV1A — inert layout-scope markers (`data-ui-shell-part` /
+   * `data-ui-shell-layouts`): which composed layout(s) this bar IS the mobile
+   * navigation for. The stylesheet exposes exactly one mobile surface per active
+   * layout, so a bar owned by another layout is `display: none` — outside the
+   * accessibility tree and the tab order. Absent → no attributes (one-composition
+   * sites are byte-identical).
+   */
+  readonly scope?: Readonly<Record<string, string>>;
+  /**
+   * NAV1B — the width gate this bar is presented at, derived from the composition that owns
+   * it (`bandClassName(mobileSurfaceBands(composition.decision))`): `md:hidden` for the
+   * canonical sidebar composition, and NO gate for a Menu-bar composition, whose sticky bar
+   * is the navigation at every width. The shell engine is the only caller that decides it;
+   * the component never reads a breakpoint of its own, and the default is the shipped
+   * mobile-only presentation so a direct consumer is unchanged.
+   */
+  readonly bandsClassName?: string;
+  /**
+   * NAV1A — the layouts this bar presents, forwarded to its "More" drawer so an
+   * open overflow dialog is withdrawn (and closed) when the visitor switches away
+   * from this layout. See `ShellMobileNav`.
+   */
+  readonly activeLayouts?: readonly string[];
   /** P5-5 — configuration for the shared "Hide navigation" disclosure control. */
   readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
 }
+
+/**
+ * NAV1A — THE STICKY BAR'S LINK LAYOUT, OWNED BY THE LIST (not the landmark).
+ *
+ * The rows are the `<li>` children of the `<ul>`, so this class belongs there: horizontal
+ * flow, natural wrapping, and a consistent inter-link gap. The container's `px-4` page-edge
+ * inset (`PAGE_EDGE_INSET_CLASS` below) IS the width the rows wrap inside, so no link text
+ * can touch the viewport edge. The bar keeps its natural height and grows only when another
+ * row is genuinely required — a fixed single-row height is never imposed.
+ */
+export const BOTTOM_NAV_LIST_CLASS = "flex flex-wrap items-center gap-x-4 gap-y-2";
+
+/**
+ * NAV1A — the bar's LINK box. A flex item's automatic minimum size is its min-content size,
+ * so a label allowed to break inside itself would let a row SQUASH its links instead of
+ * moving one onto the next line. Keeping each label on one line makes the item's minimum
+ * the full label, so a row wraps exactly when the next link genuinely does not fit — which
+ * is what the wrapping contract requires.
+ */
+export const BOTTOM_NAV_LINK_CLASS = "whitespace-nowrap";
+
+/**
+ * NAV1A — the bar's horizontal PAGE-EDGE INSET. It is the same `px-4` the header and the
+ * footer use (`ui-site-header` / footer bands), so the bar shares the platform's existing
+ * page-edge convention instead of introducing a second spacing system. NAV1D — the bar's
+ * surface spans the viewport at EVERY width the composition presents it at (not only below
+ * `md`), so the page-width container is never applied to it and this inset is the only
+ * horizontal bound its content has. The rows still wrap inside it, so no link can touch the
+ * viewport edge.
+ */
+export const PAGE_EDGE_INSET_CLASS = "px-4";
 
 export function ShellBottomBar({
   label,
@@ -80,6 +135,9 @@ export function ShellBottomBar({
   demoBadgeLabel,
   closeLabel,
   mode,
+  scope,
+  activeLayouts,
+  bandsClassName = "md:hidden",
   sidebarClose,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
@@ -119,23 +177,52 @@ export function ShellBottomBar({
   const { primary, remainder } = splitBottomNavItems(resolved);
 
   return (
-    <div className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}>
-      <BottomNavigation label={label} items={primary} className="flex items-center justify-around gap-x-1" />
-      {remainder.length > 0 ? (
-        <ShellMobileNav
-          pattern="drawer"
-          id="shell-bottom-more"
-          triggerLabel={moreLabel}
-          closeLabel={closeLabel}
-          close={sidebarClose}
-        >
-          <ul>
-            {remainder.map((item) => (
-              <NavItem key={item.key ?? item.href} item={item} />
-            ))}
-          </ul>
-        </ShellMobileNav>
-      ) : null}
+    <div
+      // NAV1B/NAV1D — THE BAR SPANS THE VIEWPORT: it IS the sticky surface, and it keeps that
+      // surface at EVERY width, in every frame. `w-full` is what makes that true inside the shell's
+      // wrapping row (an aside composition lays the page out as a row at `md` and up, and NAV1D
+      // extends that row to every width when the sidebar covers the mobile band): a flex item with
+      // no width basis shrinks to its content there, which is how the bar came to render as a small
+      // left-hand block instead of a footer-wide menu. `basis-full` additionally keeps it on a row
+      // of its own, so the surface can never share a line with page content.
+      //
+      // NAV1D — the CONTENT inside it uses the full available WIDTH minus the page-edge inset. The
+      // page's own `max-w-page` bound is deliberately NOT applied here: a navigation surface that
+      // stops at the article's width is not the full-width menu this mode means, and centring a
+      // handful of links inside a viewport-wide bar would leave the surface reading as an island.
+      className={[
+        "ui-shell-bottom-bar sticky bottom-0 z-40 w-full basis-full border-t border-border bg-background",
+        bandsClassName,
+        menuModeClass(mode ?? "open"),
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      {...scope}
+    >
+      <div className={`${PAGE_EDGE_INSET_CLASS} py-1`}>
+        <BottomNavigation
+          label={label}
+          items={primary}
+          listClassName={BOTTOM_NAV_LIST_CLASS}
+          linkClassName={BOTTOM_NAV_LINK_CLASS}
+        />
+        {remainder.length > 0 ? (
+          <ShellMobileNav
+            pattern="drawer"
+            id="shell-bottom-more"
+            triggerLabel={moreLabel}
+            closeLabel={closeLabel}
+            close={sidebarClose}
+            activeLayouts={activeLayouts}
+          >
+            <ul>
+              {remainder.map((item) => (
+                <NavItem key={item.key ?? item.href} item={item} />
+              ))}
+            </ul>
+          </ShellMobileNav>
+        ) : null}
+      </div>
     </div>
   );
 }

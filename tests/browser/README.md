@@ -188,8 +188,13 @@ tree stays clean.
   rejected stored value falls back to CLOSED, a refresh keeps the choice, a real
   navigation icon keeps it (CLOSED stays CLOSED, OPEN stays OPEN), the tablet band
   and the desktop band share ONE state, a Site switch does not partition it, the
-  Layout switcher is independent of it, and the `<md` drawer/bottom bar is a
-  separate ephemeral model it never opens. Since FOUNDATION-UI1-A1 the scenario
+  Layout switcher is independent of it, and at `<md` the SAME rail carries that state — the
+  stored preference opens the RAIL there too, so no drawer or bottom bar becomes a second,
+  ephemeral authority over the visitor's choice (NAV1D). NAV1D-V2/V3 — SELECTING a destination inside
+  the rail dismisses an open rail through that same state owner: the scenario proves the close
+  for a route change, for the page the visitor is already on, and for keyboard activation, and that
+  the destination is presented with the collapsed STICKY rail (never an open rail, never a
+  re-open). Since FOUNDATION-UI1-A1 the scenario
   judges the whole navigation INTERVAL rather than its end state: a transition
   observer records every `data-collapsed` write on a rail and every `width`
   transition on one, so the interval must commit **no opposite state** (a
@@ -236,14 +241,52 @@ tree stays clean.
   rule are shared (`tests/browser/sidebar-semantics.mjs`), so both gates judge the same
   facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
-  enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar). The
-  sidebar layout exposes the rail and hides the header navigation; choosing Menu bar does
-  the reverse — and a Tab sweep proves the hidden structure is never focusable. The
-  document, its main content, the route, the locale and the usable content column are
-  unchanged, persistent navigation and fragment clearance follow the active layout, the
-  choice survives client-side navigation and a full reload (and an unusable stored value
-  falls back to the configured default), and at mobile width the control is not offered
-  because both layouts share the same mobile navigation.
+  enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar), at
+  EVERY width, anchored at the top row's right edge. The sidebar layout exposes the SAME persistent
+  rail at every width — desktop, tablet and the mobile band alike (NAV1D) — and composes no drawer,
+  no disclosure band and no header affordance to substitute for it; choosing Menu bar exposes the
+  **sticky bottom bar at EVERY width** and no top navigation at all — and a Tab sweep proves the
+  withdrawn structures are never focusable. The document, its main content, the route, the locale and
+  the usable content column are unchanged, persistent navigation and fragment clearance follow the
+  active layout, and the choice survives client-side navigation and a full reload (an unusable
+  stored value falls back to the configured default). The MOBILE/handover contract (NAV1D) is
+  MEASURED rather than asserted by class: the mobile band presents the rail itself, with the rail's
+  own padding on both sides, the control's box on that same inset, the navigation rows sharing it,
+  the focus ring's full extent left free inside the scrolling column, and the column still pinned
+  after scrolling deeply — all at 1280/1024/900/768/767/390/360/320; the control's typography, icon
+  and the rail's padding are identical to the desktop band's, because the breakpoint changes WHICH
+  band presents the rail, not WHAT the rail is; and the header's two semantic rows keep their
+  ownership at the same widths — through real resize transitions and real mode switches made while
+  already at a phone width (no stale dialog, no scroll lock, no substituted surface). NAV1D-V3 — the
+  CLOSED rail is measured on the PAGE EDGE at every width (no ~20px shell gutter) with the 24px control
+  centred between that edge and the divider and the accepted 6px/5px padding intact; the OPEN rail is
+  measured per band, with the 768/767 boundary asserted on both sides: at and above `md` it expands IN
+  FLOW (the page's x-position and width change by exactly the rail's growth, the rail never covers the
+  content, and the Hide control keeps its balanced 20/20 inset), while below `md` it is an opaque
+  OVERLAY (the page keeps its closed geometry, the document gains no width, the rail wins the hit test
+  inside its own area, and its surface has no alpha channel, no opacity and no image layer); and the
+  rail's colour is proved to follow the site's ONE background authority by overriding `--background`
+  at runtime. The CLOSED layout is proved free of a horizontal scrollbar at all eight widths
+  (measured against the viewport's
+  content box), and a deliberate below-boundary width (300px) proves the 320px floor: the layout keeps
+  its geometry, the viewport scrolls, and the rail stays functional. The Menu Bar
+  surface is measured too: its sticky surface spans the viewport and its navigation region uses the
+  available width minus the page-edge inset (never the page's own `max-w-page` bound).
+- **header semantic rows** (`header-rows` scenario, NAV1B/NAV1B-V1): with test-owned fixtures the
+  navigation-MODE selector keeps its top-right place at every width. A TEXT identity (a very long
+  site name) begins on the selector's own first line at the padded left edge, wraps inside its own
+  left column and never overlaps the selector. A GRAPHIC identity (a test-owned configuration
+  pointing the logo role at a shipped wide placeholder) keeps its natural aspect, is never shrunk
+  into the text column, reaches BENEATH the selector's occupied area at narrow widths, and the
+  selector WINS the hit test at its own centre — with no page overflow in either case. Long
+  contextual labels wrap INSIDE the row below, which never lets a control jump into the top row.
+- **bottom navigation layout** (`bottom-nav-wrap` scenario, NAV1A): the sticky bar's rows
+  are the `<li>` children of its `<ul>`, so the LIST owns their flow and wrapping. Proven
+  with test-owned navigation fixtures on the disposable copy: SHORT labels share ONE row at
+  a phone width (no forced one-item-per-row, no needless wrapping) and LONG labels WRAP
+  onto another row because the available width genuinely requires it — every link stays
+  inside the page-edge inset, the bar GROWS in height instead of clipping, and the
+  page never scrolls horizontally.
 - **advanced JSON** (`advanced-json` scenario): a declarative document authored under
   `content/pages/json/en/` is discovered, validated and served by the real application —
   exactly one `<h1>` (the document title), a Markdown field rendered (`**bold**`), a table
@@ -291,5 +334,35 @@ tree stays clean.
   reachability survives switching; exactly one navigation structure stays exposed; and no band
   shows horizontal overflow. The configuration and every fixture page are restored/removed in
   `finally`, so the shipped template still ships one site and no pages.
+- **appearance contract** (`appearance-contract` scenario, FOUNDATION-DEFECT-NAV3): every surface the
+  appearance audit (NAV2) named an authority for is read from a REAL engine and compared with the
+  value the engine itself computes for that token — so the contract cannot drift from the stylesheet
+  and no second copy of a colour lives in the harness. In the LIGHT scheme, at desktop / tablet /
+  mobile: the page's canvas and text (`--background` / `--foreground`), prose links (`--primary`),
+  the sidebar's surface (`--background`), its navigation text (`--muted-foreground`) and its divider
+  (`--border`), the header's text plus the layout selector's surface and border, and the ordinary
+  footer's TRANSPARENT surface with its `--border` hairline, `--muted-foreground` headings and
+  `--foreground` links. Those values must be IDENTICAL at all three widths (one
+  breakpoint-independent colour signature). In the DARK scheme (engine-emulated) the same surfaces
+  must resolve to the dark tokens. The Menu Bar's sticky full-width surface is proven as a PAINT
+  contract: it spans the whole client width, paints `--background` across it, carries `--border` on
+  top and `--foreground` links, and is hit-testable at BOTH edges — so a min-content block with an
+  unpainted remainder fails. Interaction states: the current page is deliberately NOT asserted to look
+  different (the platform conveys it by `aria-current`), while hover and focus are — with the right
+  subject. Tailwind compiles every `hover:` utility inside `@media (hover: hover)` (the rows report that
+  query), and a headless renderer may answer `:hover` while reporting the query FALSE, so the durable
+  assertion is each control's own hover DECLARATION resolved through the engine (a sidebar navigation
+  link's `hover:text-foreground` → `--foreground`; an ordinary footer link's `hover:text-primary` →
+  `--primary`), and the runtime pointer behaviour is asserted on top whenever the runner really has
+  hover (the row then reports a value, not a skip); the global `:focus-visible` ring is measured with
+  real `Tab` presses and must resolve to `--ring`. ONE test-owned configuration phase then proves the
+  propagation end to end on its own server: `ui.theme.background: "#00ff00"` appears on `<html>`, and
+  the body, the sidebar rail, the selector and the Menu Bar surface all render exactly that colour
+  while the text and the transparent footer keep their tokens; `site.assets.backgrounds.all` and
+  `site.assets.footerGraphic` (pointed at SHIPPED mirrored placeholders — no new artwork) render
+  exactly ONE decorative page layer (fixed, `cover`, centred, `no-repeat`, `z-index: -1`,
+  `pointer-events: none`, `aria-hidden`) that never captures a hit from the content and adds no
+  overflow, plus one inert layer behind the footer's own content. The configuration and the
+  task-owned prose page are restored/removed in `finally`.
 
 

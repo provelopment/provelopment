@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { DisclosureIcon } from "@/components/ui/disclosure-icon";
@@ -8,6 +8,7 @@ import {
   DEFAULT_SIDEBAR_CLOSE_ICON,
   DEFAULT_SIDEBAR_OPEN_ICON,
   resolveControlPresentation,
+  SHELL_LAYOUT_ATTRIBUTE,
 } from "@/core/ui";
 import { Drawer } from "@/components/ui/drawer";
 import { OverlayNavigation } from "@/components/ui/overlay-navigation";
@@ -52,6 +53,25 @@ export interface ShellMobileNavProps {
   readonly children: ReactNode;
   readonly className?: string;
   /**
+   * N2/NAV1A — inert layout-scope markers (`data-ui-shell-part` /
+   * `data-ui-shell-layouts`) describing the layouts THIS disclosure is the mobile
+   * navigation for. The stylesheet exposes exactly one mobile surface per active
+   * layout, so a disclosure that belongs to another layout is `display: none` and
+   * therefore outside the accessibility tree and the tab order. Absent → no
+   * attributes at all (a one-composition site is byte-identical).
+   */
+  readonly scope?: Readonly<Record<string, string>>;
+  /**
+   * NAV1A — the layouts this disclosure presents. While it is OPEN, the active
+   * layout is watched on `<html>` (`SHELL_LAYOUT_ATTRIBUTE`, the inert attribute
+   * the visitor's control rewrites): when the active layout stops naming one of
+   * these, the disclosure is WITHDRAWN, so it must also become CLOSED — an
+   * invisible-but-open dialog would otherwise keep the body scroll lock and the
+   * background `inert` applied to a page the visitor is looking at. Absent (or
+   * empty) → the disclosure never withdraws itself (unchanged behaviour).
+   */
+  readonly activeLayouts?: readonly string[];
+  /**
    * P5-5 — configurable OPEN control (`navigation.sidebar.open`): icon asset
    * filename and/or visible text. Missing leaves fall back to the shipped
    * asset + `triggerLabel`; `text: ""` → icon-only; `icon: ""` + `text: ""` →
@@ -73,6 +93,8 @@ export function ShellMobileNav({
   id,
   children,
   className,
+  scope,
+  activeLayouts,
   open,
   close,
   closeLabel,
@@ -80,6 +102,30 @@ export function ShellMobileNav({
   const [openState, setOpen] = useState(createInitialDisclosure(false));
   const toggle = () => setOpen((current) => disclosureReducer(current, { type: "toggle" }));
   const closeDisclosure = () => setOpen("closed");
+
+  // NAV1A — withdraw a disclosure whose layout is no longer active. The active layout is the ONE
+  // inert attribute the visitor's control rewrites (`SHELL_LAYOUT_ATTRIBUTE`), so the gate needs no
+  // second source of truth and no cross-component wiring. A disclosure only ever OPENS while its own
+  // layout is active (that layout's trigger is the thing the visitor just pressed), so the contract
+  // is about the change that follows: an attribute rewrite that stops naming one of THIS disclosure's
+  // layouts closes it, releasing the body scroll lock and the background `inert` the dialog applied.
+  // A single-composition site emits no attribute at all, so nothing here ever runs for it; the
+  // layouts are compared by VALUE (a joined key), so a parent re-render with an equal list never
+  // re-installs the observer.
+  const activeLayoutKey = activeLayouts && activeLayouts.length > 0 ? activeLayouts.join(",") : null;
+  useEffect(() => {
+    if (openState !== "open" || activeLayoutKey === null) return;
+    const layouts = activeLayoutKey.split(",");
+    const observer = new MutationObserver(() => {
+      const active = document.documentElement.getAttribute(SHELL_LAYOUT_ATTRIBUTE);
+      if (active !== null && !layouts.includes(active)) setOpen("closed");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: [SHELL_LAYOUT_ATTRIBUTE],
+    });
+    return () => observer.disconnect();
+  }, [openState, activeLayoutKey]);
 
   // P5-5 — both controls resolve through the SAME presentation helper. The
   // shipped default assets (`/assets/sidebar-open.svg` / close) are
@@ -111,7 +157,7 @@ export function ShellMobileNav({
   );
 
   return (
-    <div className={className}>
+    <div className={className} {...scope}>
       {openControl.visible ? (
         <button
           type="button"
@@ -125,7 +171,11 @@ export function ShellMobileNav({
           // icon's own height) is too small to hit reliably. `min-h-11 min-w-11`
           // grows the INTERACTIVE box, not the artwork: the icon keeps its `h-8 w-8`
           // visual scale and is centred inside the larger target.
-          className="ui-shell-mobile-nav-trigger inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 md:hidden"
+          // NAV1B — the disclosure's HOST owns its width gate (the composition's band), so the
+          // trigger itself carries none: it is a normal navigation control at the scale of the
+          // rail's own toggle (`text-sm` label, 24px icon via `--ui-sidebar-control-icon-size`,
+          // ≥44px hit area), and it never grows with the typography around it.
+          className="ui-shell-mobile-nav-trigger inline-flex min-h-11 min-w-11 items-center gap-1.5"
         >
           <DisclosureIcon asset={openControl.icon} className="ui-mobile-nav-icon h-8 w-8 shrink-0" />
           {openControl.text === "" ? null : <span>{openControl.text}</span>}

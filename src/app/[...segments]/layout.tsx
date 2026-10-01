@@ -24,10 +24,12 @@ import { getDictionary } from "@/config/i18n";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
+  bottomBarCompositions,
   layoutDataAttributes,
+  mobileDisclosureCompositions,
   presentationDataAttributes,
   radiusDataAttribute,
-  resolveShellPattern,
+  railCompositions,
   resolveUiConfig,
 } from "@/core/ui";
 import { pathContextOr, siteHref, sitePrefixPath, siteSetOf } from "@/core/site";
@@ -68,7 +70,6 @@ const resolvedUi = resolveUiConfig(siteConfig.ui ?? {});
 // layout), so a missing icon can never become a broken-image placeholder on
 // the page — and node:fs stays out of the client chunk graph.
 assertConfiguredIconAssetsExist(siteConfig);
-const shellDecision = resolveShellPattern(resolvedUi);
 // UI-07: CTA label/href flow from the resolved contract (adopter-owned;
 // `href` added at UI-07 D1). The demo declares label but no href, so the
 // engine's existing invariant keeps rendering no CTA (byte-identical demo).
@@ -213,10 +214,17 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   // icon-only) and `open`.
   const sidebarClosed = resolvedUi.navigation.sidebar.mode === "closed";
   const sidebarCompact = resolvedUi.navigation.sidebar.mode === "compact";
+  // NAV1A — "is a rail composed?" and "is a bottom bar composed?" are properties of EVERY
+  // composed layout, not of the default one. A site whose visitor may choose the sidebar
+  // layout must compose that layout's rail (≥md) and its mobile drawer (<md) even when the
+  // configured default is the menu bar — and vice versa for the sticky bar. The rail/bar
+  // structure is then exposed by the stylesheet for the ACTIVE layout only, so exactly one
+  // navigation is ever present.
   const usesAside =
     !sidebarClosed &&
-    (shellDecision.desktop.slot === "aside" || shellDecision.tablet.slot === "aside");
-  const usesBottomBar = shellDecision.mobile.primitiveKind === "bottom-bar";
+    (railCompositions(resolvedUi, "desktop").length > 0 ||
+      railCompositions(resolvedUi, "tablet").length > 0);
+  const usesBottomBar = bottomBarCompositions(resolvedUi).length > 0;
   // P6-3B/P6-3C — the per-page banner map (page slug → composable banner asset).
   // Only entries whose file actually exists under `public/assets/` survive, so a
   // stale/typo'd banner URL renders NO banner (never a placeholder or a 404).
@@ -273,19 +281,25 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       }
     : undefined;
 
-  const asideContent = usesAside ? (
-    <ContextNavLinks
-      locale={locale}
-      // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the
-      // configured `iconOpen`/`iconClosed`, else the shipped dot/plus defaults).
-      links={withSidebarNavIcons(navLinks)}
-      className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
-      linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
-      // P5-5 — the aside rail orders by configured region (top → middle →
-      // bottom), stable within each group; labels stay readable.
-      sortByRegion
-    />
-  ) : undefined;
+  // NAV1B — the sidebar's navigation LIST is needed wherever a sidebar composition presents it:
+  // the rail (≥md) AND that composition's constrained-width disclosure. `usesAside` still gates the
+  // RAIL itself (and its pre-paint preference bridge), so `navigation.sidebar.mode: "closed"`
+  // continues to mean "no persistent rail — the disclosure is how navigation is reached", exactly
+  // as that leaf documents.
+  const sidebarNavContent =
+    usesAside || mobileDisclosureCompositions(resolvedUi).length > 0 ? (
+      <ContextNavLinks
+        locale={locale}
+        // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the
+        // configured `iconOpen`/`iconClosed`, else the shipped dot/plus defaults).
+        links={withSidebarNavIcons(navLinks)}
+        className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
+        linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        // P5-5 — the aside rail orders by configured region (top → middle →
+        // bottom), stable within each group; labels stay readable.
+        sortByRegion
+      />
+    ) : undefined;
 
   const bottomNav = usesBottomBar
     ? {
@@ -403,7 +417,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             icon: availableIconName(resolvedUi.navigation.sidebar.close.icon),
             text: resolvedUi.navigation.sidebar.close.text,
           }}
-          asideContent={asideContent}
+          asideContent={sidebarNavContent}
           bottomNav={bottomNav}
           locale={locale}
           pageBindings={siteConfig.pageBindings}

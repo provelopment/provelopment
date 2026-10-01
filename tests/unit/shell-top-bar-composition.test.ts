@@ -154,7 +154,7 @@ describe("ShellEngine — Top-bar decision trajectories (no aside, no bottom bar
     const html = renderToStaticMarkup(
       ShellEngine({ resolved: resolveUiConfig(TOP_BAR_UI), header: headerPlain, main, footer, mainId: "main", ...base }),
     );
-    expect(html).toContain('class="flex flex-col flex-1"');
+    expect(html).toContain('class="ui-shell-frame flex flex-col flex-1"');
     expect(html).not.toContain("shell-sidebar");
     expect(html).not.toContain("ui-shell-sidebar");
     expect(html).not.toContain("lg:flex-row");

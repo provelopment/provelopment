@@ -96,18 +96,54 @@ const DISCLOSURE_PROBE = `(() => {
 
 const LAYOUT_STATE_PROBE = `(() => {
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')].find(shown) || null;
+  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail, #shell-sidebar-mobile-rail')].find(shown) || null;
+  // NAV1D — the sidebar's own mobile band is the SAME rail (never a substituted disclosure).
+  const railMobile = document.querySelector('#shell-sidebar-mobile-rail');
   const topNav = [...document.querySelectorAll('nav[data-ui-shell-part="top-nav"]')].find(shown) || null;
   const control = document.querySelector('[data-ui-layout-switcher]');
+  // NAV1B — the header's two semantic rows, the menu-bar sticky bar, and the sidebar's OWN disclosure.
+  const topRow = document.querySelector('.ui-site-header-top');
+  const contextRow = document.querySelector('.ui-site-header-context');
+  const headerInner = document.querySelector('.ui-site-header > div');
+  const bar = document.querySelector('.ui-shell-bottom-bar');
+  const disclosure = document.querySelector('[data-ui-shell-part="mobile-drawer"]');
+  const barLinks = bar ? [...bar.querySelectorAll('ul > li a')].filter(shown) : [];
+  const barItems = bar ? [...bar.querySelectorAll('ul > li')] : [];
   return JSON.stringify({
     attribute: document.documentElement.getAttribute('data-ui-shell-layout'),
     stored: window.localStorage.getItem('foundation.layout'),
     railVisible: !!rail,
+    railMobileVisible: shown(railMobile),
     topNavVisible: !!topNav,
     controlValue: control ? control.value : null,
     controlOptions: control ? [...control.options].map((option) => option.textContent.trim()) : null,
     controlLabel: control ? control.getAttribute('aria-label') : null,
     controlVisible: shown(control),
+    bottomBarVisible: shown(bar),
+    bottomBarPosition: bar ? getComputedStyle(bar).position : null,
+    barLinkCount: barLinks.length,
+    barRowCount: new Set(barItems.map((li) => Math.round(li.getBoundingClientRect().top))).size,
+    barLinksInsideInset:
+      barLinks.length > 0 &&
+      barLinks.every((a) => {
+        const r = a.getBoundingClientRect();
+        return r.left >= 8 && r.right <= window.innerWidth - 8;
+      }),
+    disclosureVisible: shown(disclosure),
+    disclosureInHeader: !!disclosure && !!disclosure.closest('.ui-site-header'),
+    selectorInTopRow: !!control && !!topRow && topRow.contains(control),
+    selectorInControlRow: !!control && !!contextRow && contextRow.contains(control),
+    selectorRightInset:
+      control && headerInner
+        ? Math.round(
+            headerInner.getBoundingClientRect().right -
+              (parseFloat(getComputedStyle(headerInner).paddingRight) || 0) -
+              control.getBoundingClientRect().right,
+          )
+        : null,
+    contextRowPresent: !!contextRow,
+    contextRowTop: contextRow ? Math.round(contextRow.getBoundingClientRect().top) : null,
+    topRowBottom: topRow ? Math.round(topRow.getBoundingClientRect().bottom) : null,
   });
 })()`;
 
@@ -274,11 +310,50 @@ export async function run(chrome, harness) {
     check(rows, "reference.layout.switchApplies", await cdp.evalBool(chooseLayout("menu-bar")));
     await waitReady(cdp);
     const switched = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH: the former top navigation is
+    // retired from this mode, so the bar IS the navigation at desktop/tablet/mobile alike.
     check(
       rows,
-      "reference.layout.menuBarExposed",
-      switched.attribute === "menu-bar" && switched.topNavVisible && !switched.railVisible,
+      "reference.layout.menuBarExposedAsStickyBottomBar",
+      switched.attribute === "menu-bar" &&
+        switched.bottomBarVisible === true &&
+        switched.bottomBarPosition === "sticky" &&
+        !switched.railVisible,
       JSON.stringify(switched),
+    );
+    check(
+      rows,
+      "reference.layout.menuBarHasNoTopNavigation",
+      switched.topNavVisible === false,
+      JSON.stringify(switched),
+    );
+    check(
+      rows,
+      "reference.layout.menuBarLinksHorizontalAndInset",
+      switched.barLinkCount > 0 &&
+        switched.barRowCount < switched.barLinkCount &&
+        switched.barLinksInsideInset === true,
+      `rows=${switched.barRowCount} links=${switched.barLinkCount} inset=${switched.barLinksInsideInset}`,
+    );
+    // NAV1B — THE HEADER'S SEMANTIC ROWS DO NOT MOVE: the navigation-MODE selector keeps its
+    // top-right place, and the contextual controls keep the row below it.
+    check(
+      rows,
+      "reference.header.selectorInTopRowAtDesktop",
+      initial.selectorInTopRow === true && initial.selectorInControlRow === false,
+      JSON.stringify({ topRow: initial.selectorInTopRow, controlRow: initial.selectorInControlRow }),
+    );
+    check(
+      rows,
+      "reference.header.selectorRightAnchoredAtDesktop",
+      Math.abs(initial.selectorRightInset) <= 1,
+      String(initial.selectorRightInset),
+    );
+    check(
+      rows,
+      "reference.header.controlRowBelowTopRowAtDesktop",
+      initial.contextRowPresent === false || initial.contextRowTop >= initial.topRowBottom,
+      `contextTop=${initial.contextRowTop} topBottom=${initial.topRowBottom}`,
     );
     check(rows, "reference.layout.persistedToBrowserStorage", switched.stored === "menu-bar", String(switched.stored));
     await cdp.reload();
@@ -291,6 +366,43 @@ export async function run(chrome, harness) {
       JSON.stringify(reloaded),
     );
     await cdp.evaluate(chooseLayout("sidebar"));
+    await waitReady(cdp);
+
+    // ── NAV1B — the CONSTRAINED-WIDTH sidebar disclosure, and the header rows at a phone width ──
+    // The sidebar stays the navigation architecture at every width: below `md` it presents its OWN
+    // disclosure at the sidebar boundary (never inside the page header, never between header rows),
+    // while the navigation-MODE selector keeps its top-right place.
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await waitReady(cdp);
+    const mobileSidebar = JSON.parse(await cdp.evaluate(LAYOUT_STATE_PROBE));
+    check(
+      rows,
+      "reference.header.selectorStillTopRightAtMobile",
+      mobileSidebar.selectorInTopRow === true &&
+        mobileSidebar.selectorInControlRow === false &&
+        Math.abs(mobileSidebar.selectorRightInset) <= 1,
+      JSON.stringify({
+        topRow: mobileSidebar.selectorInTopRow,
+        controlRow: mobileSidebar.selectorInControlRow,
+        rightInset: mobileSidebar.selectorRightInset,
+      }),
+    );
+    check(
+      rows,
+      "reference.sidebar.railPresentedAtEveryWidth",
+      mobileSidebar.railVisible === true &&
+        mobileSidebar.railMobileVisible === true &&
+        mobileSidebar.disclosureVisible === false &&
+        mobileSidebar.disclosureInHeader === false,
+      `rail=${mobileSidebar.railVisible} mobile=${mobileSidebar.railMobileVisible} disclosure=${mobileSidebar.disclosureVisible}`,
+    );
+    check(
+      rows,
+      "reference.sidebar.noBottomBarForTheSidebarMode",
+      mobileSidebar.bottomBarVisible === false,
+      String(mobileSidebar.bottomBarVisible),
+    );
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await waitReady(cdp);
 
     // ── The sidebar disclosure's two visual states (desktop), and its STATE LIFE-CYCLE (UI1) ──
@@ -405,17 +517,35 @@ export async function run(chrome, harness) {
       !!navigatedClosed && closedAfterNavigation.collapsed === "true",
       JSON.stringify(closedAfterNavigation),
     );
-    // …and the OPEN case through the same controls: open, navigate home, reload.
+    // …and the OPEN case through the same controls. NAV1D-V2 — selecting a destination dismisses the
+    // expanded OVERLAY, so this navigation leg proves the CLOSE (the visitor lands with the collapsed
+    // sticky rail), and the reload leg proves the unchanged rule that a stored OPEN preference
+    // survives a refresh.
     await cdp.clickCenter(".ui-sidebar-toggle");
     await sleep(400);
-    const reopenAfterNavigation = await cdp.clickCenter("#shell-sidebar-desktop-rail ul li:first-child a");
+    const navigatedFromOpenOverlay = await cdp.clickCenter("#shell-sidebar-desktop-rail ul li:first-child a");
     await waitReady(cdp, { path: "/ww/en" });
-    const openAfterNavigation = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    const closedAfterSelection = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
     check(
       rows,
-      "reference.disclosure.openSurvivesNavigationIcon",
-      !!reopenAfterNavigation && openAfterNavigation.collapsed === "false" && openAfterNavigation.labelVisible === true && openAfterNavigation.label === "Hide navigation",
-      JSON.stringify(openAfterNavigation),
+      "reference.disclosure.selectionDismissesTheOpenRail",
+      !!navigatedFromOpenOverlay &&
+        closedAfterSelection.collapsed === "true" &&
+        closedAfterSelection.rail.w <= 64 &&
+        closedAfterSelection.label === "Show navigation",
+      JSON.stringify(closedAfterSelection),
+    );
+
+    // The stored OPEN preference still survives a refresh: open the rail again (a visitor action) and
+    // reload — the rail is presented OPEN from the stored preference, exactly as before.
+    await cdp.clickCenter(".ui-sidebar-toggle");
+    await sleep(400);
+    const reopenedForReload = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.reopenedBeforeReload",
+      reopenedForReload.collapsed === "false",
+      JSON.stringify(reopenedForReload),
     );
     await cdp.reload();
     await waitReady(cdp);
@@ -651,8 +781,10 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.selectors.orderOnGlobal",
+      // NAV1B — the navigation-MODE control now owns the TOP row, so it LEADS the document order;
+      // the contextual group follows in its documented Site → Location → Language order.
       JSON.stringify(englishSelectors.selectorOrder ?? null) ===
-        JSON.stringify(["site", "language", "layout"]),
+        JSON.stringify(["layout", "site", "language"]),
       JSON.stringify(englishSelectors.selectorOrder ?? null),
     );
 
@@ -873,7 +1005,7 @@ export async function run(chrome, harness) {
       rows,
       "reference.germany.selectors.orderOnGermany",
       JSON.stringify(germanyHomeSelectors.selectorOrder ?? null) ===
-        JSON.stringify(["site", "location", "language", "layout"]),
+        JSON.stringify(["layout", "site", "location", "language"]),
       JSON.stringify(germanyHomeSelectors.selectorOrder ?? null),
     );
     check(
@@ -1048,7 +1180,7 @@ export async function run(chrome, harness) {
             rows,
             `reference.germany.fourControlsAt.${name}.${surface}.${localePath}`,
             JSON.stringify(state.selectors) ===
-              JSON.stringify(["site", "location", "language", "layout"]) &&
+              JSON.stringify(["layout", "site", "location", "language"]) &&
               state.shellLayout === surface,
             JSON.stringify({ selectors: state.selectors, shellLayout: state.shellLayout }),
           );

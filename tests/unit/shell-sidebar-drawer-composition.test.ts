@@ -132,6 +132,33 @@ const base = { locale: "en", pageBindings: [], siteSet: SITE_SET };
 const allIds = (html: string) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 
 const rail = el("ul", null, el("li", null, el("a", { href: "/en/1" }, "One")));
+
+/**
+ * NAV1B — THE DISCLOSURE CONTRACT, PROVEN ON THE ENGINE.
+ *
+ * The sidebar composition's constrained-width disclosure is composed at the SIDEBAR/SHELL
+ * BOUNDARY by `ShellEngine` — never in the page header, where it used to migrate between header
+ * rows as the visitor controls changed width. These assertions therefore render the engine's
+ * composition with the props the content layer supplies (the rail's own list is what the
+ * disclosure carries: one model, one presentation).
+ */
+function disclosureHtml(resolved: ReturnType<typeof resolveUiConfig>) {
+  return renderToStaticMarkup(
+    ShellEngine({
+      resolved,
+      header: el("header", null, "Brand"),
+      main: el("main", null, "Content"),
+      footer: el("footer", null, "Footer"),
+      mainId: "main",
+      navigationLabel: "Primary navigation",
+      asideContent: rail,
+      sidebarLabels: { show: "Show navigation", hide: "Hide navigation" },
+      locale: "en",
+      pageBindings: [],
+      siteSet: SITE_SET,
+    }),
+  );
+}
 const workspace = resolveUiConfig(SIDEBAR_DRAWER_UI);
 const workspaceWithCta = resolveUiConfig({
   ...SIDEBAR_DRAWER_UI,
@@ -318,22 +345,30 @@ describe("ShellEngine — Sidebar-drawer decision trajectories (aside, drawer, s
   });
 });
 
-describe("SiteHeader — Sidebar-drawer mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
+describe("ShellEngine — Sidebar-drawer mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
   const resolvedCta = resolveUiConfig({
     ...SIDEBAR_DRAWER_UI,
     cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
   });
 
   it("CLOSED SSR: trigger present; NO dialog/CTA/focusable; single nav landmark; no duplicate ids", () => {
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
     expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain("md:hidden");
-    // Sidebar-drawer (aside composition) exposes its single ≥md nav landmark in the
-    // shell SIDEBAR, not in the header — the header itself renders none:
-    expect(html).not.toContain('aria-label="Primary navigation"');
+    // NAV1B — the HOST band carries the composition's width gate, not the trigger: the sidebar
+    // composition's rail covers ≥md, so its disclosure is presented below `md` only.
+    expect(html).toContain("ui-shell-sidebar-disclosure md:hidden");
+    // …and the disclosure is composed at the SIDEBAR boundary (below the header region), never
+    // inside the page header.
+    expect(html.indexOf("ui-site-header")).toBeLessThan(html.indexOf("ui-shell-sidebar-disclosure"));
+    expect(html.indexOf("ui-shell-sidebar-disclosure")).toBeLessThan(html.indexOf("shell-sidebar-desktop-rail"));
+    // Sidebar-drawer (aside composition) exposes its ≥md nav landmarks in the shell SIDEBAR —
+    // the two mutually exclusive rail bands — and the page header composes none:
+    expect((html.match(/aria-label="Primary navigation"/g) ?? [])).toHaveLength(2);
+    expect(html).toContain('id="shell-sidebar-desktop-rail"');
+    expect(html).toContain('id="shell-sidebar-tablet-rail"');
     // Closed drawer contributes no dialog, no CTA, no drawer links/focusables:
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
@@ -344,7 +379,7 @@ describe("SiteHeader — Sidebar-drawer mobile drawer (navigation only; P6-3C: n
 
   it("P6-3C — OPEN drawer (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
     // The ONE Book Now lives in the shell's top region (engine-composed), so the
     // open drawer must not expose a second, sidebar-owned action.
@@ -363,7 +398,7 @@ describe("SiteHeader — Sidebar-drawer mobile drawer (navigation only; P6-3C: n
       ...SIDEBAR_DRAWER_UI,
       cta: { enabled: true, action: "book", label: "Book Now" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedNoHref }));
+    const html = disclosureHtml(resolvedNoHref);
     expect(html).toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
   });

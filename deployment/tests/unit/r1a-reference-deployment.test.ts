@@ -220,9 +220,14 @@ describe("the shared sidebar disclosure contract (source-level guard)", () => {
 
   it("insets the disclosed control's content through a token — padding, never a transform", () => {
     expect(css).toContain("--ui-sidebar-control-inset:");
-    expect(css).toMatch(
-      /\.ui-shell-sidebar \.ui-sidebar-toggle \{[\s\S]*?padding-inline: var\(--ui-sidebar-control-inset\);/,
-    );
+    // NAV1D — the token's owner is the ONE `.ui-sidebar-toggle` rule (the sidebar-scoped override
+    // that re-anchored the box was removed together with its negative margin: it was the cause of
+    // the rail's asymmetric padding and of the clipped Show/Hide focus ring, and the token usage
+    // moved here so the contract is stated exactly once, for every state). The selector is anchored
+    // at a line start, so the collapse-state override can never be mistaken for it.
+    const controlRule = /\n\.ui-sidebar-toggle \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(controlRule).toContain("padding-inline: var(--ui-sidebar-control-inset);");
+    expect(css).not.toMatch(/\n\.ui-shell-sidebar \.ui-sidebar-toggle \{/);
     expect(css).not.toMatch(/\.ui-sidebar-toggle\s*\{[^}]*transform:/);
   });
 

@@ -10,7 +10,10 @@
  *     values, and "no usable preference" for a missing key, an unrecognized value or blocked storage;
  *   · the preference is a VISITOR preference, never route state — the key carries no route, site, locale
  *     or location, and the modules that own the state import no routing API and read no location, so no
- *     navigation can set, reset or even observe the rail's state;
+ *     route, remount or breakpoint can set, reset or even observe the rail's state. NAV1D-V2 adds the
+ *     ONE deliberate exception, and it is not a route state either: SELECTING a destination inside the
+ *     rail dismisses the expanded overlay (the rail returns to CLOSED) through the same visitor
+ *     preference and the same single writer the disclosure control uses;
  *   · the canonical no-preference state of a composed rail is CLOSED (the shell engine declares it), and
  *     the stored preference is adopted BEFORE THE FIRST PAINT, which is what makes the repair invisible
  *     rather than a visible correction after hydration.
@@ -192,15 +195,23 @@ describe("UI1 — navigation cannot own the sidebar state (architectural boundar
     expect(OWNERS["components/shell/shell-engine.tsx"]).not.toContain("localStorage");
   });
 
-  it("changes the state from the disclosure control ONLY, and persists exactly there", () => {
+  it("changes the state through ONE writer — the disclosure control and a navigation selection", () => {
     const sidebar = OWNERS["components/ui/sidebar.tsx"];
-    // The one writer, inside the one toggle handler, wired to the one control.
+    // The one writer, inside the one function that records the preference.
     expect(sidebar.match(/storeSidebarPreference\(/g) ?? []).toHaveLength(1);
-    expect(sidebar).toMatch(/function toggle\(\): void \{[\s\S]*?storeSidebarPreference\(/);
+    expect(sidebar).toMatch(/function apply\(next: DisclosureState\): void \{[\s\S]*?storeSidebarPreference\(/);
+    // The visitor's control remains one caller of it, wired to the one control…
+    expect(sidebar).toMatch(/function toggle\(\): void \{[\s\S]*?apply\(disclosureReducer\(/);
     expect(sidebar).toContain("onClick={toggle}");
+    // …and NAV1D-V2 adds the second caller: selecting a destination inside the rail dismisses the
+    // expanded OVERLAY, through the SAME writer. It is wired to the rail's own panel (never to the
+    // nav items, which stay plain data + href), and it is not derived from the route.
+    expect(sidebar).toContain('className="ui-sidebar-rail-panel" onClick={closeForSelection}');
+    expect(sidebar).toMatch(/function closeForSelection\(event: MouseEvent<HTMLDivElement>\): void \{[\s\S]*?apply\(DISCLOSURE_CLOSED\)/);
+    expect(sidebar).toMatch(/closeForSelection\(event[\s\S]*?closest\("a\[href\]"\)/);
   });
 
-  it("keeps navigation items inert with respect to the state (a click navigates, nothing else)", () => {
+  it("keeps navigation ITEMS inert with respect to the state (the rail's own panel owns the close)", () => {
     const navItem = readSource("components/ui/nav-item.tsx");
     for (const forbidden of ["ui-sidebar-toggle", "setState", "storeSidebarPreference", "toggle("]) {
       expect(navItem, `nav-item.tsx must not contain ${forbidden}`).not.toContain(forbidden);

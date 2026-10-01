@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 
 import { DisclosureIcon } from "./disclosure-icon";
 import {
@@ -164,8 +164,12 @@ function initialDisclosureState(collapsible: boolean, collapsed: boolean): Discl
  * route, page, site, locale or content state. It is remembered in browser-local storage
  * (`./sidebar-preference`: key `foundation.sidebar`, values `open`/`closed`) and adopted once per
  * mount BEFORE the first paint, so a document reload and a client-side navigation both arrive in the
- * state the visitor left behind. ONLY the toggle changes it: a navigation click navigates, and never
- * opens, closes or resets the rail. The canonical no-preference state is CLOSED, declared by the
+ * state the visitor left behind. NAV1D-V2 — TWO ACTIONS change it, and both go through ONE writer and
+ * ONE state owner (see `apply`): the visitor's own disclosure control, and SELECTING a destination
+ * inside the rail, which dismisses the expanded OVERLAY so the destination is immediately visible
+ * beside the collapsed sticky rail. The state is still never DERIVED from the route: no route, no
+ * remount and no breakpoint opens, closes or resets the rail, and the close-on-selection path reads no
+ * routing API. The canonical no-preference state is CLOSED, declared by the
  * composer (the shell engine) rather than inferred here.
  *
  * PERSISTENT NAVIGATION — the rail's CONTENT COLUMN (this component's
@@ -276,14 +280,51 @@ export function Sidebar({
   }, [collapsible]);
 
   /**
-   * The disclosure is changed by ITS OWN CONTROL and by nothing else: no route change, no navigation
-   * and no remount may open, close or reset the rail (a navigation click is `navigate(target)`).
-   * Toggling records the visitor's choice.
+   * THE ONE WRITER OF THE RAIL'S PRESENTATION.
+   *
+   * Every change to the rail's state goes through here — the visitor's disclosure control and (NAV1D-V2)
+   * a navigation SELECTION inside the rail. There is still exactly one state owner (this component's
+   * `state`, backed by the visitor's `foundation.sidebar` preference) and exactly one place that records
+   * it (`storeSidebarPreference`), so a second writer can never become a second authority.
    */
-  function toggle(): void {
-    const next = disclosureReducer(state, { type: "toggle" });
+  function apply(next: DisclosureState): void {
     setState(next);
     if (collapsible) storeSidebarPreference(preferenceOf(next));
+  }
+
+  /**
+   * The disclosure control's own action: it flips the rail and records the visitor's choice.
+   */
+  function toggle(): void {
+    apply(disclosureReducer(state, { type: "toggle" }));
+  }
+
+  /**
+   * NAV1D-V2 — SELECTING A DESTINATION DISMISSES THE OPEN RAIL.
+   *
+   * The expanded rail is an OVERLAY (globals.css): it covers the page rather than shrinking it, so the
+   * moment the visitor picks a destination the overlay's job is done — the rail returns to its CLOSED,
+   * sticky state and the destination is immediately visible beside it. That is a NAVIGATION SELECTION
+   * dismissing a presentation, decided by the rail's own state owner: it is NOT route state, it is not
+   * driven by a breakpoint, and it does not depend on whether the destination differs from the current
+   * page (selecting the page you are already on closes the overlay too, and no route change is needed to
+   * observe it).
+   *
+   * WHY AN ACTIVATION IS ENOUGH, AND WHY IT IS DELEGATED HERE. Every ordinary way of choosing a link
+   * ends in a click event on the anchor — pointer activation, Enter on a focused link, and assistive
+   * technology alike — so one delegated listener covers all of them without a per-item handler, without
+   * reaching into the composer's navigation markup, and without importing any routing API (the state
+   * modules stay free of the router entirely). `NavItem` remains plain data + href: the close belongs to
+   * the RAIL that owns the state, never to the item.
+   *
+   * The rail's own Show/Hide control is NOT inside this panel, so it is unaffected: hiding navigation
+   * still closes the rail without navigating, exactly as before.
+   */
+  function closeForSelection(event: MouseEvent<HTMLDivElement>): void {
+    if (!collapsible || state !== DISCLOSURE_OPEN) return;
+    const target = event.target as Element | null;
+    if (!target || typeof target.closest !== "function" || !target.closest("a[href]")) return;
+    apply(DISCLOSURE_CLOSED);
   }
 
   // P6-1 — the control follows the STATE: closed → the "show" (open) control; open → the "hide" (close)
@@ -378,7 +419,7 @@ export function Sidebar({
             visually hidden (but kept for assistive tech) only for icon-bearing
             items; icon-less items keep their labels so no destination becomes
             invisible/inaccessible while nav icons are unconfigured. */}
-        <div id={`${id}-panel`} className="ui-sidebar-rail-panel">
+        <div id={`${id}-panel`} className="ui-sidebar-rail-panel" onClick={closeForSelection}>
           {children}
         </div>
       </div>

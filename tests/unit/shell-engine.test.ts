@@ -82,7 +82,9 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
     const html = renderToStaticMarkup(
       ShellEngine({ resolved, header, main, footer, mainId: "main", ...base }),
     );
-    expect(html).toContain('class="flex flex-col flex-1"');
+    // NAV1D-V2 — the frame carries the shell page layout's ONE marker (`ui-shell-frame`), which owns
+    // the deliberate minimum layout width.
+    expect(html).toContain('class="ui-shell-frame flex flex-col flex-1"');
   });
 
   it("renders NO CTA by default (cta.enabled=false — Foundation never invents one)", () => {
@@ -287,7 +289,11 @@ describe("ShellMobileNav (client) — deterministic SSR states + dialog semantic
     const html = renderToStaticMarkup(
       ShellMobileNav({ pattern: "drawer", triggerLabel: "Menu", id: "m", children: items }),
     );
-    expect(html).toContain("md:hidden");
+    // NAV1B — the trigger carries NO width gate of its own: its HOST owns the gate (the
+    // composition's band), so the SAME control serves the sidebar's constrained band and the
+    // bar's More drawer without a breakpoint of its own to drift.
+    expect(html).not.toContain("md:hidden");
+    expect(html).toContain("ui-shell-mobile-nav-trigger");
     expect(html).toContain('aria-expanded="false"');
     // B1: the trigger owns the deterministic id; aria-controls targets the
     // `${id}-panel` id that exists only once the dialog is open.

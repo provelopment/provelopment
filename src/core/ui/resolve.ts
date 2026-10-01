@@ -76,8 +76,9 @@ export interface UiConfigInput {
   /**
    * N2 — the optional visitor-selectable shell layout presentation. Absent (or
    * `enabled: false`) → the shell composes exactly one layout and no switcher is
-   * rendered. A layout is a preset of `navigation.desktop`/`navigation.tablet`, so
-   * configuring those two leaves explicitly AND enabling the switcher is refused by
+   * rendered. A layout is a preset of the THREE viewport navigation leaves
+   * (`navigation.desktop` / `navigation.tablet` / `navigation.mobile`), so
+   * configuring any of them explicitly AND enabling the switcher is refused by
    * the configuration schema (they would contradict each other).
    */
   readonly layoutSwitcher?: {
@@ -325,10 +326,14 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
   // module inject nothing.
   //
   // N2 — the ONE exception is the optional LAYOUT SWITCHER, which the adopter
-  // enables explicitly. When it is enabled, `navigation.desktop`/`tablet` are not
-  // read as leaves at all: they ARE the default layout's pattern values (the
-  // schema refuses configuring both, so there is no contradiction to resolve) and
-  // the other layout is composed additionally. Everything else resolves as before.
+  // enables explicitly. When it is enabled, `navigation.desktop`/`tablet`/`mobile`
+  // are not read as leaves at all: they ARE the default layout's pattern values (the
+  // schema refuses configuring any of them, so there is no contradiction to resolve)
+  // and the other layout is composed additionally. Everything else resolves as before.
+  //
+  // NAV1A — the MOBILE leaf is one of those pattern values. A layout describes the
+  // whole responsive presentation of its mode, so the configured mode survives every
+  // viewport instead of collapsing into one shared mobile architecture below `md`.
   const switcherEnabled = raw.layoutSwitcher?.enabled === true;
   const defaultLayout: ShellLayout = raw.layoutSwitcher?.default ?? FOUNDATION_UI_DEFAULTS.layoutSwitcher.default;
   const layoutPatterns = SHELL_LAYOUT_PATTERNS[defaultLayout];
@@ -351,7 +356,9 @@ export function resolveUiConfig(raw: UiConfigInput): ResolvedUiConfig {
       tablet: switcherEnabled
         ? layoutPatterns.tablet
         : resolveLeaf(raw.navigation?.tablet, FOUNDATION_UI_DEFAULTS.navigation.tablet),
-      mobile: resolveLeaf(raw.navigation?.mobile, FOUNDATION_UI_DEFAULTS.navigation.mobile),
+      mobile: switcherEnabled
+        ? layoutPatterns.mobile
+        : resolveLeaf(raw.navigation?.mobile, FOUNDATION_UI_DEFAULTS.navigation.mobile),
       // P5-5 — sidebar/top/bottom presentation values are adopter configuration
       // with Foundation defaults (the canonical composition leaves them open).
       sidebar: {

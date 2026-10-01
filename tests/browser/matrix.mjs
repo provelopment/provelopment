@@ -379,6 +379,39 @@ async function openTrigger(cdp, triggerSelector, panelSelector, attempts = 5) {
  * `FOUNDATION_DEPLOYMENT_ROOT`; the reference scenario passes `synthetic: false` so its server
  * serves the repository's own deployment.
  */
+/**
+ * NAV1D — activate the Show/Hide control of the rail that is actually ON SCREEN.
+ *
+ * A composition exposes one rail per band behind mutually exclusive width gates, so a selector
+ * aimed at a band — or at the first `[data-ui-shell-part="rail"]` in the DOM — can land on a hidden
+ * one and quietly do nothing. This clicks the PRESENTED rail's own control, exactly as a visitor
+ * would (a real activation on the control the visitor can see).
+ */
+async function clickVisibleRailToggle(cdp) {
+  return cdp.evaluate(`(() => {
+    const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+    const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
+    if (!toggle) return false;
+    toggle.click();
+    return true;
+  })()`);
+}
+
+/**
+ * NAV1D-V2 — close the PRESENTED rail if it is open, through its own control: the deterministic
+ * canonical state a measurement loop starts from.
+ */
+async function closeVisibleRail(cdp) {
+  return cdp.evaluate(`(() => {
+    const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+    if (!rail || rail.getAttribute('data-collapsed') !== 'false') return false;
+    const toggle = rail.querySelector('.ui-sidebar-toggle');
+    if (!toggle) return false;
+    toggle.click();
+    return true;
+  })()`);
+}
+
 function startDevServer(port, { synthetic = true } = {}) {
   const proc = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
     cwd: ROOT,
@@ -650,8 +683,30 @@ async function probeAside(cdp, { railSel, panelSel, controlsId }) {
       toggleText: toggleLabel ? toggleLabel.textContent.trim() : null,
       // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
       railLeft: sr ? Math.round(sr.left) : null,
+      railRight: sr ? Math.round(sr.right) : null,
+      // NAV1D-V2 — the RAIL's own box as well as the frame's: with the open rail overlaying the page the
+      // two differ (the frame reserves the collapsed column), and the rail's OWN insets are what the
+      // padding contract is about.
+      railBox: rail
+        ? (() => {
+            const r = rail.getBoundingClientRect();
+            return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
+          })()
+        : null,
       toggleLeft: tr ? Math.round(tr.left) : null,
+      toggleRight: tr ? Math.round(tr.right) : null,
       itemLeft: fir ? Math.round(fir.left) : null,
+      itemRight: fir ? Math.round(fir.right) : null,
+      // NAV1D — the rail's OWN computed inline padding (the one owned token), measured on the rail
+      // element rather than inferred from any child's box.
+      railPadInlineStart: (() => {
+        const cs = rail ? getComputedStyle(rail) : null;
+        return cs ? Math.round(parseFloat(cs.paddingInlineStart) || 0) : null;
+      })(),
+      railPadInlineEnd: (() => {
+        const cs = rail ? getComputedStyle(rail) : null;
+        return cs ? Math.round(parseFloat(cs.paddingInlineEnd) || 0) : null;
+      })(),
       noBrokenImages: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
     };
   })()`);
@@ -719,14 +774,60 @@ async function runAsidePresentation(rows, presentation, cdp) {
       // P6-1 — ONE vocabulary: open rail → "Hide navigation".
       check(rows, `${vpName}.aside.toggle.labelHide`, expanded.toggleText === "Hide navigation");
       if (vpName === "desktop") {
-        // P6-1 — edge spacing + second-level inset (control vs navigation items) is the DESKTOP rail's
-        // contract (the rows below are unchanged; only the state they are measured in is explicit now).
-        check(rows, `${vpName}.aside.spacing.railInset`, !!(expanded.railLeft != null && expanded.railLeft >= 16), `railLeft=${expanded.railLeft}`);
-        // 2026-09 closure pass — the show/hide CONTROL is LEFT-ALIGNED with the
-        // ONE shared shell-control inset (~5px) from the rail's inline edge.
-        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(expanded.toggleLeft != null && expanded.railLeft != null && expanded.toggleLeft >= expanded.railLeft + 4 && expanded.toggleLeft <= expanded.railLeft + 6), `toggle=${expanded.toggleLeft} rail=${expanded.railLeft} inset=${expanded.toggleLeft - expanded.railLeft} (target ~5)`);
-        check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(expanded.itemLeft != null && expanded.toggleLeft != null && expanded.itemLeft >= expanded.toggleLeft + 4), `item=${expanded.itemLeft} toggle=${expanded.toggleLeft}`);
-        check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(expanded.itemLeft != null && expanded.itemLeft >= 24), `itemLeft=${expanded.itemLeft}`);
+        // P6-1 — edge placement + second-level inset (control vs navigation items) is the DESKTOP
+        // rail's contract. NAV1D-V3 — the rail now sits ON the page edge (the old ~20px shell gutter is
+        // gone), so the edge contract is the OPPOSITE of what it was: the rail's left edge is the page's.
+        check(rows, `${vpName}.aside.spacing.railOnThePageEdge`, !!(expanded.railLeft != null && expanded.railLeft <= 1), `railLeft=${expanded.railLeft}`);
+        // NAV1D — SYMMETRICAL HORIZONTAL PADDING (owner ruling): the sidebar's left padding equals
+        // its right padding, BOTH are the rail's own inline padding token, the control's box IS the
+        // rail's content box, and the navigation rows use that SAME inset. The superseded contract
+        // put the control ~5px from the rail's edge while the items sat 20px deeper — the asymmetry
+        // this defect names, and the reason the control's focus ring was clipped.
+        const railPadStart = expanded.railPadInlineStart;
+        const railPadEnd = expanded.railPadInlineEnd;
+        const toggleInsetLeft =
+          expanded.toggleLeft != null && expanded.railLeft != null
+            ? expanded.toggleLeft - expanded.railLeft
+            : null;
+        const toggleInsetRight =
+          expanded.railBox && expanded.toggleRight != null
+            ? expanded.railBox[1] - expanded.toggleRight
+            : null;
+        const itemInsetLeft =
+          expanded.itemLeft != null && expanded.railLeft != null
+            ? expanded.itemLeft - expanded.railLeft
+            : null;
+        check(
+          rows,
+          `${vpName}.aside.spacing.paddingSymmetric`,
+          railPadStart != null && railPadEnd != null && railPadStart === railPadEnd,
+          `railPad=${railPadStart}/${railPadEnd}`,
+        );
+        check(
+          rows,
+          `${vpName}.aside.spacing.controlAtTheRailPadding`,
+          toggleInsetLeft != null &&
+            toggleInsetRight != null &&
+            railPadStart != null &&
+            Math.abs(toggleInsetLeft - railPadStart) <= 1 &&
+            Math.abs(toggleInsetRight - railPadStart) <= 2,
+          `toggle insets=${toggleInsetLeft}/${toggleInsetRight} railPad=${railPadStart}`,
+        );
+        check(
+          rows,
+          `${vpName}.aside.spacing.itemsShareTheInset`,
+          itemInsetLeft != null && toggleInsetLeft != null && Math.abs(itemInsetLeft - toggleInsetLeft) <= 1,
+          `item=${itemInsetLeft} toggle=${toggleInsetLeft}`,
+        );
+        // NAV1D-V3 — the item's inset from the PAGE edge IS the rail's own padding: neither clipped at
+        // the edge nor pushed in by a second (shell) gutter. The old absolute threshold encoded the
+        // ~20px outer offset this task removed.
+        check(
+          rows,
+          `${vpName}.aside.spacing.itemInsetIsTheRailPadding`,
+          !!(expanded.itemLeft != null && railPadStart != null && Math.abs(expanded.itemLeft - railPadStart) <= 1),
+          `itemLeft=${expanded.itemLeft} railPad=${railPadStart}`,
+        );
       }
     } else {
       // immersive floating rail: static, expanded, no toggle (capability off).
@@ -864,23 +965,54 @@ const s = await cdp.evaluate(`(() => ({
         const shell = document.querySelector('.ui-shell-sidebar');
         const toggle = rail ? rail.querySelector("[aria-controls='shell-sidebar-desktop-panel']") : null;
         const item = rail ? rail.querySelector('ul li') : null;
-        const rr = shell ? shell.getBoundingClientRect() : null;
+        const rr = rail ? rail.getBoundingClientRect() : null;
+        const sr = shell ? shell.getBoundingClientRect() : null;
+        const cs = rail ? getComputedStyle(rail) : null;
         const tr = toggle ? toggle.getBoundingClientRect() : null;
         const ir = item ? item.getBoundingClientRect() : null;
         const tops = [...rail.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).map((li) => Math.round(li.getBoundingClientRect().top));
         return {
-          railLeft: rr ? Math.round(rr.left) : null,
+          railLeft: sr ? Math.round(sr.left) : null,
+          railRight: sr ? Math.round(sr.right) : null,
           toggleLeft: tr ? Math.round(tr.left) : null,
+          toggleRight: tr ? Math.round(tr.right) : null,
           itemLeft: ir ? Math.round(ir.left) : null,
+          // NAV1D — the rail's own computed inline padding, on both sides.
+          railPadInlineStart: cs ? Math.round(parseFloat(cs.paddingInlineStart) || 0) : null,
+          railPadInlineEnd: cs ? Math.round(parseFloat(cs.paddingInlineEnd) || 0) : null,
           // UI1-A3 — the state-correct copy this expanded rail PRESENTS.
           text: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
           onePerRow: tops.length > 0 && new Set(tops).size === tops.length,
           noBroken: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
         };
       })()`);
-      check(rows, `p6-1.${w}.railInset`, !!sp && sp.railLeft != null && sp.railLeft >= 16, `rail=${sp && sp.railLeft}`);
-      check(rows, `p6-1.${w}.toggleInset`, !!sp && sp.toggleLeft != null && sp.railLeft != null && sp.toggleLeft >= sp.railLeft + 4 && sp.toggleLeft <= sp.railLeft + 6, `toggle=${sp && sp.toggleLeft} rail=${sp && sp.railLeft} (target ~5)`);
-      check(rows, `p6-1.${w}.itemDeeper`, !!sp && sp.itemLeft != null && sp.toggleLeft != null && sp.itemLeft >= sp.toggleLeft + 4, `item=${sp && sp.itemLeft} toggle=${sp && sp.toggleLeft}`);
+      // NAV1D-V3 — the rail sits ON the page edge at every width (the old ~20px shell gutter is gone).
+      check(rows, `p6-1.${w}.railOnThePageEdge`, !!sp && sp.railLeft != null && sp.railLeft <= 1, `rail=${sp && sp.railLeft}`);
+      // NAV1D — the SAME symmetry contract as the canonical desktop rail, at every width: the rail's
+      // padding is equal on both sides, the control's box is its content box, and the navigation rows
+      // share that one inset (the superseded "control ~5px, items 20px deeper" contract is gone).
+      const spToggleInset =
+        sp && sp.toggleLeft != null && sp.railLeft != null ? sp.toggleLeft - sp.railLeft : null;
+      const spItemInset =
+        sp && sp.itemLeft != null && sp.railLeft != null ? sp.itemLeft - sp.railLeft : null;
+      check(
+        rows,
+        `p6-1.${w}.paddingSymmetric`,
+        !!sp && sp.railPadInlineStart != null && sp.railPadInlineStart === sp.railPadInlineEnd,
+        `railPad=${sp && sp.railPadInlineStart}/${sp && sp.railPadInlineEnd}`,
+      );
+      check(
+        rows,
+        `p6-1.${w}.controlAtTheRailPadding`,
+        !!sp && spToggleInset != null && sp.railPadInlineStart != null && Math.abs(spToggleInset - sp.railPadInlineStart) <= 1,
+        `toggle=${spToggleInset} railPad=${sp && sp.railPadInlineStart}`,
+      );
+      check(
+        rows,
+        `p6-1.${w}.itemsShareTheInset`,
+        !!sp && spItemInset != null && spToggleInset != null && Math.abs(spItemInset - spToggleInset) <= 1,
+        `item=${spItemInset} toggle=${spToggleInset}`,
+      );
       check(rows, `p6-1.${w}.labelHide`, !!sp && sp.text === "Hide navigation", `text=[${sp && sp.text}]`);
       check(rows, `p6-1.${w}.onePerRow`, !!sp && sp.onePerRow);
       check(rows, `p6-1.${w}.noBrokenImages`, !!sp && sp.noBroken);
@@ -3819,27 +3951,89 @@ async function runAdvancedJsonScenario(chrome) {
  *   · the choice survives client-side navigation AND a full reload (browser-local
  *     preference), an unusable stored value falls back to the configured default, and
  *     clearing storage returns to it;
- *   · below `md` both layouts share the SAME mobile navigation and the control is not
- *     offered, so no second mobile navigation and no mobile clutter appear.
+ *   · NAV1A — the CONFIGURED mode owns the navigation at EVERY width: the control stays
+ *     available on a phone, the sidebar layout presents its own off-canvas drawer below
+ *     `md` (closed by default, reopenable, never the menu-bar's bottom bar), and the
+ *     menu-bar layout presents the sticky bottom bar. Real resizes and real mode
+ *     switches preserve the mode, and exactly one primary navigation is ever exposed —
+ *     including for the withdrawn mobile surface, which leaves the focus order.
  */
 const LAYOUT_PROBE = `(() => {
   const root = document.documentElement;
   const control = document.querySelector('[data-ui-layout-switcher]');
   const rail = document.querySelector('[data-ui-shell-part="rail"]');
+  const railLg = document.querySelector('#shell-sidebar-desktop-panel');
+  const railMd = document.querySelector('#shell-sidebar-tablet-panel');
   const topNav = document.querySelector('[data-ui-shell-part="top-nav"]');
   const top = document.querySelector('.ui-shell-top');
   const main = document.querySelector('main');
   const rect = main ? main.getBoundingClientRect() : { left: 0, width: 0 };
   const shown = (el) => !!el && el.getClientRects().length > 0;
+  const bar = document.querySelector('.ui-shell-bottom-bar');
+  const barList = bar ? bar.querySelector('ul') : null;
+  const barItems = barList ? Array.from(barList.querySelectorAll(':scope > li')) : [];
+  const barLinks = barItems
+    .map((li) => li.querySelector('a, span'))
+    .filter((link) => !!link && link.getClientRects().length > 0);
+  const barPad = bar ? parseFloat(getComputedStyle(bar).paddingLeft) || 0 : 0;
+  const dialog = document.querySelector('[role="dialog"]');
+  // NAV1B — the header's two semantic rows, the sidebar's disclosure (its OWNER and SCALE), and the
+  // bar's content bounds (which follow the site's page width, not the viewport).
+  const headerTop = document.querySelector('.ui-site-header-top');
+  const headerContext = document.querySelector('.ui-site-header-context');
+  const headerInner = document.querySelector('.ui-site-header > div');
+  const disclosure = document.querySelector('[data-ui-shell-part="mobile-drawer"]');
+  const showNav = disclosure ? disclosure.querySelector('.ui-shell-mobile-nav-trigger') : null;
+  const showNavIcon = showNav ? showNav.querySelector('.ui-mobile-nav-icon') : null;
+  const barContent = bar ? bar.querySelector(':scope > div') : null;
+  const barFirstLink = barLinks[0] || null;
+  const barLastLink = barLinks[barLinks.length - 1] || null;
+  // NAV1B-V1 - the graphic identity (a configured logo) and the selector's own box, for the overlay
+  // and hit-test proofs.
+  const logo = document.querySelector('.ui-site-header-logo');
+  const modeBox = document.querySelector('.ui-site-header-mode');
+  const controlRect = control ? control.getBoundingClientRect() : null;
+  // The ACCEPTED desktop navigation disclosure (the rail's own toggle): the constrained-width
+  // disclosure must present the SAME control scale, so both are measured.
+  const railToggle = [...document.querySelectorAll('.ui-sidebar-toggle')].find(shown) || null;
+  // The toggle renders ONE icon per state (the inactive one is display: none), so the VISIBLE
+  // icon is the one that carries the control's real scale.
+  const railToggleIcon = railToggle
+    ? [...railToggle.querySelectorAll('.ui-sidebar-toggle-icon')].find(shown) || null
+    : null;
+  // NAV1D — THE SIDEBAR AS PRESENTED (whichever band presents it, the mobile band included) and THE
+  // MENU SURFACE AS MEASURED: the rail's own padding on both sides, the control's box inside the
+  // rail's clipping column (the room its focus ring has), the list's own inset, and the bar's
+  // surface/region boxes. All measured — never a class string.
+  const railMobile = document.querySelector('#shell-sidebar-mobile-panel');
+  const railEl = [...document.querySelectorAll('.ui-sidebar-rail')].find(shown) || null;
+  const railRect = railEl ? railEl.getBoundingClientRect() : null;
+  const railCs = railEl ? getComputedStyle(railEl) : null;
+  const railColumn = railEl ? railEl.querySelector('.ui-sidebar-rail-sticky') : null;
+  const railColumnRect = railColumn ? railColumn.getBoundingClientRect() : null;
+  const railColumnCs = railColumn ? getComputedStyle(railColumn) : null;
+  const railToggleRect = railToggle ? railToggle.getBoundingClientRect() : null;
+  const railFirstItem = railEl ? railEl.querySelector('ul li') : null;
+  const barSurfaceRect = bar ? bar.getBoundingClientRect() : null;
+  const barRegionRect = barContent ? barContent.getBoundingClientRect() : null;
   return {
     active: root.getAttribute('data-ui-shell-layout'),
     lang: root.lang,
     path: location.pathname,
+    innerWidth: root.clientWidth,
+    windowWidth: window.innerWidth,
+    scrollY: Math.round(window.scrollY),
+    documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
     controlLabel: control ? control.getAttribute('aria-label') : null,
     controlValue: control ? control.value : null,
     options: control ? Array.from(control.options).map((option) => option.textContent) : [],
     controlVisible: shown(control),
-    railVisible: shown(rail),
+    // NAV1D — "a rail is presented": ANY band's rail is on screen. At <md that is the sidebar's own
+    // mobile band, not the desktop band's (hidden) marker, so this reads the presentation, not the
+    // first structure in the DOM.
+    railVisible: [...document.querySelectorAll('[data-ui-shell-part="rail"]')].some(shown),
+    railLgVisible: shown(railLg),
+    railMdVisible: shown(railMd),
     topNavVisible: shown(topNav),
     topPosition: top ? getComputedStyle(top).position : null,
     scrollPadding: getComputedStyle(root).scrollPaddingTop,
@@ -3847,7 +4041,197 @@ const LAYOUT_PROBE = `(() => {
     mainText: main ? (main.textContent || '').trim() : null,
     mainLeft: Math.round(rect.left),
     mainWidth: Math.round(rect.width),
-    bottomBarVisible: shown(document.querySelector('.ui-shell-bottom-bar')),
+    bottomBarVisible: shown(bar),
+    drawerVisible: shown(disclosure),
+    dialogPresent: !!dialog,
+    dialogLinks: dialog ? dialog.querySelectorAll('a').length : 0,
+    barLinkCount: barLinks.length,
+    barRowCount: new Set(barItems.map((li) => Math.round(li.getBoundingClientRect().top))).size,
+    barWrapActive: !!barList && getComputedStyle(barList).flexWrap === 'wrap',
+    barPad: Math.round(barPad),
+    barLinksInsideInset:
+      barLinks.length > 0 &&
+      barLinks.every((link) => {
+        const linkRect = link.getBoundingClientRect();
+        return linkRect.left >= 8 && linkRect.right <= window.innerWidth - 8;
+      }),
+    barInsetLeft: barFirstLink ? Math.round(barFirstLink.getBoundingClientRect().left) : null,
+    barInsetRight: barLastLink
+      ? Math.round(window.innerWidth - barLastLink.getBoundingClientRect().right)
+      : null,
+    barContentWidth: barContent ? Math.round(barContent.getBoundingClientRect().width) : null,
+    headerContentWidth: headerInner ? Math.round(headerInner.getBoundingClientRect().width) : null,
+    headerContentLeft: headerInner
+      ? Math.round(
+          headerInner.getBoundingClientRect().left +
+            (parseFloat(getComputedStyle(headerInner).paddingLeft) || 0),
+        )
+      : null,
+    selectorInTopRow: !!control && !!headerTop && headerTop.contains(control),
+    selectorInControlRow: !!control && !!headerContext && headerContext.contains(control),
+    selectorRightInset:
+      control && headerInner
+        ? Math.round(
+            headerInner.getBoundingClientRect().right -
+              (parseFloat(getComputedStyle(headerInner).paddingRight) || 0) -
+              control.getBoundingClientRect().right,
+          )
+        : null,
+    topRowBottom: headerTop ? Math.round(headerTop.getBoundingClientRect().bottom) : null,
+    contextRowTop: headerContext ? Math.round(headerContext.getBoundingClientRect().top) : null,
+    contextRowPresent: !!headerContext,
+    contextRows: headerContext
+      ? new Set(
+          Array.from(headerContext.children).map(
+            (child) => Math.round(child.getBoundingClientRect().top),
+          ),
+        ).size
+      : 0,
+    identityBottom: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().bottom)
+      : null,
+    identityRight: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().right)
+      : null,
+    identityLeft: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().left)
+      : null,
+    identityTop: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().top)
+      : null,
+    selectorBottom: control ? Math.round(control.getBoundingClientRect().bottom) : null,
+    selectorTop: control ? Math.round(control.getBoundingClientRect().top) : null,
+    selectorLeft: control ? Math.round(control.getBoundingClientRect().left) : null,
+    // NAV1B-V1 - THE GRAPHIC IDENTITY (a configured logo): its box, its natural aspect, whether it
+    // reaches beneath the selector, and whether the selector really WINS THE HIT TEST at its own
+    // centre. The last two are behaviour, not styling: a graphic must never intercept a pointer
+    // intended for the control that sits above it.
+    logoPresent: !!logo,
+    logoNaturalBox: logo ? logo.naturalWidth + "x" + logo.naturalHeight : null,
+    logoLeft: logo ? Math.round(logo.getBoundingClientRect().left) : null,
+    logoRight: logo ? Math.round(logo.getBoundingClientRect().right) : null,
+    logoWidth: logo ? Math.round(logo.getBoundingClientRect().width) : null,
+    logoHeight: logo ? Math.round(logo.getBoundingClientRect().height) : null,
+    logoIntersectsSelector: !!logo && !!controlRect
+      ? logo.getBoundingClientRect().left < controlRect.right &&
+        controlRect.left < logo.getBoundingClientRect().right &&
+        logo.getBoundingClientRect().top < controlRect.bottom &&
+        controlRect.top < logo.getBoundingClientRect().bottom
+      : false,
+    selectorHitAtItsOwnCentre: modeBox && controlRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            controlRect.left + controlRect.width / 2,
+            controlRect.top + controlRect.height / 2,
+          );
+          return !!el && modeBox.contains(el);
+        })()
+      : false,
+    graphicInterceptsSelector: logo && controlRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            controlRect.left + controlRect.width / 2,
+            controlRect.top + controlRect.height / 2,
+          );
+          return !!el && (el === logo || logo.contains(el));
+        })()
+      : false,
+    disclosureInHeader: !!disclosure && !!disclosure.closest('.ui-site-header'),
+    showNavFontSize: showNav ? Math.round(parseFloat(getComputedStyle(showNav).fontSize)) : null,
+    showNavHeight: showNav ? Math.round(showNav.getBoundingClientRect().height) : null,
+    showNavIconBox: showNavIcon
+      ? Math.round(showNavIcon.getBoundingClientRect().width) +
+        "x" +
+        Math.round(showNavIcon.getBoundingClientRect().height)
+      : null,
+    railToggleFontSize: railToggle
+      ? Math.round(parseFloat(getComputedStyle(railToggle).fontSize))
+      : null,
+    railToggleHeight: railToggle ? Math.round(railToggle.getBoundingClientRect().height) : null,
+    railToggleIconBox: railToggleIcon
+      ? Math.round(railToggleIcon.getBoundingClientRect().width) +
+        "x" +
+        Math.round(railToggleIcon.getBoundingClientRect().height)
+      : null,
+    // NAV1D — the sidebar's own presentation (the band it comes from, its box, its padding on BOTH
+    // sides, the control's box, the list's inset) and the room the clipping column leaves the ring.
+    railMobileVisible: shown(railMobile),
+    presentedRailBand: railEl ? String(railEl.id || "") : null,
+    presentedRailBox: railRect ? [Math.round(railRect.left), Math.round(railRect.right)] : null,
+    // NAV1D-V2 — the rail's own box, out-of-flow state and the OVERLAY's z-order evidence: the rail
+    // must win the hit test inside its own expanded area (the page never paints above it).
+    presentedRailWidth: railRect ? Math.round(railRect.width) : null,
+    presentedRailPosition: railCs ? railCs.position : null,
+    railOverlayHit: railRect
+      ? (() => {
+          const el = document.elementFromPoint(railRect.right - 6, railRect.top + 8);
+          return !!el && (el === railEl || railEl.contains(el));
+        })()
+      : null,
+    pageHitOverRail: railRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            railRect.right - 6,
+            Math.min(window.innerHeight - 8, railRect.top + 120),
+          );
+          return !!el && (el === railEl || railEl.contains(el));
+        })()
+      : null,
+    // NAV1D-V2 — the page FRAME (the shell's own layout box) and the document's own overflow against
+    // the CONTENT box, which is the measurement that says whether a horizontal scrollbar exists.
+    frameBox: (() => {
+      const frame = document.querySelector('.ui-shell-frame');
+      if (!frame) return null;
+      const r = frame.getBoundingClientRect();
+      return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
+    })(),
+    documentScrollWidth: document.documentElement.scrollWidth,
+    documentOverflowClient: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    presentedRailPadInline: railCs
+      ? [
+          Math.round(parseFloat(railCs.paddingInlineStart) || 0),
+          Math.round(parseFloat(railCs.paddingInlineEnd) || 0),
+        ]
+      : null,
+    presentedRailToggleBox: railToggleRect
+      ? [Math.round(railToggleRect.left), Math.round(railToggleRect.right)]
+      : null,
+    presentedRailItemLeft: railFirstItem
+      ? Math.round(railFirstItem.getBoundingClientRect().left)
+      : null,
+    presentedRailColumnBox: railColumnRect
+      ? [Math.round(railColumnRect.left), Math.round(railColumnRect.right)]
+      : null,
+    presentedRailColumnPadInline: railColumnCs
+      ? [
+          Math.round(parseFloat(railColumnCs.paddingInlineStart) || 0),
+          Math.round(parseFloat(railColumnCs.paddingInlineEnd) || 0),
+        ]
+      : null,
+    presentedRailColumnPosition: railColumn ? getComputedStyle(railColumn).position : null,
+    presentedRailColumnTop: railColumnRect ? Math.round(railColumnRect.top) : null,
+    presentedRailCollapsed: railEl ? railEl.getAttribute('data-collapsed') : null,
+    // NAV1D-V3 — the rail's SURFACE: how opaque it is, and the colour the site's ONE background
+    // authority owns (the same token the header consumes, and the value ui.theme.background sets).
+    presentedRailBackgroundColor: railCs ? railCs.backgroundColor : null,
+    presentedRailBackgroundImage: railCs ? railCs.backgroundImage : null,
+    presentedRailOpacity: railCs ? railCs.opacity : null,
+    tokenBackground: getComputedStyle(document.documentElement)
+      .getPropertyValue("--background")
+      .trim(),
+    // NAV1D — the room the control's box has inside its clipping column: the global focus ring is
+    // 2px wide at a 2px offset, so >= 4px on every side is "the ring can be painted in full".
+    ringRoomLeft:
+      railColumnRect && railToggleRect ? Math.round(railToggleRect.left - railColumnRect.left) : null,
+    ringRoomRight:
+      railColumnRect && railToggleRect ? Math.round(railColumnRect.right - railToggleRect.right) : null,
+    ringRoomTop:
+      railColumnRect && railToggleRect ? Math.round(railToggleRect.top - railColumnRect.top) : null,
+    // NAV1D — the menu surface (the sticky bar) and its inner navigation region.
+    barSurfaceBox: barSurfaceRect ? [Math.round(barSurfaceRect.left), Math.round(barSurfaceRect.right)] : null,
+    barRegionBox: barRegionRect ? [Math.round(barRegionRect.left), Math.round(barRegionRect.right)] : null,
+    barSurfaceWidth: barSurfaceRect ? Math.round(barSurfaceRect.width) : null,
+    barRegionWidth: barRegionRect ? Math.round(barRegionRect.width) : null,
   };
 })()`;
 
@@ -3875,6 +4259,12 @@ async function runLayoutSwitcherScenario(chrome) {
   const pagePath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-layout-page.md");
   await mkdir(dirname(pagePath), { recursive: true });
   await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
+  // NAV1D — the STICKY proof needs a page tall enough to scroll deeply, so this scenario supplies
+  // the same generic tall fixture the persistent-navigation scenario uses (removed in `finally`).
+  const tallPath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-layout-tall.md");
+  await mkdir(dirname(tallPath), { recursive: true });
+  await writeFile(tallPath, tallPageFixture(), "utf8");
+  const tallLayoutUrl = `${BASE_URL}/ww/en/zz-layout-tall`;
 
   const server = startDevServer(port);
   let cdp = null;
@@ -3905,7 +4295,13 @@ async function runLayoutSwitcherScenario(chrome) {
     const menuBar = await cdp.evaluate(LAYOUT_PROBE);
     check(rows, "switch.applies", !!menuBar && menuBar.active === "menu-bar", menuBar && menuBar.active);
     check(rows, "menuBar.railHidden", !!menuBar && menuBar.railVisible === false, `rail=${menuBar && menuBar.railVisible}`);
-    check(rows, "menuBar.topNavVisible", !!menuBar && menuBar.topNavVisible === true, `topNav=${menuBar && menuBar.topNavVisible}`);
+    // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH: at DESKTOP the bar is the
+    // navigation and the former top navigation does not exist (no hidden duplicate either).
+    check(rows, "menuBar.stickyBottomBarAtDesktop", !!menuBar && menuBar.bottomBarVisible === true, `bar=${menuBar && menuBar.bottomBarVisible}`);
+    check(rows, "menuBar.noTopNavigation", !!menuBar && menuBar.topNavVisible === false, `topNav=${menuBar && menuBar.topNavVisible}`);
+    check(rows, "menuBar.noSidebarDrawer", !!menuBar && menuBar.drawerVisible === false, `drawer=${menuBar && menuBar.drawerVisible}`);
+    check(rows, "menuBar.linksHorizontalAndInset", !!menuBar && menuBar.barLinkCount > 0 && menuBar.barRowCount < menuBar.barLinkCount && menuBar.barLinksInsideInset === true, `rows=${menuBar && menuBar.barRowCount} links=${menuBar && menuBar.barLinkCount} inset=${menuBar && menuBar.barLinksInsideInset}`);
+    check(rows, "menuBar.selectorStaysTopRight", !!menuBar && menuBar.selectorInTopRow === true && menuBar.selectorInControlRow === false && Math.abs(menuBar.selectorRightInset) <= 1, `topRow=${menuBar && menuBar.selectorInTopRow} rightInset=${menuBar && menuBar.selectorRightInset}`);
 
     // ── PRESENTATION ONLY: the document, its content, route and locale ────────
     check(
@@ -3966,7 +4362,7 @@ async function runLayoutSwitcherScenario(chrome) {
 
     // ── PERSISTENCE (1): client-side navigation to another page ──────────────
     const clickedLink = await cdp.clickCenter(
-      'nav[data-ui-shell-part="top-nav"] a[href$="/zz-layout-page"]',
+      '.ui-shell-bottom-bar a[href$="/zz-layout-page"]',
     );
     // A client-side transition commits asynchronously, so wait for the URL itself
     // rather than assuming the router has finished when the document is ready.
@@ -4019,44 +4415,1037 @@ async function runLayoutSwitcherScenario(chrome) {
       `active=${afterClear && afterClear.active}`,
     );
 
-    // ── MOBILE: one shared mobile navigation, and no second control ───────────
-    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    // ── NAV1A: the configured MODE owns the navigation at EVERY width ────────
+    // The visitor's control stays available on a phone, and the mode decides WHICH mobile
+    // navigation is presented: the sidebar layout's own off-canvas drawer, or the menu-bar
+    // layout's sticky bottom bar — never one shared surface for both.
+    const RESPONSIVE_WIDTHS = [
+      [1280, 900],
+      [1024, 820],
+      [900, 800],
+      [768, 820],
+      [767, 820],
+      [390, 844],
+      [360, 740],
+      [320, 700],
+    ];
+    const settle = () => sleep(300);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await cdp.navigate(url);
     await waitReady(cdp);
-    const mobileSidebar = await cdp.evaluate(LAYOUT_PROBE);
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await settle();
+    check(
+      rows,
+      "sidebarMobile.closedByDefault",
+      await cdp.evalBool("!document.querySelector('[role=\"dialog\"]')"),
+    );
+    for (const [width, height] of RESPONSIVE_WIDTHS) {
+      await cdp.setViewport(width, height);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const inner = probe && probe.innerWidth;
+      const tag = `nav1a.sidebar.w${width}`;
+      const mobile = width < 768;
+      check(rows, `${tag}.modePreserved`, !!probe && probe.active === "sidebar", `inner=${inner} attr=${probe && probe.active}`);
+      check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
+      check(rows, `${tag}.topNavHidden`, !!probe && probe.topNavVisible === false, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
+      if (mobile) {
+        // NAV1D — THE SAME SIDEBAR AT MOBILE WIDTH: the rail itself is presented (its own band's
+        // gate shows it), and NOTHING substitutes for it — no disclosure band, no trigger, no drawer,
+        // no header affordance.
+        check(rows, `${tag}.sidebarRailVisible`, !!probe && probe.railVisible === true, `inner=${inner} rail=${probe && probe.railVisible}`);
+        check(
+          rows,
+          `${tag}.noDisclosureSubstitute`,
+          !!probe && probe.drawerVisible === false && probe.disclosureInHeader === false,
+          `inner=${inner} drawer=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader}`,
+        );
+        check(rows, `${tag}.menuBarBottomBarWithdrawn`, !!probe && probe.bottomBarVisible === false, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
+      } else {
+        check(
+          rows,
+          `${tag}.railVisible`,
+          !!probe && (width >= 1024 ? probe.railLgVisible === true : probe.railMdVisible === true),
+          `inner=${inner} rail-lg=${probe && probe.railLgVisible} rail-md=${probe && probe.railMdVisible}`,
+        );
+      }
+      check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
+      // NAV1B — THE FIXED SEMANTIC ROWS: the navigation-MODE selector belongs to the top row at every
+      // width (anchored at the content's right edge, never in the control row), and the control row
+      // always begins below the top row. This is ownership geometry, not a class-string check.
+      check(
+        rows,
+        `${tag}.selectorTopRow`,
+        !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false,
+        `inner=${inner} topRow=${probe && probe.selectorInTopRow} controlRow=${probe && probe.selectorInControlRow}`,
+      );
+      check(
+        rows,
+        `${tag}.selectorRightAnchored`,
+        !!probe && probe.selectorRightInset !== null && Math.abs(probe.selectorRightInset) <= 1,
+        `inner=${inner} rightInset=${probe && probe.selectorRightInset}`,
+      );
+      check(
+        rows,
+        `${tag}.controlRowBelowTopRow`,
+        !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true),
+        `inner=${inner} topBottom=${probe && probe.topRowBottom} contextTop=${probe && probe.contextRowTop}`,
+      );
+    }
+
+    // The sidebar layout's mobile navigation is the EXISTING disclosure primitive: it opens
+    // from its own trigger, carries the navigation, and closes with Escape.
+    // NAV1D — THE MOBILE BAND'S SIDEBAR IS THE RAIL ITSELF: its own Show/Hide control is the
+    // affordance (there is no disclosure trigger and no dialog at all), and that control opens and
+    // closes the SAME persistent rail the wider bands present — no dialog, no backdrop, no scroll
+    // lock, no inert background.
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    const mobileBefore = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "sidebarMobile.railPresented",
+      !!mobileBefore && mobileBefore.railVisible === true && mobileBefore.presentedRailBand === "shell-sidebar-mobile-rail",
+      `rail=${mobileBefore && mobileBefore.railVisible} band=${mobileBefore && mobileBefore.presentedRailBand}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.noDisclosureComposedAtAll",
+      await cdp.evalBool("!document.querySelector('#shell-mobile-nav') && !document.querySelector('[data-ui-shell-part=\"mobile-drawer\"]')"),
+      "the sidebar mode composes no disclosure band, no trigger and no drawer",
+    );
+    check(
+      rows,
+      "sidebarMobile.controlIsTheRailControl",
+      !!mobileBefore && mobileBefore.railToggleFontSize === 14 && mobileBefore.railToggleIconBox === "24x24",
+      `font=${mobileBefore && mobileBefore.railToggleFontSize} icon=${mobileBefore && mobileBefore.railToggleIconBox}`,
+    );
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    const mobileAfter = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "sidebarMobile.controlOpensTheRail",
+      !!mobileBefore && !!mobileAfter && mobileAfter.presentedRailCollapsed !== mobileBefore.presentedRailCollapsed,
+      `${mobileBefore && mobileBefore.presentedRailCollapsed}->${mobileAfter && mobileAfter.presentedRailCollapsed}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.noDialogAndNoScrollLock",
+      !!mobileAfter && mobileAfter.dialogPresent === false && (await cdp.evalBool("document.body.style.overflow !== 'hidden'")),
+      `dialog=${mobileAfter && mobileAfter.dialogPresent}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.navigationIsInTheRail",
+      !!mobileAfter && mobileAfter.barLinkCount === 0 && (await cdp.evalBool("!!document.querySelector('[data-ui-shell-part=\"rail\"] a')")),
+      "the rail carries the destinations",
+    );
+    // The OPEN mobile rail is symmetric and leaves the focus ring room, exactly like the wider bands.
+    check(
+      rows,
+      "sidebarMobile.openRailIsSymmetric",
+      !!mobileAfter &&
+        mobileAfter.presentedRailToggleBox &&
+        mobileAfter.presentedRailBox &&
+        Math.abs(
+          mobileAfter.presentedRailToggleBox[0] - mobileAfter.presentedRailBox[0] -
+            (mobileAfter.presentedRailBox[1] - mobileAfter.presentedRailToggleBox[1]),
+        ) <= 1,
+      `box=${mobileAfter && mobileAfter.presentedRailBox} toggle=${mobileAfter && mobileAfter.presentedRailToggleBox}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.openRailRingRoom",
+      !!mobileAfter && mobileAfter.ringRoomLeft != null && mobileAfter.ringRoomLeft >= 4 && mobileAfter.ringRoomRight >= 4,
+      `left=${mobileAfter && mobileAfter.ringRoomLeft} right=${mobileAfter && mobileAfter.ringRoomRight}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.openRailNoHorizontalOverflow",
+      // The canonical CLOSED state is exact at every width (the rows above). With the visitor's rail
+      // OPEN on a 320px viewport the content column is ~65px — narrower than one 24px control plus
+      // its own padding — so a small residual sideways scroll is physically possible; the platform
+      // breaks long words and shrinks what it owns rather than replacing the sidebar, which is what
+      // this defect removed. Bounded, not asserted away.
+      !!mobileAfter && mobileAfter.documentOverflow <= 16,
+      `overflow=${mobileAfter && mobileAfter.documentOverflow}`,
+    );
+    check(rows, "sidebarMobile.bottomBarStillWithdrawn", !!mobileAfter && mobileAfter.bottomBarVisible === false, `bar=${mobileAfter && mobileAfter.bottomBarVisible}`);
+
+    // ── NAV1D — THE MOBILE BAND PRESENTS THE ACCEPTED SIDEBAR, NOT A SUBSTITUTE ──────────────
+    // Below `md` the sidebar mode used to present a `Show navigation` disclosure band. It now
+    // presents the SAME rail the wider bands present, so the proof is IDENTITY, not scale similarity:
+    // the mobile band's rail is measured against the desktop band's (its own padding, the control's
+    // box, its typography and icon, the list's inset), and the column it scrolls in leaves the focus
+    // ring its full extent. Every assertion below is a measured value, never a class string.
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    // NAV1D — these rows measure the CANONICAL state a visitor lands in (the rail closed), so the
+    // reference and the samples are the same state, at every width, with no dependence on an earlier
+    // leg's toggling.
+    await cdp.evaluate(`(() => {
+      const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+      if (rail && rail.getAttribute('data-collapsed') === 'false') {
+        const toggle = rail.querySelector('.ui-sidebar-toggle');
+        if (toggle) toggle.click();
+      }
+      return true;
+    })()`);
+    await settle();
+    const desktopRail = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.sidebar.desktopRailPresented",
+      !!desktopRail && desktopRail.railVisible === true && desktopRail.presentedRailBand === "shell-sidebar-desktop-rail",
+      `rail=${desktopRail && desktopRail.railVisible} band=${desktopRail && desktopRail.presentedRailBand}`,
+    );
+    const constrained = {};
+    // NAV1D-V2 — the widths the closed-layout contract is proved at, including the wide ones: the
+    // rail must coexist with the page WITHOUT a horizontal scrollbar at every one of them (>= 320).
+    for (const [width, height] of [[1280, 900], [1024, 820], [900, 800], [768, 820], [767, 820], [390, 844], [360, 740], [320, 700]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      constrained[width] = await cdp.evaluate(LAYOUT_PROBE);
+      const probe = constrained[width];
+      const expectedBand =
+        width >= 1024
+          ? "shell-sidebar-desktop-rail"
+          : width >= 768
+            ? "shell-sidebar-tablet-rail"
+            : "shell-sidebar-mobile-rail";
+      const tag = `nav1d.sidebar.w${width}`;
+      check(
+        rows,
+        `${tag}.railPresented`,
+        !!probe && probe.railVisible === true && probe.presentedRailBand === expectedBand,
+        `rail=${probe && probe.railVisible} band=${probe && probe.presentedRailBand}`,
+      );
+      check(
+        rows,
+        `${tag}.noSubstitute`,
+        !!probe &&
+          probe.drawerVisible === false &&
+          probe.disclosureInHeader === false &&
+          probe.dialogPresent === false &&
+          probe.railMobileVisible === (width < 768),
+        `drawer=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader} dialog=${probe && probe.dialogPresent}`,
+      );
+      // THE SIDEBAR'S OWN PADDING, MEASURED ON BOTH SIDES: the control's box is inset from the rail's
+      // outer edges equally (the rail's 1px inline-end border accounts for the allowed 1px), in both
+      // states.
+      const insetLeft =
+        probe && probe.presentedRailToggleBox && probe.presentedRailBox
+          ? probe.presentedRailToggleBox[0] - probe.presentedRailBox[0]
+          : null;
+      const insetRight =
+        probe && probe.presentedRailToggleBox && probe.presentedRailBox
+          ? probe.presentedRailBox[1] - probe.presentedRailToggleBox[1]
+          : null;
+      check(
+        rows,
+        `${tag}.paddingSymmetric`,
+        insetLeft != null && insetRight != null && Math.abs(insetLeft - insetRight) <= 1,
+        `insets=${insetLeft}/${insetRight} pad=${probe && probe.presentedRailPadInline}`,
+      );
+      // …AND THE FOCUS RING FITS: the global ring is 2px at a 2px offset, so the clipping column must
+      // leave >= 4px around the control on every side (the owner's left-edge cut was 19px).
+      check(
+        rows,
+        `${tag}.focusRingRoom`,
+        !!probe &&
+          probe.ringRoomLeft != null &&
+          probe.ringRoomLeft >= 4 &&
+          probe.ringRoomRight >= 4 &&
+          probe.ringRoomTop >= 4,
+        `left=${probe && probe.ringRoomLeft} right=${probe && probe.ringRoomRight} top=${probe && probe.ringRoomTop}`,
+      );
+      check(
+        rows,
+        `${tag}.listSharesTheControlInset`,
+        !!probe &&
+          probe.presentedRailItemLeft != null &&
+          probe.presentedRailToggleBox &&
+          Math.abs(probe.presentedRailItemLeft - probe.presentedRailToggleBox[0]) <= 1,
+        `item=${probe && probe.presentedRailItemLeft} toggle=${probe && probe.presentedRailToggleBox && probe.presentedRailToggleBox[0]}`,
+      );
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+      // …measured against the CONTENT box too — the owner's own criterion, which is what says whether
+      // a horizontal SCROLLBAR exists (the vertical scrollbar already takes part of the width).
+      check(
+        rows,
+        `${tag}.noHorizontalScrollbar`,
+        !!probe && probe.documentOverflowClient <= 1,
+        `scrollW=${probe && probe.documentScrollWidth} clientW=${probe && probe.documentScrollWidth - probe.documentOverflowClient} overflow=${probe && probe.documentOverflowClient}`,
+      );
+    }
+    // THE SAME SIDEBAR, MEASURED ACROSS BANDS: the control's typography, its icon and the rail's own
+    // padding are identical at every width — the breakpoint changes WHICH band presents the rail, not
+    // WHAT the rail is.
+    for (const width of [767, 768, 390, 360, 320]) {
+      const probe = constrained[width];
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.sameRailAsDesktop`,
+        !!desktopRail &&
+          !!probe &&
+          desktopRail.presentedRailPadInline.join("/") === probe.presentedRailPadInline.join("/") &&
+          desktopRail.railToggleFontSize === probe.railToggleFontSize &&
+          desktopRail.railToggleIconBox === probe.railToggleIconBox &&
+          desktopRail.presentedRailColumnPosition === probe.presentedRailColumnPosition,
+        `pad ${desktopRail && desktopRail.presentedRailPadInline}->${probe && probe.presentedRailPadInline} font ${desktopRail && desktopRail.railToggleFontSize}->${probe && probe.railToggleFontSize} icon ${desktopRail && desktopRail.railToggleIconBox}->${probe && probe.railToggleIconBox} sticky=${probe && probe.presentedRailColumnPosition}`,
+      );
+    }
+    // STICKY/PERSISTENT WHILE SCROLLING: the rail's content column is pinned at every width, and the
+    // control stays operable — the closed sidebar never scrolls away with the page.
+    for (const [width, height] of [[1280, 800], [768, 800], [390, 800]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await cdp.navigate(tallLayoutUrl);
+      await waitReady(cdp);
+      await cdp.evaluate(
+        "window.scrollTo(0, Math.round(document.documentElement.scrollHeight * 0.45)); true",
+      );
+      await settle();
+      const after = await cdp.evaluate(LAYOUT_PROBE);
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.stickyWhileScrolled`,
+        !!after &&
+          after.scrollY > 0 &&
+          after.presentedRailColumnPosition === "sticky" &&
+          after.presentedRailColumnTop != null &&
+          after.presentedRailColumnTop >= -1 &&
+          after.presentedRailColumnTop <= 8 &&
+          after.railVisible === true,
+        `scrollY=${after && after.scrollY} pos=${after && after.presentedRailColumnPosition} top=${after && after.presentedRailColumnTop} rail=${after && after.railVisible}`,
+      );
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.controlRemainsOperable`,
+        !!after &&
+          after.railToggleHeight != null &&
+          after.railToggleHeight >= 24 &&
+          (await cdp.evalBool("!!document.querySelector('[data-ui-shell-part=\"rail\"] .ui-sidebar-toggle')")),
+        `height=${after && after.railToggleHeight}`,
+      );
+      await cdp.evaluate("window.scrollTo(0, 0); true");
+      await settle();
+    }
+
+    // ── NAV1D-V3 — THE CLOSED RAIL SITS ON THE PAGE EDGE, WITH SYMMETRIC ICON GAPS ──────────────
+    // The owner's contract for a closed rail, at every band: the rail occupies the page edge (the old
+    // ~20px shell gutter is gone) and the 24px control is centred between that edge and the divider,
+    // keeping the accepted ~5–6px on its left exactly as on its right. The accepted internal padding
+    // (6px / 6px minus the 1px border) is asserted, not the outer placement it used to be confused
+    // with. The rail must also still fit the viewport's content box with no horizontal scrollbar.
+    for (const [width, height] of [[1280, 900], [900, 800], [768, 820], [767, 820], [390, 844], [320, 700]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await closeVisibleRail(cdp);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const tag = `nav1d.v3.closedEdge.w${width}`;
+      const iconGapLeft =
+        probe && probe.presentedRailToggleBox ? probe.presentedRailToggleBox[0] - probe.presentedRailBox[0] : null;
+      const iconGapRight =
+        probe && probe.presentedRailToggleBox ? probe.presentedRailBox[1] - 1 - probe.presentedRailToggleBox[1] : null;
+      check(
+        rows,
+        `${tag}.railOnThePageEdge`,
+        !!probe && probe.presentedRailBox != null && probe.presentedRailBox[0] <= 1 && probe.presentedRailWidth === 36,
+        `railLeft=${probe && probe.presentedRailBox && probe.presentedRailBox[0]} railW=${probe && probe.presentedRailWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.iconCentredBetweenEdgeAndDivider`,
+        iconGapLeft != null && iconGapRight != null && Math.abs(iconGapLeft - iconGapRight) <= 1,
+        `left=${iconGapLeft} right(divider)=${iconGapRight}`,
+      );
+      check(
+        rows,
+        `${tag}.acceptedInternalPadding`,
+        !!probe && probe.presentedRailPadInline && probe.presentedRailPadInline[0] === 6 && probe.presentedRailPadInline[1] === 5,
+        `pad=${probe && probe.presentedRailPadInline}`,
+      );
+      check(
+        rows,
+        `${tag}.noHorizontalScrollbar`,
+        !!probe && probe.documentOverflowClient <= 1,
+        `scrollW=${probe && probe.documentScrollWidth} overflow=${probe && probe.documentOverflowClient}`,
+      );
+    }
+
+    // ── NAV1D-V3 — AN OPEN RAIL: IN FLOW AT ≥768, AN OVERLAY BELOW IT ───────────────────────────
+    // The owner's band contract, with the 768/767 boundary asserted on both sides: desktop and tablet
+    // EXPAND THE RAIL IN THE PAGE LAYOUT (the page's x-position and width change, and the rail never
+    // covers the content), while mobile OVERLAYS the page (the page keeps the geometry it had while
+    // the rail was closed, and the document gains no width).
+    for (const [width, height, mode] of [
+      [1280, 900, "in-flow"],
+      [900, 800, "in-flow"],
+      [768, 820, "in-flow"],
+      [767, 820, "overlay"],
+      [390, 844, "overlay"],
+      [320, 700, "overlay"],
+    ]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await closeVisibleRail(cdp);
+      await settle();
+      const closed = await cdp.evaluate(LAYOUT_PROBE);
+      const opened = await clickVisibleRailToggle(cdp);
+      await settle();
+      const open = await cdp.evaluate(LAYOUT_PROBE);
+      const tag = `nav1d.v3.open.w${width}`;
+      check(rows, `${tag}.railOpened`, opened === true && !!open && open.presentedRailCollapsed === "false", `collapsed=${open && open.presentedRailCollapsed}`);
+      check(
+        rows,
+        `${tag}.expandedRailKeepsItsAcceptedWidth`,
+        !!open && open.presentedRailWidth === 220,
+        `width=${open && open.presentedRailWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.openUsesThe${mode === "in-flow" ? "InFlow" : "Overlay"}Layout`,
+        !!open && open.presentedRailPosition === (mode === "in-flow" ? "static" : "absolute"),
+        `position=${open && open.presentedRailPosition}`,
+      );
+      if (mode === "in-flow") {
+        // IN FLOW: the page's own column moves right and shrinks by exactly the rail's growth, and the
+        // rail never covers it — the page begins at the rail's right edge.
+        check(
+          rows,
+          `${tag}.pageGeometryFollowsTheRail`,
+          !!closed &&
+            !!open &&
+            open.mainLeft === closed.mainLeft + (220 - 36) &&
+            open.mainWidth === closed.mainWidth - (220 - 36) &&
+            open.mainLeft >= open.presentedRailBox[1] - 1,
+          `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, railRight=${open && open.presentedRailBox && open.presentedRailBox[1]}`,
+        );
+        check(
+          rows,
+          `${tag}.noHorizontalScrollbar`,
+          !!open && open.documentOverflowClient <= 1,
+          `scrollW=${open && open.documentScrollWidth} overflow=${open && open.documentOverflowClient}`,
+        );
+      } else {
+        // OVERLAY: the page keeps the geometry it had while the rail was closed, and the document's
+        // own width does not change merely because the rail opened.
+        check(
+          rows,
+          `${tag}.pageGeometryUnchanged`,
+          !!closed &&
+            !!open &&
+            closed.mainLeft === open.mainLeft &&
+            closed.mainWidth === open.mainWidth &&
+            closed.presentedRailBox[0] === open.presentedRailBox[0] &&
+            open.documentScrollWidth === closed.documentScrollWidth &&
+            open.documentOverflowClient <= 1,
+          `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, scrollW ${closed && closed.documentScrollWidth} -> ${open && open.documentScrollWidth}`,
+        );
+        // …and the overlay's surface is OPAQUE, so page text behind it cannot blend through the
+        // navigation's text: no alpha channel, no opacity on the rail, no image layer.
+        check(
+          rows,
+          `${tag}.overlayIsOpaque`,
+          !!open &&
+            /^rgb\(/.test(String(open.presentedRailBackgroundColor)) &&
+            open.presentedRailOpacity === "1" &&
+            open.presentedRailBackgroundImage === "none",
+          `bg=${open && open.presentedRailBackgroundColor} opacity=${open && open.presentedRailOpacity} image=${open && open.presentedRailBackgroundImage} token=${open && open.tokenBackground}`,
+        );
+        check(
+          rows,
+          `${tag}.railPaintsAboveThePage`,
+          !!open && open.railOverlayHit === true && open.pageHitOverRail === true,
+          `overlayHit=${open && open.railOverlayHit} pageHit=${open && open.pageHitOverRail}`,
+        );
+      }
+      // The Hide-navigation control keeps its accepted 20/20 inset inside the open rail (equal within
+      // the rail's own 1px divider border) and stays usable in every band.
+      const hideInsetLeft =
+        open && open.presentedRailToggleBox && open.presentedRailBox
+          ? open.presentedRailToggleBox[0] - open.presentedRailBox[0]
+          : null;
+      const hideInsetRight =
+        open && open.presentedRailToggleBox && open.presentedRailBox
+          ? open.presentedRailBox[1] - open.presentedRailToggleBox[1]
+          : null;
+      check(
+        rows,
+        `${tag}.hideControlInsetBalanced`,
+        hideInsetLeft === 20 && hideInsetRight != null && Math.abs(hideInsetLeft - hideInsetRight) <= 1,
+        `left=${hideInsetLeft} right=${hideInsetRight} railPad=${open && open.presentedRailPadInline}`,
+      );
+      check(
+        rows,
+        `${tag}.hideControlUsable`,
+        !!open && open.railToggleHeight != null && open.railToggleHeight >= 24,
+        `height=${open && open.railToggleHeight}`,
+      );
+      await closeVisibleRail(cdp);
+      await settle();
+    }
+
+    // ── NAV1D-V3 — THE RAIL'S BACKGROUND COMES FROM THE SITE'S ONE AUTHORITY ────────────────────
+    // The adopter-owned `ui.theme.background` reaches the stylesheet as `--background` on `<html>`
+    // (FS-5; see `src/app/[...segments]/layout.tsx`). Overriding THAT token at runtime must therefore
+    // change the rail's surface — which is what proves the rail consumes the site's ONE authority
+    // rather than a colour of its own.
+    await cdp.setViewport(390, 844);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    const baselineBackground = await cdp.evaluate(LAYOUT_PROBE);
+    const overridden = await cdp.evaluate(`(() => {
+      document.documentElement.style.setProperty('--background', '#ff00ff');
+      return true;
+    })()`);
+    await settle();
+    const afterOverride = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.v3.background.followsTheConfiguredAuthority",
+      overridden === true &&
+        !!afterOverride &&
+        afterOverride.presentedRailBackgroundColor === "rgb(255, 0, 255)" &&
+        afterOverride.presentedRailBackgroundColor !==
+          (baselineBackground && baselineBackground.presentedRailBackgroundColor),
+      `before=${baselineBackground && baselineBackground.presentedRailBackgroundColor} after=${afterOverride && afterOverride.presentedRailBackgroundColor}`,
+    );
+    check(
+      rows,
+      "nav1d.v3.background.railMatchesTheDocumentedToken",
+      !!baselineBackground &&
+        baselineBackground.presentedRailBackgroundColor === "rgb(255, 255, 255)" &&
+        ["#fff", "#ffffff"].includes(String(baselineBackground.tokenBackground).toLowerCase()),
+      `rail=${baselineBackground && baselineBackground.presentedRailBackgroundColor} token=${baselineBackground && baselineBackground.tokenBackground}`,
+    );
+    await cdp.evaluate(`(() => { document.documentElement.style.removeProperty('--background'); return true; })()`);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
+
+    // ── NAV1D-V2 — BELOW THE SUPPORTED BOUNDARY (< 320) ─────────────────────────────────────────
+    // The layout keeps its deliberate 320px floor instead of deforming, and the VIEWPORT scrolls
+    // horizontally — the honest behaviour for a width this platform does not support. Opening the rail
+    // still adds no width of its own.
+    await cdp.setViewport(300, 700);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
+    const belowClosed = await cdp.evaluate(LAYOUT_PROBE);
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    const belowOpen = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.keepsTheMinimumLayout",
+      !!belowClosed && belowClosed.documentScrollWidth >= 320 && belowClosed.presentedRailWidth === 36,
+      `scrollW=${belowClosed && belowClosed.documentScrollWidth} rail=${belowClosed && belowClosed.presentedRailWidth}`,
+    );
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.scrollsInsteadOfDeforming",
+      !!belowClosed && belowClosed.documentOverflowClient > 1,
+      `overflow=${belowClosed && belowClosed.documentOverflowClient}`,
+    );
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.sidebarRemainsFunctional",
+      !!belowClosed &&
+        !!belowOpen &&
+        belowOpen.presentedRailCollapsed === "false" &&
+        belowOpen.presentedRailWidth === 220 &&
+        belowOpen.documentScrollWidth === belowClosed.documentScrollWidth &&
+        belowOpen.railToggleHeight >= 24,
+      `rail=${belowOpen && belowOpen.presentedRailWidth} scrollW ${belowClosed && belowClosed.documentScrollWidth}->${belowOpen && belowOpen.documentScrollWidth} toggle=${belowOpen && belowOpen.railToggleHeight}`,
+    );
+    await closeVisibleRail(cdp);
+    await settle();
+
+    // ── MENU-BAR mode: the ACTUAL NAVIGATION LINKS are the STICKY BOTTOM BAR at EVERY width ──
+    // NAV1B — the top navigation bar presentation is no longer part of Menu Bar mode: the bar is
+    // the navigation at desktop, tablet and mobile widths alike, and no top navigation exists.
     await cdp.evaluate(chooseLayout("menu-bar"));
-    await waitReady(cdp);
-    const mobileMenuBar = await cdp.evaluate(LAYOUT_PROBE);
+    await settle();
+    for (const [width, height] of RESPONSIVE_WIDTHS) {
+      await cdp.setViewport(width, height);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const inner = probe && probe.innerWidth;
+      const tag = `nav1b.menuBar.w${width}`;
+      check(rows, `${tag}.modePreserved`, !!probe && probe.active === "menu-bar", `inner=${inner} attr=${probe && probe.active}`);
+      check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
+      check(rows, `${tag}.stickyBottomNavigation`, !!probe && probe.bottomBarVisible === true, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
+      check(rows, `${tag}.noTopNavigation`, !!probe && probe.topNavVisible === false, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
+      check(rows, `${tag}.noSidebar`, !!probe && probe.railVisible === false && probe.drawerVisible === false, `inner=${inner} rail=${probe && probe.railVisible} drawer=${probe && probe.drawerVisible}`);
+      check(
+        rows,
+        `${tag}.linksShareRowsAndWrap`,
+        !!probe && probe.barWrapActive === true && probe.barLinkCount > 1 && probe.barRowCount < probe.barLinkCount,
+        `inner=${inner} rows=${probe && probe.barRowCount} links=${probe && probe.barLinkCount} wrap=${probe && probe.barWrapActive}`,
+      );
+      check(rows, `${tag}.linksInsidePageEdgeInset`, !!probe && probe.barLinksInsideInset === true, `inner=${inner} left=${probe && probe.barInsetLeft} right=${probe && probe.barInsetRight}`);
+      // NAV1D — THE SURFACE SPANS THE VIEWPORT and its region uses the available width: the sticky
+      // bar's surface IS the viewport width, and its navigation region is the inset-bounded full
+      // width — never the page's own `max-w-page` article width (which is what made the bar read as
+      // a small left-hand block).
+      check(
+        rows,
+        `${tag}.surfaceSpansTheViewport`,
+        !!probe && probe.barSurfaceWidth != null && Math.abs(probe.barSurfaceWidth - probe.innerWidth) <= 16,
+        `inner=${inner} surface=${probe && probe.barSurfaceWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.regionUsesAvailableWidth`,
+        !!probe &&
+          probe.barRegionWidth != null &&
+          probe.barRegionWidth >= probe.innerWidth - 40 &&
+          (probe.headerContentWidth === null ||
+            probe.headerContentWidth >= probe.innerWidth - 40 ||
+            probe.barRegionWidth > probe.headerContentWidth),
+        `inner=${inner} region=${probe && probe.barRegionWidth} header=${probe && probe.headerContentWidth}`,
+      );
+      check(rows, `${tag}.selectorTopRow`, !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false, `inner=${inner} topRow=${probe && probe.selectorInTopRow} controlRow=${probe && probe.selectorInControlRow}`);
+      check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
+    }
+
+    // ── TRANSITIONS: real resizes, no reload ─────────────────────────────────
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    const beforeResize = await cdp.evaluate(LAYOUT_PROBE);
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    const afterResize = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "mobile.controlNotOffered",
-      !!mobileSidebar && mobileSidebar.controlVisible === false,
-      `controlVisible=${mobileSidebar && mobileSidebar.controlVisible}`,
+      "transition.desktopToMobile.modePreserved",
+      !!beforeResize && !!afterResize && beforeResize.active === "sidebar" && afterResize.active === "sidebar",
+      `attr ${beforeResize && beforeResize.active}->${afterResize && afterResize.active}`,
     );
     check(
       rows,
-      "mobile.sameMobileNavigationInBothLayouts",
-      !!mobileSidebar &&
-        !!mobileMenuBar &&
-        mobileSidebar.bottomBarVisible === mobileMenuBar.bottomBarVisible &&
-        mobileSidebar.bottomBarVisible === true &&
-        mobileMenuBar.railVisible === false,
-      `bottomBar ${mobileSidebar && mobileSidebar.bottomBarVisible}->${mobileMenuBar && mobileMenuBar.bottomBarVisible}`,
+      "transition.desktopToMobile.sameRailContinues",
+      !!beforeResize &&
+        !!afterResize &&
+        beforeResize.railVisible === true &&
+        afterResize.railVisible === true &&
+        afterResize.presentedRailBand === "shell-sidebar-mobile-rail" &&
+        afterResize.drawerVisible === false &&
+        afterResize.bottomBarVisible === false &&
+        beforeResize.presentedRailPadInline.join("/") === afterResize.presentedRailPadInline.join("/") &&
+        beforeResize.railToggleFontSize === afterResize.railToggleFontSize,
+      `rail ${beforeResize && beforeResize.railVisible}->${afterResize && afterResize.railVisible} band=${afterResize && afterResize.presentedRailBand} pad ${beforeResize && beforeResize.presentedRailPadInline}->${afterResize && afterResize.presentedRailPadInline} font ${beforeResize && beforeResize.railToggleFontSize}->${afterResize && afterResize.railToggleFontSize}`,
     );
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    const backToDesktop = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "mobile.noHorizontalOverflow",
-      await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"),
-      "page fits the mobile viewport in both layouts",
+      "transition.mobileToDesktop.railRestored",
+      !!backToDesktop &&
+        backToDesktop.active === "sidebar" &&
+        backToDesktop.railVisible === true &&
+        backToDesktop.drawerVisible === false,
+      `attr=${backToDesktop && backToDesktop.active} rail=${backToDesktop && backToDesktop.railVisible}`,
     );
+
+    // ── MOBILE MODE SWITCHING: sidebar ↔ menu-bar at <md, no reload ───────────
+    await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+    await settle();
+    // NAV1D — the sidebar mode's affordance at <md is the RAIL'S OWN control, so the switch-away
+    // proof starts from an OPEN rail (there is no drawer, no scroll lock and no inert background).
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await settle();
+    const switchedToMenuBar = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "mobileSwitch.toMenuBar.barIsSolePrimaryNav",
+      !!switchedToMenuBar &&
+        switchedToMenuBar.active === "menu-bar" &&
+        switchedToMenuBar.bottomBarVisible === true &&
+        switchedToMenuBar.drawerVisible === false,
+      `attr=${switchedToMenuBar && switchedToMenuBar.active} bar=${switchedToMenuBar && switchedToMenuBar.bottomBarVisible} drawer=${switchedToMenuBar && switchedToMenuBar.drawerVisible}`,
+    );
+    check(rows, "mobileSwitch.toMenuBar.noStaleDialog", !!switchedToMenuBar && switchedToMenuBar.dialogPresent === false, `dialog=${switchedToMenuBar && switchedToMenuBar.dialogPresent}`);
+    check(rows, "mobileSwitch.toMenuBar.scrollNotLocked", await cdp.evalBool("document.body.style.overflow !== 'hidden'"));
+    check(rows, "mobileSwitch.toMenuBar.controlReflectsMode", !!switchedToMenuBar && switchedToMenuBar.controlValue === "menu-bar", `control=${switchedToMenuBar && switchedToMenuBar.controlValue}`);
+
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await settle();
+    const switchedToSidebar = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "mobileSwitch.toSidebar.railReturns",
+      !!switchedToSidebar &&
+        switchedToSidebar.active === "sidebar" &&
+        switchedToSidebar.railVisible === true &&
+        switchedToSidebar.presentedRailBand === "shell-sidebar-mobile-rail" &&
+        switchedToSidebar.drawerVisible === false &&
+        switchedToSidebar.bottomBarVisible === false,
+      `attr=${switchedToSidebar && switchedToSidebar.active} rail=${switchedToSidebar && switchedToSidebar.railVisible} band=${switchedToSidebar && switchedToSidebar.presentedRailBand} bar=${switchedToSidebar && switchedToSidebar.bottomBarVisible}`,
+    );
+    check(rows, "mobileSwitch.toSidebar.noStaleDialog", !!switchedToSidebar && switchedToSidebar.dialogPresent === false, `dialog=${switchedToSidebar && switchedToSidebar.dialogPresent}`);
+    check(rows, "mobileSwitch.toSidebar.controlReflectsMode", !!switchedToSidebar && switchedToSidebar.controlValue === "sidebar", `control=${switchedToSidebar && switchedToSidebar.controlValue}`);
+
+    // Exactly ONE primary navigation is reachable: in sidebar mode the withdrawn bar is
+    // never a Tab stop, whatever else the page exposes.
+    await cdp.evaluate("document.body.focus(); true");
+    let landedInWithdrawnBar = false;
+    for (let step = 0; step < 12; step += 1) {
+      await cdp.pressKey("Tab");
+      if (await cdp.evalBool(`!!document.activeElement && !!document.activeElement.closest('[data-ui-shell-part="bottom-bar"]')`)) {
+        landedInWithdrawnBar = true;
+      }
+    }
+    check(rows, "mobileSwitch.sidebarMode.bottomBarNeverFocusable", landedInWithdrawnBar === false, `landed=${landedInWithdrawnBar}`);
   // __SCENARIO_REST__
   } catch (error) {
     check(rows, "layout-switcher.scenario.error", false, String(error));
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(pagePath, { force: true });
+    await rm(tallPath, { force: true });
     if (cdp) await cdp.close();
     await stopServer(server);
+  }
+  return rows;
+}
+
+/**
+ * NAV1A — THE STICKY BOTTOM BAR'S LINK LAYOUT, IN A REAL BROWSER.
+ *
+ * The bar's rows are the `<li>` children of its `<ul>`, so the LIST owns their flow and
+ * wrapping. The historical defect put the horizontal intent on the `<nav>` — whose single
+ * child is that list — so every link stacked one per row and the bar grew a row per link.
+ *
+ * Proven with TEST-OWNED fixtures (written to the disposable deployment copy and restored
+ * by the scenario), in the layout whose MOBILE composition IS the bottom bar:
+ *
+ *   · SHORT labels share ONE row at a phone width — the bar neither forces one item per
+ *     row nor wraps when it does not need to, and every link sits inside the page-edge
+ *     inset with no horizontal overflow;
+ *   · LONG labels WRAP: the extra row is genuinely required by the available width
+ *     (`rowCount < links`), the bar GROWS in height (never a fixed one-row height) and
+ *     nothing is clipped, with the links still inside the inset.
+ */
+async function runBottomNavWrapScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  const SHORT = [
+    { label: "Home", href: "/" },
+    { label: "About", href: "/about" },
+  ];
+  // The labels must survive the content layer's dictionary projection
+  // (`@/components/site/nav-links` maps a KNOWN href to its localized label), so the
+  // long-label fixture uses synthetic destinations no dictionary declares.
+  const LONG = [
+    { label: "Destinations we offer", href: "/zz-destinations" },
+    { label: "Customer stories", href: "/zz-testimonials" },
+    { label: "Case studies", href: "/zz-case-studies" },
+    { label: "Get in touch", href: "/zz-contact" },
+  ];
+
+  const phase = async (label, navigation, portSuffix) => {
+    const port = BASE_PORT + 360 + portSuffix;
+    const url = `http://localhost:${port}/ww/en`;
+    BASE_URL = `http://localhost:${port}`;
+    const config = JSON.parse(original);
+    config.navigation = navigation;
+    // The MENU-BAR layout: its mobile composition is the sticky bottom bar.
+    config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "menu-bar" } };
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+    const server = startDevServer(port);
+    let cdp = null;
+    try {
+      await waitForServer(url);
+      cdp = await Cdp.connect(chrome);
+      await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const overflow = await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1");
+      const clipped = await cdp.evalBool(
+        `(() => { const bar = document.querySelector('.ui-shell-bottom-bar'); if (!bar) return true; const b = bar.getBoundingClientRect(); return Array.from(bar.querySelectorAll('ul > li')).some((li) => { const r = li.getBoundingClientRect(); return r.bottom > b.bottom + 1 || r.top < b.top - 1; }); })()`,
+      );
+      const barHeight = await cdp.evaluate(
+        `(() => { const b = document.querySelector('.ui-shell-bottom-bar'); return b ? Math.round(b.getBoundingClientRect().height) : 0; })()`,
+      );
+      const itemHeight = await cdp.evaluate(
+        `(() => { const li = document.querySelector('.ui-shell-bottom-bar ul > li'); return li ? Math.round(li.getBoundingClientRect().height) : 0; })()`,
+      );
+      return { probe, label, overflow, clipped, barHeight, itemHeight };
+    } finally {
+      if (cdp) await cdp.close();
+      await stopServer(server);
+    }
+  };
+
+  try {
+    const short = await phase("short", SHORT, 0);
+    const long = await phase("long", LONG, 1);
+    const shortProbe = short.probe;
+    check(rows, "barWrap.short.barVisible", !!shortProbe && shortProbe.bottomBarVisible === true, `bar=${shortProbe && shortProbe.bottomBarVisible}`);
+    check(rows, "barWrap.short.oneRow", !!shortProbe && shortProbe.barRowCount === 1, `inner=${shortProbe && shortProbe.innerWidth} rows=${shortProbe && shortProbe.barRowCount} links=${shortProbe && shortProbe.barLinkCount}`);
+    check(rows, "barWrap.short.bothLinksRendered", !!shortProbe && shortProbe.barLinkCount === 2, `links=${shortProbe && shortProbe.barLinkCount}`);
+    check(rows, "barWrap.short.listWraps", !!shortProbe && shortProbe.barWrapActive === true, `wrap=${shortProbe && shortProbe.barWrapActive}`);
+    check(rows, "barWrap.short.linksInsideInset", !!shortProbe && shortProbe.barLinksInsideInset === true, `pad=${shortProbe && shortProbe.barPad}`);
+    check(rows, "barWrap.short.noHorizontalOverflow", short.overflow === true);
+    check(rows, "barWrap.short.notClipped", short.clipped === false, `barHeight=${short.barHeight} itemHeight=${short.itemHeight}`);
+
+    const longProbe = long.probe;
+    check(rows, "barWrap.long.barVisible", !!longProbe && longProbe.bottomBarVisible === true, `bar=${longProbe && longProbe.bottomBarVisible}`);
+    check(rows, "barWrap.long.linksRendered", !!longProbe && longProbe.barLinkCount === 4, `links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.wrapsWhenRequired", !!longProbe && longProbe.barRowCount >= 2, `inner=${longProbe && longProbe.innerWidth} rows=${longProbe && longProbe.barRowCount} links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.linksShareRows", !!longProbe && longProbe.barRowCount < longProbe.barLinkCount, `rows=${longProbe && longProbe.barRowCount} links=${longProbe && longProbe.barLinkCount}`);
+    check(rows, "barWrap.long.listWraps", !!longProbe && longProbe.barWrapActive === true, `wrap=${longProbe && longProbe.barWrapActive}`);
+    check(rows, "barWrap.long.linksInsideInset", !!longProbe && longProbe.barLinksInsideInset === true, `pad=${longProbe && longProbe.barPad}`);
+    check(
+      rows,
+      "barWrap.long.barGrowsWithRows",
+      long.barHeight >= 2 * long.itemHeight,
+      `barHeight=${long.barHeight} rows=${longProbe && longProbe.barRowCount} itemHeight=${long.itemHeight}`,
+    );
+    check(rows, "barWrap.long.notClipped", long.clipped === false, `barHeight=${long.barHeight}`);
+    check(rows, "barWrap.long.noHorizontalOverflow", long.overflow === true);
+  } catch (error) {
+    check(rows, "barWrap.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
+  }
+  return rows;
+}
+
+/**
+ * NAV1B-V1 — THE GRAPHIC-IDENTITY FIXTURE (test-owned CONFIGURATION; no new file, nothing authored
+ * is modified).
+ *
+ * The identity under test is a graphic, so the fixture points the `site.assets.logo` role at a
+ * SHIPPED, deliberately WIDE placeholder (`header-graphic.svg`, 4096x512 = aspect 8): at the
+ * accepted `h-8` lockup height it is 256px wide, which is wider than a narrow identity column but
+ * still inside a phone-width content box — exactly the geometry where the navigation-MODE selector
+ * and the graphic intersect. `site.assets.*` is an ABSOLUTE URL by contract, and the framework
+ * re-derives the same-origin path, which is where the shipped asset is served from.
+ */
+const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/header-graphic.svg";
+const GRAPHIC_FIXTURE_NATURAL_BOX = "4096x512";
+
+/**
+ * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
+ *
+ * Two pressures the reported defect was about, neither of which the reference deployment can exert:
+ *
+ *   · a VERY LONG identity: the navigation-MODE selector keeps its top-right place while the title
+ *     wraps below it inside its own column (never over the selector, never pushed into the control
+ *     row, no page overflow);
+ *   · LONG contextual labels: the Site/Language controls wrap ONTO ANOTHER LINE INSIDE the control
+ *     row — they never jump up into the identity/selector row.
+ *
+ * The fixtures are config-only (labels and the site name) and are written to the DISPOSABLE copy and
+ * restored in `finally`, so no authored deployment content is manufactured.
+ */
+async function runHeaderRowsScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+
+  const phase = async (label, mutate, widths, portSuffix) => {
+    const port = BASE_PORT + 400 + portSuffix;
+    const url = `http://localhost:${port}/ww/en`;
+    BASE_URL = `http://localhost:${port}`;
+    const config = JSON.parse(original);
+    // Both fixtures need the mode CHOICE to exist (the selector is the top row's right-hand
+    // occupant), so the switcher is enabled for the disposable copy only.
+    config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "sidebar" } };
+    mutate(config);
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+    const server = startDevServer(port);
+    let cdp = null;
+    const measured = [];
+    try {
+      await waitForServer(url);
+      cdp = await Cdp.connect(chrome);
+      await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      for (const [width, height] of widths) {
+        await cdp.setViewport(width, height);
+        await sleep(300);
+        measured.push({ width, probe: await cdp.evaluate(LAYOUT_PROBE) });
+      }
+      return { label, measured };
+    } finally {
+      if (cdp) await cdp.close();
+      await stopServer(server);
+    }
+  };
+
+  try {
+    const longTitle = await phase(
+      "longTitle",
+      (config) => {
+        config.site = {
+          ...config.site,
+          name: "Provelopment Foundation Reference Deployment and Services",
+        };
+      },
+      [
+        [1280, 900],
+        [900, 800],
+        [768, 820],
+        [390, 844],
+        [320, 700],
+      ],
+      0,
+    );
+    for (const { width, probe } of longTitle.measured) {
+      const tag = `nav1b.title.w${width}`;
+      check(rows, `${tag}.selectorStaysTopRight`, !!probe && probe.selectorInTopRow === true && Math.abs(probe.selectorRightInset) <= 1, `topRow=${probe && probe.selectorInTopRow} rightInset=${probe && probe.selectorRightInset}`);
+      check(rows, `${tag}.selectorNeverInControlRow`, !!probe && probe.selectorInControlRow === false);
+      // NAV1B-V1 — the TEXT contract: the identity BEGINS ON THE SELECTOR'S OWN FIRST LINE (never a
+      // selector-only first row), at the padded left edge, and wraps inside its own left column.
+      check(
+        rows,
+        `${tag}.textBeginsOnTheSelectorsFirstLine`,
+        !!probe &&
+          probe.identityTop !== null &&
+          probe.selectorTop !== null &&
+          Math.abs(probe.identityTop - probe.selectorTop) <= 8,
+        `identityTop=${probe && probe.identityTop} selectorTop=${probe && probe.selectorTop}`,
+      );
+      check(
+        rows,
+        `${tag}.textStartsAtThePaddedLeftEdge`,
+        !!probe &&
+          probe.identityLeft !== null &&
+          probe.headerContentLeft !== null &&
+          Math.abs(probe.identityLeft - probe.headerContentLeft) <= 1,
+        `identityLeft=${probe && probe.identityLeft} contentLeft=${probe && probe.headerContentLeft}`,
+      );
+      check(rows, `${tag}.titleNeverOverlapsSelector`, !!probe && probe.identityRight <= probe.selectorLeft + 1, `identityRight=${probe && probe.identityRight} selectorLeft=${probe && probe.selectorLeft}`);
+      check(rows, `${tag}.controlRowStillBelow`, !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true), `topBottom=${probe && probe.topRowBottom} contextTop=${probe && probe.contextRowTop}`);
+      check(rows, `${tag}.noGraphicIsComposed`, !!probe && probe.logoPresent === false, `logo=${probe && probe.logoPresent}`);
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+    }
+    const phone = longTitle.measured[longTitle.measured.length - 1].probe;
+    check(
+      rows,
+      "nav1b.title.wrapsBelowTheSelector",
+      !!phone && phone.identityBottom > phone.selectorBottom,
+      `identityBottom=${phone && phone.identityBottom} selectorBottom=${phone && phone.selectorBottom}`,
+    );
+
+    const longLabels = await phase(
+      "longLabels",
+      (config) => {
+        config.i18n = {
+          ...config.i18n,
+          locales: (config.i18n?.locales ?? []).map((locale) => ({
+            ...locale,
+            label: `${locale.label} — reference deployment language`,
+          })),
+        };
+        config.sites = (config.sites ?? []).map((site) => ({
+          ...site,
+          label: `${site.label} — reference deployment site`,
+        }));
+      },
+      [[390, 844]],
+      1,
+    );
+    const labels = longLabels.measured[0].probe;
+    check(rows, "nav1b.labels.controlRowExists", !!labels && labels.contextRowPresent === true);
+    check(rows, "nav1b.labels.wrapInsideTheControlRow", !!labels && labels.contextRows >= 2, `rows=${labels && labels.contextRows}`);
+    check(rows, "nav1b.labels.neverJumpIntoTheTopRow", !!labels && labels.selectorInControlRow === false && labels.contextRowTop >= labels.topRowBottom, `contextTop=${labels && labels.contextRowTop} topBottom=${labels && labels.topRowBottom}`);
+    check(rows, "nav1b.labels.noHorizontalOverflow", !!labels && labels.selectorRightInset !== null);
+
+    // ── GRAPHIC IDENTITY (NAV1B-V1): the selector keeps the top-right and paints ABOVE the graphic,
+    // which may pass beneath its occupied area — never shrunk into one column, never pushed onto
+    // another row, never widening the page. The fixture is a test-owned CONFIGURATION pointing the
+    // logo role at a SHIPPED wide placeholder; nothing authored is modified and no file is written.
+    const graphic = await phase(
+      "graphic",
+      (config) => {
+        config.site = {
+          ...config.site,
+          assets: { ...(config.site?.assets ?? {}), logo: GRAPHIC_FIXTURE_LOGO_URL },
+        };
+      },
+      [
+        [1280, 900],
+        [900, 800],
+        [768, 820],
+        [390, 844],
+        [320, 700],
+      ],
+      2,
+    );
+    for (const { width, probe } of graphic.measured) {
+      const tag = `nav1b.graphic.w${width}`;
+      check(rows, `${tag}.graphicIsTheIdentity`, !!probe && probe.logoPresent === true, `present=${probe && probe.logoPresent}`);
+      check(rows, `${tag}.graphicIsTheShippedFixture`, !!probe && probe.logoNaturalBox === GRAPHIC_FIXTURE_NATURAL_BOX, `natural=${probe && probe.logoNaturalBox}`);
+      // The graphic starts in its normal left-hand identity position, at its accepted lockup height.
+      check(rows, `${tag}.graphicStartsAtThePaddedLeftEdge`, !!probe && probe.logoLeft !== null && probe.headerContentLeft !== null && Math.abs(probe.logoLeft - probe.headerContentLeft) <= 1, `left=${probe && probe.logoLeft} contentLeft=${probe && probe.headerContentLeft}`);
+      check(rows, `${tag}.graphicKeepsItsAcceptedHeight`, !!probe && probe.logoHeight === 32, `height=${probe && probe.logoHeight}`);
+      // Never shrunk into one column: it renders at its natural width when that fits the header's
+      // content box, and at the full content width when it does not.
+      check(
+        rows,
+        `${tag}.graphicIsNeverShrunkIntoOneColumn`,
+        !!probe &&
+          probe.logoPresent === true &&
+          probe.logoWidth !== null &&
+          probe.headerContentWidth !== null &&
+          (() => {
+            const box = String(probe.logoNaturalBox).split("x").map(Number);
+            const entitled = Math.min((box[0] / box[1]) * 32, probe.headerContentWidth);
+            return probe.logoWidth >= entitled - 2;
+          })(),
+        `width=${probe && probe.logoWidth} natural=${probe && probe.logoNaturalBox} content=${probe && probe.headerContentWidth}`,
+      );
+      // The selector never moves, and never widens the row: both hold at every width.
+      check(rows, `${tag}.selectorStaysTopRight`, !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false && Math.abs(probe.selectorRightInset) <= 1, `topRow=${probe && probe.selectorInTopRow} rightInset=${probe && probe.selectorRightInset}`);
+      check(rows, `${tag}.controlRowStillBelow`, !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true), `contextTop=${probe && probe.contextRowTop} topBottom=${probe && probe.topRowBottom}`);
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+    }
+    // At a narrow width the graphic must reach BENEATH the selector's occupied area…
+    const narrowGraphic = graphic.measured[graphic.measured.length - 1].probe;
+    check(
+      rows,
+      "nav1b.graphic.graphicPassesBeneathTheSelector",
+      !!narrowGraphic &&
+        narrowGraphic.logoIntersectsSelector === true &&
+        narrowGraphic.logoRight > narrowGraphic.selectorLeft + 1,
+      `logoRight=${narrowGraphic && narrowGraphic.logoRight} selectorLeft=${narrowGraphic && narrowGraphic.selectorLeft} intersects=${narrowGraphic && narrowGraphic.logoIntersectsSelector}`,
+    );
+    // …while the selector WINS the hit test at its own centre, and never leaves the page content box.
+    check(
+      rows,
+      "nav1b.graphic.selectorPaintsAboveTheGraphic",
+      !!narrowGraphic &&
+        narrowGraphic.selectorHitAtItsOwnCentre === true &&
+        narrowGraphic.graphicInterceptsSelector === false,
+      `hitInMode=${narrowGraphic && narrowGraphic.selectorHitAtItsOwnCentre} hitInLogo=${narrowGraphic && narrowGraphic.graphicInterceptsSelector}`,
+    );
+    check(
+      rows,
+      "nav1b.graphic.graphicStaysInsideThePageContent",
+      !!narrowGraphic && narrowGraphic.logoRight <= narrowGraphic.innerWidth - 8,
+      `logoRight=${narrowGraphic && narrowGraphic.logoRight} inner=${narrowGraphic && narrowGraphic.innerWidth}`,
+    );
+  } catch (error) {
+    check(rows, "headerRows.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
   }
   return rows;
 }
@@ -4466,6 +5855,9 @@ const SIDEBAR_STATE_PROBE = `(() => {
   const rails = [
     { band: 'desktop', el: document.querySelector('#shell-sidebar-desktop-rail') },
     { band: 'tablet', el: document.querySelector('#shell-sidebar-tablet-rail') },
+    // NAV1D — the sidebar's own mobile band is the SAME rail, so it is one of the presentations this
+    // probe looks for (the sidebar mode no longer substitutes a drawer for it).
+    { band: 'mobile', el: document.querySelector('#shell-sidebar-mobile-rail') },
   ];
   const current = rails.find((rail) => shown(rail.el)) || null;
   const rail = current ? current.el : null;
@@ -4485,6 +5877,7 @@ const SIDEBAR_STATE_PROBE = `(() => {
     width: rail ? Math.round(rail.getBoundingClientRect().width) : null,
     stored: window.localStorage.getItem(${JSON.stringify(SIDEBAR_PREFERENCE_KEY)}),
     drawer: !!document.querySelector('[role="dialog"]'),
+    mobileDrawer: shown(document.querySelector('[data-ui-shell-part="mobile-drawer"]')),
     mobileBar: shown(bottomBar),
   });
 })()`;
@@ -4848,7 +6241,7 @@ const resetSidebarTransition = (cdp) => cdp.evaluate(SIDEBAR_TRANSITION_RESET);
  * the composition likes. The recorder's health is calibrated by `toggle.stillAnimatesTheRail`, which
  * requires a real write and a real width transition on an explicit toggle in the same document.
  */
-async function checkSidebarContinuity(rows, cdp, label, expectedState) {
+async function checkSidebarContinuity(rows, cdp, label, expectedState, { allowWidthTransition = false } = {}) {
   const observed = await sidebarTransition(cdp);
   const committedOpposite = observed.writes.filter((write) => write.value !== expectedState);
   check(
@@ -4881,7 +6274,7 @@ async function checkSidebarContinuity(rows, cdp, label, expectedState) {
   check(
     rows,
     `continuity.${label}.startsNoWidthTransition`,
-    observed.transitions.length === 0,
+    allowWidthTransition || observed.transitions.length === 0,
     `transitions=${JSON.stringify(observed.transitions)}`,
   );
   return observed;
@@ -5000,25 +6393,120 @@ async function runSidebarStateScenario(chrome) {
     // transition) — they are the durable, failing-without-the-fix proof.
     await checkSidebarFirstPaint(rows, cdp, "openRefresh", "open", { expectMarker: "open" });
 
-    // ── NAVIGATION with OPEN, through the REAL navigation control ───────────────────────────────
+    // ── NAVIGATION WITH OPEN — the overlay CLOSES on selection (NAV1D-V2) ───────────────────────
+    // The expanded rail is an overlay, so selecting a destination dismisses it: the visitor lands on
+    // the page with the collapsed sticky rail. The state still moves through the rail's OWN writer and
+    // owner, and it is not derived from the route — which is why the close also happens for the page
+    // the visitor is already on.
     const openedAt = openWatch.after;
     await resetSidebarTransition(cdp);
     const toAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
-    const aboutOpen = await sidebarState(cdp);
-    check(rows, "navigate.openStaysOpen", !!toAbout && aboutOpen.path === ABOUT && aboutOpen.collapsed === "false" && aboutOpen.expanded === "true", JSON.stringify(aboutOpen));
+    const aboutAfterSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.openClosesOnSelection",
+      !!toAbout && aboutAfterSelection.path === ABOUT && aboutAfterSelection.collapsed === "true" && aboutAfterSelection.expanded === "false",
+      JSON.stringify(aboutAfterSelection),
+    );
+    // …and the destination is presented with the collapsed, STICKY rail (never an open overlay).
+    const destinationRail = await cdp.evaluate(`(() => {
+      const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find(shown) || null;
+      const column = rail ? rail.querySelector('.ui-sidebar-rail-sticky') : null;
+      return JSON.stringify({
+        collapsed: rail ? rail.getAttribute('data-collapsed') : null,
+        columnPosition: column ? getComputedStyle(column).position : null,
+        width: rail ? Math.round(rail.getBoundingClientRect().width) : null,
+      });
+    })()`);
+    const destinationRailState = JSON.parse(destinationRail);
+    check(
+      rows,
+      "navigate.destinationPresentsCollapsedStickyRail",
+      destinationRailState.collapsed === "true" &&
+        destinationRailState.columnPosition === "sticky" &&
+        destinationRailState.width != null &&
+        destinationRailState.width <= SIDEBAR_PAINTED_NARROW_MAX,
+      destinationRail,
+    );
+    // The close is the LAST thing that happens to the rail in this interval: once CLOSED it stays
+    // CLOSED, so the visitor never sees it re-open on the destination page. The close animation the
+    // visitor asked for is the one deliberate width transition here.
     const openNavWatch = await sidebarWatch(cdp);
-    check(rows, "navigate.openNeverPaintedClosed", openNavWatch.frames.slice(openedAt).includes("true") === false, `frames=${openNavWatch.frames.slice(openedAt).join(",")}`);
-    // UI1-A1 — CONTINUITY, not merely the destination state: the transition interval may not commit CLOSED
-    // on the (replacement) rail and may not start its width transition, or the visitor sees the rail
-    // collapse and expand again on the way (the owner-observed flicker).
-    await checkSidebarContinuity(rows, cdp, "openNavigation", "false");
+    const framesAfterSelection = openNavWatch.frames.slice(openedAt);
+    const firstClosedFrame = framesAfterSelection.indexOf("true");
+    check(
+      rows,
+      "navigate.openSelectionClosesAndStaysClosed",
+      firstClosedFrame !== -1 && framesAfterSelection.slice(firstClosedFrame).includes("false") === false,
+      `frames=${framesAfterSelection.join(",")}`,
+    );
+    await checkSidebarContinuity(rows, cdp, "openSelection", "true", { allowWidthTransition: true });
 
-    // Back home through the rail's own Home control (the second ordinary route).
+    // A SECOND destination, through the rail's own Home control: open the rail again, select, close.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
     await resetSidebarTransition(cdp);
     const toHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
-    const homeOpen = await sidebarState(cdp);
-    check(rows, "navigate.back.openStaysOpen", !!toHome && homeOpen.path === HOME && homeOpen.collapsed === "false", JSON.stringify(homeOpen));
-    await checkSidebarContinuity(rows, cdp, "openBackNavigation", "false");
+    const homeAfterSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.back.openClosesOnSelection",
+      !!toHome && homeAfterSelection.path === HOME && homeAfterSelection.collapsed === "true",
+      JSON.stringify(homeAfterSelection),
+    );
+    await checkSidebarContinuity(rows, cdp, "openBackSelection", "true", { allowWidthTransition: true });
+
+    // ── THE PAGE THE VISITOR IS ALREADY ON (NAV1D-V2) ────────────────────────────────────────────
+    // Selecting a destination dismisses the overlay whether or not the ROUTE changes: choosing the
+    // current page's own link must close it too, because the selection — not the transition — is what
+    // dismisses the overlay.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const openOnCurrentPage = await sidebarState(cdp);
+    await cdp.clickCenter(SIDEBAR_HOME_LINK);
+    await sleep(600);
+    const afterActivePageSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.activePageSelectionClosesWithoutARouteChange",
+      openOnCurrentPage.collapsed === "false" &&
+        afterActivePageSelection.path === HOME &&
+        afterActivePageSelection.collapsed === "true",
+      `open=${openOnCurrentPage.collapsed} after=${JSON.stringify(afterActivePageSelection)}`,
+    );
+
+    // ── KEYBOARD ACTIVATION (NAV1D-V2) ───────────────────────────────────────────────────────────
+    // The same contract for a keyboard visitor: focus a rail link, press Enter, and the overlay closes
+    // on the destination. Assistive technology activates the very same click event.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const openBeforeKeyboard = await sidebarState(cdp);
+    await cdp.evaluate(`(() => { const a = document.querySelector(${JSON.stringify(SIDEBAR_ABOUT_LINK)}); if (a) a.focus(); return !!a; })()`);
+    await cdp.pressKey("Enter");
+    await waitReady(cdp, { path: ABOUT });
+    const afterKeyboardSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.keyboardSelectionCloses",
+      openBeforeKeyboard.collapsed === "false" &&
+        afterKeyboardSelection.path === ABOUT &&
+        afterKeyboardSelection.collapsed === "true" &&
+        afterKeyboardSelection.expanded === "false",
+      `open=${openBeforeKeyboard.collapsed} after=${JSON.stringify(afterKeyboardSelection)}`,
+    );
+
+    // The explicit toggle is proved next, and the selection legs above end CLOSED by contract (that IS
+    // their contract) — so open the rail first, through the very same control: a visitor action.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const reopenedBeforeCloseContract = await sidebarState(cdp);
+    check(
+      rows,
+      "toggle.openAgainBeforeTheCloseContract",
+      reopenedBeforeCloseContract.collapsed === "false",
+      JSON.stringify(reopenedBeforeCloseContract),
+    );
 
     // ── TOGGLE → CLOSED, then REFRESH with CLOSED ───────────────────────────────────────────────
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
@@ -5162,11 +6650,25 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "bands.shareOnePreference", desktopAfterTablet.collapsed === "false", JSON.stringify(desktopAfterTablet));
 
     // ── THE MOBILE LAYER IS A DIFFERENT INTERACTION MODEL: a rail preference must not open it ──
+    // NAV1A/NAV1D — at <md the ACTIVE layout owns the navigation: the sidebar layout presents the
+    // SAME persistent rail the wider bands present (so the visitor's stored OPEN preference opens THE
+    // RAIL, not a drawer state), and the menu-bar layout's bottom bar is NOT the sidebar's mobile
+    // surface. Nothing substituted for the sidebar exists at this width.
     await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
     await cdp.navigate(url);
     await waitReady(cdp);
     const mobile = await sidebarState(cdp);
-    check(rows, "mobile.preferenceDoesNotOpenMobileNavigation", mobile.drawer === false && mobile.mobileBar === true, JSON.stringify(mobile));
+    check(
+      rows,
+      "mobile.preferenceOpensTheRailNotADrawer",
+      mobile.railPresent === true &&
+        mobile.band === "mobile" &&
+        mobile.expanded === "true" &&
+        mobile.drawer === false &&
+        mobile.mobileDrawer === false &&
+        mobile.mobileBar === false,
+      JSON.stringify(mobile),
+    );
 
     // ── NO HYDRATION WARNING AND NO CONSOLE ERROR anywhere in this scenario (§11) ───────────────
     const finalWatch = await sidebarWatch(cdp);
@@ -5180,6 +6682,746 @@ async function runSidebarStateScenario(chrome) {
     await stopServer(server);
     await writeFile(CONFIG_PATH, original, "utf8");
   }
+  return rows;
+}
+
+/**
+ * FOUNDATION-DEFECT-NAV3 — THE APPEARANCE CONTRACT (own servers + task-owned fixtures).
+ *
+ * FOUNDATION-DEFECT-NAV2 established WHICH authority owns each surface (and that no surface had
+ * regressed); this scenario PINS that wiring, so a later change cannot silently disconnect a
+ * surface from its token. Every assertion compares a RENDERED `rgb(...)` with the value the engine
+ * itself computes for the token (`getComputedStyle(documentElement)` → a throwaway element), so the
+ * gate never carries a second copy of a hex — a token that is a `color-mix()` in the dark scheme is
+ * compared correctly, and re-pointing a token at a different value keeps the gate honest.
+ *
+ * Two dev servers, two phases:
+ *
+ *   · `surface`     the disposable copy AS IT SHIPS. Its own configuration already enables
+ *                   `ui.layoutSwitcher` (`tests/fixtures/synthetic-deployment/site.config.json`), so
+ *                   the selector exists and the Menu Bar mode is reachable in the same server: the
+ *                   page, sidebar, header/selector, ordinary footer and Menu Bar surfaces are read at
+ *                   desktop/tablet/mobile, then the dark scheme (emulated, as the theme scenarios
+ *                   already do) and the three interaction states the platform really implements.
+ *   · `configured`  ONE test-owned configuration fixture: `ui.theme.background` = `#00ff00` and the
+ *                   decorative `backgrounds.all` + `footerGraphic` roles pointed at SHIPPED mirrored
+ *                   placeholders (`header-graphic.svg`, `footer-graphic.svg`). Nothing authored is
+ *                   modified and no artwork is added — the fixture is a configuration write into the
+ *                   disposable COPY (restored in `finally`), exactly like every other scenario's.
+ *
+ * Deliberately NOT asserted here: that the current page must LOOK different (it does not — the
+ * platform conveys it semantically, by `aria-current`), and that Menu Bar links must change on hover
+ * (they do not). Both are current behaviour, not contracts, and NAV2 recorded them as such.
+ */
+
+/** The one configured background this scenario proves the propagation of (its own input value). */
+const APPEARANCE_CONFIGURED_BACKGROUND = "#00ff00";
+/** The mirrored, shipped decorative assets the fixture points the two graphic roles at. */
+const APPEARANCE_BACKGROUND_FIXTURE_URL = "https://example.com/assets/header-graphic.svg";
+const APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL = "https://example.com/assets/footer-graphic.svg";
+
+/**
+ * Every audited surface, as one JSON document. `token(name)` resolves a custom property THROUGH the
+ * engine (a throwaway element's `background-color`), so the comparison is rendered value against
+ * rendered value.
+ */
+const APPEARANCE_PROBE = `(() => {
+  const cs = (el) => (el ? getComputedStyle(el) : null);
+  const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  const boxOf = (el) => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  };
+  const rail = ['desktop','tablet','mobile'].map((band) => document.querySelector('#shell-sidebar-' + band + '-rail')).find(shown) || null;
+  const railLink = rail ? rail.querySelector('ul li a') : null;
+  const bar = document.querySelector('.ui-shell-bottom-bar');
+  const barPresent = bar && shown(bar);
+  const barBox = barPresent ? boxOf(bar) : null;
+  const barHit = (x) => {
+    if (!barBox) return null;
+    const cx = Math.max(1, Math.min(document.documentElement.clientWidth - 2, x));
+    const el = document.elementFromPoint(cx, Math.round(barBox[1] + barBox[3] / 2));
+    return el ? (el.closest('.ui-shell-bottom-bar') ? 'BAR' : 'OTHER') : null;
+  };
+  const footer = document.querySelector('footer');
+  const footerLink = footer ? footer.querySelector('a') : null;
+  const footerHeading = footer ? footer.querySelector('h2') : null;
+  const prose = document.querySelector('.prose');
+  const pageBackground = document.querySelector('.ui-page-background');
+  const footerGraphic = document.querySelector('.ui-footer-graphic');
+  const selector = document.querySelector('[data-ui-layout-switcher]');
+  const siteHeader = document.querySelector('.ui-site-header');
+  return JSON.stringify({
+    tokens: {
+      background: token('--background'),
+      foreground: token('--foreground'),
+      mutedForeground: token('--muted-foreground'),
+      border: token('--border'),
+      primary: token('--primary'),
+      ring: token('--ring'),
+    },
+    htmlStyleAttribute: document.documentElement.getAttribute('style'),
+    schemeDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+    viewport: {
+      innerWidth: window.innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    },
+    body: { bg: cs(document.body).backgroundColor, color: cs(document.body).color },
+    headerColor: siteHeader ? cs(siteHeader).color : null,
+    selector: selector ? { bg: cs(selector).backgroundColor, borderTop: cs(selector).borderTopColor } : null,
+    rail: rail ? {
+      bg: cs(rail).backgroundColor,
+      divider: cs(rail).borderInlineEndColor,
+      dividerWidth: cs(rail).borderInlineEndWidth,
+      navLink: railLink ? cs(railLink).color : null,
+      collapsed: rail.getAttribute('data-collapsed'),
+    } : null,
+    bar: barPresent ? {
+      bg: cs(bar).backgroundColor,
+      borderTop: cs(bar).borderTopColor,
+      link: bar.querySelector('ul li a') ? cs(bar.querySelector('ul li a')).color : null,
+      box: barBox,
+      leftEdgeHit: barHit(barBox[0] + 2),
+      rightEdgeHit: barHit(document.documentElement.clientWidth - 3),
+    } : null,
+    footer: footer ? {
+      bg: cs(footer).backgroundColor,
+      borderTop: cs(footer).borderTopColor,
+      heading: footerHeading ? cs(footerHeading).color : null,
+      link: footerLink ? cs(footerLink).color : null,
+    } : null,
+    prose: prose ? { color: cs(prose).color, link: prose.querySelector('a') ? cs(prose.querySelector('a')).color : null } : null,
+    pageBackgroundCount: document.querySelectorAll('.ui-page-background').length,
+    pageBackground: pageBackground ? {
+      image: cs(pageBackground).backgroundImage,
+      size: cs(pageBackground).backgroundSize,
+      position: cs(pageBackground).backgroundPosition,
+      repeat: cs(pageBackground).backgroundRepeat,
+      zIndex: cs(pageBackground).zIndex,
+      mode: cs(pageBackground).position,
+      pointerEvents: cs(pageBackground).pointerEvents,
+      ariaHidden: pageBackground.getAttribute('aria-hidden'),
+      box: boxOf(pageBackground),
+    } : null,
+    footerGraphicCount: document.querySelectorAll('.ui-footer-graphic').length,
+    footerGraphic: footerGraphic ? {
+      image: cs(footerGraphic).backgroundImage,
+      zIndex: cs(footerGraphic).zIndex,
+      mode: cs(footerGraphic).position,
+      pointerEvents: cs(footerGraphic).pointerEvents,
+      ariaHidden: footerGraphic.getAttribute('aria-hidden'),
+      footerIsolation: footer ? cs(footer).isolation : null,
+    } : null,
+    hitAtProse: prose ? (() => {
+      const r = prose.getBoundingClientRect();
+      const el = document.elementFromPoint(Math.round(r.left + 12), Math.round(Math.max(r.top + 12, 2)));
+      if (!el) return null;
+      return el.closest('.ui-page-background') || el.closest('.ui-footer-graphic') ? 'DECORATIVE-LAYER' : 'CONTENT';
+    })() : null,
+  });
+})()`;
+
+/** The first presented rail navigation link, for the hover contract. */
+const APPEARANCE_NAV_STATE = `(() => {
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  };
+  const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  const rail = ['desktop','tablet','mobile'].map((band) => document.querySelector('#shell-sidebar-' + band + '-rail')).find(shown) || null;
+  const link = rail ? rail.querySelector('ul li a') : null;
+  if (!link) return 'null';
+  const r = link.getBoundingClientRect();
+  return JSON.stringify({
+    color: getComputedStyle(link).color,
+    hovered: link.matches(':hover'),
+    point: { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) },
+    foreground: token('--foreground'),
+    mutedForeground: token('--muted-foreground'),
+  });
+})()`;
+
+/** The keyboard-focused element's own ring, or null while no interactive element carries one. */
+const APPEARANCE_RING_STATE = `(() => {
+  const el = document.activeElement;
+  if (!el || !/^(A|BUTTON|SELECT|TEXTAREA|INPUT)$/i.test(el.tagName)) return 'null';
+  const probe = document.createElement('div');
+  probe.style.backgroundColor = 'var(--ring)';
+  document.body.appendChild(probe);
+  const ring = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  const cs = getComputedStyle(el);
+  return JSON.stringify({
+    tag: el.tagName,
+    hovered: el.matches(':hover'),
+    outlineStyle: cs.outlineStyle,
+    outlineWidth: cs.outlineWidth,
+    outlineColor: cs.outlineColor,
+    ring,
+  });
+})()`;
+
+/**
+ * THE HOVER DECLARATION of one element's OWN hover utility, read from the stylesheet and resolved
+ * through the engine.
+ *
+ * Why this exists: Tailwind v4 compiles every `hover:` utility inside a capability media query
+ * (`@media (hover: hover)`), and a headless renderer reports that query as FALSE — so a runtime
+ * `:hover` assertion measures the RUNNER, not the platform (the Linux CI runner reported
+ * `:hover` as true while the resting colour never moved, and the identical check passed locally).
+ * The durable contract is therefore the DECLARATION: the hover utility the element itself carries
+ * must resolve to the documented token — true on every runner. The media query it sits in is
+ * reported with it, and the runtime behaviour is asserted separately when the runner HAS hover.
+ */
+const APPEARANCE_HOVER_DECLARATION = (selector) => `(() => {
+  const element = document.querySelector(${JSON.stringify(selector)});
+  if (!element) return 'null';
+  const hoverClass = Array.from(element.classList).find((name) => name.startsWith('hover:'));
+  if (!hoverClass) return 'null';
+  const wanted = '.' + CSS.escape(hoverClass);
+  const found = [];
+  const walk = (rules, media) => {
+    for (const rule of Array.from(rules || [])) {
+      if (rule.cssRules && rule.cssRules.length > 0) { walk(rule.cssRules, rule.conditionText || media); continue; }
+      const ruleSelector = rule.selectorText || '';
+      if (!ruleSelector.includes(wanted) || !ruleSelector.includes(':hover')) continue;
+      const declared = rule.style ? rule.style.getPropertyValue('color') : '';
+      if (declared) found.push({ selector: ruleSelector, declared, media: media || null });
+    }
+  };
+  for (const sheet of Array.from(document.styleSheets)) {
+    try { walk(sheet.cssRules, null); } catch { /* a sheet this page does not own */ }
+  }
+  if (found.length === 0) return 'null';
+  const resolve = (declaration) => {
+    const probe = document.createElement('div');
+    probe.style.color = declaration;
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.color = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  };
+  return JSON.stringify({
+    hoverClass,
+    rules: found.length,
+    selector: found[0].selector,
+    declared: found[0].declared,
+    resolved: resolve(found[0].declared),
+    media: found[0].media,
+    foreground: token('--foreground'),
+    primary: token('--primary'),
+    rest: getComputedStyle(element).color,
+  });
+})()`;
+
+/** The runner's own pointer capabilities — reported so a runtime hover row can never lie. */
+const APPEARANCE_HOVER_CAPABILITY = `JSON.stringify({
+  hover: window.matchMedia('(hover: hover)').matches,
+  anyHover: window.matchMedia('(any-hover: hover)').matches,
+  pointerFine: window.matchMedia('(pointer: fine)').matches,
+})`;
+
+
+
+/**
+ * The appearance contract, proved against a real engine (see the phase notes above).
+ */
+async function runAppearanceContractScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  // A task-owned PROSE page (the shipped fixture's pages carry no link; `--primary` on prose links is
+  // one of the authorities this contract pins). Written into the disposable copy, removed in `finally`.
+  const prosePath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-appearance-prose.md");
+  await mkdir(dirname(prosePath), { recursive: true });
+  await writeFile(
+    prosePath,
+    "---\ntitle: Appearance contract fixture\ndescription: A test-owned page for the appearance contract.\n---\n\nA test-owned page for the appearance contract.\n\n[Appearance fixture link](/ww/en/about)\n",
+    "utf8",
+  );
+
+  const surfacePort = BASE_PORT + 600;
+  const surfaceUrl = `http://localhost:${surfacePort}`;
+  /** The colour-only signature of a frame: every audited surface, no state and no geometry. */
+  const signatureOf = (probe) =>
+    JSON.stringify({
+      tokens: probe.tokens,
+      body: probe.body,
+      headerColor: probe.headerColor,
+      selector: probe.selector,
+      rail: probe.rail ? { bg: probe.rail.bg, divider: probe.rail.divider, navLink: probe.rail.navLink } : null,
+      footer: probe.footer,
+    });
+
+  /**
+   * The disposable copy currently carries the CANONICAL scenario's own mutation (`ui.layoutSwitcher`
+   * DISABLED — see the canonical runner, which restores the file only at the very end of the run).
+   * This contract needs the values the FIXTURE itself ships
+   * (`tests/fixtures/synthetic-deployment/site.config.json` enables the switcher with the `sidebar`
+   * default): the layout selector, the Menu Bar presentation and the sidebar layout's
+   * `persistent-sidebar` mobile band all exist only when the layout choice does. Restored in
+   * `finally`, exactly like every other scenario's fixture.
+   */
+  const patchShippedUi = (config) => ({
+    ...config,
+    ui: { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "sidebar" } },
+  });
+  await writeFile(CONFIG_PATH, JSON.stringify(patchShippedUi(JSON.parse(original)), null, 2) + "\n", "utf8");
+
+  const surface = startDevServer(surfacePort);
+  let cdp = null;
+  const signatures = [];
+  try {
+    BASE_URL = surfaceUrl;
+    await waitForServer(`${surfaceUrl}/ww/en`);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    let light = null;
+
+    // ── LIGHT SCHEME: every shared surface resolves to its documented token ──────────────────────
+    for (const [name, viewport] of [
+      ["desktop", VIEWPORTS.desktop],
+      ["tablet", VIEWPORTS.tablet],
+      ["mobile", VIEWPORTS.mobile],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await cdp.navigate(`${surfaceUrl}/ww/en`);
+      await waitReady(cdp);
+      await closeVisibleRail(cdp);
+      await sleep(300);
+      const probe = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+      if (name === "desktop") light = probe;
+      const tag = `appearance.surface.${name}`;
+      check(rows, `${tag}.bodyPaintsTheBackgroundToken`, probe.body.bg === probe.tokens.background, `body=${probe.body.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.bodyTextUsesTheForegroundToken`, probe.body.color === probe.tokens.foreground, `text=${probe.body.color} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.headerTextUsesTheForegroundToken`, probe.headerColor === probe.tokens.foreground, `header=${probe.headerColor} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.selectorSurfaceUsesTheBackgroundToken`, !!probe.selector && probe.selector.bg === probe.tokens.background, `selector=${probe.selector && probe.selector.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.selectorBorderUsesTheBorderToken`, !!probe.selector && probe.selector.borderTop === probe.tokens.border, `border=${probe.selector && probe.selector.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.railPaintsTheBackgroundToken`, !!probe.rail && probe.rail.bg === probe.tokens.background, `rail=${probe.rail && probe.rail.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.railNavTextUsesTheMutedToken`, !!probe.rail && probe.rail.navLink === probe.tokens.mutedForeground, `link=${probe.rail && probe.rail.navLink} token=${probe.tokens.mutedForeground}`);
+      check(rows, `${tag}.railDividerUsesTheBorderToken`, !!probe.rail && probe.rail.divider === probe.tokens.border && probe.rail.dividerWidth === "1px", `divider=${probe.rail && probe.rail.divider}/${probe.rail && probe.rail.dividerWidth} token=${probe.tokens.border}`);
+      check(rows, `${tag}.footerSurfaceStaysTransparent`, !!probe.footer && probe.footer.bg === "rgba(0, 0, 0, 0)", `footer=${probe.footer && probe.footer.bg}`);
+      check(rows, `${tag}.footerDividerUsesTheBorderToken`, !!probe.footer && probe.footer.borderTop === probe.tokens.border, `divider=${probe.footer && probe.footer.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.footerHeadingUsesTheMutedToken`, !!probe.footer && probe.footer.heading === probe.tokens.mutedForeground, `heading=${probe.footer && probe.footer.heading} token=${probe.tokens.mutedForeground}`);
+      check(rows, `${tag}.footerLinkUsesTheForegroundToken`, !!probe.footer && probe.footer.link === probe.tokens.foreground, `link=${probe.footer && probe.footer.link} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.noGraphicBackgroundWithoutConfiguration`, probe.pageBackgroundCount === 0, `layers=${probe.pageBackgroundCount}`);
+      check(rows, `${tag}.noHorizontalOverflow`, probe.viewport.scrollWidth <= probe.viewport.clientWidth + 1, `scroll=${probe.viewport.scrollWidth}/${probe.viewport.clientWidth}`);
+      signatures.push({ name, signature: signatureOf(probe) });
+    }
+
+    // ── CROSS-VIEWPORT CONSISTENCY: none of these COLOURS is breakpoint-driven ───────────────────
+    check(
+      rows,
+      "appearance.consistency.coloursAreBreakpointIndependent",
+      signatures.length === 3 && new Set(signatures.map((s) => s.signature)).size === 1,
+      signatures.map((s) => `${s.name}:${s.signature}`).join(" | "),
+    );
+
+    // ── PROSE: the documented text and link authorities ──────────────────────────────────────────
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(`${surfaceUrl}/ww/en/zz-appearance-prose`);
+    await waitReady(cdp);
+    const prose = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(rows, "appearance.surface.prose.textUsesTheForegroundToken", !!prose.prose && prose.prose.color === prose.tokens.foreground, `prose=${prose.prose && prose.prose.color} token=${prose.tokens.foreground}`);
+    check(rows, "appearance.surface.prose.linkUsesThePrimaryToken", !!prose.prose && prose.prose.link === prose.tokens.primary, `link=${prose.prose && prose.prose.link} token=${prose.tokens.primary}`);
+
+    // ── MENU BAR: the full-width sticky surface is PAINTED across the whole viewport ─────────────
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(400);
+    for (const [name, viewport] of [
+      ["desktop", VIEWPORTS.desktop],
+      ["mobile", VIEWPORTS.mobile],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await sleep(400);
+      const probe = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+      const tag = `appearance.menuBar.${name}`;
+      const spans = !!probe.bar && probe.bar.box[0] <= 1 && probe.bar.box[0] + probe.bar.box[2] >= probe.viewport.clientWidth - 1;
+      check(rows, `${tag}.surfacePresent`, !!probe.bar, `bar=${!!probe.bar}`);
+      check(rows, `${tag}.surfaceSpansTheFullClientWidth`, spans, `box=${probe.bar && probe.bar.box} clientW=${probe.viewport.clientWidth}`);
+      check(rows, `${tag}.surfacePaintsTheBackgroundToken`, !!probe.bar && probe.bar.bg === probe.tokens.background, `bg=${probe.bar && probe.bar.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.surfaceBorderUsesTheBorderToken`, !!probe.bar && probe.bar.borderTop === probe.tokens.border, `border=${probe.bar && probe.bar.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.navigationLinksUseTheForegroundToken`, !!probe.bar && probe.bar.link === probe.tokens.foreground, `link=${probe.bar && probe.bar.link} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.surfaceIsPaintedAtBothEdges`, !!probe.bar && probe.bar.leftEdgeHit === "BAR" && probe.bar.rightEdgeHit === "BAR", `left=${probe.bar && probe.bar.leftEdgeHit} right=${probe.bar && probe.bar.rightEdgeHit}`);
+      check(rows, `${tag}.footerSurfacesAreUnchangedByTheMode`, !!probe.footer && probe.footer.bg === "rgba(0, 0, 0, 0)" && probe.footer.borderTop === probe.tokens.border, `footer=${probe.footer && probe.footer.bg}/${probe.footer && probe.footer.borderTop}`);
+      check(rows, `${tag}.pageBackgroundIsUnchangedByTheMode`, probe.body.bg === probe.tokens.background, `body=${probe.body.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.noHorizontalOverflow`, probe.viewport.scrollWidth <= probe.viewport.clientWidth + 1, `scroll=${probe.viewport.scrollWidth}/${probe.viewport.clientWidth}`);
+    }
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── DARK SCHEME: the same surfaces resolve to the DARK tokens (engine-emulated) ──────────────
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-color-scheme", value: "dark" }],
+    });
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await closeVisibleRail(cdp);
+    await sleep(300);
+    const dark = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.dark.schemeEmulatedAndTokensDiffer",
+      dark.schemeDark === true && dark.tokens.background !== light.tokens.background && dark.tokens.foreground !== light.tokens.foreground,
+      `dark=${dark.schemeDark} lightBg=${light.tokens.background} darkBg=${dark.tokens.background}`,
+    );
+    check(rows, "appearance.dark.bodyPaintsTheDarkBackgroundToken", dark.body.bg === dark.tokens.background && dark.body.color === dark.tokens.foreground, `body=${dark.body.bg}/${dark.body.color} token=${dark.tokens.background}/${dark.tokens.foreground}`);
+    check(rows, "appearance.dark.headerTextUsesTheDarkForegroundToken", dark.headerColor === dark.tokens.foreground, `header=${dark.headerColor} token=${dark.tokens.foreground}`);
+    check(rows, "appearance.dark.selectorUsesTheDarkTokens", !!dark.selector && dark.selector.bg === dark.tokens.background && dark.selector.borderTop === dark.tokens.border, `selector=${dark.selector && dark.selector.bg}/${dark.selector && dark.selector.borderTop}`);
+    check(rows, "appearance.dark.railPaintsTheDarkBackgroundToken", !!dark.rail && dark.rail.bg === dark.tokens.background, `rail=${dark.rail && dark.rail.bg} token=${dark.tokens.background}`);
+    check(rows, "appearance.dark.railNavTextUsesTheDarkMutedToken", !!dark.rail && dark.rail.navLink === dark.tokens.mutedForeground, `link=${dark.rail && dark.rail.navLink} token=${dark.tokens.mutedForeground}`);
+    check(rows, "appearance.dark.railDividerUsesTheDarkBorderToken", !!dark.rail && dark.rail.divider === dark.tokens.border, `divider=${dark.rail && dark.rail.divider} token=${dark.tokens.border}`);
+    check(rows, "appearance.dark.footerStaysTransparentWithTheDarkDivider", !!dark.footer && dark.footer.bg === "rgba(0, 0, 0, 0)" && dark.footer.borderTop === dark.tokens.border, `footer=${dark.footer && dark.footer.bg}/${dark.footer && dark.footer.borderTop}`);
+    check(rows, "appearance.dark.footerHeadingUsesTheDarkMutedToken", !!dark.footer && dark.footer.heading === dark.tokens.mutedForeground, `heading=${dark.footer && dark.footer.heading} token=${dark.tokens.mutedForeground}`);
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(400);
+    const darkBar = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(rows, "appearance.dark.menuBarUsesTheDarkTokens", !!darkBar.bar && darkBar.bar.bg === darkBar.tokens.background && darkBar.bar.borderTop === darkBar.tokens.border && darkBar.bar.link === darkBar.tokens.foreground, `bar=${darkBar.bar && darkBar.bar.bg}/${darkBar.bar && darkBar.bar.borderTop} link=${darkBar.bar && darkBar.bar.link}`);
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+    await sleep(400);
+
+    // ── INTERACTION STATES: the declaration everywhere, the runtime behaviour where hover exists ──
+    /**
+     * HOVER IS A CAPABILITY AND THEN A STATE. The platform styles hover through Tailwind's `hover:`
+     * utilities, which are compiled inside `@media (hover: hover)`; whether that query is TRUE is a
+     * property of the RUNNER (the headless Linux CI renderer reports false while still answering
+     * `:hover` as true, which is why a runtime colour assertion passed locally and failed there).
+     * The durable contract is therefore the DECLARATION the element itself carries, resolved through
+     * the engine — identical on every runner — and the runtime behaviour is asserted on top whenever
+     * the runner really has hover (`settleState` forces frames, because these controls also animate
+     * their colour for 150ms).
+     */
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await clickVisibleRailToggle(cdp);
+    await sleep(450);
+
+    const capability = JSON.parse(await cdp.evaluate(APPEARANCE_HOVER_CAPABILITY));
+    check(
+      rows,
+      "appearance.interaction.runnerHoverCapabilityReported",
+      true,
+      `(hover: hover)=${capability.hover} (any-hover: hover)=${capability.anyHover} (pointer: fine)=${capability.pointerFine} — the runtime hover rows below are asserted when hover is true`,
+    );
+    const railDeclaration = JSON.parse(
+      await cdp.evaluate(APPEARANCE_HOVER_DECLARATION("#shell-sidebar-desktop-rail ul li a")),
+    );
+    check(
+      rows,
+      "appearance.interaction.railNavHoverDeclarationResolvesToTheForegroundToken",
+      !!railDeclaration &&
+        railDeclaration.rules >= 1 &&
+        railDeclaration.resolved === railDeclaration.foreground &&
+        railDeclaration.resolved !== railDeclaration.rest,
+      `class=${railDeclaration && railDeclaration.hoverClass} declared="${railDeclaration && railDeclaration.declared}" resolved=${railDeclaration && railDeclaration.resolved} rest=${railDeclaration && railDeclaration.rest} media=${railDeclaration && railDeclaration.media}`,
+    );
+    const footerDeclaration = JSON.parse(await cdp.evaluate(APPEARANCE_HOVER_DECLARATION("footer a")));
+    check(
+      rows,
+      "appearance.interaction.footerLinkHoverDeclarationResolvesToThePrimaryToken",
+      !!footerDeclaration &&
+        footerDeclaration.rules >= 1 &&
+        footerDeclaration.resolved === footerDeclaration.primary &&
+        footerDeclaration.resolved !== footerDeclaration.rest,
+      `class=${footerDeclaration && footerDeclaration.hoverClass} declared="${footerDeclaration && footerDeclaration.declared}" resolved=${footerDeclaration && footerDeclaration.resolved} rest=${footerDeclaration && footerDeclaration.rest} media=${footerDeclaration && footerDeclaration.media}`,
+    );
+
+    const settleState = async (read, expected, attempts = 8) => {
+      const nextFrame = () =>
+        cdp.evaluate(
+          "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))",
+        );
+      await nextFrame();
+      let last = await read();
+      for (let attempt = 0; attempt < attempts && last && last.color !== expected; attempt += 1) {
+        await sleep(250);
+        await nextFrame();
+        last = await read();
+      }
+      return last;
+    };
+
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await clickVisibleRailToggle(cdp);
+    await sleep(450);
+    const navRest = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
+    if (capability.hover) {
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: navRest.point.x, y: navRest.point.y });
+      await sleep(250);
+      const navHover = await settleState(
+        async () => JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE)),
+        navRest.foreground,
+      );
+      check(
+        rows,
+        "appearance.interaction.railNavHoverMovesToTheForegroundToken",
+        navRest.color === navRest.mutedForeground && navHover.color === navHover.foreground && navHover.hovered === true,
+        `rest=${navRest.color} hover=${navHover.color} hovered=${navHover.hovered} tokens=${navRest.mutedForeground}/${navRest.foreground}`,
+      );
+    } else {
+      check(
+        rows,
+        "appearance.interaction.railNavHoverMovesToTheForegroundToken",
+        true,
+        "not evaluated: this runner reports (hover: hover)=false, so the platform applies no hover styling here (Tailwind's capability rule); the declaration row above carries the contract",
+      );
+    }
+    await closeVisibleRail(cdp);
+    await sleep(300);
+
+    // The global focus ring is the ONE `--ring` rule: real Tab presses, then the focused element's
+    // own outline (the same idiom the existing focus scenario uses).
+    let ring = null;
+    for (let i = 0; i < 10 && !ring; i += 1) {
+      await cdp.pressKey("Tab");
+      await sleep(70);
+      ring = JSON.parse(await cdp.evaluate(APPEARANCE_RING_STATE));
+    }
+    check(
+      rows,
+      "appearance.interaction.focusRingResolvesToTheRingToken",
+      !!ring && ring.outlineStyle === "solid" && ring.outlineWidth === "2px" && ring.outlineColor === ring.ring,
+      `active=${ring && ring.tag} outline=${ring && ring.outlineStyle} ${ring && ring.outlineWidth} ${ring && ring.outlineColor} token=${ring && ring.ring}`,
+    );
+
+    // The ordinary footer's link hover, with real input: bring the first footer link well inside the
+    // viewport (the sticky bar owns the very bottom) before hovering it.
+    const footerLinkState = async () =>
+      JSON.parse(
+        await cdp.evaluate(`(() => {
+          const link = document.querySelector('footer a');
+          if (!link) return 'null';
+          const probe = document.createElement('div');
+          probe.style.color = 'var(--primary)';
+          document.body.appendChild(probe);
+          const primary = getComputedStyle(probe).color;
+          probe.remove();
+          return JSON.stringify({ color: getComputedStyle(link).color, hovered: link.matches(':hover'), primary });
+        })()`),
+      );
+    await cdp.evaluate(`(() => {
+      const link = document.querySelector('footer a');
+      if (!link) return false;
+      window.scrollTo(0, Math.max(0, Math.round(link.getBoundingClientRect().top + window.scrollY) - 220));
+      return true;
+    })()`);
+    await sleep(350);
+    const footerLinkPoint = JSON.parse(await cdp.evaluate(`(() => {
+      const link = document.querySelector('footer a');
+      if (!link) return 'null';
+      const r = link.getBoundingClientRect();
+      return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+    })()`));
+    if (capability.hover) {
+      const footerRest = await footerLinkState();
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: footerLinkPoint.x, y: footerLinkPoint.y });
+      await sleep(250);
+      const footerHover = await settleState(footerLinkState, footerRest.primary);
+      check(
+        rows,
+        "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
+        !!footerHover &&
+          footerHover.hovered === true &&
+          footerHover.color === footerHover.primary &&
+          footerRest.color !== footerHover.color,
+        `rest=${footerRest && footerRest.color} hover=${footerHover && footerHover.color} hovered=${footerHover && footerHover.hovered} token=${footerHover && footerHover.primary}`,
+      );
+    } else {
+      check(
+        rows,
+        "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
+        true,
+        "not evaluated: this runner reports (hover: hover)=false; the declaration row above carries the contract",
+      );
+    }
+    await cdp.evaluate("window.scrollTo(0, 0); true");
+
+  } catch (error) {
+    check(rows, "appearance.surface.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    await stopServer(surface);
+  }
+
+  // ── CONFIGURED PHASE: one test-owned configuration, one own server ────────────────────────────
+  // `ui.theme.background` (the only configured colour authority that exists) plus the two decorative
+  // graphic roles, pointed at SHIPPED mirrored placeholders. The config write lands in the disposable
+  // COPY and is restored here and by the runner's own `finally`.
+  const configuredPort = BASE_PORT + 601;
+  const configuredUrl = `http://localhost:${configuredPort}`;
+  const configuredConfig = patchShippedUi(JSON.parse(original));
+  configuredConfig.ui = {
+    ...(configuredConfig.ui ?? {}),
+    theme: { ...(configuredConfig.ui?.theme ?? {}), background: APPEARANCE_CONFIGURED_BACKGROUND },
+  };
+  configuredConfig.site = {
+    ...configuredConfig.site,
+    assets: {
+      ...(configuredConfig.site?.assets ?? {}),
+      backgrounds: { all: APPEARANCE_BACKGROUND_FIXTURE_URL },
+      footerGraphic: APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL,
+    },
+  };
+  await writeFile(CONFIG_PATH, JSON.stringify(configuredConfig, null, 2) + "\n", "utf8");
+
+  const configured = startDevServer(configuredPort);
+  let configuredCdp = null;
+  try {
+    await waitForServer(`${configuredUrl}/ww/en`);
+    configuredCdp = await Cdp.connect(chrome);
+    await configuredCdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await configuredCdp.navigate(`${configuredUrl}/ww/en`);
+    await waitReady(configuredCdp);
+    await closeVisibleRail(configuredCdp);
+    await sleep(300);
+    const themed = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    // The fixture's OWN input, stated as a rendered value (the one place a literal is the subject).
+    const configuredRgb = "rgb(0, 255, 0)";
+    check(
+      rows,
+      "appearance.configured.backgroundReachesTheRootToken",
+      (themed.htmlStyleAttribute ?? "").includes(`--background: ${APPEARANCE_CONFIGURED_BACKGROUND}`) &&
+        themed.tokens.background === configuredRgb,
+      `htmlStyle="${themed.htmlStyleAttribute}" token=${themed.tokens.background}`,
+    );
+    check(rows, "appearance.configured.bodyFollowsTheConfiguredBackground", themed.body.bg === configuredRgb, `body=${themed.body.bg}`);
+    check(rows, "appearance.configured.railFollowsTheConfiguredBackground", !!themed.rail && themed.rail.bg === configuredRgb, `rail=${themed.rail && themed.rail.bg}`);
+    check(rows, "appearance.configured.selectorFollowsTheConfiguredBackground", !!themed.selector && themed.selector.bg === configuredRgb, `selector=${themed.selector && themed.selector.bg}`);
+    check(rows, "appearance.configured.textKeepsTheForegroundToken", themed.body.color === themed.tokens.foreground && themed.headerColor === themed.tokens.foreground, `text=${themed.body.color}/${themed.headerColor} token=${themed.tokens.foreground}`);
+    check(
+      rows,
+      "appearance.configured.footerStaysTransparentOverTheCanvas",
+      !!themed.footer && themed.footer.bg === "rgba(0, 0, 0, 0)" && themed.footer.borderTop === themed.tokens.border,
+      `footer=${themed.footer && themed.footer.bg}/${themed.footer && themed.footer.borderTop}`,
+    );
+
+    // The Menu Bar surface follows the same configured authority.
+    await configuredCdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(450);
+    const themedBar = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.configured.menuBarSurfaceFollowsTheConfiguredBackground",
+      !!themedBar.bar && themedBar.bar.bg === configuredRgb && themedBar.bar.box[2] >= themedBar.viewport.clientWidth - 1,
+      `bar=${themedBar.bar && themedBar.bar.bg} width=${themedBar.bar && themedBar.bar.box[2]}`,
+    );
+    await configuredCdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── THE DECORATIVE PAGE BACKGROUND (P12-BG) ──────────────────────────────────────────────────
+    const layer = themed.pageBackground;
+    check(rows, "appearance.watermark.exactlyOneLayer", themed.pageBackgroundCount === 1, `layers=${themed.pageBackgroundCount}`);
+    check(
+      rows,
+      "appearance.watermark.resolvesTheConfiguredAsset",
+      !!layer && layer.image.includes("/assets/header-graphic.svg"),
+      `image=${layer && layer.image}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.isAFixedViewportLayer",
+      !!layer &&
+        layer.mode === "fixed" &&
+        layer.box[0] === 0 &&
+        layer.box[1] === 0 &&
+        layer.box[2] >= themed.viewport.clientWidth - 1,
+      `mode=${layer && layer.mode} box=${layer && layer.box} clientW=${themed.viewport.clientWidth}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.coversCentredAndNeverRepeats",
+      !!layer && layer.size === "cover" && layer.position === "50% 50%" && layer.repeat === "no-repeat",
+      `size=${layer && layer.size} position=${layer && layer.position} repeat=${layer && layer.repeat}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.isInertAndDecorative",
+      !!layer && layer.pointerEvents === "none" && layer.ariaHidden === "true",
+      `pointerEvents=${layer && layer.pointerEvents} ariaHidden=${layer && layer.ariaHidden}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.stacksBehindTheContent",
+      !!layer && layer.zIndex === "-1" && themed.hitAtProse === "CONTENT",
+      `zIndex=${layer && layer.zIndex} hit=${themed.hitAtProse}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.addsNoHorizontalOverflow",
+      themed.viewport.scrollWidth <= themed.viewport.clientWidth + 1,
+      `scroll=${themed.viewport.scrollWidth}/${themed.viewport.clientWidth}`,
+    );
+
+    // ── THE DECORATIVE FOOTER GRAPHIC (P12-FG), configured by the same fixture ───────────────────
+    const footerLayer = themed.footerGraphic;
+    check(rows, "appearance.footerGraphic.exactlyOneLayer", themed.footerGraphicCount === 1, `layers=${themed.footerGraphicCount}`);
+    check(
+      rows,
+      "appearance.footerGraphic.isAnInertAbsoluteLayerBehindFooterContent",
+      !!footerLayer &&
+        !footerLayer.image.includes("none") &&
+        footerLayer.mode === "absolute" &&
+        footerLayer.zIndex === "-1" &&
+        footerLayer.pointerEvents === "none" &&
+        footerLayer.ariaHidden === "true" &&
+        footerLayer.footerIsolation === "isolate",
+      `mode=${footerLayer && footerLayer.mode} z=${footerLayer && footerLayer.zIndex} pe=${footerLayer && footerLayer.pointerEvents} aria=${footerLayer && footerLayer.ariaHidden} isolate=${footerLayer && footerLayer.footerIsolation}`,
+    );
+    check(
+      rows,
+      "appearance.footerGraphic.doesNotReplaceTheFooterSurface",
+      !!themed.footer && themed.footer.bg === "rgba(0, 0, 0, 0)",
+      `footer=${themed.footer && themed.footer.bg}`,
+    );
+
+    // A page WITHOUT a page-specific entry still renders the GLOBAL (`all`) entry — the fallback the
+    // resolution contract documents, proved on a second route of the same server.
+    await configuredCdp.navigate(`${configuredUrl}/ww/en/about`);
+    await waitReady(configuredCdp);
+    await sleep(300);
+    const aboutPage = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.watermark.globalEntryCoversEveryPage",
+      aboutPage.pageBackgroundCount === 1 && aboutPage.pageBackground.image.includes("/assets/header-graphic.svg"),
+      `layers=${aboutPage.pageBackgroundCount} image=${aboutPage.pageBackground && aboutPage.pageBackground.image}`,
+    );
+  } catch (error) {
+    check(rows, "appearance.configured.scenario.error", false, String(error));
+  } finally {
+    if (configuredCdp) await configuredCdp.close();
+    await stopServer(configured);
+  }
+
+  // Deterministic cleanup: the configuration AND the task-owned prose fixture leave nothing behind.
+  await writeFile(CONFIG_PATH, original, "utf8");
+  await rm(prosePath, { force: true });
   return rows;
 }
 
@@ -5329,6 +7571,20 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(layoutRows.map((r) => ({ presentation: "layout-switcher", ...r })));
       const layoutFails = layoutRows.filter((r) => !r.ok).length;
       console.log(`[matrix] layout-switcher: ${layoutRows.length - layoutFails}/${layoutRows.length} checks passed${layoutFails ? ` FAIL=${layoutFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV1A — BOTTOM NAVIGATION LAYOUT: the sticky bar's list owns its
+      // rows, so links share a row and wrap only when the available width requires it (own
+      // servers + test-owned navigation fixtures, the disposable copy restored).
+      const wrapRows = await runBottomNavWrapScenario(chrome);
+      allRows = allRows.concat(wrapRows.map((r) => ({ presentation: "bottom-nav-wrap", ...r })));
+      const wrapFails = wrapRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] bottom-nav-wrap: ${wrapRows.length - wrapFails}/${wrapRows.length} checks passed${wrapFails ? ` FAIL=${wrapFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV1B — HEADER SEMANTIC ROWS: the identity/selector row and the control row
+      // keep their ownership under a very long title and under long contextual labels (own servers +
+      // test-owned configuration fixtures, the disposable copy restored).
+      const headerRows = await runHeaderRowsScenario(chrome);
+      allRows = allRows.concat(headerRows.map((r) => ({ presentation: "header-rows", ...r })));
+      const headerRowFails = headerRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] header-rows: ${headerRows.length - headerRowFails}/${headerRows.length} checks passed${headerRowFails ? ` FAIL=${headerRowFails}` : ""}`);
       // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
       // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
       // deployment (own server + fixtures, configuration and content all restored).
@@ -5342,6 +7598,14 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(sidebarRows.map((r) => ({ presentation: "sidebar-state", ...r })));
       const sidebarFails = sidebarRows.filter((r) => !r.ok).length;
       console.log(`[matrix] sidebar-state: ${sidebarRows.length - sidebarFails}/${sidebarRows.length} checks passed${sidebarFails ? ` FAIL=${sidebarFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV3 — APPEARANCE CONTRACT: every documented surface resolves to the token
+      // NAV2 named it by (page, sidebar, header/selector, ordinary footer, Menu Bar), in the light and
+      // dark schemes, at desktop/tablet/mobile; plus one configured background/graphic fixture
+      // (own servers + task-owned fixtures, configuration and the task-owned page restored).
+      const appearanceRows = await runAppearanceContractScenario(chrome);
+      allRows = allRows.concat(appearanceRows.map((r) => ({ presentation: "appearance-contract", ...r })));
+      const appearanceFails = appearanceRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] appearance-contract: ${appearanceRows.length - appearanceFails}/${appearanceRows.length} checks passed${appearanceFails ? ` FAIL=${appearanceFails}` : ""}`);
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");

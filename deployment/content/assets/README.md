@@ -31,7 +31,7 @@ pnpm assets:check    # verify the copy is byte-identical to this folder
 | `placeholders/` | The neutral, blank defaults a fresh Foundation site ships. **Replace these in place** — `logo-header.svg`, `favicon.svg`, `header-graphic.svg`, `footer-graphic.svg` and the sidebar icons — or point a role at your own file/URL in `site.config.json`. |
 | `icon-library/icons/` | The generic, reusable icon set your navigation and connectivity links can name (`icon-about.svg`, `icon-services.svg`, …). |
 | `platform-marks/` | Royalty-free marks for platform/social links (GitHub, WhatsApp, Telegram, …) — used only if you configure such a link. |
-| `branding/` | Your own deployment/business artwork. Nothing is shipped here: the generic template has no brand of its own, and the identity roles use `placeholders/` until you add your files. |
+| `branding/` | Your own deployment/business artwork — **you create this directory when you supply your own**. Nothing is shipped here: the generic template has no brand of its own and the identity roles use `placeholders/` until you add your files. A *shipped template* carries no `content/assets/branding/` tree at all, and the capsule's own test asserts exactly that (`deployment/tests/unit/asset-taxonomy-mirror.test.ts`). |
 
 Which file plays which role is configuration (`site.assets` in `site.config.json`),
 not a folder convention — see `BRAND_ASSETS.md` at the repository root for the

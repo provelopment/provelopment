@@ -7,20 +7,27 @@ import { Sidebar } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
 import {
+  bandClassName,
+  bottomBarCompositions,
   contentWidthClass,
   DEFAULT_SIDEBAR_CLOSE_ICON,
   DEFAULT_SIDEBAR_OPEN_ICON,
   densityClass,
   layoutScopeAttributes,
+  mobileDisclosureCompositions,
+  mobileSurfaceBands,
   railCompositions,
   railLayouts,
   resolveControlPresentation,
   resolveShellPattern,
   shellLayoutCompositions,
   type MenuMode,
+  type ShellBand,
+  type ShellLayout,
 } from "@/core/ui";
 
 import { ShellBottomBar, type ShellBottomBarLink } from "./shell-bottom-bar";
+import { ShellMobileNav } from "./shell-mobile-nav";
 import type { SiteSet } from "@/core/site";
 
 /**
@@ -69,7 +76,11 @@ export interface ShellEngineProps {
   readonly mainClassName?: string;
   /** Accessible label for the optional navigation slot. */
   readonly navigationLabel?: string;
-  /** Content for the aside (sidebar) slot; rendered when desktop/tablet is aside. */
+  /**
+   * The SIDEBAR's navigation content (its ordered list). Rendered inside the rail where the
+   * rail is composed, and inside the composition's constrained-width disclosure where it is
+   * not — one model, two presentations, never a duplicate authority (NAV1B).
+   */
   readonly asideContent?: ReactNode;
   /**
    * P6-1 — localized labels for the sidebar disclosure toggle: `show` while
@@ -141,15 +152,51 @@ export function ShellEngine({
   // structures of BOTH layouts and marks each one with the layouts it IS the active
   // navigation for (`layoutScopeAttributes`); the stylesheet then exposes exactly one
   // of them for the active `data-ui-shell-layout` value, so two structures can never
-  // be focusable or announced at once. The MOBILE composition is shared by both
-  // layouts, so it is composed once, unchanged, from the resolved decision.
+  // be focusable or announced at once. NAV1A — the MOBILE surface is one of those
+  // structures: the sticky bar below `md` belongs to the layout whose mobile
+  // composition IS the bottom bar, and a sidebar layout presents its own drawer
+  // instead (composed by the content layer in the shell's top region).
   const layoutCompositions = shellLayoutCompositions(resolved);
   const scopedLayouts = layoutCompositions.some((composition) => composition.scoped);
   const desktopRail = railCompositions(resolved, "desktop");
   const tabletRail = railCompositions(resolved, "tablet");
   const desktopRailLayouts = railLayouts(resolved, "desktop");
   const tabletRailLayouts = railLayouts(resolved, "tablet");
-  const asideActive = (desktopRail.length > 0 || tabletRail.length > 0) && asideContent !== undefined;
+  // NAV1D — THE SIDEBAR'S MOBILE BAND IS THE SAME RAIL. A composition that names
+  // `navigation.mobile: "persistent-sidebar"` places a rail in the aside slot for the MOBILE band
+  // too, exactly as the `sidebar`/`collapsed-sidebar` leaves do for the two wider bands, so the
+  // engine composes one more instance of the SAME `Sidebar` primitive rather than the capability's
+  // off-canvas disclosure. Nothing about the rail differs by band: same markup, same classes, same
+  // visitor-owned state — only the width gate that presents it.
+  const mobileRail = railCompositions(resolved, "mobile");
+  const mobileRailLayouts = railLayouts(resolved, "mobile");
+  // NAV1A/NAV1B — the composed mobile BARS: one per composition whose MOBILE navigation IS the
+  // sticky bar, each carrying the width gate ITS composition presents it at. The gate is derived
+  // from the composition's bands (never from a call-site breakpoint), so the canonical sidebar
+  // composition keeps the historic `<md` bar while a Menu-bar composition — whose ≥md top menu is
+  // closed, its navigation being this bar — presents it at EVERY width. At most one bar is exposed.
+  const mobileBarCompositions = bottomBarCompositions(resolved);
+  // NAV1B — the constrained-width navigation of a composition that DOES declare a disclosure
+  // (`navigation.mobile: "drawer" | "overlay"`), composed at the SIDEBAR/SHELL BOUNDARY (not in the
+  // page header), so the affordance has one stable place and cannot migrate between header rows as
+  // width changes. NAV1D — a `persistent-sidebar` composition declares none and reaches here with
+  // an empty list, so the sidebar mode composes no disclosure band, no trigger and no dialog.
+  const mobileDisclosureCompositionList = mobileDisclosureCompositions(resolved);
+  const asideActive =
+    (desktopRail.length > 0 || tabletRail.length > 0 || mobileRail.length > 0) &&
+    asideContent !== undefined;
+  // …and whether that rail is composed BESIDE the content at EVERY width. Where it is, the page
+  // frame is a wrapping row from the smallest supported width (the rail is the same sidebar there,
+  // never a top-of-page list) and the header/footer/CTA regions keep their full-width row, exactly
+  // as they already do at `md` and up for a rail composition.
+  const railAtMobile = mobileRail.length > 0;
+  // The regions that must break to their own full-width row in an aside composition (P6-3B): the
+  // width basis a row needs, at the widths the rail is present beside the content. NAV1D — where the
+  // rail is beside the content at EVERY width the content column is shrinkable (`min-w-0`), so a
+  // full-width region must ALSO claim its own line (`basis-full`): with the content column's basis
+  // at 0 a wrapping row would otherwise place the footer (or the bar) beside it — fitting on paper,
+  // and overflowing the viewport once the content column grew back to the space left over.
+  const regionWidthClass = asideActive ? (railAtMobile ? "w-full basis-full" : "md:w-full") : undefined;
 
   // Default (header-slot) path stays byte-identical (UI-04): flex column,
   // full page width to header/footer. The aside layout switches the page frame
@@ -162,7 +209,10 @@ export function ShellEngine({
   // the TOP of the page content — the reported tablet defect. The aside band
   // breakpoints themselves are unchanged (`md:block` / `lg:*`): the fix is that
   // any composed rail is laid out as a side rail, never a top-of-content list.
-  const wrapperClass = `flex flex-col flex-1 ${asideActive ? "md:flex-row md:flex-wrap" : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
+  // …and the frame carries the ONE marker of the shell's page layout (`ui-shell-frame`), which owns
+  // the deliberate minimum layout width the stylesheet declares (NAV1D-V2): the shell's geometry has
+  // an established 320px floor instead of shredding itself below it.
+  const wrapperClass = `ui-shell-frame flex flex-col flex-1 ${asideActive ? (railAtMobile ? "flex-row flex-wrap" : "md:flex-row md:flex-wrap") : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
 
   // P0-2/P6-3C — the primary CTA is the one shared `Cta` capability. `Cta` owns
   // WHETHER one exists (enabled ∧ href ∧ (label ∨ icon) ∧ a real accessible
@@ -193,6 +243,55 @@ export function ShellEngine({
     />
   ) : null;
   const topCtaNode = decision.cta.present ? ctaNode : null;
+
+  // ── NAV1B — THE SIDEBAR'S CONSTRAINED-WIDTH NAVIGATION, AT THE SIDEBAR BOUNDARY ─────────
+  //
+  // Where the rail is NOT composed, the configured MODE still owns the navigation: the sidebar
+  // composition presents its own disclosure — the same control vocabulary as the rail's toggle
+  // (configured icon + Show/Hide navigation copy), the same navigation list — in ONE stable place
+  // immediately below the header region and above the content row.
+  //
+  // It is deliberately NOT part of the page header. Inside the header it shared a wrapping row
+  // with the identity and the visitor controls, so it migrated between header lines and grew with
+  // the header's typography as the width narrowed (the reported defect). Here its band carries the
+  // SAME width gate its composition declares, its marker pair (`mobile-drawer` + the layouts it
+  // serves) keeps exactly one mobile navigation exposed at a time, and an open drawer withdraws
+  // itself when the visitor switches to another mode.
+  const sidebarDisclosure =
+    mobileDisclosureCompositionList.length > 0 && asideContent !== undefined ? (
+      <>
+        {mobileDisclosureCompositionList.map((composition) => (
+          <div
+            key={composition.layout ?? "sidebar-disclosure"}
+            className={[
+              "ui-shell-sidebar-disclosure",
+              bandClassName(mobileSurfaceBands(composition.decision)),
+              asideActive ? "md:w-full" : undefined,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            {...layoutScopeAttributes(
+              "mobile-drawer",
+              composition.layout === null ? [] : [composition.layout],
+              scopedLayouts,
+            )}
+          >
+            <ShellMobileNav
+              // The sidebar composition's own disclosure pattern (drawer or overlay).
+              pattern={composition.decision.mobile.primitiveKind === "overlay" ? "overlay" : "drawer"}
+              id="shell-mobile-nav"
+              triggerLabel={sidebarLabels?.show ?? "Show navigation"}
+              closeLabel={sidebarLabels?.hide ?? "Hide navigation"}
+              activeLayouts={composition.layout === null ? undefined : [composition.layout]}
+              open={sidebarOpen}
+              close={sidebarClose}
+            >
+              {asideContent}
+            </ShellMobileNav>
+          </div>
+        ))}
+      </>
+    ) : null;
 
   // ── PERSISTENT NAVIGATION — the shell's TOP region, and WHERE it persists ──
   //
@@ -225,13 +324,17 @@ export function ShellEngine({
   // read here.
   const railBesideMd = asideActive && tabletRail.length > 0;
   const railBesideLg = asideActive && desktopRail.length > 0;
+  // NAV1D — a rail composed at EVERY width means the top region is never the persistent
+  // navigation: the rail is, at every width, so the top region stays in normal flow throughout.
+  const railBesideSm = asideActive && railAtMobile;
   const topRegion = (
     <div
       className={[
         "ui-shell-top",
+        railBesideSm ? "ui-shell-top--rail-mobile" : undefined,
         railBesideMd ? "ui-shell-top--rail-md" : undefined,
         railBesideLg ? "ui-shell-top--rail-lg" : undefined,
-        asideActive ? "md:w-full" : undefined,
+        regionWidthClass,
       ]
         .filter(Boolean)
         .join(" ")}
@@ -253,7 +356,7 @@ export function ShellEngine({
   // it is still rendered exactly once, for every viewport.
   const ctaRow = topCtaNode ? (
     <div
-      className={["ui-shell-header-row", asideActive ? "md:w-full" : undefined]
+      className={["ui-shell-header-row", regionWidthClass]
         .filter(Boolean)
         .join(" ")}
     >
@@ -271,14 +374,26 @@ export function ShellEngine({
           </>
         }
         main={main}
-        footer={asideActive ? <div className="md:w-full">{footer}</div> : footer}
+        footer={asideActive ? <div className={regionWidthClass}>{footer}</div> : footer}
         sidebar={buildAside()}
+        sidebarLead={sidebarDisclosure}
         // P6-3A — the rail owns its own width (`.ui-sidebar-rail`): a horizontal
         // width state that persists in both collapsed/expanded states. The frame
-        // keeps only the responsive band visibility + no-shrink.
-        sidebarClassName="ui-shell-sidebar hidden md:block md:shrink-0"
+        // keeps only the responsive band visibility + no-shrink — and NAV1D drops the
+        // `md:` gate entirely when the rail is composed at every width, because the frame's own
+        // band wrappers (not the frame) decide which band's rail is presented.
+        sidebarClassName={railAtMobile ? "ui-shell-sidebar md:shrink-0" : "ui-shell-sidebar hidden md:block md:shrink-0"}
         mainId={mainId}
-        mainClassName={mainClassName}
+        // NAV1D — WHERE THE RAIL IS BESIDE THE CONTENT AT EVERY WIDTH, THE CONTENT COLUMN IS THE ONE
+        // THAT SHARES THE RAIL'S ROW: `ui-shell-content-column` gives it a real flex basis (so a
+        // wrapping row can never append it to a full line and give it zero width) and lets it shrink
+        // to the width a narrow viewport actually leaves. See globals.css for the measurements. The
+        // canonical composition without a mobile rail is byte-identical to before.
+        mainClassName={
+          railAtMobile
+            ? [mainClassName, "ui-shell-content-column"].filter(Boolean).join(" ")
+            : mainClassName
+        }
         mobileNavigation={buildMobile()}
       />
     </div>
@@ -304,21 +419,21 @@ export function ShellEngine({
     // tablet `collapsed-sidebar` COMPOSITION additionally means
     // "collapsed-by-default, always expandable" — a property of the pattern,
     // not a second config leaf.
-    const sidebarCollapsible = resolved.shell.sidebar.collapsible;
-    const renderBand = (id: string, band: "desktop" | "tablet") => {
-      const isDesktopBand = band === "desktop";
-      // A collapsed-sidebar composition means "collapsed by default, always
-      // expandable" — a property of the PATTERN, so it is read from the layouts that
-      // serve this band (the one composition, unless a switcher composes several).
-      const tabletCollapsedSidebar =
-        !isDesktopBand &&
-        tabletRail.some(
-          (composition) => composition.decision.tablet.primitiveKind === "collapsed-sidebar",
-        );
-      // A collapsed-sidebar band is collapsible BY DEFINITION (its initial
-      // state is collapsed; the user must be able to expand it — never a
-      // dead-end). Non-collapsed bands follow the configured intent.
-      const collapsible = tabletCollapsedSidebar || sidebarCollapsible;
+    //
+    // NAV1D — AND IT IS RESOLVED ONCE FOR THE WHOLE RAIL, FROM THE COMPOSITION RATHER THAN THE BAND.
+    // The bands present the SAME sidebar, so "is there a Show/Hide control" must not depend on which
+    // band is on screen: a rail that must be expandable in one band (a `collapsed-sidebar` band is
+    // collapsed by definition — never a dead-end) is expandable in every band, and a rail that is
+    // collapsible nowhere renders no toggle anywhere. Reading it per band is what let the control
+    // appear and disappear as the viewport crossed a breakpoint.
+    const collapsedSidebarComposed = [...desktopRail, ...tabletRail, ...mobileRail].some(
+      (composition) =>
+        composition.decision.desktop.primitiveKind === "collapsed-sidebar" ||
+        composition.decision.tablet.primitiveKind === "collapsed-sidebar" ||
+        composition.decision.mobile.primitiveKind === "collapsed-sidebar",
+    );
+    const collapsible = collapsedSidebarComposed || resolved.shell.sidebar.collapsible;
+    const renderBand = (id: string, band: ShellBand) => {
       // UI1 — THE CANONICAL NO-PREFERENCE STATE OF A COMPOSED RAIL IS CLOSED. The visitor's
       // open/closed choice is ONE presentation preference (remembered by the primitive — see
       // `@/components/ui/sidebar-preference`), so an untoggled sidebar presents the SAME state in
@@ -353,44 +468,90 @@ export function ShellEngine({
         </Sidebar>
       );
     };
+    // NAV1D — ONE RAIL, ONE INSTANCE PER BAND, EACH BEHIND THE SAME KIND OF WIDTH GATE. The bands
+    // are the mutually exclusive gates the ≥md rails have always used (at any width exactly ONE
+    // rail landmark is exposed, so there is no duplicate landmark, no second focusable navigation
+    // and no hidden duplicate the tab order could reach); NAV1D adds the MOBILE band for a
+    // composition that declares `persistent-sidebar`, replacing the disclosure it was substituted
+    // with. The instance rendered for each band is byte-identical to its neighbours — same
+    // primitive, same classes, same visitor-owned state — so the sidebar IS the same sidebar at
+    // every width; only WHEN it is presented differs.
+    const railBands: readonly {
+      readonly id: string;
+      readonly band: ShellBand;
+      readonly composed: number;
+      readonly gate: string;
+      readonly layouts: readonly ShellLayout[];
+    }[] = [
+      {
+        id: "shell-sidebar-desktop",
+        band: "desktop",
+        composed: desktopRail.length,
+        gate: "hidden lg:block",
+        layouts: desktopRailLayouts,
+      },
+      {
+        id: "shell-sidebar-tablet",
+        band: "tablet",
+        composed: tabletRail.length,
+        gate: "hidden md:block lg:hidden",
+        layouts: tabletRailLayouts,
+      },
+      {
+        id: "shell-sidebar-mobile",
+        band: "mobile",
+        composed: mobileRail.length,
+        gate: "md:hidden",
+        layouts: mobileRailLayouts,
+      },
+    ];
     return (
       <>
-        {desktopRail.length > 0 ? (
-          <div
-            className="hidden lg:block"
-            {...layoutScopeAttributes("rail", desktopRailLayouts, scopedLayouts)}
-          >
-            {renderBand("shell-sidebar-desktop", "desktop")}
-          </div>
-        ) : null}
-        {tabletRail.length > 0 ? (
-          <div
-            className="hidden md:block lg:hidden"
-            {...layoutScopeAttributes("rail", tabletRailLayouts, scopedLayouts)}
-          >
-            {renderBand("shell-sidebar-tablet", "tablet")}
-          </div>
-        ) : null}
+        {railBands.map(({ id, band, composed, gate, layouts }) =>
+          composed > 0 ? (
+            <div
+              key={id}
+              className={gate}
+              {...layoutScopeAttributes("rail", layouts, scopedLayouts)}
+            >
+              {renderBand(id, band)}
+            </div>
+          ) : null,
+        )}
       </>
     );
   }
 
   function buildMobile() {
-    if (decision.mobile.primitiveKind === "bottom-bar" && bottomNav) {
+    // NAV1A/NAV1B — the sticky bar is exposed by the composition whose MOBILE navigation IS the
+    // bottom bar; the marker pair is inert DOM state the stylesheet uses to keep exactly ONE mobile
+    // navigation present at a time, and `bandsClassName` is the width gate this composition
+    // declares (the canonical sidebar composition → `<md`; a Menu-bar composition → every width).
+    if (mobileBarCompositions.length > 0 && bottomNav) {
       return (
         <>
-          <ShellBottomBar
-            label={bottomNav.label}
-            moreLabel={bottomNav.moreLabel}
-            links={bottomNav.links}
-            locale={locale}
-            pageBindings={pageBindings}
-            siteSet={siteSet}
-            demoBadgeLabel={bottomNav.demoBadgeLabel}
-            closeLabel={bottomNav.closeLabel}
-            mode={bottomNav.mode}
-            sidebarClose={bottomNav.sidebarClose}
-          />
+          {mobileBarCompositions.map((composition) => (
+            <ShellBottomBar
+              key={composition.layout ?? "bottom-bar"}
+              label={bottomNav.label}
+              moreLabel={bottomNav.moreLabel}
+              links={bottomNav.links}
+              locale={locale}
+              pageBindings={pageBindings}
+              siteSet={siteSet}
+              demoBadgeLabel={bottomNav.demoBadgeLabel}
+              closeLabel={bottomNav.closeLabel}
+              mode={bottomNav.mode}
+              sidebarClose={bottomNav.sidebarClose}
+              bandsClassName={bandClassName(mobileSurfaceBands(composition.decision))}
+              scope={layoutScopeAttributes(
+                "bottom-bar",
+                composition.layout === null ? [] : [composition.layout],
+                scopedLayouts,
+              )}
+              activeLayouts={composition.layout === null ? undefined : [composition.layout]}
+            />
+          ))}
         </>
       );
     }

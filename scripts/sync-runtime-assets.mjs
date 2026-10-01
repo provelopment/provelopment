@@ -33,7 +33,7 @@
  *
  * This script is the only sanctioned writer of those derivatives. It is
  * idempotent, it reports every create/update, and `--check` fails (exit 1) when
- * the two trees drift — which is what `tests/unit/asset-taxonomy-mirror.test.ts`
+ * the two trees drift — which is what `deployment/tests/unit/asset-taxonomy-mirror.test.ts`
  * and the `assets:check` script both assert.
  *
  * OWNERSHIP MODEL (see BRAND_ASSETS.md "Source assets vs runtime assets"):

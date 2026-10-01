@@ -226,13 +226,18 @@ describe("P12-HG — layout-independence contract", () => {
     expect(siteHeader).not.toMatch(/<HeaderGraphic/);
   });
 
-  it("12. the mobile header disclosure contract is untouched", () => {
-    // The shell's ONE mobile nav disclosure (trigger + drawer/overlay panel) is
-    // still composed exactly as before, at its original position.
-    expect(siteHeader).toContain("<ShellMobileNav");
-    expect(siteHeader).toContain('id="shell-mobile-nav"');
-    expect(siteHeader).toContain('className="md:hidden"');
-    expect(siteHeader).toContain('mobilePattern === "drawer" || mobilePattern === "overlay"');
+  it("12. the mobile navigation disclosure has ONE owner — the shell engine, never the header", () => {
+    // NAV1B — the shell's ONE mobile nav disclosure (trigger + drawer/overlay panel) is composed
+    // by `ShellEngine` at the SIDEBAR BOUNDARY, so it cannot migrate between the header's rows as
+    // the visitor controls change width. The header owns no navigation structure at all.
+    const engine = readFileSync(
+      path.join(root, "src", "components", "shell", "shell-engine.tsx"),
+      "utf8",
+    );
+    expect(siteHeader).not.toContain("<ShellMobileNav");
+    expect(engine).toContain("<ShellMobileNav");
+    expect(engine).toContain('id="shell-mobile-nav"');
+    expect(engine).toContain("ui-shell-sidebar-disclosure");
     // The header still exposes its brand link + navigation landmark.
     // VIS1C — the brand link now carries the >= 44px hit-area contract; the lockup
     // inside it keeps its own visual scale (asserted on the next line).

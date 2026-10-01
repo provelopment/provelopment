@@ -300,21 +300,24 @@ describe("the Location control appears exactly where locations exist", () => {
 });
 
 describe("the controls are composed in the documented order", () => {
-  it("renders Site → Language → Layout on a site with no locations", async () => {
+  // NAV1B — the navigation-MODE control owns the header's TOP row (beside the identity, anchored at
+  // its right edge), so it LEADS the document order; the contextual group follows it in its
+  // documented Site → Location → Language order inside the SECOND row.
+  it("renders Layout → Site → Language on a site with no locations", async () => {
     const html = await headerHtml({ siteCode: GLOBAL, localePath: "en", routePath: "" });
-    expect(selectorOrder(html)).toEqual(["site", "language", "layout"]);
+    expect(selectorOrder(html)).toEqual(["layout", "site", "language"]);
   });
 
-  it("renders Site → Location → Language → Layout on Germany", async () => {
+  it("renders Layout → Site → Location → Language on Germany", async () => {
     const html = await headerHtml({ siteCode: GERMANY, localePath: GERMANY, routePath: "" });
-    expect(selectorOrder(html)).toEqual(["site", "location", "language", "layout"]);
+    expect(selectorOrder(html)).toEqual(["layout", "site", "location", "language"]);
   });
 
   it("keeps every control present at once, once and only once", async () => {
     const html = await headerHtml({ siteCode: GERMANY, localePath: "en", routePath: "about" });
     const order = selectorOrder(html);
     expect(new Set(order).size).toBe(order.length);
-    expect(order).toEqual(["site", "location", "language", "layout"]);
+    expect(order).toEqual(["layout", "site", "location", "language"]);
   });
 });
 

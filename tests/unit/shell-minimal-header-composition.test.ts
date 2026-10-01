@@ -47,7 +47,6 @@ vi.mock("next/navigation", () => ({
   usePathname: () => "/en",
 }));
 
-import { SiteHeader } from "@/components/site/site-header";
 import { ShellEngine } from "@/components/shell";
 import { getDictionary } from "@/config/i18n";
 import { resolveShellPattern, resolveUiConfig, type UiConfigInput } from "@/core/ui";
@@ -176,7 +175,7 @@ describe("ShellEngine — Minimal-header SSR shell (no sidebar, no bottom bar, n
     );
     // P5-3 — Minimal-header resolves the narrow content column, so the wrapper carries
     // `max-w-screen-md` (the narrow intent), not the plain default wrapper.
-    expect(html).toContain('class="flex flex-col flex-1 max-w-screen-md"');
+    expect(html).toContain('class="ui-shell-frame flex flex-col flex-1 max-w-screen-md"');
     expect(html).not.toContain("shell-sidebar");
     expect(html).not.toContain("ui-shell-sidebar");
     expect(html).not.toContain("lg:flex-row");
@@ -256,21 +255,53 @@ describe("ShellEngine — Minimal-header desktop/tablet CTA (header slot, D3 pro
     expect(html).not.toContain("nav-item-cta");
   });
 });
-describe("SiteHeader — Minimal-header mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
+describe("ShellEngine — Minimal-header mobile drawer (navigation only; P6-3C: no CTA in the disclosure)", () => {
   const resolvedCta = resolveUiConfig({
     ...MINIMAL_HEADER_UI,
     cta: { enabled: true, action: "book", label: "Book Now", href: "/booking" },
   });
 
+  /**
+   * NAV1B — THE DISCLOSURE CONTRACT, PROVEN ON THE ENGINE.
+   *
+   * The mobile disclosure is composed at the SIDEBAR/SHELL BOUNDARY by `ShellEngine` — never in
+   * the page header, where it migrated between header rows as the visitor controls changed width.
+   * The `header` slot below stands in for the content layer's header, including the ≥md
+   * navigation landmark a header-slot composition presents there.
+   */
+  function disclosureHtml(resolved: ReturnType<typeof resolveUiConfig>) {
+    return renderToStaticMarkup(
+      ShellEngine({
+        resolved,
+        header: el(
+          "header",
+          null,
+          el("nav", { "aria-label": "Primary navigation" }, el("a", { href: "/en" }, "Home")),
+        ),
+        main: el("main", null, "Content"),
+        footer: el("footer", null, "Footer"),
+        mainId: "main",
+        navigationLabel: "Primary navigation",
+        asideContent: el("ul", null, el("li", null, el("a", { href: "/en/1" }, "One"))),
+        sidebarLabels: { show: "Show navigation", hide: "Hide navigation" },
+        locale: "en",
+        pageBindings: [],
+        siteSet: SITE_SET,
+      }),
+    );
+  }
+
   it("CLOSED SSR: trigger present; NO dialog, NO CTA, nothing focusable; one ≥md nav landmark; no duplicate ids", () => {
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     // Deterministic trigger/control relationship (B1): the trigger owns the
     // deterministic id; aria-controls resolves to the `${id}-panel` panel id.
     expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
     expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain("md:hidden");
+    // NAV1B — the HOST band carries the composition's width gate, not the trigger: this
+    // composition presents its ≥md navigation in the header slot, so its disclosure is `<md`-only.
+    expect(html).toContain("ui-shell-sidebar-disclosure md:hidden");
     // One ≥md nav landmark (Minimal-header desktop `minimal` renders the full list in
     // the header slot — no invented "minimalization", D4).
     expect(html.match(/aria-label="Primary navigation"/g) ?? []).toHaveLength(1);
@@ -284,7 +315,7 @@ describe("SiteHeader — Minimal-header mobile drawer (navigation only; P6-3C: n
 
   it("P6-3C — OPEN drawer (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     // Exactly ONE dialog (the mobile drawer) and NO CTA inside it: the single
     // Book Now lives in the shell's top region (engine-composed).
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
@@ -308,7 +339,7 @@ describe("SiteHeader — Minimal-header mobile drawer (navigation only; P6-3C: n
       ...MINIMAL_HEADER_UI,
       cta: { enabled: true, action: "book", label: "Book Now" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedNoHref }));
+    const html = disclosureHtml(resolvedNoHref);
     expect(html).toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
   });
@@ -319,7 +350,7 @@ describe("SiteHeader — Minimal-header mobile drawer (navigation only; P6-3C: n
       ...TOP_BAR_UI,
       cta: { enabled: true, action: "book", label: "Book", href: "/book", style: "standard" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedMinimalHeader }));
+    const html = disclosureHtml(resolvedMinimalHeader);
     expect(html).toContain('role="dialog"');
     // P6-3C — no CTA is composed into ANY disclosure, for any composition: the one
     // action always lives in the shell's top region instead.
@@ -328,12 +359,26 @@ describe("SiteHeader — Minimal-header mobile drawer (navigation only; P6-3C: n
   });
 });
 
-describe("SiteHeader — D3 genericity: Minimal-header never emits the adaptive-only desktop rail", () => {
+describe("ShellEngine — D3 genericity: Minimal-header never emits the adaptive-only desktop rail", () => {
   it("the Minimal-header assembly has no rail disclosure, no adaptive bottom-bar label, and no close-control text in SSR", () => {
     const dictionary = getDictionary("en");
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolveUiConfig(MINIMAL_HEADER_UI) }));
+    const html = renderToStaticMarkup(
+      ShellEngine({
+        resolved: resolveUiConfig(MINIMAL_HEADER_UI),
+        header: el("header", null, "Brand"),
+        main: el("main", null, "Content"),
+        footer: el("footer", null, "Footer"),
+        mainId: "main",
+        navigationLabel: "Primary navigation",
+        asideContent: el("ul", null, el("li", null, el("a", { href: "/en/1" }, "One"))),
+        sidebarLabels: { show: "Show navigation", hide: "Hide navigation" },
+        locale: "en",
+        pageBindings: [],
+        siteSet: SITE_SET,
+      }),
+    );
     // P6-1 — the Show/Hide navigation vocabulary is SHARED (not adaptive-only):
-    // the Minimal-header drawer trigger correctly says "Show navigation" in the header.
+    // the disclosure trigger correctly says "Show navigation".
     expect(html).toContain(dictionary.navigation.showSidebar);
     // What MUST stay absent: the adaptive bottom-bar label + the desktop rail
     // disclosure control (and its "Hide navigation" close text only exists inside

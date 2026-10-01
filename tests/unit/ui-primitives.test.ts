@@ -232,6 +232,32 @@ describe("UI-03 — BottomNavigation", () => {
     expect(html).toContain('aria-current="page"');
     expect(html).toContain("/en/cv");
   });
+
+  it("NAV1A — the LIST owns the row/wrap layout; the landmark is a separate box", () => {
+    // The items are the `<li>` children of the `<ul>`, so a layout utility on the `<nav>`
+    // can only ever lay out that single list child (the historical defect: the bar's
+    // horizontal intent sat on the landmark and its links stacked one per row).
+    const html = renderToStaticMarkup(
+      BottomNavigation({
+        label: "Bottom",
+        items: [
+          { label: "Home", href: "/en" },
+          { label: "About", href: "/en/about" },
+        ],
+        className: "ui-bottom-landmark",
+        listClassName: "flex flex-wrap items-center gap-x-4 gap-y-2",
+      }),
+    );
+    expect(html).toContain('<nav aria-label="Bottom" class="ui-bottom-landmark">');
+    expect(html).toContain('<ul class="flex flex-wrap items-center gap-x-4 gap-y-2">');
+    // The wrapping class is NOT on the landmark, and the list carries no inline layout of
+    // its own when the composer supplies none.
+    expect(html).not.toContain('class="ui-bottom-landmark flex');
+    const bare = renderToStaticMarkup(
+      BottomNavigation({ label: "Bottom", items: [{ label: "Home", href: "/en" }] }),
+    );
+    expect(bare).toContain("<ul>");
+  });
 });
 
 describe("UI-03 — Drawer / OverlayNavigation (deterministic SSR states + dialog semantics)", () => {

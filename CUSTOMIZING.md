@@ -257,10 +257,11 @@ The canonical values are `balanced` / `balanced` / `default` / `default` /
 override applies to that dimension only, and any combination of vocabulary values
 is valid.
 
-P5-4/P6-1 — the responsive mobile sidebar navigation (the "Show navigation" drawer /
-overlay disclosure) always renders ONE navigation item per line in every
-composition; follow the shared list composition in `site-header.tsx` rather than
-adding composition-specific styling.
+P5-4/P6-1 — a CONFIGURED off-canvas disclosure (the `Show navigation` drawer / overlay pattern,
+i.e. `navigation.mobile: "drawer"` or `"overlay"`) always renders ONE navigation item per line in
+every composition; follow the shared list composition in `site-header.tsx` rather than adding
+composition-specific styling. Sidebar mode composes no such disclosure (see *Responsive behavior*
+below): its navigation is the persistent rail itself at every width.
 
 **Behavioral & accessibility contract (UI-10):** the disclosures share a
 browser-validated modal contract in the `Drawer` primitive (the More drawer and
@@ -276,11 +277,35 @@ disclosure's trigger owns the id the dialog is named by
 the committed **CDP browser matrix** (`pnpm test:browser`, also run in CI) at
 desktop / tablet / mobile.
 
-**Responsive behavior:** desktop/tablet (≥`md`) uses the canonical aside
-composition (collapsible rail ≥`lg`, collapsed rail ≥`md`); mobile (<`md`) is the
-bottom navigation. The bottom bar's content rule is deterministic: the first
-**4** configured `navigation` items render in the bar; the remainder (when
-non-empty) is exposed through the "More" drawer.
+**Responsive behavior:** the CONFIGURED layout owns the navigation at every width, and the width
+never substitutes a different navigation for it. Sidebar mode uses ONE persistent sticky sidebar
+presentation at every viewport width (`navigation.mobile: "persistent-sidebar"`): the same rail — a
+collapsible rail ≥`lg`, a collapsed rail ≥`md`, and THE SAME rail below `md`, where the page frame
+keeps the rail and the content on one row (the content simply has less remaining width) rather than
+stacking the rail above the page — closed by default and reopened from its own Show/Hide navigation
+control, whose placement, scale and geometry never change with the viewport. The rail sits ON the page
+edge (it carries no outer shell gutter) and its two states are a LAYOUT contract, not merely a width
+change: CLOSED it reserves its narrow column and the page is laid out beside it; OPEN it keeps its
+accepted **220px**, and how the page coexists with it depends on the BAND. At **tablet and desktop
+widths the rail expands in the normal layout**, so the page's own column moves right and gets narrower
+— exactly what any in-flow column does — with no overlay and no overlap. At **mobile widths (below
+768px) the rail expands over the page as an opaque overlay**: the page keeps the geometry it had while
+the rail was closed, the document gets no wider, and the rail — painted with the site's own background
+colour — never lets page text show through it. **Selecting a destination dismisses an open rail in
+every band** (by pointer, by keyboard or by assistive technology — it is the link's own activation),
+so the destination is presented with the collapsed, sticky rail; the rail's own `Hide navigation`
+control still closes it without navigating. Viewport width does not substitute
+a drawer or a header disclosure, so Sidebar mode composes no drawer, no `Show navigation` band and no
+header affordance at all. Nothing in the shell scrolls sideways at the supported widths: the layout
+has a deliberate **320px floor** (`--ui-shell-min-inline-size`), so every width from 320px up — rail
+closed or open — fits the viewport without a horizontal scrollbar, and a narrower window scrolls
+horizontally by design instead of deforming the layout. Menu Bar mode uses a full-width sticky
+bottom navigation at every viewport width: the top navigation is not part of Menu Bar mode. The
+bottom bar's content rule is deterministic: the first **4** configured `navigation` items render in
+the bar; the remainder (when non-empty) is exposed through the "More" drawer. The bar's SURFACE
+spans the viewport and its navigation region uses the full available width minus the page-edge
+inset — the page's own `max-w-page` bound is deliberately NOT applied to it — and its links flow
+horizontally inside that region, wrapping onto another row only when the width requires it.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
@@ -428,12 +453,17 @@ no broken image, no empty box.
 
 #### Sidebar disclosure — ONE vocabulary, one control (P6-1)
 
-Every sidebar disclosure across every breakpoint says the same thing:
+Every sidebar disclosure says the same thing, in every state and at every width:
 
-| State | Desktop/tablet rail toggle (covers the aside rail) | Mobile drawer/overlay trigger + close |
+| State | The rail's Show/Hide control (every band — NAV1D) | A configured drawer/overlay disclosure's trigger + close |
 | --- | --- | --- |
 | disclosure **closed** | `Show navigation` (flips to this while collapsed) | trigger label `Show navigation` |
 | disclosure **open** | `Hide navigation` (flips to this while open) | close control `Hide navigation` |
+
+The second column belongs to a site that explicitly configures an off-canvas disclosure
+(`navigation.mobile: "drawer"` or `"overlay"`). **Sidebar mode is not one of those** (NAV1D): it
+presents its rail at every width, so the Show/Hide control is the only disclosure it has — the same
+control, at the same scale, at every width.
 
 - The labels are the localized `navigation.showSidebar` / `navigation.hideSidebar`
   dictionary values (one per locale), reused by the `ui.navigation.sidebar.open/close.text`
@@ -530,16 +560,18 @@ and the same left-side vertical position.
   key, `foundation.sidebar`, whose only values are `open` and `closed`. It has two
   layers: the **resolved** preference is the authority for as long as the page is
   in view, and browser storage is what carries the choice to the next visit. So
-  the choice **survives a refresh** and **survives page navigation** — a
-  navigation re-creates the rail already in the visitor's state, so an **open
-  sidebar stays visibly open while the destination loads** and never collapses and
-  expands on the way — and it applies to **every route of the origin**: changing
-  Site, Language or Location through the selector controls changes the URL and
-  nothing else about the sidebar. With **no stored preference the canonical state
-  is CLOSED**, and only the disclosure control changes it — clicking a navigation
-  icon navigates and never opens, closes or resets the rail. The tablet rail
-  follows the same preference; the `<md` drawer/bottom bar is a separate,
-  ephemeral interaction model that this preference does not govern. A missing,
+  the choice **survives a refresh** and it applies to **every route of the
+  origin**: changing Site, Language or Location through the selector controls
+  changes the URL and nothing else about the sidebar. With **no stored preference
+  the canonical state is CLOSED**, and exactly TWO actions change it: the rail's
+  own disclosure control, and **selecting a destination inside the rail**. Choosing a destination
+  dismisses an open rail — by pointer, by keyboard or by assistive
+  technology, and also when the destination is the page
+  the visitor is already on — and the destination is presented with the collapsed,
+  sticky rail (at tablet/desktop widths the page also returns to its full width; at
+  mobile widths the overlay is cleared). No route DERIVES the state: no route, remount or breakpoint opens,
+  closes or resets the rail. The tablet and mobile bands follow the same
+  preference and the same control. A missing,
   unusable or blocked stored value falls back to the canonical CLOSED state. A page
   load is still served with the canonical CLOSED rail — no cookie, no session, no
   request-time rendering, so every page stays statically generated — and the stored
@@ -628,6 +660,11 @@ three-state contract as the sidebar — `open` (icon + text), `compact`
 (icon-only), `closed` (menu not composed). One vocabulary, one renderer, three
 surfaces — not three unrelated systems.
 
+In the shipped layouts the ≥md header navigation is the CUSTOM-composition case
+(`navigation.desktop`/`tablet` as `top`/`minimal`, no layout switcher): the Menu-bar
+layout presents its navigation in the sticky bottom bar at every width and closes its
+top menu, so `ui.navigation.top.mode` describes nothing there.
+
 **Compact semantics (exact, browser-verified):** `compact` hides the visible
 label **only of items that have a configured icon** (labels stay in the DOM,
 visually collapsed via the sr-only technique, so the accessible name is
@@ -639,10 +676,12 @@ use `compact` to get the icon-only rail on any surface (sidebar rail, header
 top-nav, or bottom bar).
 
 **Closed semantics (exact, browser-verified):** the menu is **not rendered**
-at all — the header navigation landmark (≥md), the bottom bar (<md), or the
+at all — the header navigation landmark, the bottom bar, or the
 aside rail respectively disappears. No empty placeholder, no orphaned
 `aria-controls` target, no layout gap. On surfaces that own other navigation
 (the responsive "Show navigation" disclosure), that other mechanism is untouched.
+(The Menu-bar layout uses exactly this value to retire its top menu: see
+`ui.layoutSwitcher` below.)
 
 #### Navigation items — icons, regions, disabled
 
@@ -788,19 +827,40 @@ switcher:
 
 What it does:
 
-- renders one secondary **Layout** dropdown in the header (`Sidebar` / `Menu bar`),
-  labelled for screen readers from the dictionary and offered at `md` and up;
+- renders one secondary **Layout** dropdown (`Sidebar` / `Menu bar`), labelled for screen
+  readers from the dictionary and offered at **every** width. It is the RIGHT-ALIGNED occupant of
+  the header's TOP row (beside the identity), in normal control sizing;
 - switches the **shell layout only** — the page, its route, its locale, its content, its
-  assets and every other `ui` leaf are untouched. Both layouts share the SAME mobile
-  navigation, so below `md` nothing changes (and the control is therefore not offered);
+  assets and every other `ui` leaf are untouched. Each layout brings its OWN navigation at every
+  width: the sidebar layout presents a rail ≥`md` and its own off-canvas drawer below `md`, and the
+  menu-bar layout presents the sticky bottom bar at EVERY width (the top navigation is not part of
+  Menu Bar mode). Switching the mode is therefore a real change at any width — the surface follows
+  the mode immediately, without a reload;
 - remembers the visitor's choice in browser-local storage (that preference and nothing
   else — no cookie, no session, no account, and no route becomes dynamically rendered);
   storage that is blocked, empty or holds a value the vocabulary does not declare falls
   back to your configured `default`;
 - exposes exactly ONE navigation structure at a time: the inactive one is removed from the
   accessibility tree and the focus order, so there is never a second focusable navigation
-  system, and persistent navigation plus fragment clearance follow the active layout
-  automatically.
+  system — including the withdrawn mobile surface — and persistent navigation plus fragment
+  clearance follow the active layout automatically. An open mobile drawer whose layout stops
+  being active closes itself, so nothing invisible keeps the page's scroll lock.
+
+**The header's two semantic rows never change ownership.** At every width the header is:
+
+```text
+[ identity                                     ] [ Sidebar / Menu bar ]
+[ Site ] [ Location ] [ Language ]
+```
+
+The navigation-MODE selector keeps the top row's right edge; a TEXT identity too long to share the
+line wraps BELOW the selector instead of moving it (its continuation lines stay left-aligned with it,
+inside its own column). A GRAPHIC identity follows the same row contract but not the text rule: it
+keeps its natural aspect and may continue BENEATH the selector's occupied area, with the selector
+painted above it — a graphic never displaces the selector, is never shrunk into the text column, and
+never moves the selector onto another line. Every other header control — the contextual
+Site/Location/Language selectors, and the ≥md header navigation a custom composition presents —
+stays in the second row, left-aligned, wrapping inside that row when the width requires it.
 
 | Leaf | Values |
 | --- | --- |
@@ -809,16 +869,19 @@ What it does:
 
 The two layouts are named presets of existing vocabulary, nothing more:
 
-| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` |
-| --- | --- | --- |
-| `sidebar` | `sidebar` | `collapsed-sidebar` |
-| `menu-bar` | `top` | `top-compact` |
+| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` | `ui.navigation.mobile` | ≥`md` top menu |
+| --- | --- | --- | --- | --- |
+| `sidebar` | `sidebar` | `collapsed-sidebar` | `drawer` | left as configured (inert: this layout composes no ≥`md` header navigation) |
+| `menu-bar` | `top` | `top-compact` | `bottom-bar` | `closed` — the navigation is the bottom bar at every width |
 
-Because a layout IS those two leaves, enabling the switcher **and** setting
-`ui.navigation.desktop`/`ui.navigation.tablet` is refused at build time with an actionable
-message — remove those two leaves, or leave the switcher off. Everything else
-(`ui.navigation.mobile`, the sidebar/top/bottom modes, density, width, theme, CTA and the
-P5-3 presentation intent) still applies to both layouts.
+Because a layout IS those three leaves, enabling the switcher **and** setting
+`ui.navigation.desktop`, `ui.navigation.tablet` or `ui.navigation.mobile` is refused at
+build time with an actionable message — remove those leaves, or leave the switcher off.
+Everything else (the sidebar/top/bottom presentation modes, density, width, theme, CTA and
+the P5-3 presentation intent) still applies to both layouts. `ui.navigation.top.mode` is not an
+input while the switcher is enabled: neither layout presents a ≥`md` header navigation (the
+sidebar layout's navigation is its rail, the menu-bar layout's is the bottom bar), so there is no
+top menu for that leaf to describe.
 
 The active layout is observable on `<html>` as `data-ui-shell-layout` (the same inert
 attribute surface as `data-ui-typography`, `data-ui-sidebar-mode`, …), so downstream CSS
@@ -1136,8 +1199,7 @@ the single source.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[...segments]/layout.tsx` (P6-2D, `content/assets/branding/branding-schema.md`
-  — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
+  loaded in `src/app/[...segments]/layout.tsx`; monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
 - **To change the brand font:** swap the `next/font/*` call in `layout.tsx`
@@ -1242,8 +1304,8 @@ per-page SEO configuration to fill in:
   referenced automatically by every page's `og:image`/`twitter:image`. Setting
   `site.assets.ogImage` **replaces** it for the whole deployment: ONE image for every
   locale and every page, serving Open Graph **and** Twitter, while an absent key keeps
-  the generated route as the fallback (the canonical site deliberately leaves it
-  absent). Produce a replacement at **1200 × 630** — **PNG** or **JPEG**; **SVG** is
+  the generated route as the fallback (a deployment that leaves it absent keeps
+  that fallback). Produce a replacement at **1200 × 630** — **PNG** or **JPEG**; **SVG** is
   not suitable for social previews. This is the one branding role that is **not**
   screened for local file existence: `site.assets.ogImage` is an absolute URL that may
   legitimately point at a CDN, so it is emitted verbatim and no build failure or
@@ -1284,14 +1346,14 @@ configurable through the validated `site.assets.*` block:
 | Asset | Default file | Configuration (`site.assets.*`) |
 | --- | --- | --- |
 | Brand logo — the `logo-header` role (JSON-LD **and** the rendered header mark) | `public/assets/logo-header.svg` | `site.assets.logo` |
-| Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | `public/assets/og-image.png` (approved 1200 × 630; configured on the canonical site) | `site.assets.ogImage` |
+| Open Graph / social share image — the `ogImage` role (ONE **global** image serving `og:image` **and** `twitter:image`; the generated per-locale route is the fallback) | `public/assets/og-image.png` (the approved 1200 × 630 replacement for the generated route, used when a deployment configures the role) | `site.assets.ogImage` |
 | Browser favicon — the `favicon` role (the **browser tab / bookmark icon** only; it is **not** an installable-app icon) | `public/assets/favicon.svg` (the single authoritative browser-icon route) | `site.assets.favicon` |
 | Footer logo — the `logo-footer` role | `public/assets/logo-footer.svg` | `site.assets.logoFooter` |
 | Page banner — the `banner-*` role (P6-3B, keyed by page slug; ten canonical Foundation roles) | `public/assets/banner-home.png` | `site.assets.banners` |
-| Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | `public/assets/background-all.svg` (approved Foundation watermark; configured on the canonical site) | `site.assets.backgrounds` |
-| Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | `public/assets/footer-graphic.svg` (approved; configured on the canonical site) | `site.assets.footerGraphic` |
-| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | `public/assets/header-graphic.svg` (approved 4096 × 512; **configured and ACTIVE** on the canonical site) | `site.assets.headerGraphic` |
-| Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | `public/assets/status-graphic.svg` (approved 640 × 320; configured on the canonical site) | `site.assets.statusGraphic` |
+| Page background — the `background-*` role (P12-BG, keyed by page role; `all` = the global background) | `public/assets/background-all.svg` (the reserved global/fallback page-background role: a graphic background for pages that have no page-specific entry) | `site.assets.backgrounds` |
+| Footer decorative graphic / watermark — the `footer-graphic` role (P12-FG; ONE global decorative layer, **not** the footer logo) | `public/assets/footer-graphic.svg` (the shipped default is the blank placeholder; the layer renders only when a deployment configures the role and its file resolves) | `site.assets.footerGraphic` |
+| Header decorative graphic / band — the `header-graphic` role (P12-HG; ONE global decorative layer, **not** the header logo and **not** a page banner) | `public/assets/header-graphic.svg` (4096 × 512; the shipped default is the blank placeholder — the band renders only when a deployment configures the role and its file resolves) | `site.assets.headerGraphic` |
+| Error / not-found decorative graphic — the `status-graphic` role (P12-SG; ONE **shared** global decorative layer for **both** status surfaces, **not** an error icon and **not** a replacement for the status heading) | `public/assets/status-graphic.svg` (640 × 320; renders only when a deployment configures the role and its file resolves) | `site.assets.statusGraphic` |
 
 > **No installable-app / PWA icon roles exist.** The Foundation emits **no** web app
 > manifest, **no** service worker and **no** `apple-touch-icon` / installable-app icon
@@ -1334,9 +1396,9 @@ There are **two equally-supported ways to customize an asset**:
 `site.assets.*` values are **absolute URLs** (validated at build time). Absent
 keys fall back to the shipped Foundation default asset, so a fresh clone needs
 no asset configuration. The `ogImage` value is used by every page's Open Graph
-and Twitter metadata (via the `resolveOgImageUrl` helper); the canonical site now
-**configures** it against the shipped approved `og-image.png`, and when the key is
-absent — as it is for any deployment that removes it — the per-locale generated
+and Twitter metadata (via the `resolveOgImageUrl` helper) whenever a deployment
+**configures** it against its own approved image, and when the key is
+absent — as it is unless a deployment sets it — the per-locale generated
 OpenGraph image route is used as the fallback (that route deliberately stays in the
 engine).
 
@@ -1360,10 +1422,10 @@ without changing component source code.
 | `sidebar-open` | `public/assets/sidebar-open.svg` | `ui.navigation.sidebar.open.icon` default (`DEFAULT_SIDEBAR_OPEN_ICON`) — the live Show navigation control graphic |
 | `sidebar-close` | `public/assets/sidebar-close.svg` | `ui.navigation.sidebar.close.icon` default (`DEFAULT_SIDEBAR_CLOSE_ICON`) — the live Hide navigation control graphic |
 | `favicon` | `public/assets/favicon.svg` | `site.assets.favicon` → `metadata.icons.icon` (the live browser tab icon) |
-| `footer-graphic` | `public/assets/footer-graphic.svg` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) — **approved artwork integrated and ACTIVE** |
-| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) — **approved artwork integrated and ACTIVE** (technically validated; the measured `cover` crop is an artwork/owner review item, not a coding gate) |
-| `background-all` | `public/assets/background-all.svg` | `site.assets.backgrounds.all` → `PageBackground` (P12-BG — the reserved `all` key: ONE global decorative watermark layered **over** the flat `ui.theme.background` colour) — **approved artwork integrated and ACTIVE** |
-| `status-graphic` | `public/assets/status-graphic.svg` | `site.assets.statusGraphic` → `StatusGraphic` (P12-SG — ONE shared decorative graphic above the heading on **both** status surfaces; **not** an error icon) — **approved artwork integrated and ACTIVE** |
+| `footer-graphic` | `public/assets/footer-graphic.svg` | `site.assets.footerGraphic` → `FooterGraphic` (P12-FG — ONE global decorative footer graphic / watermark layer behind the footer content; **not** the footer logo) — **role supported; it becomes active only when a deployment configures `site.assets.footerGraphic` and the referenced file resolves** |
+| `header-graphic` | `public/assets/header-graphic.svg` | `site.assets.headerGraphic` → the header's own background band (P12-HG — ONE global decorative header band behind the logo/navigation; **not** the header logo and **not** a page banner) — **role supported; it becomes active only when a deployment configures `site.assets.headerGraphic` and the referenced file resolves** (the measured `cover` crop is an artwork/owner review item, not a coding gate) |
+| `background-all` | `public/assets/background-all.svg` | `site.assets.backgrounds.all` → `PageBackground` (P12-BG — the reserved `all` key: the **global/fallback** page-background graphic, layered **over** the flat `ui.theme.background` colour, used only where no page-specific entry applies) — **role supported; it becomes active only when a deployment configures the role and the referenced file resolves** |
+| `status-graphic` | `public/assets/status-graphic.svg` | `site.assets.statusGraphic` → `StatusGraphic` (P12-SG — ONE shared decorative graphic above the heading on **both** status surfaces; **not** an error icon) — **role supported; it becomes active only when a deployment configures `site.assets.statusGraphic` and the referenced file resolves** |
 
 Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled page banners):
 
@@ -1429,10 +1491,12 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   `ui.theme.background` colour — the colour token still defines the base colour.
   One asset `cover`s any viewport (no per-breakpoint roles, no art direction) and
   it is static only (no animation, no parallax). As a CSS `background-image` it
-  bypasses the Next image optimizer. **The approved Foundation background artwork
-  now ships at `public/assets/background-all.svg` and is ACTIVE** through the
-  reserved global `all` role.
-- **`footer-graphic` (P12-FG)** — **capability composed; role ACTIVE with a BLANK default**:
+  bypasses the Next image optimizer. **The role is supported by the Foundation
+  and needs no artwork**: `site.assets.backgrounds` becomes active only when a
+  deployment configures it (`all` is the global/fallback entry) and the referenced
+  file resolves; until then **nothing is rendered at all**, so the page keeps the
+  flat `ui.theme.background` colour on its own.
+- **`footer-graphic` (P12-FG)** — **capability composed; the shipped default is BLANK**:
   `site.assets.footerGraphic` is ONE optional **global** decorative footer graphic /
   watermark — deliberately **not** the footer identity mark, so a deployment may have
   a footer logo, a decorative graphic, both, or neither. The server resolves it
@@ -1455,11 +1519,11 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   decorative footer graphic**: `public/assets/footer-graphic.svg` is the byte-identical
   mirror of the blank transparent placeholder
   (`content/assets/placeholders/footer-graphic.svg`), so the default presentation is
-  **blank / not used** while the role stays ACTIVE through
-  `site.assets.footerGraphic`. The branded Foundation footer graphic is retained as
-  source at `content/assets/branding/page-graphics/footer-graphic.svg` and is activated by
-  replacing the runtime file (2026-09 owner ruling).
-- **`header-graphic` (P12-HG)** — **capability composed; role ACTIVE with a BLANK default**:
+  **blank / not used**; the role is available through
+  `site.assets.footerGraphic` and renders a layer only once a deployment configures
+  it. Activating a branded footer graphic is a pure file replacement
+  (2026-09 owner ruling).
+- **`header-graphic` (P12-HG)** — **capability composed; the shipped default is BLANK**:
   `site.assets.headerGraphic` is ONE optional **global** decorative header band /
   structural graphic layer — deliberately **not** the header identity mark (that stays
   the independent `logo-header` role) and **not** a page banner (that stays the
@@ -1490,17 +1554,16 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   decorative header graphic**: `public/assets/header-graphic.svg` is the
   byte-identical mirror of the blank transparent placeholder
   (`content/assets/placeholders/header-graphic.svg`) — a valid 4096 × 512 canvas that draws
-  nothing — so the default presentation is **blank / not used** while the canonical
-  role stays ACTIVE (`site.assets.headerGraphic`). The branded Foundation header
-  graphic is retained as source at
-  `content/assets/branding/page-graphics/header-graphic.svg`; activating it is a pure file
+  nothing — so the default presentation is **blank / not used**; the role is
+  available through `site.assets.headerGraphic` and paints a band only once a
+  deployment configures it. Activating a branded header graphic is a pure file
   replacement, and the measured `cover` crop it would imply inside the header box
   (19.46:1 desktop / 2.59:1 mobile) stays an artwork/owner judgement recorded in the
   living-pack provenance — never a coding gate, and no artwork was altered and no CSS
   was added to compensate. Replacing the file or removing the key needs **no code
   change**; the full contract is in [`BRAND_ASSETS.md`](BRAND_ASSETS.md) §10.5
   (2026-09 owner ruling).
-- **`status-graphic` (P12-SG)** — **capability composed; approved artwork integrated and ACTIVE**:
+- **`status-graphic` (P12-SG)** — **capability composed; no Foundation artwork activated**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
   shared by **both** status surfaces (`[...segments]/error.tsx` and
   `[...segments]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
@@ -1534,9 +1597,9 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   serves desktop and mobile (no breakpoint variants, no art direction, no `<picture>`,
   no viewport listeners) and it is static only (no animation, no parallax). As a plain
   `<img>` it bypasses the Next image optimizer, exactly like the page banner.
-  **The approved Foundation status graphic now ships at
-  `public/assets/status-graphic.svg` (640 × 320) and is ACTIVE** through
-  `site.assets.statusGraphic`, on both status surfaces.
+  **No Foundation status artwork is activated**: the role is supported and renders
+  on both status surfaces only once a deployment configures
+  `site.assets.statusGraphic` and the referenced file resolves.
 - **`logo-footer`** — **composed (P6-2D)**: `site.assets.logoFooter` is rendered
   by `SiteFooter` as a visually restrained decorative mark (`alt=""`,
   `aria-hidden="true"`, `h-5 w-auto`) beside the copyright text — supplementary,
@@ -1574,18 +1637,21 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 #### Source asset tree — `content/assets/` (the three ownership categories)
 
 The repository carries the **source** asset tree in `content/assets/`. It is NOT served
-under `public/`; the runtime files are byte-identical mirrors of it (see below):
+under `public/`; the runtime files are byte-identical mirrors of it (see below). This generic
+template ships **three** populated categories — `icon-library/`, `placeholders/` and
+`platform-marks/` — and **no** `branding/` category at all: a deployment that supplies its own
+artwork creates and populates it, and the template's own taxonomy test asserts that
+`content/assets/branding/` is **not** shipped in this repository
+(`deployment/tests/unit/asset-taxonomy-mirror.test.ts`).
 
 ```text
 content/assets/
-├── branding/          — deployment/business-specific artwork (this repo: the
-│   ├── banners/         Provelopment Foundation mark, favicons, logos, banners,
-│   ├── identity/        branded page graphics and the brand specification)
-│   ├── logos/           logo lockups/wordmark/emblem sources
-│   ├── page-graphics/   branded page graphics (background, header/footer/status
-│   │                    graphics, Open Graph image)
-│   └── branding-schema.md  the brand-system specification (docs live with the
-│                        category they document, never inside a graphic folder)
+├── branding/          — YOUR deployment/business artwork; NOT present in this template.
+│   ├── banners/         The generic template has no brand of its own, so these
+│   ├── identity/        folders are yours to create (banners, identity, logos,
+│   ├── logos/           page-graphics are the categories an adopter uses)
+│   ├── page-graphics/   (see the capsule's content/assets/README.md)
+│   └── branding-schema.md  a brand-system specification you keep, if you keep one
 ├── icon-library/      — reusable, NON-business-specific generic icons (ALL
 │   ├── icons/           retained, whether or not a page currently uses them)
 │   └── licensing/       provenance + upstream licence
@@ -1607,15 +1673,19 @@ Foundation components / site.assets.* configuration
 - `pnpm assets:sync` writes the mirror; `pnpm assets:check` fails on **any** drift,
   on a missing declared source and on an **undeclared** file appearing under
   `public/assets/`. `pnpm build` runs the mirror first, so a half-applied asset
-  move can never ship. `tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
+  move can never ship. `deployment/tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
 - There are **no permanent runtime-only exceptions**: every persistent runtime
-  visual asset has an authoritative source beneath `content/assets/` (the ten
-  `banner-<page>.png` page banners live in `content/assets/branding/banners/` and are
-  mirrored like any other graphic, so the runtime-only allowlist is empty).
-- The header and footer logo ROLES derive from **one** authoritative coloured
-  source (`content/assets/branding/logos/lockup-horizontal.svg`), so the footer uses the
-  same coloured lockup as the header; the monochrome lockup remains a retained
-  optional source asset.
+  visual asset the template ships has an authoritative source beneath
+  `content/assets/`, so the runtime-only allowlist is empty (`RUNTIME_ONLY` in
+  `scripts/sync-runtime-assets.mjs`). The mirror's `from` paths are relative to the
+  **selected deployment**, so a deployment that adds artwork points the same
+  mechanism at its own source rather than at a runtime-only file.
+- The header and footer logo ROLES derive from **one** authoritative source: in this
+  template both resolve to the neutral `content/assets/placeholders/logo-header.svg`
+  (one file, two runtime basenames — see `MIRRORED` in
+  `scripts/sync-runtime-assets.mjs`), so the footer shows the same mark as the
+  header. A branded deployment mirrors its own single coloured lockup through the
+  same mechanism, so the relationship holds whatever the source is.
 - The four categories have distinct responsibilities: **branding** is the
   deployment's own artwork, **icon-library** is the reusable generic store,
   **placeholders** are the blank/generic defaults, **platform-marks** are the
@@ -1662,11 +1732,12 @@ one by deleting its config key; a configured-but-missing role behaves exactly li
 absent one and renders nothing (never a placeholder, never a broken image).
 
 > **`header-graphic.svg` and `footer-graphic.svg` ship as BLANK transparent
-> defaults (ACTIVE).** The default Foundation configuration does not require a
+> defaults.** The default Foundation configuration does not require a
 > branded decorative graphic: each runtime file is the byte-identical mirror of its
 > `content/assets/placeholders/` source and draws nothing, so the default presentation is
-> **blank / not used**. Activating branded artwork is a pure file replacement — the
-> branded masters are retained at `content/assets/branding/page-graphics/`. The header band
+> **blank / not used** — the roles render only once a deployment configures them.
+> Activating branded artwork is a pure file replacement (a deployment that keeps a
+> branded master swaps the runtime file). The header band
 > is `cover`-painted inside the measured header box (19.46:1 desktop / 2.59:1
 > mobile), so activating the 8:1 branded master would magnify and crop it; that crop
 > outcome is a **Master-Brand-Architect-owned aesthetic judgement**, recorded in the

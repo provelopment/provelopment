@@ -74,9 +74,11 @@ export type {
 
 export { contentWidthClass, densityClass, resolveShellPattern, splitBottomNavItems } from "./shell";
 export { BOTTOM_NAV_PRIMARY_LIMIT } from "./shell";
+export { bandClassName, mobileSurfaceBands, SHELL_BANDS } from "./shell";
 export type {
   BottomNavSplit,
   PerViewportDecision,
+  ShellBand,
   ShellPatternDecision,
   ShellPrimitiveKind,
 } from "./shell";
@@ -93,11 +95,15 @@ export type { ControlPresentation } from "./controls";
 
 export {
   applyShellLayout,
+  bottomBarCompositions,
+  bottomBarLayouts,
   headerNavigationCompositions,
   headerNavigationLayouts,
   isShellLayout,
   layoutDataAttributes,
   layoutScopeAttributes,
+  mobileDisclosureCompositions,
+  mobileDisclosureLayouts,
   railCompositions,
   railLayouts,
   shellLayoutCompositions,
@@ -105,5 +111,6 @@ export {
   SHELL_LAYOUT_PATTERNS,
   SHELL_LAYOUT_STORAGE_KEY,
   SHELL_LAYOUTS,
+  SHELL_SCOPE_PARTS,
 } from "./layout";
-export type { ShellLayout, ShellLayoutComposition } from "./layout";
+export type { ShellLayout, ShellLayoutComposition, ShellScopePart } from "./layout";
