@@ -1250,7 +1250,7 @@ switches.
 | `shell.header` / `shell.footer` | `standard` \| `minimal` | Page-frame intent |
 | `navigation.desktop` | `top` \| `sidebar` \| `minimal` \| `floating` | Desktop composition override |
 | `navigation.tablet` | `top-compact` \| `collapsed-sidebar` \| `minimal` \| `floating` | Tablet composition override |
-| `navigation.mobile` | `drawer` \| `bottom-bar` \| `top` \| `overlay` | Mobile composition override |
+| `navigation.mobile` | `drawer` \| `bottom-bar` \| `top` \| `overlay` \| `persistent-sidebar` | Mobile composition override. NAV1D — `persistent-sidebar` presents the SAME persistent rail the ≥md bands present: it is how a configuration says "the sidebar, at every width" instead of letting a breakpoint substitute a drawer for it |
 | `density` | `compact` \| `comfortable` \| `spacious` | Overall density intent |
 | `content.width` | `narrow` \| `standard` \| `wide` \| `full` | Content area width intent |
 | `cta.enabled/action/label/href/style` | boolean / semantic action / string(s) / `standard` \| `prominent` | Primary CTA intent (action/label/href adopter-owned) |
@@ -1494,19 +1494,32 @@ which exists so a deployment can demonstrate the same site in two presentations.
 
 - **A layout is a PRESET, not a second shell system.** It names three existing vocabulary
   leaves — one per viewport width: `sidebar` = `navigation.desktop: "sidebar"` +
-  `navigation.tablet: "collapsed-sidebar"` + `navigation.mobile: "drawer"`; `menu-bar` =
+  `navigation.tablet: "collapsed-sidebar"` + `navigation.mobile: "persistent-sidebar"`; `menu-bar` =
   `"top"` + `"top-compact"` + `"bottom-bar"` (`@/core/ui/layout.ts`). Every decision still
   flows through the ONE decision core (`resolveShellPattern`), so a layout cannot invent a
   composition the shell engine does not already implement.
 - **The viewport changes HOW a mode is presented, never WHICH mode it is** (NAV1A). The
   mobile leaf belongs to the layout precisely so that narrowing a window cannot turn a
-  sidebar site into a menu-bar site: the sidebar layout presents its own off-canvas drawer
-  where its rail is not composed. One shared mobile surface for both — the shipped behaviour
+  sidebar site into a menu-bar site. One shared mobile surface for both — the shipped behaviour
   this contract corrects — made viewport width the owner of the navigation architecture,
   removed the mode control below `md` because there was "nothing to switch", and left the
-  sidebar layout's bottom bar stacking its links one per row. No new mode was introduced:
-  each preset names one of the four already-shipped `navigation.mobile` patterns, and no
-  navigation data is duplicated.
+  sidebar layout's bottom bar stacking its links one per row. No pre-existing mode was
+  repurposed, and no navigation data is duplicated.
+- **A viewport may not SUBSTITUTE a different navigation for the mode** (NAV1D). Changing HOW a
+  mode is presented is not a licence to present something else: the sidebar preset used to name
+  the capability's off-canvas drawer (`navigation.mobile: "drawer"`) and so, below `md`, replaced
+  the sidebar with a `Show navigation` disclosure band — a substitute the owner rejects, because
+  the site's navigation had become a button rather than the sidebar. The preset therefore names
+  `persistent-sidebar`, the ONE `navigation.mobile` value meaning "the SAME persistent rail, here
+  too": the three rail bands (mobile `<md`, tablet `md…lg`, desktop `≥lg`) render from ONE
+  composition, with byte-identical rail markup per band and a single visitor-owned state, and the
+  page frame is a wrapping row at every width, so the rail sits BESIDE the content there instead of
+  stacking above it. Adding that value is a vocabulary extension made in the ONE place the closed
+  vocabularies live (`@/core/ui/vocabulary.ts`; the schema derives from it), and it is deliberately
+  NOT called `sidebar`, so each tier's vocabulary stays disjoint (`ui-architecture.test.ts`).
+  Sidebar mode consequently composes no drawer, no disclosure band, no trigger and no dialog at
+  all; the generic `Drawer`/`OverlayNavigation` capability, and a site that explicitly configures
+  `navigation.mobile: "drawer"`, are untouched.
 - **MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH** (NAV1B). The top navigation bar
   presentation is no longer part of Menu Bar mode: the layout's preset also CLOSES its ≥md top
   menu (`topMenu: "closed"` — the shipped three-state menu contract), so no ≥md header
@@ -1515,11 +1528,21 @@ which exists so a deployment can demonstrate the same site in two presentations.
   widths alike. Nothing is left behind: a closed menu composes no landmark at all, so there is
   no hidden duplicate to reach by keyboard or assistive technology.
 - **Which BANDS a surface occupies is a composition property, never a call-site breakpoint.**
-  `resolveShellPattern` reports the bands a composition presents no navigation of its own in
-  (`openBands`), and `mobileSurfaceBands` + `bandClassName` turn that into the surface's width
-  gate (an exhaustive table, unit-tested). The canonical sidebar composition therefore keeps
-  the historic `<md` bottom bar EXACTLY as shipped, while a Menu-bar composition presents it at
-  every width — and the sidebar's own constrained-width disclosure is placed by the same rule.
+  `resolveShellPattern` reports, per band, whether the composition presents navigation of its own
+  (`presentsNavigation`, and the slot it presents it in) and which bands it leaves open
+  (`openBands`); `mobileSurfaceBands` + `bandClassName` turn that into the surface's width gate
+  (an exhaustive table, unit-tested), while `railCompositions`/`railLayouts` read the same decision
+  per band, INCLUDING the mobile band (NAV1D). The canonical sidebar composition therefore keeps
+  the historic `<md` bottom bar EXACTLY as shipped, a Menu-bar composition presents it at every
+  width, and a `persistent-sidebar` composition presents its rail in all three bands — one
+  mechanism, no per-surface special case.
+- **The Menu Bar surface spans the viewport** (NAV1D). The sticky bar is a flex item of the shell
+  frame, and in the wrapping row an aside composition lays the page out in it shrinks to its
+  content unless it carries a width basis — which is how the bar came to read as a small left-hand
+  block at desktop/tablet widths. It therefore declares `w-full basis-full` (its own row, full
+  viewport width) and its INNER region is bounded only by the page-edge inset: the page's own
+  `max-w-page` container is deliberately not applied to a navigation SURFACE. The LIST still owns
+  the rows and the wrapping, exactly as NAV1A established.
 - **Configuration decides whether it exists.** `ui.layoutSwitcher: { enabled, default }`
   (`@/core/ui/defaults.ts` → `FOUNDATION_UI_DEFAULTS.layoutSwitcher`) is **disabled by
   default**: the Foundation's own composition offers no choice, exactly as it renders no
@@ -1582,11 +1605,13 @@ which exists so a deployment can demonstrate the same site in two presentations.
   locale, persistence through client navigation and reload, an unusable stored value ignored,
   the control available at every width, the per-layout navigation at
   1280/1024/900/768/767/390/360/320 — the menu-bar sticky bar at EVERY width with no top
-  navigation, the sidebar's own disclosure at the sidebar boundary at a scale identical to the
-  accepted rail control — real resize transitions, and mobile mode switching) plus its
+  navigation, and the SIDEBAR layout presenting the SAME persistent rail at every width (its
+  geometry, its symmetrical padding, its focus-ring room and its sticky persistence measured at
+  every requested width, with no disclosure band, trigger or header substitute anywhere) — real
+  resize transitions, and mobile mode switching) plus its
   `bottom-nav-wrap` scenario (the sticky bar's list layout: one row when the links fit, genuine
-  wrapping when they do not, page-edge inset, content following the page width, no horizontal
-  overflow, no clipping) and its `header-rows` scenario (the fixed semantic rows under a very
+  wrapping when they do not, page-edge inset, a full-width surface whose region uses the available
+  width, no horizontal overflow, no clipping) and its `header-rows` scenario (the fixed semantic rows under a very
   long identity and under long contextual labels, with test-owned fixtures).
 
 ### Boundaries

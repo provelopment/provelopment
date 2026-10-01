@@ -141,9 +141,17 @@ describe("P6-3B — rail CSS contract (derived width, icon sizes, full-height bo
       path.join(process.cwd(), "src", "components", "shell", "shell-engine.tsx"),
       "utf8",
     );
+    // NAV1D — the `md` row is still the frame's answer for a rail composition, and the frame's own
+    // width gate is still the `md:` one whenever the rail is NOT composed at mobile width. A
+    // composition that composes it there too (`navigation.mobile: "persistent-sidebar"`, which is
+    // what the `sidebar` layout preset names) gets the same wrapping row at EVERY width instead —
+    // the rail is the same sidebar below `md`, so the frame must lay it out beside the content
+    // rather than stacking it above.
+    expect(engine).toContain("flex-row flex-wrap");
     expect(engine).toContain("md:flex-row md:flex-wrap");
     expect(engine).not.toContain("lg:flex-row");
-    expect(engine).toContain('sidebarClassName="ui-shell-sidebar hidden md:block md:shrink-0"');
+    expect(engine).toContain('"ui-shell-sidebar hidden md:block md:shrink-0"');
+    expect(engine).toContain('"ui-shell-sidebar md:shrink-0"');
     expect(engine).not.toContain("lg:w-60");
   });
 });

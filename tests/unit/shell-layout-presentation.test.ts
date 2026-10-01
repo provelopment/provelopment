@@ -94,19 +94,21 @@ function headerHtml(resolved: typeof enabled): string {
 describe("shell layout presentation — composed markup", () => {
   it("composes BOTH structures when a visitor may choose, each scoped to its layout", () => {
     const engine = engineHtml(enabled);
-    // The rail is composed in its two deterministic bands, each declaring that it serves the
-    // SIDEBAR layout; the sidebar's own constrained-width disclosure carries the same marker.
-    expect(engine.match(/data-ui-shell-part="rail"/g) ?? []).toHaveLength(2);
+    // NAV1D — the rail is composed in THREE deterministic bands (desktop, tablet, MOBILE), each
+    // declaring the layout it serves: it is the SAME persistent sidebar at every width, and the
+    // mobile band is a rail rather than a substitute for one.
+    expect(engine.match(/data-ui-shell-part="rail"/g) ?? []).toHaveLength(3);
     expect(engine.match(/data-ui-shell-layouts="sidebar"/g) ?? []).toHaveLength(3);
     expect(engine).toContain("hidden lg:block");
     expect(engine).toContain("hidden md:block lg:hidden");
+    expect(engine).toContain('<div class="md:hidden" data-ui-shell-part="rail"');
     expect(engine).toContain("ui-sidebar-rail");
-    // NAV1A/NAV1B — the sidebar layout's MOBILE surface is its own off-canvas disclosure, composed
-    // at the SIDEBAR BOUNDARY (never in the page header) and `<md`-only, because the rail covers
-    // ≥md for this composition.
-    expect(engine).toContain('data-ui-shell-part="mobile-drawer"');
-    expect(engine).toContain("ui-shell-sidebar-disclosure md:hidden");
-    expect(engine).toContain("shell-mobile-nav");
+    // …and the sidebar layout composes NO off-canvas disclosure at all (NAV1D): no `mobile-drawer`
+    // marker, no disclosure band at the sidebar boundary, no trigger and no closed dialog — nothing
+    // that could stand in for the sidebar below `md`.
+    expect(engine).not.toContain('data-ui-shell-part="mobile-drawer"');
+    expect(engine).not.toContain("ui-shell-sidebar-disclosure");
+    expect(engine).not.toContain("shell-mobile-nav");
     // NAV1B — the MENU-BAR layout's navigation is the sticky bottom bar at EVERY width (its ≥md top
     // menu is closed): marked with the layout it serves, and carrying NO width gate at all.
     expect(engine.match(/data-ui-shell-part="bottom-bar"/g) ?? []).toHaveLength(1);

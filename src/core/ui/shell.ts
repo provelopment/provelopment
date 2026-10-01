@@ -154,11 +154,13 @@ function tabletDecision(
 }
 
 function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaPresent: boolean): PerViewportDecision {
-  // The mobile band always presents a surface of its own (the sticky bar, or the sidebar
-  // composition's disclosure) — never an open band.
+  // The mobile band always presents a surface of its own: the sticky bar, a configured
+  // disclosure, or — with NAV1D's `persistent-sidebar` — the SAME aside rail the ≥md bands
+  // present, which is why this decision's slot follows the primitive: a rail is an aside, every
+  // other mobile surface is a header/band layer.
   return {
     primitiveKind: kind,
-    slot: "header",
+    slot: kind === "sidebar" ? "aside" : "header",
     ctaSlot: ctaSlotFor(ctaPresent),
     trigger,
     presentsNavigation: true,
@@ -239,13 +241,15 @@ export function resolveShellPattern(resolved: ResolvedUiConfig): ShellPatternDec
         ? "floating"
         : "top-bar";
 
-  const mobileKind: ShellPrimitiveKind = resolved.navigation.mobile === "bottom-bar"
-    ? "bottom-bar"
-    : resolved.navigation.mobile === "overlay"
-      ? "overlay"
-      : resolved.navigation.mobile === "top"
-        ? "top"
-        : "drawer";
+  const mobileKind: ShellPrimitiveKind = resolved.navigation.mobile === "persistent-sidebar"
+    ? "sidebar"
+    : resolved.navigation.mobile === "bottom-bar"
+      ? "bottom-bar"
+      : resolved.navigation.mobile === "overlay"
+        ? "overlay"
+        : resolved.navigation.mobile === "top"
+          ? "top"
+          : "drawer";
 
   const ctaPresent = resolved.cta.enabled === true;
   // NAV1B — WHICH BANDS CARRY A NAVIGATION OF THEIR OWN.

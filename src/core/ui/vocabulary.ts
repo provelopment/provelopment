@@ -41,6 +41,23 @@ export const MOBILE_NAVIGATION_PATTERNS = [
   "bottom-bar",
   "top",
   "overlay",
+  /**
+   * NAV1D — THE SIDEBAR'S OWN PERSISTENT RAIL, PRESENTED AT MOBILE WIDTH.
+   *
+   * A mobile band served by this value presents exactly what the ≥md bands present: the ONE
+   * persistent sidebar (`Sidebar` + `.ui-sidebar-rail`, the visitor's own open/closed state, the
+   * same Show/Hide navigation control). It exists because viewport width must never SUBSTITUTE a
+   * different navigation for the configured mode: `drawer`/`overlay` are off-canvas replacements
+   * (a disclosure band with its own trigger), and `bottom-bar` is the menu-bar mode's surface —
+   * none of them is the sidebar. This value is the honest declaration of "the sidebar, at every
+   * width", so a site that wants one continuous sidebar says so in configuration instead of
+   * relying on a breakpoint.
+   *
+   * It is deliberately NOT named `sidebar`: each tier's vocabulary stays disjoint (a value valid
+   * on one tier never silently reuses another tier's name — `ui-architecture.test.ts`), and this
+   * name states the property that matters — the rail is the site's PERSISTENT navigation.
+   */
+  "persistent-sidebar",
 ] as const;
 export type MobileNavigationPattern = (typeof MOBILE_NAVIGATION_PATTERNS)[number];
 

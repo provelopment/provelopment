@@ -379,6 +379,24 @@ async function openTrigger(cdp, triggerSelector, panelSelector, attempts = 5) {
  * `FOUNDATION_DEPLOYMENT_ROOT`; the reference scenario passes `synthetic: false` so its server
  * serves the repository's own deployment.
  */
+/**
+ * NAV1D — activate the Show/Hide control of the rail that is actually ON SCREEN.
+ *
+ * A composition exposes one rail per band behind mutually exclusive width gates, so a selector
+ * aimed at a band — or at the first `[data-ui-shell-part="rail"]` in the DOM — can land on a hidden
+ * one and quietly do nothing. This clicks the PRESENTED rail's own control, exactly as a visitor
+ * would (a real activation on the control the visitor can see).
+ */
+async function clickVisibleRailToggle(cdp) {
+  return cdp.evaluate(`(() => {
+    const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+    const toggle = rail ? rail.querySelector('.ui-sidebar-toggle') : null;
+    if (!toggle) return false;
+    toggle.click();
+    return true;
+  })()`);
+}
+
 function startDevServer(port, { synthetic = true } = {}) {
   const proc = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
     cwd: ROOT,
@@ -650,8 +668,21 @@ async function probeAside(cdp, { railSel, panelSel, controlsId }) {
       toggleText: toggleLabel ? toggleLabel.textContent.trim() : null,
       // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
       railLeft: sr ? Math.round(sr.left) : null,
+      railRight: sr ? Math.round(sr.right) : null,
       toggleLeft: tr ? Math.round(tr.left) : null,
+      toggleRight: tr ? Math.round(tr.right) : null,
       itemLeft: fir ? Math.round(fir.left) : null,
+      itemRight: fir ? Math.round(fir.right) : null,
+      // NAV1D — the rail's OWN computed inline padding (the one owned token), measured on the rail
+      // element rather than inferred from any child's box.
+      railPadInlineStart: (() => {
+        const cs = rail ? getComputedStyle(rail) : null;
+        return cs ? Math.round(parseFloat(cs.paddingInlineStart) || 0) : null;
+      })(),
+      railPadInlineEnd: (() => {
+        const cs = rail ? getComputedStyle(rail) : null;
+        return cs ? Math.round(parseFloat(cs.paddingInlineEnd) || 0) : null;
+      })(),
       noBrokenImages: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
     };
   })()`);
@@ -722,10 +753,47 @@ async function runAsidePresentation(rows, presentation, cdp) {
         // P6-1 — edge spacing + second-level inset (control vs navigation items) is the DESKTOP rail's
         // contract (the rows below are unchanged; only the state they are measured in is explicit now).
         check(rows, `${vpName}.aside.spacing.railInset`, !!(expanded.railLeft != null && expanded.railLeft >= 16), `railLeft=${expanded.railLeft}`);
-        // 2026-09 closure pass — the show/hide CONTROL is LEFT-ALIGNED with the
-        // ONE shared shell-control inset (~5px) from the rail's inline edge.
-        check(rows, `${vpName}.aside.spacing.toggleInset`, !!(expanded.toggleLeft != null && expanded.railLeft != null && expanded.toggleLeft >= expanded.railLeft + 4 && expanded.toggleLeft <= expanded.railLeft + 6), `toggle=${expanded.toggleLeft} rail=${expanded.railLeft} inset=${expanded.toggleLeft - expanded.railLeft} (target ~5)`);
-        check(rows, `${vpName}.aside.spacing.itemDeeper`, !!(expanded.itemLeft != null && expanded.toggleLeft != null && expanded.itemLeft >= expanded.toggleLeft + 4), `item=${expanded.itemLeft} toggle=${expanded.toggleLeft}`);
+        // NAV1D — SYMMETRICAL HORIZONTAL PADDING (owner ruling): the sidebar's left padding equals
+        // its right padding, BOTH are the rail's own inline padding token, the control's box IS the
+        // rail's content box, and the navigation rows use that SAME inset. The superseded contract
+        // put the control ~5px from the rail's edge while the items sat 20px deeper — the asymmetry
+        // this defect names, and the reason the control's focus ring was clipped.
+        const railPadStart = expanded.railPadInlineStart;
+        const railPadEnd = expanded.railPadInlineEnd;
+        const toggleInsetLeft =
+          expanded.toggleLeft != null && expanded.railLeft != null
+            ? expanded.toggleLeft - expanded.railLeft
+            : null;
+        const toggleInsetRight =
+          expanded.railRight != null && expanded.toggleRight != null
+            ? expanded.railRight - expanded.toggleRight
+            : null;
+        const itemInsetLeft =
+          expanded.itemLeft != null && expanded.railLeft != null
+            ? expanded.itemLeft - expanded.railLeft
+            : null;
+        check(
+          rows,
+          `${vpName}.aside.spacing.paddingSymmetric`,
+          railPadStart != null && railPadEnd != null && railPadStart === railPadEnd,
+          `railPad=${railPadStart}/${railPadEnd}`,
+        );
+        check(
+          rows,
+          `${vpName}.aside.spacing.controlAtTheRailPadding`,
+          toggleInsetLeft != null &&
+            toggleInsetRight != null &&
+            railPadStart != null &&
+            Math.abs(toggleInsetLeft - railPadStart) <= 1 &&
+            Math.abs(toggleInsetRight - railPadStart) <= 2,
+          `toggle insets=${toggleInsetLeft}/${toggleInsetRight} railPad=${railPadStart}`,
+        );
+        check(
+          rows,
+          `${vpName}.aside.spacing.itemsShareTheInset`,
+          itemInsetLeft != null && toggleInsetLeft != null && Math.abs(itemInsetLeft - toggleInsetLeft) <= 1,
+          `item=${itemInsetLeft} toggle=${toggleInsetLeft}`,
+        );
         check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(expanded.itemLeft != null && expanded.itemLeft >= 24), `itemLeft=${expanded.itemLeft}`);
       }
     } else {
@@ -864,14 +932,21 @@ const s = await cdp.evaluate(`(() => ({
         const shell = document.querySelector('.ui-shell-sidebar');
         const toggle = rail ? rail.querySelector("[aria-controls='shell-sidebar-desktop-panel']") : null;
         const item = rail ? rail.querySelector('ul li') : null;
-        const rr = shell ? shell.getBoundingClientRect() : null;
+        const rr = rail ? rail.getBoundingClientRect() : null;
+        const sr = shell ? shell.getBoundingClientRect() : null;
+        const cs = rail ? getComputedStyle(rail) : null;
         const tr = toggle ? toggle.getBoundingClientRect() : null;
         const ir = item ? item.getBoundingClientRect() : null;
         const tops = [...rail.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).map((li) => Math.round(li.getBoundingClientRect().top));
         return {
-          railLeft: rr ? Math.round(rr.left) : null,
+          railLeft: sr ? Math.round(sr.left) : null,
+          railRight: sr ? Math.round(sr.right) : null,
           toggleLeft: tr ? Math.round(tr.left) : null,
+          toggleRight: tr ? Math.round(tr.right) : null,
           itemLeft: ir ? Math.round(ir.left) : null,
+          // NAV1D — the rail's own computed inline padding, on both sides.
+          railPadInlineStart: cs ? Math.round(parseFloat(cs.paddingInlineStart) || 0) : null,
+          railPadInlineEnd: cs ? Math.round(parseFloat(cs.paddingInlineEnd) || 0) : null,
           // UI1-A3 — the state-correct copy this expanded rail PRESENTS.
           text: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
           onePerRow: tops.length > 0 && new Set(tops).size === tops.length,
@@ -879,8 +954,31 @@ const s = await cdp.evaluate(`(() => ({
         };
       })()`);
       check(rows, `p6-1.${w}.railInset`, !!sp && sp.railLeft != null && sp.railLeft >= 16, `rail=${sp && sp.railLeft}`);
-      check(rows, `p6-1.${w}.toggleInset`, !!sp && sp.toggleLeft != null && sp.railLeft != null && sp.toggleLeft >= sp.railLeft + 4 && sp.toggleLeft <= sp.railLeft + 6, `toggle=${sp && sp.toggleLeft} rail=${sp && sp.railLeft} (target ~5)`);
-      check(rows, `p6-1.${w}.itemDeeper`, !!sp && sp.itemLeft != null && sp.toggleLeft != null && sp.itemLeft >= sp.toggleLeft + 4, `item=${sp && sp.itemLeft} toggle=${sp && sp.toggleLeft}`);
+      // NAV1D — the SAME symmetry contract as the canonical desktop rail, at every width: the rail's
+      // padding is equal on both sides, the control's box is its content box, and the navigation rows
+      // share that one inset (the superseded "control ~5px, items 20px deeper" contract is gone).
+      const spToggleInset =
+        sp && sp.toggleLeft != null && sp.railLeft != null ? sp.toggleLeft - sp.railLeft : null;
+      const spItemInset =
+        sp && sp.itemLeft != null && sp.railLeft != null ? sp.itemLeft - sp.railLeft : null;
+      check(
+        rows,
+        `p6-1.${w}.paddingSymmetric`,
+        !!sp && sp.railPadInlineStart != null && sp.railPadInlineStart === sp.railPadInlineEnd,
+        `railPad=${sp && sp.railPadInlineStart}/${sp && sp.railPadInlineEnd}`,
+      );
+      check(
+        rows,
+        `p6-1.${w}.controlAtTheRailPadding`,
+        !!sp && spToggleInset != null && sp.railPadInlineStart != null && Math.abs(spToggleInset - sp.railPadInlineStart) <= 1,
+        `toggle=${spToggleInset} railPad=${sp && sp.railPadInlineStart}`,
+      );
+      check(
+        rows,
+        `p6-1.${w}.itemsShareTheInset`,
+        !!sp && spItemInset != null && spToggleInset != null && Math.abs(spItemInset - spToggleInset) <= 1,
+        `item=${spItemInset} toggle=${spToggleInset}`,
+      );
       check(rows, `p6-1.${w}.labelHide`, !!sp && sp.text === "Hide navigation", `text=[${sp && sp.text}]`);
       check(rows, `p6-1.${w}.onePerRow`, !!sp && sp.onePerRow);
       check(rows, `p6-1.${w}.noBrokenImages`, !!sp && sp.noBroken);
@@ -3869,18 +3967,37 @@ const LAYOUT_PROBE = `(() => {
   const railToggleIcon = railToggle
     ? [...railToggle.querySelectorAll('.ui-sidebar-toggle-icon')].find(shown) || null
     : null;
+  // NAV1D — THE SIDEBAR AS PRESENTED (whichever band presents it, the mobile band included) and THE
+  // MENU SURFACE AS MEASURED: the rail's own padding on both sides, the control's box inside the
+  // rail's clipping column (the room its focus ring has), the list's own inset, and the bar's
+  // surface/region boxes. All measured — never a class string.
+  const railMobile = document.querySelector('#shell-sidebar-mobile-panel');
+  const railEl = [...document.querySelectorAll('.ui-sidebar-rail')].find(shown) || null;
+  const railRect = railEl ? railEl.getBoundingClientRect() : null;
+  const railCs = railEl ? getComputedStyle(railEl) : null;
+  const railColumn = railEl ? railEl.querySelector('.ui-sidebar-rail-sticky') : null;
+  const railColumnRect = railColumn ? railColumn.getBoundingClientRect() : null;
+  const railColumnCs = railColumn ? getComputedStyle(railColumn) : null;
+  const railToggleRect = railToggle ? railToggle.getBoundingClientRect() : null;
+  const railFirstItem = railEl ? railEl.querySelector('ul li') : null;
+  const barSurfaceRect = bar ? bar.getBoundingClientRect() : null;
+  const barRegionRect = barContent ? barContent.getBoundingClientRect() : null;
   return {
     active: root.getAttribute('data-ui-shell-layout'),
     lang: root.lang,
     path: location.pathname,
     innerWidth: root.clientWidth,
     windowWidth: window.innerWidth,
+    scrollY: Math.round(window.scrollY),
     documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
     controlLabel: control ? control.getAttribute('aria-label') : null,
     controlValue: control ? control.value : null,
     options: control ? Array.from(control.options).map((option) => option.textContent) : [],
     controlVisible: shown(control),
-    railVisible: shown(rail),
+    // NAV1D — "a rail is presented": ANY band's rail is on screen. At <md that is the sidebar's own
+    // mobile band, not the desktop band's (hidden) marker, so this reads the presentation, not the
+    // first structure in the DOM.
+    railVisible: [...document.querySelectorAll('[data-ui-shell-part="rail"]')].some(shown),
     railLgVisible: shown(railLg),
     railMdVisible: shown(railMd),
     topNavVisible: shown(topNav),
@@ -4002,6 +4119,48 @@ const LAYOUT_PROBE = `(() => {
         "x" +
         Math.round(railToggleIcon.getBoundingClientRect().height)
       : null,
+    // NAV1D — the sidebar's own presentation (the band it comes from, its box, its padding on BOTH
+    // sides, the control's box, the list's inset) and the room the clipping column leaves the ring.
+    railMobileVisible: shown(railMobile),
+    presentedRailBand: railEl ? String(railEl.id || "") : null,
+    presentedRailBox: railRect ? [Math.round(railRect.left), Math.round(railRect.right)] : null,
+    presentedRailPadInline: railCs
+      ? [
+          Math.round(parseFloat(railCs.paddingInlineStart) || 0),
+          Math.round(parseFloat(railCs.paddingInlineEnd) || 0),
+        ]
+      : null,
+    presentedRailToggleBox: railToggleRect
+      ? [Math.round(railToggleRect.left), Math.round(railToggleRect.right)]
+      : null,
+    presentedRailItemLeft: railFirstItem
+      ? Math.round(railFirstItem.getBoundingClientRect().left)
+      : null,
+    presentedRailColumnBox: railColumnRect
+      ? [Math.round(railColumnRect.left), Math.round(railColumnRect.right)]
+      : null,
+    presentedRailColumnPadInline: railColumnCs
+      ? [
+          Math.round(parseFloat(railColumnCs.paddingInlineStart) || 0),
+          Math.round(parseFloat(railColumnCs.paddingInlineEnd) || 0),
+        ]
+      : null,
+    presentedRailColumnPosition: railColumn ? getComputedStyle(railColumn).position : null,
+    presentedRailColumnTop: railColumnRect ? Math.round(railColumnRect.top) : null,
+    presentedRailCollapsed: railEl ? railEl.getAttribute('data-collapsed') : null,
+    // NAV1D — the room the control's box has inside its clipping column: the global focus ring is
+    // 2px wide at a 2px offset, so >= 4px on every side is "the ring can be painted in full".
+    ringRoomLeft:
+      railColumnRect && railToggleRect ? Math.round(railToggleRect.left - railColumnRect.left) : null,
+    ringRoomRight:
+      railColumnRect && railToggleRect ? Math.round(railColumnRect.right - railToggleRect.right) : null,
+    ringRoomTop:
+      railColumnRect && railToggleRect ? Math.round(railToggleRect.top - railColumnRect.top) : null,
+    // NAV1D — the menu surface (the sticky bar) and its inner navigation region.
+    barSurfaceBox: barSurfaceRect ? [Math.round(barSurfaceRect.left), Math.round(barSurfaceRect.right)] : null,
+    barRegionBox: barRegionRect ? [Math.round(barRegionRect.left), Math.round(barRegionRect.right)] : null,
+    barSurfaceWidth: barSurfaceRect ? Math.round(barSurfaceRect.width) : null,
+    barRegionWidth: barRegionRect ? Math.round(barRegionRect.width) : null,
   };
 })()`;
 
@@ -4029,6 +4188,12 @@ async function runLayoutSwitcherScenario(chrome) {
   const pagePath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-layout-page.md");
   await mkdir(dirname(pagePath), { recursive: true });
   await writeFile(pagePath, "# Layout fixture page\n\nA second page for the layout proof.\n", "utf8");
+  // NAV1D — the STICKY proof needs a page tall enough to scroll deeply, so this scenario supplies
+  // the same generic tall fixture the persistent-navigation scenario uses (removed in `finally`).
+  const tallPath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-layout-tall.md");
+  await mkdir(dirname(tallPath), { recursive: true });
+  await writeFile(tallPath, tallPageFixture(), "utf8");
+  const tallLayoutUrl = `${BASE_URL}/ww/en/zz-layout-tall`;
 
   const server = startDevServer(port);
   let cdp = null;
@@ -4215,7 +4380,16 @@ async function runLayoutSwitcherScenario(chrome) {
       check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
       check(rows, `${tag}.topNavHidden`, !!probe && probe.topNavVisible === false, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
       if (mobile) {
-        check(rows, `${tag}.sidebarDrawerVisible`, !!probe && probe.drawerVisible === true, `inner=${inner} drawer=${probe && probe.drawerVisible}`);
+        // NAV1D — THE SAME SIDEBAR AT MOBILE WIDTH: the rail itself is presented (its own band's
+        // gate shows it), and NOTHING substitutes for it — no disclosure band, no trigger, no drawer,
+        // no header affordance.
+        check(rows, `${tag}.sidebarRailVisible`, !!probe && probe.railVisible === true, `inner=${inner} rail=${probe && probe.railVisible}`);
+        check(
+          rows,
+          `${tag}.noDisclosureSubstitute`,
+          !!probe && probe.drawerVisible === false && probe.disclosureInHeader === false,
+          `inner=${inner} drawer=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader}`,
+        );
         check(rows, `${tag}.menuBarBottomBarWithdrawn`, !!probe && probe.bottomBarVisible === false, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
       } else {
         check(
@@ -4251,75 +4425,228 @@ async function runLayoutSwitcherScenario(chrome) {
 
     // The sidebar layout's mobile navigation is the EXISTING disclosure primitive: it opens
     // from its own trigger, carries the navigation, and closes with Escape.
+    // NAV1D — THE MOBILE BAND'S SIDEBAR IS THE RAIL ITSELF: its own Show/Hide control is the
+    // affordance (there is no disclosure trigger and no dialog at all), and that control opens and
+    // closes the SAME persistent rail the wider bands present — no dialog, no backdrop, no scroll
+    // lock, no inert background.
     await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
     await settle();
+    const mobileBefore = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "sidebarMobile.drawerOpens",
-      (await openTrigger(cdp, "#shell-mobile-nav", "#shell-mobile-nav-panel")) === true,
+      "sidebarMobile.railPresented",
+      !!mobileBefore && mobileBefore.railVisible === true && mobileBefore.presentedRailBand === "shell-sidebar-mobile-rail",
+      `rail=${mobileBefore && mobileBefore.railVisible} band=${mobileBefore && mobileBefore.presentedRailBand}`,
     );
-    const openedDrawer = await cdp.evaluate(LAYOUT_PROBE);
-    check(rows, "sidebarMobile.drawerCarriesNavigation", !!openedDrawer && openedDrawer.dialogLinks >= 2, `links=${openedDrawer && openedDrawer.dialogLinks}`);
-    check(rows, "sidebarMobile.bottomBarStillWithdrawn", !!openedDrawer && openedDrawer.bottomBarVisible === false, `bar=${openedDrawer && openedDrawer.bottomBarVisible}`);
-    await cdp.pressKey("Escape");
+    check(
+      rows,
+      "sidebarMobile.noDisclosureComposedAtAll",
+      await cdp.evalBool("!document.querySelector('#shell-mobile-nav') && !document.querySelector('[data-ui-shell-part=\"mobile-drawer\"]')"),
+      "the sidebar mode composes no disclosure band, no trigger and no drawer",
+    );
+    check(
+      rows,
+      "sidebarMobile.controlIsTheRailControl",
+      !!mobileBefore && mobileBefore.railToggleFontSize === 14 && mobileBefore.railToggleIconBox === "24x24",
+      `font=${mobileBefore && mobileBefore.railToggleFontSize} icon=${mobileBefore && mobileBefore.railToggleIconBox}`,
+    );
+    await clickVisibleRailToggle(cdp);
     await settle();
+    const mobileAfter = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "sidebarMobile.drawerClosesOnEscape",
-      await cdp.evalBool("!document.querySelector('[role=\"dialog\"]') && document.body.style.overflow !== 'hidden'"),
+      "sidebarMobile.controlOpensTheRail",
+      !!mobileBefore && !!mobileAfter && mobileAfter.presentedRailCollapsed !== mobileBefore.presentedRailCollapsed,
+      `${mobileBefore && mobileBefore.presentedRailCollapsed}->${mobileAfter && mobileAfter.presentedRailCollapsed}`,
     );
+    check(
+      rows,
+      "sidebarMobile.noDialogAndNoScrollLock",
+      !!mobileAfter && mobileAfter.dialogPresent === false && (await cdp.evalBool("document.body.style.overflow !== 'hidden'")),
+      `dialog=${mobileAfter && mobileAfter.dialogPresent}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.navigationIsInTheRail",
+      !!mobileAfter && mobileAfter.barLinkCount === 0 && (await cdp.evalBool("!!document.querySelector('[data-ui-shell-part=\"rail\"] a')")),
+      "the rail carries the destinations",
+    );
+    // The OPEN mobile rail is symmetric and leaves the focus ring room, exactly like the wider bands.
+    check(
+      rows,
+      "sidebarMobile.openRailIsSymmetric",
+      !!mobileAfter &&
+        mobileAfter.presentedRailToggleBox &&
+        mobileAfter.presentedRailBox &&
+        Math.abs(
+          mobileAfter.presentedRailToggleBox[0] - mobileAfter.presentedRailBox[0] -
+            (mobileAfter.presentedRailBox[1] - mobileAfter.presentedRailToggleBox[1]),
+        ) <= 1,
+      `box=${mobileAfter && mobileAfter.presentedRailBox} toggle=${mobileAfter && mobileAfter.presentedRailToggleBox}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.openRailRingRoom",
+      !!mobileAfter && mobileAfter.ringRoomLeft != null && mobileAfter.ringRoomLeft >= 4 && mobileAfter.ringRoomRight >= 4,
+      `left=${mobileAfter && mobileAfter.ringRoomLeft} right=${mobileAfter && mobileAfter.ringRoomRight}`,
+    );
+    check(
+      rows,
+      "sidebarMobile.openRailNoHorizontalOverflow",
+      // The canonical CLOSED state is exact at every width (the rows above). With the visitor's rail
+      // OPEN on a 320px viewport the content column is ~65px — narrower than one 24px control plus
+      // its own padding — so a small residual sideways scroll is physically possible; the platform
+      // breaks long words and shrinks what it owns rather than replacing the sidebar, which is what
+      // this defect removed. Bounded, not asserted away.
+      !!mobileAfter && mobileAfter.documentOverflow <= 16,
+      `overflow=${mobileAfter && mobileAfter.documentOverflow}`,
+    );
+    check(rows, "sidebarMobile.bottomBarStillWithdrawn", !!mobileAfter && mobileAfter.bottomBarVisible === false, `bar=${mobileAfter && mobileAfter.bottomBarVisible}`);
 
-    // ── NAV1B — THE REOPEN AFFORDANCE KEEPS THE ACCEPTED CONTROL SCALE ────────
-    // The owner rejected an enlarged mobile "Show Navigation": the disclosure must present the SAME
-    // control as the rail's own toggle (the accepted desktop navigation disclosure), never grow
-    // because the viewport narrowed, and stay OUT of the page header (it is composed at the sidebar
-    // boundary, in one stable place). Everything here is a MEASURED value, not a class string.
+    // ── NAV1D — THE MOBILE BAND PRESENTS THE ACCEPTED SIDEBAR, NOT A SUBSTITUTE ──────────────
+    // Below `md` the sidebar mode used to present a `Show navigation` disclosure band. It now
+    // presents the SAME rail the wider bands present, so the proof is IDENTITY, not scale similarity:
+    // the mobile band's rail is measured against the desktop band's (its own padding, the control's
+    // box, its typography and icon, the list's inset), and the column it scrolls in leaves the focus
+    // ring its full extent. Every assertion below is a measured value, never a class string.
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await settle();
+    // NAV1D — these rows measure the CANONICAL state a visitor lands in (the rail closed), so the
+    // reference and the samples are the same state, at every width, with no dependence on an earlier
+    // leg's toggling.
+    await cdp.evaluate(`(() => {
+      const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+      if (rail && rail.getAttribute('data-collapsed') === 'false') {
+        const toggle = rail.querySelector('.ui-sidebar-toggle');
+        if (toggle) toggle.click();
+      }
+      return true;
+    })()`);
+    await settle();
     const desktopRail = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.sidebar.desktopRailPresented",
+      !!desktopRail && desktopRail.railVisible === true && desktopRail.presentedRailBand === "shell-sidebar-desktop-rail",
+      `rail=${desktopRail && desktopRail.railVisible} band=${desktopRail && desktopRail.presentedRailBand}`,
+    );
     const constrained = {};
-    for (const [width, height] of [[767, 820], [390, 844], [320, 700]]) {
+    for (const [width, height] of [[767, 820], [768, 820], [390, 844], [360, 740], [320, 700]]) {
       await cdp.setViewport(width, height);
       await settle();
       constrained[width] = await cdp.evaluate(LAYOUT_PROBE);
       const probe = constrained[width];
+      const expectedBand = width < 768 ? "shell-sidebar-mobile-rail" : "shell-sidebar-tablet-rail";
+      const tag = `nav1d.sidebar.w${width}`;
       check(
         rows,
-        `nav1b.disclosure.w${width}.visibleAtSidebarBoundary`,
-        !!probe && probe.drawerVisible === true && probe.disclosureInHeader === false,
-        `visible=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader}`,
+        `${tag}.railPresented`,
+        !!probe && probe.railVisible === true && probe.presentedRailBand === expectedBand,
+        `rail=${probe && probe.railVisible} band=${probe && probe.presentedRailBand}`,
+      );
+      check(
+        rows,
+        `${tag}.noSubstitute`,
+        !!probe &&
+          probe.drawerVisible === false &&
+          probe.disclosureInHeader === false &&
+          probe.dialogPresent === false &&
+          probe.railMobileVisible === (width < 768),
+        `drawer=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader} dialog=${probe && probe.dialogPresent}`,
+      );
+      // THE SIDEBAR'S OWN PADDING, MEASURED ON BOTH SIDES: the control's box is inset from the rail's
+      // outer edges equally (the rail's 1px inline-end border accounts for the allowed 1px), in both
+      // states.
+      const insetLeft =
+        probe && probe.presentedRailToggleBox && probe.presentedRailBox
+          ? probe.presentedRailToggleBox[0] - probe.presentedRailBox[0]
+          : null;
+      const insetRight =
+        probe && probe.presentedRailToggleBox && probe.presentedRailBox
+          ? probe.presentedRailBox[1] - probe.presentedRailToggleBox[1]
+          : null;
+      check(
+        rows,
+        `${tag}.paddingSymmetric`,
+        insetLeft != null && insetRight != null && Math.abs(insetLeft - insetRight) <= 1,
+        `insets=${insetLeft}/${insetRight} pad=${probe && probe.presentedRailPadInline}`,
+      );
+      // …AND THE FOCUS RING FITS: the global ring is 2px at a 2px offset, so the clipping column must
+      // leave >= 4px around the control on every side (the owner's left-edge cut was 19px).
+      check(
+        rows,
+        `${tag}.focusRingRoom`,
+        !!probe &&
+          probe.ringRoomLeft != null &&
+          probe.ringRoomLeft >= 4 &&
+          probe.ringRoomRight >= 4 &&
+          probe.ringRoomTop >= 4,
+        `left=${probe && probe.ringRoomLeft} right=${probe && probe.ringRoomRight} top=${probe && probe.ringRoomTop}`,
+      );
+      check(
+        rows,
+        `${tag}.listSharesTheControlInset`,
+        !!probe &&
+          probe.presentedRailItemLeft != null &&
+          probe.presentedRailToggleBox &&
+          Math.abs(probe.presentedRailItemLeft - probe.presentedRailToggleBox[0]) <= 1,
+        `item=${probe && probe.presentedRailItemLeft} toggle=${probe && probe.presentedRailToggleBox && probe.presentedRailToggleBox[0]}`,
+      );
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+    }
+    // THE SAME SIDEBAR, MEASURED ACROSS BANDS: the control's typography, its icon and the rail's own
+    // padding are identical at every width — the breakpoint changes WHICH band presents the rail, not
+    // WHAT the rail is.
+    for (const width of [767, 768, 390, 360, 320]) {
+      const probe = constrained[width];
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.sameRailAsDesktop`,
+        !!desktopRail &&
+          !!probe &&
+          desktopRail.presentedRailPadInline.join("/") === probe.presentedRailPadInline.join("/") &&
+          desktopRail.railToggleFontSize === probe.railToggleFontSize &&
+          desktopRail.railToggleIconBox === probe.railToggleIconBox &&
+          desktopRail.presentedRailColumnPosition === probe.presentedRailColumnPosition,
+        `pad ${desktopRail && desktopRail.presentedRailPadInline}->${probe && probe.presentedRailPadInline} font ${desktopRail && desktopRail.railToggleFontSize}->${probe && probe.railToggleFontSize} icon ${desktopRail && desktopRail.railToggleIconBox}->${probe && probe.railToggleIconBox} sticky=${probe && probe.presentedRailColumnPosition}`,
       );
     }
-    const phoneNav = constrained[390];
-    check(
-      rows,
-      "nav1b.disclosure.sameControlScaleAsTheDesktopRail",
-      !!desktopRail &&
-        !!phoneNav &&
-        desktopRail.railToggleFontSize === phoneNav.showNavFontSize &&
-        desktopRail.railToggleIconBox === phoneNav.showNavIconBox,
-      `font ${desktopRail && desktopRail.railToggleFontSize}->${phoneNav && phoneNav.showNavFontSize}, icon ${desktopRail && desktopRail.railToggleIconBox}->${phoneNav && phoneNav.showNavIconBox}`,
-    );
-    check(
-      rows,
-      "nav1b.disclosure.noBreakpointEnlargement",
-      !!phoneNav &&
-        !!constrained[767] &&
-        constrained[767].showNavFontSize === phoneNav.showNavFontSize &&
-        constrained[767].showNavIconBox === phoneNav.showNavIconBox &&
-        constrained[767].showNavHeight === phoneNav.showNavHeight,
-      `font ${constrained[767] && constrained[767].showNavFontSize}->${phoneNav && phoneNav.showNavFontSize}, icon ${constrained[767] && constrained[767].showNavIconBox}->${phoneNav && phoneNav.showNavIconBox}, height ${constrained[767] && constrained[767].showNavHeight}->${phoneNav && phoneNav.showNavHeight}`,
-    );
-    check(
-      rows,
-      "nav1b.disclosure.normalNavigationControlScale",
-      !!phoneNav &&
-        phoneNav.showNavFontSize === 14 &&
-        phoneNav.showNavIconBox === "24x24" &&
-        phoneNav.showNavHeight >= 44 &&
-        phoneNav.showNavHeight <= 52,
-      `font=${phoneNav && phoneNav.showNavFontSize} icon=${phoneNav && phoneNav.showNavIconBox} height=${phoneNav && phoneNav.showNavHeight}`,
-    );
+    // STICKY/PERSISTENT WHILE SCROLLING: the rail's content column is pinned at every width, and the
+    // control stays operable — the closed sidebar never scrolls away with the page.
+    for (const [width, height] of [[1280, 800], [768, 800], [390, 800]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await cdp.navigate(tallLayoutUrl);
+      await waitReady(cdp);
+      await cdp.evaluate(
+        "window.scrollTo(0, Math.round(document.documentElement.scrollHeight * 0.45)); true",
+      );
+      await settle();
+      const after = await cdp.evaluate(LAYOUT_PROBE);
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.stickyWhileScrolled`,
+        !!after &&
+          after.scrollY > 0 &&
+          after.presentedRailColumnPosition === "sticky" &&
+          after.presentedRailColumnTop != null &&
+          after.presentedRailColumnTop >= -1 &&
+          after.presentedRailColumnTop <= 8 &&
+          after.railVisible === true,
+        `scrollY=${after && after.scrollY} pos=${after && after.presentedRailColumnPosition} top=${after && after.presentedRailColumnTop} rail=${after && after.railVisible}`,
+      );
+      check(
+        rows,
+        `nav1d.sidebar.w${width}.controlRemainsOperable`,
+        !!after &&
+          after.railToggleHeight != null &&
+          after.railToggleHeight >= 24 &&
+          (await cdp.evalBool("!!document.querySelector('[data-ui-shell-part=\"rail\"] .ui-sidebar-toggle')")),
+        `height=${after && after.railToggleHeight}`,
+      );
+      await cdp.evaluate("window.scrollTo(0, 0); true");
+      await settle();
+    }
 
     // ── MENU-BAR mode: the ACTUAL NAVIGATION LINKS are the STICKY BOTTOM BAR at EVERY width ──
     // NAV1B — the top navigation bar presentation is no longer part of Menu Bar mode: the bar is
@@ -4344,11 +4671,26 @@ async function runLayoutSwitcherScenario(chrome) {
         `inner=${inner} rows=${probe && probe.barRowCount} links=${probe && probe.barLinkCount} wrap=${probe && probe.barWrapActive}`,
       );
       check(rows, `${tag}.linksInsidePageEdgeInset`, !!probe && probe.barLinksInsideInset === true, `inner=${inner} left=${probe && probe.barInsetLeft} right=${probe && probe.barInsetRight}`);
+      // NAV1D — THE SURFACE SPANS THE VIEWPORT and its region uses the available width: the sticky
+      // bar's surface IS the viewport width, and its navigation region is the inset-bounded full
+      // width — never the page's own `max-w-page` article width (which is what made the bar read as
+      // a small left-hand block).
       check(
         rows,
-        `${tag}.contentFollowsPageWidth`,
-        !!probe && probe.headerContentWidth !== null && probe.barContentWidth <= probe.headerContentWidth + 2,
-        `inner=${inner} bar=${probe && probe.barContentWidth} header=${probe && probe.headerContentWidth}`,
+        `${tag}.surfaceSpansTheViewport`,
+        !!probe && probe.barSurfaceWidth != null && Math.abs(probe.barSurfaceWidth - probe.innerWidth) <= 16,
+        `inner=${inner} surface=${probe && probe.barSurfaceWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.regionUsesAvailableWidth`,
+        !!probe &&
+          probe.barRegionWidth != null &&
+          probe.barRegionWidth >= probe.innerWidth - 40 &&
+          (probe.headerContentWidth === null ||
+            probe.headerContentWidth >= probe.innerWidth - 40 ||
+            probe.barRegionWidth > probe.headerContentWidth),
+        `inner=${inner} region=${probe && probe.barRegionWidth} header=${probe && probe.headerContentWidth}`,
       );
       check(rows, `${tag}.selectorTopRow`, !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false, `inner=${inner} topRow=${probe && probe.selectorInTopRow} controlRow=${probe && probe.selectorInControlRow}`);
       check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
@@ -4370,14 +4712,17 @@ async function runLayoutSwitcherScenario(chrome) {
     );
     check(
       rows,
-      "transition.desktopToMobile.drawerSubstitutesRail",
+      "transition.desktopToMobile.sameRailContinues",
       !!beforeResize &&
         !!afterResize &&
         beforeResize.railVisible === true &&
-        afterResize.railVisible === false &&
-        afterResize.drawerVisible === true &&
-        afterResize.bottomBarVisible === false,
-      `rail ${beforeResize && beforeResize.railVisible}->${afterResize && afterResize.railVisible} drawer=${afterResize && afterResize.drawerVisible} bar=${afterResize && afterResize.bottomBarVisible}`,
+        afterResize.railVisible === true &&
+        afterResize.presentedRailBand === "shell-sidebar-mobile-rail" &&
+        afterResize.drawerVisible === false &&
+        afterResize.bottomBarVisible === false &&
+        beforeResize.presentedRailPadInline.join("/") === afterResize.presentedRailPadInline.join("/") &&
+        beforeResize.railToggleFontSize === afterResize.railToggleFontSize,
+      `rail ${beforeResize && beforeResize.railVisible}->${afterResize && afterResize.railVisible} band=${afterResize && afterResize.presentedRailBand} pad ${beforeResize && beforeResize.presentedRailPadInline}->${afterResize && afterResize.presentedRailPadInline} font ${beforeResize && beforeResize.railToggleFontSize}->${afterResize && afterResize.railToggleFontSize}`,
     );
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await settle();
@@ -4395,7 +4740,9 @@ async function runLayoutSwitcherScenario(chrome) {
     // ── MOBILE MODE SWITCHING: sidebar ↔ menu-bar at <md, no reload ───────────
     await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
     await settle();
-    await openTrigger(cdp, "#shell-mobile-nav", "#shell-mobile-nav-panel");
+    // NAV1D — the sidebar mode's affordance at <md is the RAIL'S OWN control, so the switch-away
+    // proof starts from an OPEN rail (there is no drawer, no scroll lock and no inert background).
+    await clickVisibleRailToggle(cdp);
     await settle();
     await cdp.evaluate(chooseLayout("menu-bar"));
     await settle();
@@ -4409,7 +4756,7 @@ async function runLayoutSwitcherScenario(chrome) {
         switchedToMenuBar.drawerVisible === false,
       `attr=${switchedToMenuBar && switchedToMenuBar.active} bar=${switchedToMenuBar && switchedToMenuBar.bottomBarVisible} drawer=${switchedToMenuBar && switchedToMenuBar.drawerVisible}`,
     );
-    check(rows, "mobileSwitch.toMenuBar.staleDrawerClosed", !!switchedToMenuBar && switchedToMenuBar.dialogPresent === false, `dialog=${switchedToMenuBar && switchedToMenuBar.dialogPresent}`);
+    check(rows, "mobileSwitch.toMenuBar.noStaleDialog", !!switchedToMenuBar && switchedToMenuBar.dialogPresent === false, `dialog=${switchedToMenuBar && switchedToMenuBar.dialogPresent}`);
     check(rows, "mobileSwitch.toMenuBar.scrollNotLocked", await cdp.evalBool("document.body.style.overflow !== 'hidden'"));
     check(rows, "mobileSwitch.toMenuBar.controlReflectsMode", !!switchedToMenuBar && switchedToMenuBar.controlValue === "menu-bar", `control=${switchedToMenuBar && switchedToMenuBar.controlValue}`);
 
@@ -4418,14 +4765,16 @@ async function runLayoutSwitcherScenario(chrome) {
     const switchedToSidebar = await cdp.evaluate(LAYOUT_PROBE);
     check(
       rows,
-      "mobileSwitch.toSidebar.drawerReturns",
+      "mobileSwitch.toSidebar.railReturns",
       !!switchedToSidebar &&
         switchedToSidebar.active === "sidebar" &&
-        switchedToSidebar.drawerVisible === true &&
+        switchedToSidebar.railVisible === true &&
+        switchedToSidebar.presentedRailBand === "shell-sidebar-mobile-rail" &&
+        switchedToSidebar.drawerVisible === false &&
         switchedToSidebar.bottomBarVisible === false,
-      `attr=${switchedToSidebar && switchedToSidebar.active} drawer=${switchedToSidebar && switchedToSidebar.drawerVisible} bar=${switchedToSidebar && switchedToSidebar.bottomBarVisible}`,
+      `attr=${switchedToSidebar && switchedToSidebar.active} rail=${switchedToSidebar && switchedToSidebar.railVisible} band=${switchedToSidebar && switchedToSidebar.presentedRailBand} bar=${switchedToSidebar && switchedToSidebar.bottomBarVisible}`,
     );
-    check(rows, "mobileSwitch.toSidebar.drawerStartsClosed", !!switchedToSidebar && switchedToSidebar.dialogPresent === false, `dialog=${switchedToSidebar && switchedToSidebar.dialogPresent}`);
+    check(rows, "mobileSwitch.toSidebar.noStaleDialog", !!switchedToSidebar && switchedToSidebar.dialogPresent === false, `dialog=${switchedToSidebar && switchedToSidebar.dialogPresent}`);
     check(rows, "mobileSwitch.toSidebar.controlReflectsMode", !!switchedToSidebar && switchedToSidebar.controlValue === "sidebar", `control=${switchedToSidebar && switchedToSidebar.controlValue}`);
 
     // Exactly ONE primary navigation is reachable: in sidebar mode the withdrawn bar is
@@ -4445,6 +4794,7 @@ async function runLayoutSwitcherScenario(chrome) {
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
     await rm(pagePath, { force: true });
+    await rm(tallPath, { force: true });
     if (cdp) await cdp.close();
     await stopServer(server);
   }
@@ -5184,6 +5534,9 @@ const SIDEBAR_STATE_PROBE = `(() => {
   const rails = [
     { band: 'desktop', el: document.querySelector('#shell-sidebar-desktop-rail') },
     { band: 'tablet', el: document.querySelector('#shell-sidebar-tablet-rail') },
+    // NAV1D — the sidebar's own mobile band is the SAME rail, so it is one of the presentations this
+    // probe looks for (the sidebar mode no longer substitutes a drawer for it).
+    { band: 'mobile', el: document.querySelector('#shell-sidebar-mobile-rail') },
   ];
   const current = rails.find((rail) => shown(rail.el)) || null;
   const rail = current ? current.el : null;
@@ -5881,17 +6234,23 @@ async function runSidebarStateScenario(chrome) {
     check(rows, "bands.shareOnePreference", desktopAfterTablet.collapsed === "false", JSON.stringify(desktopAfterTablet));
 
     // ── THE MOBILE LAYER IS A DIFFERENT INTERACTION MODEL: a rail preference must not open it ──
-    // NAV1A — at <md the ACTIVE layout owns the navigation: the sidebar layout presents its own
-    // drawer disclosure (present, and CLOSED because the rail preference is not a drawer state),
-    // and the menu-bar layout's bottom bar is NOT the sidebar's mobile surface.
+    // NAV1A/NAV1D — at <md the ACTIVE layout owns the navigation: the sidebar layout presents the
+    // SAME persistent rail the wider bands present (so the visitor's stored OPEN preference opens THE
+    // RAIL, not a drawer state), and the menu-bar layout's bottom bar is NOT the sidebar's mobile
+    // surface. Nothing substituted for the sidebar exists at this width.
     await cdp.setViewport(VIEWPORTS.mobile.width, VIEWPORTS.mobile.height);
     await cdp.navigate(url);
     await waitReady(cdp);
     const mobile = await sidebarState(cdp);
     check(
       rows,
-      "mobile.preferenceDoesNotOpenMobileNavigation",
-      mobile.drawer === false && mobile.mobileDrawer === true && mobile.mobileBar === false,
+      "mobile.preferenceOpensTheRailNotADrawer",
+      mobile.railPresent === true &&
+        mobile.band === "mobile" &&
+        mobile.expanded === "true" &&
+        mobile.drawer === false &&
+        mobile.mobileDrawer === false &&
+        mobile.mobileBar === false,
       JSON.stringify(mobile),
     );
 

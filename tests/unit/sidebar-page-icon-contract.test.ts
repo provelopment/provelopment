@@ -159,7 +159,12 @@ describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", (
 
 describe("sidebar open/close CONTROL — 24x24 on desktop AND tablet, distinct from page icons", () => {
   const toggleIconRule = /\.ui-sidebar-toggle-icon\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
-  const toggleRule = /\.ui-shell-sidebar \.ui-sidebar-toggle\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
+  // NAV1D — there is ONE control rule: the sidebar-scoped override that re-anchored the box (and
+  // whose negative margin made the rail's padding asymmetric and clipped the Show/Hide focus ring)
+  // is gone, so the base rule owns the box and the token-backed content inset. The selector is
+  // anchored at a line start so the collapse-state override (a longer selector, earlier in the
+  // file) can never be mistaken for it.
+  const toggleRule = /\n\.ui-sidebar-toggle\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
   const collapsedToggleRule =
     /\.ui-sidebar-rail\[data-collapsed="true"\] \.ui-sidebar-toggle\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
@@ -186,17 +191,22 @@ describe("sidebar open/close CONTROL — 24x24 on desktop AND tablet, distinct f
     expect(navIconRule).not.toMatch(/var\(--ui-sidebar-control-icon-size\)/);
   });
 
-  it("keeps the EXPANDED control's ~5px inset; the COLLAPSED control is centred", () => {
-    // One shared inset value, derived from the Tailwind spacing scale
-    // (0.25rem x 1.25 = 5px) — never a per-preset magic number.
+  it("insets the EXPANDED control's CONTENT by the shared token on both sides; the COLLAPSED control is centred", () => {
+    // One shared CONTENT inset value, derived from the Tailwind spacing scale
+    // (0.25rem x 1.25 = 5px) — never a per-preset magic number. (This is the shell CTA's inset;
+    // the control's own content inset is its own token, `--ui-sidebar-control-inset`.)
     expect(globals).toMatch(/--ui-shell-control-inset:\s*calc\(var\(--spacing\) \* 1\.25\)/);
 
-    // EXPANDED (owner ruling, 2026-09): unchanged — left-aligned with the shared
-    // inset, re-anchored against the rail's own inline padding.
+    // EXPANDED (NAV1D, owner ruling): the control's BOX is the rail's OWN content box — the ONE
+    // sidebar padding (`--ui-sidebar-rail-inline`) on the left exactly as on the right, so the
+    // sidebar's horizontal padding is symmetrical and the focus ring has room — and its CONTENT
+    // keeps the shared content-inset token. The re-anchoring override is gone with its negative
+    // margin, which is what made the left inset 5px while the right stayed 20px.
     expect(toggleRule).toMatch(/justify-content:\s*flex-start/);
-    expect(toggleRule).toMatch(/var\(--ui-shell-control-inset\)/);
-    expect(toggleRule).toMatch(/margin-inline-start:\s*calc\(/);
-    expect(toggleRule).toMatch(/var\(--ui-sidebar-rail-inline\)/);
+    expect(toggleRule).toMatch(/padding-inline:\s*var\(--ui-sidebar-control-inset\)/);
+    expect(toggleRule).toMatch(/width:\s*100%/);
+    expect(globals).not.toMatch(/\n\.ui-shell-sidebar \.ui-sidebar-toggle \{/);
+    expect(globals).not.toMatch(/margin-inline-start:\s*calc\(/);
 
     // COLLAPSED (owner ruling, 2026-09): the open control is CENTRED on the rail's
     // axis with no inset, no re-anchoring and no compensating negative margin.

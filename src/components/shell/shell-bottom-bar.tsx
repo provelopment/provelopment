@@ -28,8 +28,8 @@ import { ShellMobileNav } from "./shell-mobile-nav";
  *  - composes ONLY the shared primitives (`BottomNavigation`, `NavItem`,
  *    `ShellMobileNav`) — no presentation identity, no business rules.
  *
- * A11y contract: single `<nav>` landmark (the bar) at <md; the More drawer is
- * a `role=dialog` overlay (closed-by-default SSR, Escape closes) that is never
+ * A11y contract: one `<nav>` landmark (the bar) wherever the composition presents it; the More
+ * drawer is a `role=dialog` overlay (closed-by-default SSR, Escape closes) that is never
  * simultaneously present in the tab order with the bar. ≥44px touch targets.
  */
 export interface ShellBottomBarLink {
@@ -117,8 +117,11 @@ export const BOTTOM_NAV_LINK_CLASS = "whitespace-nowrap";
 /**
  * NAV1A — the bar's horizontal PAGE-EDGE INSET. It is the same `px-4` the header and the
  * footer use (`ui-site-header` / footer bands), so the bar shares the platform's existing
- * page-edge convention instead of introducing a second spacing system. The bar spans the
- * viewport below `md`, so no bounded page-width container applies at those widths.
+ * page-edge convention instead of introducing a second spacing system. NAV1D — the bar's
+ * surface spans the viewport at EVERY width the composition presents it at (not only below
+ * `md`), so the page-width container is never applied to it and this inset is the only
+ * horizontal bound its content has. The rows still wrap inside it, so no link can touch the
+ * viewport edge.
  */
 export const PAGE_EDGE_INSET_CLASS = "px-4";
 
@@ -175,12 +178,20 @@ export function ShellBottomBar({
 
   return (
     <div
-      // NAV1B — the BAR spans the viewport (it is the sticky surface), while its CONTENT is
-      // bounded by the site's own page width and padded by the SAME page-edge inset the header and
-      // footer use. On a wide display a handful of links therefore stays aligned with the page
-      // instead of being spread from edge to edge, and no link can ever touch the viewport edge.
+      // NAV1B/NAV1D — THE BAR SPANS THE VIEWPORT: it IS the sticky surface, and it keeps that
+      // surface at EVERY width, in every frame. `w-full` is what makes that true inside the shell's
+      // wrapping row (an aside composition lays the page out as a row at `md` and up, and NAV1D
+      // extends that row to every width when the sidebar covers the mobile band): a flex item with
+      // no width basis shrinks to its content there, which is how the bar came to render as a small
+      // left-hand block instead of a footer-wide menu. `basis-full` additionally keeps it on a row
+      // of its own, so the surface can never share a line with page content.
+      //
+      // NAV1D — the CONTENT inside it uses the full available WIDTH minus the page-edge inset. The
+      // page's own `max-w-page` bound is deliberately NOT applied here: a navigation surface that
+      // stops at the article's width is not the full-width menu this mode means, and centring a
+      // handful of links inside a viewport-wide bar would leave the surface reading as an island.
       className={[
-        "ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background",
+        "ui-shell-bottom-bar sticky bottom-0 z-40 w-full basis-full border-t border-border bg-background",
         bandsClassName,
         menuModeClass(mode ?? "open"),
       ]
@@ -188,7 +199,7 @@ export function ShellBottomBar({
         .join(" ")}
       {...scope}
     >
-      <div className={`mx-auto max-w-page ${PAGE_EDGE_INSET_CLASS} py-1`}>
+      <div className={`${PAGE_EDGE_INSET_CLASS} py-1`}>
         <BottomNavigation
           label={label}
           items={primary}

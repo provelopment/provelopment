@@ -5,7 +5,7 @@ import type {
   TabletNavigationPattern,
 } from "./vocabulary";
 import type { ResolvedUiConfig } from "./resolve";
-import { resolveShellPattern, type ShellPatternDecision } from "./shell";
+import { resolveShellPattern, type ShellBand, type ShellPatternDecision } from "./shell";
 
 /**
  * SHELL LAYOUT PRESENTATION — the visitor-selectable shell composition (N2).
@@ -44,12 +44,12 @@ export type ShellLayout = (typeof SHELL_LAYOUTS)[number];
  * vocabulary — all THREE viewport leaves, so a layout is the whole responsive
  * presentation of its configured mode:
  *
- *  - `sidebar`   the canonical Foundation composition: a desktop sidebar, a
- *                collapsed rail on tablet, and the sidebar's own off-canvas
- *                drawer (`navigation.mobile: "drawer"`) below `md`;
+ *  - `sidebar`   the canonical Foundation composition: a desktop sidebar, a collapsed rail on
+ *                tablet, and — NAV1D — THAT SAME persistent rail at mobile width
+ *                (`navigation.mobile: "persistent-sidebar"`): one identical sidebar at every
+ *                viewport, never a drawer or a header disclosure substitute;
  *  - `menu-bar`  a top navigation bar on desktop, its compact tablet form, and
- *                the sticky bottom bar (`navigation.mobile: "bottom-bar"`)
- *                below `md`.
+ *                the sticky bottom bar (`navigation.mobile: "bottom-bar"`).
  *
  * FOUNDATION-DEFECT-NAV1A — the mobile leaf IS part of a layout. It used to be
  * excluded so that "both layouts shared one mobile navigation", which made
@@ -57,8 +57,16 @@ export type ShellLayout = (typeof SHELL_LAYOUTS)[number];
  * presented through the menu-bar's bottom bar and the mode-selection control was
  * withdrawn, so the configured mode stopped being the visitor's navigation. The
  * viewport now only changes HOW the configured mode is presented, never WHICH
- * mode it is. No new mode is introduced — each preset names one of the four
- * already-shipped `navigation.mobile` patterns.
+ * mode it is. No new mode is introduced — each preset names a value of the shipped
+ * `navigation.mobile` vocabulary (NAV1D added `persistent-sidebar` to it, so "the sidebar, at
+ * every width" is ALSO a configuration a site can state directly).
+ *
+ * FOUNDATION-DEFECT-NAV1D — "how the configured mode is presented" must not become a substitute:
+ * the sidebar preset used to present its `<md` widths through the sidebar capability's own
+ * off-canvas drawer (a `Show navigation` disclosure band), which is not the sidebar. The preset
+ * therefore names `persistent-sidebar`, so the SAME rails the ≥md bands present are presented at
+ * mobile width too. Responsive breakpoints still choose WHEN a band is presented; they no longer
+ * choose WHAT the sidebar mode is.
  */
 export const SHELL_LAYOUT_PATTERNS: Readonly<
   Record<
@@ -76,7 +84,7 @@ export const SHELL_LAYOUT_PATTERNS: Readonly<
     }
   >
 > = {
-  sidebar: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
+  sidebar: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "persistent-sidebar" },
   // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH. Its ≥md top menu is CLOSED,
   // so no top navigation is composed in any band, and the sticky bottom bar — which covers
   // every band this composition leaves open — IS the navigation. Nothing new is invented:
@@ -157,20 +165,17 @@ export function shellLayoutCompositions(
 /** The compositions that place a navigation rail in the given band. */
 export function railCompositions(
   resolved: ResolvedUiConfig,
-  band: "desktop" | "tablet",
+  band: ShellBand,
 ): readonly ShellLayoutComposition[] {
   return shellLayoutCompositions(resolved).filter(
-    (composition) =>
-      (band === "desktop"
-        ? composition.decision.desktop.slot
-        : composition.decision.tablet.slot) === "aside",
+    (composition) => composition.decision[band].slot === "aside",
   );
 }
 
 /** The layouts whose composition places a navigation rail in the given band. */
 export function railLayouts(
   resolved: ResolvedUiConfig,
-  band: "desktop" | "tablet",
+  band: ShellBand,
 ): readonly ShellLayout[] {
   return railCompositions(resolved, band)
     .map((composition) => composition.layout)
@@ -227,9 +232,11 @@ export function bottomBarLayouts(resolved: ResolvedUiConfig): readonly ShellLayo
 /**
  * The compositions whose MOBILE viewport (<md) is a DISCLOSURE — the off-canvas
  * drawer/overlay the shell's mobile navigation layer already implements
- * (`navigation.mobile: "drawer" | "overlay"`). For the `sidebar` layout this is the
- * sidebar's own mobile presentation: closed by default, reopened through its visible
- * disclosure control, carrying the same navigation model as every other surface.
+ * (`navigation.mobile: "drawer" | "overlay"`). This is the configured-disclosure
+ * capability, and it is NOT how the `sidebar` layout presents its mobile width (NAV1D):
+ * that layout names `persistent-sidebar`, so its rail IS its mobile navigation and the
+ * shell composes no disclosure for it at all. A site that explicitly configures
+ * `navigation.mobile: "drawer"` still gets exactly this composition.
  */
 export function mobileDisclosureCompositions(
   resolved: ResolvedUiConfig,

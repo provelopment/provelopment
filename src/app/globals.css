@@ -265,6 +265,26 @@ select[data-selector]:focus-visible {
   border-color: var(--ui-brand-accent);
 }
 
+/*
+ * NAV1D — A VISITOR CONTROL NEVER PUSHES THE PAGE WIDER THAN THE VIEWPORT.
+ *
+ * Where the sidebar is presented at every width (Sidebar mode), an OPEN rail at a phone width
+ * leaves the content column only a few dozen pixels — which the owner accepts ("the page/content
+ * area may naturally have less remaining width"), so the page must degrade there rather than push
+ * the document sideways. The header's visitor controls already WRAP onto their own lines, but a
+ * native `<select>`'s automatic minimum width is its widest option, so a single selector could
+ * still exceed the column and widen the whole document (measured on the reference site's German
+ * header, which carries four of them). These two declarations let each control shrink into the
+ * column it is given and truncate its own text instead. The control's box, its chrome, its
+ * accessible name, its keyboard behavior and the ONE global focus ring are all unchanged — and at
+ * any width with room for them the controls render exactly as they did before.
+ */
+.ui-site-header-top select[data-selector],
+.ui-site-header-context select[data-selector] {
+  min-width: 0;
+  max-width: 100%;
+}
+
 /* Respect reduced-motion preferences: strip transitions/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -825,6 +845,16 @@ html[data-ui-hero="showcase"] .home-hero {
   --ui-sidebar-rail-inline: 1.25rem;
   /* The intended EXPANDED sidebar rail width. */
   --ui-sidebar-rail-expanded: 13.75rem;
+  /* NAV1D — THE ROOM A CLIPPING ANCESTOR MUST LEAVE FOR THE ONE GLOBAL FOCUS RING.
+   *
+   * The single focus-ring rule near the top of this file paints the ring 2px thick, 2px OUTSIDE
+   * the focused element's border box, so it reaches exactly 4px beyond that box on every side. An
+   * ancestor that clips (any non-`visible` overflow) clips at its PADDING box, so a control flush
+   * with that box loses the ring. The rail's scrolling column is such an ancestor and the sidebar's
+   * control is flush with it, so the column reserves this much room on each side and cancels the
+   * reservation with an equal negative margin — the control's position and the rail's geometry are
+   * untouched, and the ring has somewhere to be painted (see `.ui-sidebar-rail-sticky`). */
+  --ui-focus-ring-room: 0.25rem;
 }
 
 .ui-shell-sidebar {
@@ -834,6 +864,34 @@ html[data-ui-hero="showcase"] .home-hero {
 /* Full-height rail (P6-3B): frame → band child → rail all fill the shell row. */
 .ui-shell-sidebar > div {
   height: 100%;
+}
+
+/* NAV1D — THE CONTENT COLUMN SHARES THE RAIL'S ROW, AND SHRINKS TO WHAT IS LEFT.
+ *
+ * In an aside composition the page frame is a WRAPPING row, because the full-width regions (header,
+ * CTA row, footer, and the Menu Bar's surface) must break onto their own lines. That wrapping has a
+ * trap the platform's own `flex-1` fell into: the wrap algorithm only moves an item to the next line
+ * when its HYPOTHETICAL size exceeds the space left, so a `flex-basis: 0%` column is appended to the
+ * (already full) header's line and then given ZERO width — its content overflows the viewport, and
+ * the rail is left alone on a row only as tall as its own navigation, which also stops its sticky
+ * column from staying pinned.
+ *
+ * The content column therefore keeps `flex-grow: 1` (it still takes every pixel that is left) but
+ * takes a REAL basis — 1px — so it always wraps onto the row the rail is on, plus `min-width: 0` so
+ * it can shrink to the width a narrow viewport actually leaves. Because this rule is unlayered it
+ * wins over the `flex-1` utility it refines, exactly like the primitives' own rules above do. */
+.ui-shell-content-column {
+  flex: 1 1 1px;
+  min-width: 0;
+  /* …and a word that cannot fit breaks instead of widening the whole document. That is the same
+   * robustness the footer already applies (`break-words`): where the rail is beside the content at
+   * every width, an OPEN rail on a phone leaves this column a few dozen pixels, and authored text
+   * with a long unbreakable word (a German compound, a long identifier) would otherwise push the
+   * document sideways — including through the min-content sizing of the grids/flex rows the page
+   * document vocabulary composes, which `break-word` alone does NOT reach. `anywhere` behaves like
+   * `break-word` when a line is laid out and ALSO lets those items shrink (it affects min-content
+   * sizing), and nothing changes at any width with room for the word. */
+  overflow-wrap: anywhere;
 }
 
 .ui-sidebar-rail {
@@ -883,30 +941,25 @@ html[data-ui-hero="showcase"] .home-hero {
   padding-inline: var(--ui-sidebar-rail-collapsed-pad);
 }
 
-/* Owner ruling (2026-09) — the EXPANDED sidebar CONTROL keeps its existing
- * appearance: the shared shell-control inset (≈5px) from the rail's inline edge
- * (the same inset the shell CTA uses, so the action and the control line up on
- * one edge). The rail's own inline padding frames the navigation LIST, so the
- * control cancels that padding and re-anchors by exactly
- * `inset - rail padding`, taking back the freed inline width so its trailing
- * edge stays flush with the rail's content box.
+/* NAV1D — THE EXPANDED RAIL'S CONTROL SITS ON THE RAIL'S OWN INLINE PADDING, ON BOTH SIDES.
  *
- * R1A (owner ruling, 2026-09) — the control's CONTENT is inset by
- * `--ui-sidebar-control-inset` on BOTH sides (`padding-inline`), so its 24px
- * icon no longer sits flush against the control's own left edge (the owner
- * reported the icon reading as clipped there). The BOX geometry above is
- * deliberately untouched: the control still lines up with the shell CTA on the
- * one shared inset, and the icon keeps its 24px contract. */
-.ui-shell-sidebar .ui-sidebar-toggle {
-  margin-inline-start: calc(
-    var(--ui-shell-control-inset) - var(--ui-sidebar-rail-inline)
-  );
-  width: calc(
-    100% + var(--ui-sidebar-rail-inline) - var(--ui-shell-control-inset)
-  );
-  padding-inline: var(--ui-sidebar-control-inset);
-  justify-content: flex-start;
-}
+ * The owner requires the sidebar's horizontal padding to be SYMMETRICAL — measured, not eyeballed:
+ * left padding == right padding, in both rail states, at every width. Until NAV1D the open control
+ * cancelled the rail's padding and re-anchored itself 15px to its left
+ * (`margin-inline-start: control-inset − rail-inline`, with the widened box that goes with it), so
+ * its box began 5px from the rail's OUTER left edge while its trailing edge stayed 20px inside: a
+ * 15px asymmetry — and those 15px are also what pushed the box outside the scrolling column it
+ * lives in, which is what clipped the `Hide navigation` focus ring on the left.
+ *
+ * There is therefore no override to make. The control's box IS the rail's content box, inset by
+ * `--ui-sidebar-rail-inline` (the owned sidebar padding token, and the value the owner named as
+ * the authority: the accepted RIGHT padding) on the left exactly as on the right; its 12px CONTENT
+ * inset (R1A: the icon/label never sit flush against the control's own edge) comes from the base
+ * `.ui-sidebar-toggle` rule, which already uses `--ui-sidebar-control-inset`. Box, 24px icon
+ * contract and label geometry are all unchanged. The one deliberate consequence: the open control
+ * no longer lines up with the shell CTA's ≈5px inset. That alignment was the reason for the
+ * negative margin, and the owner's symmetry ruling takes precedence over it — recorded here rather
+ * than silently dropped. */
 
 /* COLLAPSED rail (owner ruling, 2026-09) — a symmetric icon column:
  *  - the inline-end padding is reduced by the rail's own 1px inline-end border,
@@ -967,13 +1020,16 @@ html[data-ui-hero="showcase"] .home-hero {
   min-width: 0;
 }
 
-.ui-shell-sidebar ul {
-  padding-inline-start: var(--ui-sidebar-rail-inline);
-}
-
-:where(html:not([data-ui-sidebar-preference="open"])) .ui-sidebar-rail[data-collapsed="true"] ul {
-  padding-inline-start: 0;
-}
+/* NAV1D — THE RAIL'S OWN INLINE PADDING IS THE NAVIGATION LIST'S INSET, ON BOTH SIDES.
+ *
+ * The list used to add `--ui-sidebar-rail-inline` to its own inline-start edge on top of the rail's
+ * padding, so the expanded rail inset its navigation 40px from the left and 20px from the right.
+ * The owner requires the sidebar's horizontal padding to be symmetrical and names the accepted
+ * RIGHT padding (the rail's `--ui-sidebar-rail-inline`) as the authority, so the list no longer
+ * carries an inset of its own: both sides are the ONE rail padding. The collapsed rail's
+ * compensating rule (which zeroed the same inset, because the list is centred there) is gone with
+ * it — there is nothing left to zero.
+ */
 
 .ui-sidebar-toggle {
   display: flex;
@@ -981,7 +1037,14 @@ html[data-ui-hero="showcase"] .home-hero {
   align-items: center;
   justify-content: flex-start;
   gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
+  /* R1A — the control's CONTENT inset (its 24px icon and its label) is the ONE shared token, as
+   * padding on BOTH sides (`padding-inline`), so the icon never sits flush against the control's
+   * own edge. NAV1D moved this from the sidebar-scoped override to this rule: the override's only
+   * remaining purpose was the re-anchoring negative margin that made the sidebar's padding
+   * asymmetric and clipped the `Hide navigation` focus ring (see the NAV1D note above it). The
+   * token, the box and the icon size are all unchanged — only their owner is. */
+  padding-block: 0.5rem;
+  padding-inline: var(--ui-sidebar-control-inset);
   margin-block-end: 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1234,7 +1297,18 @@ html[data-ui-hero="showcase"] .home-hero {
 /* Where a rail band is composed beside the content, the top region scrolls
  * normally instead. Each suppression is scoped to ITS OWN band, so a mixed
  * composition (for example a desktop rail with a tablet top bar) still keeps the
- * header persistent exactly where the header is the navigation carrier. */
+ * header persistent exactly where the header is the navigation carrier.
+ *
+ * NAV1D — there is a MOBILE-band counterpart (`--rail-mobile`) for a composition whose rail is
+ * present beside the content at <md too (`navigation.mobile: "persistent-sidebar"`): the rail is
+ * that site's persistent navigation there as well, so the top region must not also be sticky. */
+@media (max-width: 47.999rem) {
+  .ui-shell-top--rail-mobile {
+    position: static;
+    z-index: auto;
+    background-color: transparent;
+  }
+}
 @media (min-width: 48rem) and (max-width: 63.999rem) {
   .ui-shell-top--rail-md {
     position: static;
@@ -1256,6 +1330,11 @@ html[data-ui-hero="showcase"] .home-hero {
  * not persistent, the clearance is removed — nothing changes there. */
 html:has(.ui-shell-top) {
   scroll-padding-top: var(--ui-shell-top-clearance);
+}
+@media (max-width: 47.999rem) {
+  html:has(.ui-shell-top--rail-mobile) {
+    scroll-padding-top: 0;
+  }
 }
 @media (min-width: 48rem) and (max-width: 63.999rem) {
   html:has(.ui-shell-top--rail-md) {
@@ -1282,6 +1361,17 @@ html:has(.ui-shell-top) {
   max-height: 100dvh;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* NAV1D — FOCUS-RING ROOM, WITHOUT MOVING ANYTHING. Scrolling on one axis makes this element a
+   * CLIP container (its inline axis computes to a scroll container too), and it clips at its
+   * padding box — which is exactly the box the show/hide control and the navigation rows sit in.
+   * The control is full-width and the first thing in the column, so its `:focus-visible` ring was
+   * cut off on the left (and its 15px overhang, before NAV1D, made that a 19px cut). Reserving
+   * `--ui-focus-ring-room` as padding and cancelling it with an equal negative margin moves the
+   * clip box outwards by exactly the ring's extent while leaving the content box — and therefore
+   * every measured inset, the control's box, the row wrapping and the sticky geometry — exactly
+   * where it was. */
+  padding: var(--ui-focus-ring-room);
+  margin: calc(-1 * var(--ui-focus-ring-room));
 }
 
 /* ── N2 — SHELL LAYOUT PRESENTATION (visitor-selectable) ─────────────────────
@@ -1315,9 +1405,12 @@ html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="top-nav"] {
   display: none;
 }
 
-/* Mobile navigation (<md): the same one-exposed-structure rule. A sidebar site is
+/* Mobile navigation: the same one-exposed-structure rule. A sidebar site is
  * never presented through the menu-bar's bottom bar, and a menu-bar site never
- * through the sidebar's drawer. */
+ * through a sidebar structure. NAV1D — the sidebar layout's <md structure is now its own rail
+ * (marked `rail`, hidden above by the same rule that hides every rail for the menu-bar layout)
+ * rather than a `mobile-drawer`, so no drawer is composed for it at all; the marker is still
+ * honoured for a site that configures an off-canvas disclosure explicitly. */
 html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="bottom-bar"] {
   display: none;
 }
@@ -1337,7 +1430,23 @@ html[data-ui-shell-layout="menu-bar"] .ui-shell-sidebar:has([data-ui-shell-part=
  * persistent navigation — including at the widths where a (now hidden) rail
  * structure is also composed. The band-scoped suppression documented above is
  * therefore reversed for the menu-bar layout, and the fragment-target clearance
- * returns with it, so an in-page anchor never lands beneath the header. */
+ * returns with it, so an in-page anchor never lands beneath the header.
+ *
+ * NAV1D — the same reversal for the MOBILE band: with the menu-bar layout active at <md the sticky
+ * bottom bar is the navigation, the rail is hidden, so the top region is the persistent navigation
+ * exactly as it was before a mobile rail existed. */
+@media (max-width: 47.999rem) {
+  html[data-ui-shell-layout="menu-bar"] .ui-shell-top--rail-mobile {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background-color: var(--background);
+  }
+
+  html[data-ui-shell-layout="menu-bar"]:has(.ui-shell-top--rail-mobile) {
+    scroll-padding-top: var(--ui-shell-top-clearance);
+  }
+}
 @media (min-width: 48rem) and (max-width: 63.999rem) {
   html[data-ui-shell-layout="menu-bar"] .ui-shell-top--rail-md {
     position: sticky;

@@ -257,10 +257,11 @@ The canonical values are `balanced` / `balanced` / `default` / `default` /
 override applies to that dimension only, and any combination of vocabulary values
 is valid.
 
-P5-4/P6-1 — the responsive mobile sidebar navigation (the "Show navigation" drawer /
-overlay disclosure) always renders ONE navigation item per line in every
-composition; follow the shared list composition in `site-header.tsx` rather than
-adding composition-specific styling.
+P5-4/P6-1 — a CONFIGURED off-canvas disclosure (the `Show navigation` drawer / overlay pattern,
+i.e. `navigation.mobile: "drawer"` or `"overlay"`) always renders ONE navigation item per line in
+every composition; follow the shared list composition in `site-header.tsx` rather than adding
+composition-specific styling. Sidebar mode composes no such disclosure (see *Responsive behavior*
+below): its navigation is the persistent rail itself at every width.
 
 **Behavioral & accessibility contract (UI-10):** the disclosures share a
 browser-validated modal contract in the `Drawer` primitive (the More drawer and
@@ -276,16 +277,21 @@ disclosure's trigger owns the id the dialog is named by
 the committed **CDP browser matrix** (`pnpm test:browser`, also run in CI) at
 desktop / tablet / mobile.
 
-**Responsive behavior:** the CONFIGURED layout owns the navigation at every width. In the
-canonical `sidebar` layout that is a collapsible rail ≥`lg`, a collapsed rail ≥`md`, and the
-sidebar's own off-canvas **drawer** below `md` (closed by default, reopened from its
-`Show navigation` disclosure, which is composed at the SIDEBAR'S OWN BOUNDARY — never inside the
-page header). In the `menu-bar` layout the navigation is the sticky **bottom bar at EVERY width**:
-the top navigation is not part of Menu Bar mode. The bottom bar's content rule is deterministic:
-the first **4** configured `navigation` items render in the bar; the remainder (when
-non-empty) is exposed through the "More" drawer. The bar spans the viewport while its CONTENT
-follows the page's own width (`max-w-page` plus the page-edge inset), and its links flow
-horizontally inside that content, wrapping onto another row only when the width requires it.
+**Responsive behavior:** the CONFIGURED layout owns the navigation at every width, and the width
+never substitutes a different navigation for it. Sidebar mode uses ONE persistent sticky sidebar
+presentation at every viewport width (`navigation.mobile: "persistent-sidebar"`): the same rail — a
+collapsible rail ≥`lg`, a collapsed rail ≥`md`, and THE SAME rail below `md`, where the page frame
+lays the rail and the content out side by side (the content simply has less remaining width) rather
+than stacking the rail above the page — closed by default and reopened from its own Show/Hide
+navigation control, whose placement, scale and geometry never change with the viewport. Viewport
+width does not substitute a drawer or a header disclosure, so Sidebar mode composes no drawer, no
+`Show navigation` band and no header affordance at all. Menu Bar mode uses a full-width sticky
+bottom navigation at every viewport width: the top navigation is not part of Menu Bar mode. The
+bottom bar's content rule is deterministic: the first **4** configured `navigation` items render in
+the bar; the remainder (when non-empty) is exposed through the "More" drawer. The bar's SURFACE
+spans the viewport and its navigation region uses the full available width minus the page-edge
+inset — the page's own `max-w-page` bound is deliberately NOT applied to it — and its links flow
+horizontally inside that region, wrapping onto another row only when the width requires it.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
@@ -433,12 +439,17 @@ no broken image, no empty box.
 
 #### Sidebar disclosure — ONE vocabulary, one control (P6-1)
 
-Every sidebar disclosure across every breakpoint says the same thing:
+Every sidebar disclosure says the same thing, in every state and at every width:
 
-| State | Desktop/tablet rail toggle (covers the aside rail) | Mobile drawer/overlay trigger + close |
+| State | The rail's Show/Hide control (every band — NAV1D) | A configured drawer/overlay disclosure's trigger + close |
 | --- | --- | --- |
 | disclosure **closed** | `Show navigation` (flips to this while collapsed) | trigger label `Show navigation` |
 | disclosure **open** | `Hide navigation` (flips to this while open) | close control `Hide navigation` |
+
+The second column belongs to a site that explicitly configures an off-canvas disclosure
+(`navigation.mobile: "drawer"` or `"overlay"`). **Sidebar mode is not one of those** (NAV1D): it
+presents its rail at every width, so the Show/Hide control is the only disclosure it has — the same
+control, at the same scale, at every width.
 
 - The labels are the localized `navigation.showSidebar` / `navigation.hideSidebar`
   dictionary values (one per locale), reused by the `ui.navigation.sidebar.open/close.text`

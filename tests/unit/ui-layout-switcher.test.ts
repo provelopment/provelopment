@@ -53,7 +53,10 @@ describe("the shell layout vocabulary", () => {
     expect(SHELL_LAYOUT_PATTERNS.sidebar).toEqual({
       desktop: "sidebar",
       tablet: "collapsed-sidebar",
-      mobile: "drawer",
+      // NAV1D — THE SIDEBAR'S MOBILE BAND IS THE SAME SIDEBAR. The preset used to name the
+      // capability's off-canvas drawer here, which is a SUBSTITUTE for the sidebar rather than the
+      // sidebar: below `md` it presented a `Show navigation` disclosure band instead of the rail.
+      mobile: "persistent-sidebar",
     });
     // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH: the preset also CLOSES the
     // ≥md top menu (`closed` is the shipped three-state menu contract), so no top navigation is
@@ -70,8 +73,8 @@ describe("the shell layout vocabulary", () => {
       expect(TABLET_NAVIGATION_PATTERNS, layout).toContain(patterns.tablet);
       expect(MOBILE_NAVIGATION_PATTERNS, layout).toContain(patterns.mobile);
     }
-    // NAV1A — the two layouts must not present the same mobile navigation: the sidebar
-    // layout owns an off-canvas drawer, the menu-bar layout the sticky bottom bar.
+    // NAV1A/NAV1D — the two layouts must not present the same mobile navigation: the sidebar
+    // layout presents its own persistent rail, the menu-bar layout the sticky bottom bar.
     expect(SHELL_LAYOUT_PATTERNS.sidebar.mobile).not.toBe(
       SHELL_LAYOUT_PATTERNS["menu-bar"].mobile,
     );
@@ -95,9 +98,10 @@ describe("the shell layout vocabulary", () => {
     const applied = applyShellLayout(base, "menu-bar");
     expect(applied.navigation.desktop).toBe("top");
     expect(applied.navigation.tablet).toBe("top-compact");
-    // NAV1A — the mobile leaf belongs to the layout too.
+    // NAV1A/NAV1D — the mobile leaf belongs to the layout too, and for the sidebar layout it
+    // names the SAME persistent rail the wider bands present.
     expect(applied.navigation.mobile).toBe("bottom-bar");
-    expect(applyShellLayout(base, "sidebar").navigation.mobile).toBe("drawer");
+    expect(applyShellLayout(base, "sidebar").navigation.mobile).toBe("persistent-sidebar");
     expect({ ...applied, navigation: base.navigation }).toEqual(base);
   });
 
@@ -110,15 +114,16 @@ describe("the shell layout vocabulary", () => {
     const menuBar = resolveShellPattern(applyShellLayout(sidebarEnabled, "menu-bar"));
     expect(menuBar.desktop.slot).toBe("header");
     expect(menuBar.tablet.slot).toBe("header");
-    // NAV1A/NAV1B — the MOBILE composition follows the configured mode, never the viewport:
-    // the sidebar layout presents its own disclosure (drawer + its trigger), the menu-bar
-    // layout the sticky bottom bar (no disclosure trigger). `presentsNavigation` is the band
-    // model: the mobile band always presents a surface of its own.
+    // NAV1A/NAV1B/NAV1D — the MOBILE composition follows the configured mode, never the viewport:
+    // the sidebar layout presents the SAME rail its ≥md bands present (an ASIDE slot with no
+    // disclosure trigger, so nothing substitutes for the sidebar at <md), the menu-bar layout the
+    // sticky bottom bar. `presentsNavigation` is the band model: the mobile band always presents a
+    // navigation of its own.
     expect(sidebar.mobile).toEqual({
-      primitiveKind: "drawer",
-      slot: "header",
+      primitiveKind: "sidebar",
+      slot: "aside",
       ctaSlot: "none",
-      trigger: true,
+      trigger: false,
       presentsNavigation: true,
     });
     expect(menuBar.mobile).toEqual({
@@ -131,29 +136,48 @@ describe("the shell layout vocabulary", () => {
     expect(menuBar.mobile).not.toEqual(sidebar.mobile);
   });
 });
-describe("the mobile navigation each layout owns (NAV1A)", () => {
-  it("gives the sidebar layout a drawer and the menu-bar layout the bottom bar", () => {
-    // The switcher composes BOTH layouts, so both mobile surfaces exist in the markup and
-    // the stylesheet exposes the one the ACTIVE layout owns.
-    expect(mobileDisclosureLayouts(sidebarEnabled)).toEqual(["sidebar"]);
+describe("the mobile navigation each layout owns (NAV1A/NAV1D)", () => {
+  it("gives the sidebar layout its own persistent rail and the menu-bar layout the bottom bar", () => {
+    // NAV1D — the sidebar layout composes NO mobile surface at all. Its rail covers the mobile
+    // band (a rail in the ASIDE slot at every width), so there is no drawer, no disclosure trigger
+    // and no disclosure band substituting for the sidebar. The menu-bar layout keeps the sticky
+    // bottom bar, and the switcher still composes both structures, so the stylesheet exposes
+    // exactly the one the ACTIVE layout owns.
+    expect(mobileDisclosureLayouts(sidebarEnabled)).toEqual([]);
     expect(bottomBarLayouts(sidebarEnabled)).toEqual(["menu-bar"]);
+    // The SAME composition serves all three bands: one sidebar across every viewport class.
+    expect(railLayouts(sidebarEnabled, "mobile")).toEqual(["sidebar"]);
+    expect(railLayouts(sidebarEnabled, "tablet")).toEqual(["sidebar"]);
+    expect(railLayouts(sidebarEnabled, "desktop")).toEqual(["sidebar"]);
     expect(
-      mobileDisclosureCompositions(sidebarEnabled)[0].decision.mobile.primitiveKind,
-    ).toBe("drawer");
+      shellLayoutCompositions(sidebarEnabled).find(
+        (composition) => composition.layout === "sidebar",
+      )?.decision.mobile.primitiveKind,
+    ).toBe("sidebar");
     expect(bottomBarCompositions(sidebarEnabled)[0].decision.mobile.primitiveKind).toBe(
       "bottom-bar",
     );
   });
 
-  it("never lets one layout own BOTH mobile surfaces, and composes one for every layout", () => {
+  it("never lets one layout own BOTH mobile surfaces, and leaves no band without navigation", () => {
     for (const resolved of [sidebarEnabled, menuBarDefault, disabled]) {
       const drawers = new Set(mobileDisclosureLayouts(resolved));
       for (const layout of bottomBarLayouts(resolved)) expect(drawers.has(layout)).toBe(false);
-      // Every composition presents exactly one mobile navigation (no layout is left with
-      // none, and none composes two).
-      expect(
-        mobileDisclosureCompositions(resolved).length + bottomBarCompositions(resolved).length,
-      ).toBeGreaterThan(0);
+      // NAV1D — EVERY band of EVERY composition is served: either the composition presents its
+      // own navigation there (a rail in the aside slot, or a header navigation) or the band is one
+      // its mobile surface covers. That is the invariant the sidebar layout now satisfies with its
+      // RAIL rather than with a substitute, and it is why no band can be left with no way to
+      // navigate.
+      for (const composition of shellLayoutCompositions(resolved)) {
+        for (const band of ["mobile", "tablet", "desktop"] as const) {
+          const decision = composition.decision[band];
+          const servesBand = decision.slot === "aside" || decision.presentsNavigation;
+          expect(
+            servesBand || composition.decision.openBands.includes(band),
+            `${composition.layout ?? "single"}.${band}`,
+          ).toBe(true);
+        }
+      }
     }
   });
 

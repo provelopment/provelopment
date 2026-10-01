@@ -188,8 +188,9 @@ tree stays clean.
   rejected stored value falls back to CLOSED, a refresh keeps the choice, a real
   navigation icon keeps it (CLOSED stays CLOSED, OPEN stays OPEN), the tablet band
   and the desktop band share ONE state, a Site switch does not partition it, the
-  Layout switcher is independent of it, and the `<md` drawer/bottom bar is a
-  separate ephemeral model it never opens. Since FOUNDATION-UI1-A1 the scenario
+  Layout switcher is independent of it, and at `<md` the SAME rail carries that state — the
+  stored preference opens the RAIL there too, so no drawer or bottom bar becomes a second,
+  ephemeral authority over the visitor's choice (NAV1D). Since FOUNDATION-UI1-A1 the scenario
   judges the whole navigation INTERVAL rather than its end state: a transition
   observer records every `data-collapsed` write on a rail and every `width`
   transition on one, so the interval must commit **no opposite state** (a
@@ -237,20 +238,24 @@ tree stays clean.
   facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar), at
-  EVERY width, anchored at the top row's right edge. The sidebar layout exposes the rail ≥`md`
-  and its own disclosure below `md`; choosing Menu bar exposes the **sticky bottom bar at EVERY
-  width** and no top navigation at all — and a Tab sweep proves the withdrawn structures are
-  never focusable. The document, its main content, the route, the locale and the usable content
-  column are unchanged, persistent navigation and fragment clearance follow the active
-  layout, and the choice survives client-side navigation and a full reload (an unusable
-  stored value falls back to the configured default). The MOBILE/handover contract (NAV1A/NAV1B)
-  is measured rather than asserted by class: the sidebar's disclosure opens from its own trigger,
-  carries the navigation and closes on Escape; its computed font size, icon box and control height
-  are IDENTICAL to the accepted desktop rail control (no breakpoint-induced enlargement); it is
-  composed at the sidebar boundary, never inside the page header; and the header's two semantic
-  rows keep their ownership at 1280/1024/900/768/767/390/360/320 — through real resize transitions
-  and real mode switches made while already at a phone width (the withdrawn surface never keeps a
-  stale dialog or the body's scroll lock).
+  EVERY width, anchored at the top row's right edge. The sidebar layout exposes the SAME persistent
+  rail at every width — desktop, tablet and the mobile band alike (NAV1D) — and composes no drawer,
+  no disclosure band and no header affordance to substitute for it; choosing Menu bar exposes the
+  **sticky bottom bar at EVERY width** and no top navigation at all — and a Tab sweep proves the
+  withdrawn structures are never focusable. The document, its main content, the route, the locale and
+  the usable content column are unchanged, persistent navigation and fragment clearance follow the
+  active layout, and the choice survives client-side navigation and a full reload (an unusable
+  stored value falls back to the configured default). The MOBILE/handover contract (NAV1D) is
+  MEASURED rather than asserted by class: the mobile band presents the rail itself, with the rail's
+  own padding on both sides, the control's box on that same inset, the navigation rows sharing it,
+  the focus ring's full extent left free inside the scrolling column, and the column still pinned
+  after scrolling deeply — all at 1280/1024/900/768/767/390/360/320; the control's typography, icon
+  and the rail's padding are identical to the desktop band's, because the breakpoint changes WHICH
+  band presents the rail, not WHAT the rail is; and the header's two semantic rows keep their
+  ownership at the same widths — through real resize transitions and real mode switches made while
+  already at a phone width (no stale dialog, no scroll lock, no substituted surface). The Menu Bar
+  surface is measured too: its sticky surface spans the viewport and its navigation region uses the
+  available width minus the page-edge inset (never the page's own `max-w-page` bound).
 - **header semantic rows** (`header-rows` scenario, NAV1B/NAV1B-V1): with test-owned fixtures the
   navigation-MODE selector keeps its top-right place at every width. A TEXT identity (a very long
   site name) begins on the selector's own first line at the padded left edge, wraps inside its own

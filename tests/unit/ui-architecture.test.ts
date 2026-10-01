@@ -243,9 +243,10 @@ describe("UI-01 — loader mapping", () => {
     // …and the canonical composition still resolves (from the Foundation defaults).
     const resolved = resolveUiConfig(config.ui ?? {});
     expect(resolved.navigation.desktop).toBe("sidebar");
-    // NAV1A — the shipped reference site ENABLES the layout switcher, whose default
-    // layout supplies the mobile leaf: the sidebar layout's own mobile presentation is
-    // the off-canvas drawer (not the menu-bar's bottom bar).
-    expect(resolved.navigation.mobile).toBe("drawer");
+    // NAV1A/NAV1D — the shipped reference site ENABLES the layout switcher, whose default
+    // layout supplies the mobile leaf: the sidebar layout's own mobile presentation is the SAME
+    // persistent rail the ≥md bands present (`persistent-sidebar`), never the menu-bar's bottom
+    // bar and never an off-canvas substitute.
+    expect(resolved.navigation.mobile).toBe("persistent-sidebar");
   });
 });

@@ -96,7 +96,9 @@ const DISCLOSURE_PROBE = `(() => {
 
 const LAYOUT_STATE_PROBE = `(() => {
   const shown = (el) => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
-  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail')].find(shown) || null;
+  const rail = [...document.querySelectorAll('#shell-sidebar-desktop-rail, #shell-sidebar-tablet-rail, #shell-sidebar-mobile-rail')].find(shown) || null;
+  // NAV1D — the sidebar's own mobile band is the SAME rail (never a substituted disclosure).
+  const railMobile = document.querySelector('#shell-sidebar-mobile-rail');
   const topNav = [...document.querySelectorAll('nav[data-ui-shell-part="top-nav"]')].find(shown) || null;
   const control = document.querySelector('[data-ui-layout-switcher]');
   // NAV1B — the header's two semantic rows, the menu-bar sticky bar, and the sidebar's OWN disclosure.
@@ -111,6 +113,7 @@ const LAYOUT_STATE_PROBE = `(() => {
     attribute: document.documentElement.getAttribute('data-ui-shell-layout'),
     stored: window.localStorage.getItem('foundation.layout'),
     railVisible: !!rail,
+    railMobileVisible: shown(railMobile),
     topNavVisible: !!topNav,
     controlValue: control ? control.value : null,
     controlOptions: control ? [...control.options].map((option) => option.textContent.trim()) : null,
@@ -386,9 +389,12 @@ export async function run(chrome, harness) {
     );
     check(
       rows,
-      "reference.sidebar.disclosureAtSidebarBoundary",
-      mobileSidebar.disclosureVisible === true && mobileSidebar.disclosureInHeader === false,
-      `visible=${mobileSidebar.disclosureVisible} inHeader=${mobileSidebar.disclosureInHeader}`,
+      "reference.sidebar.railPresentedAtEveryWidth",
+      mobileSidebar.railVisible === true &&
+        mobileSidebar.railMobileVisible === true &&
+        mobileSidebar.disclosureVisible === false &&
+        mobileSidebar.disclosureInHeader === false,
+      `rail=${mobileSidebar.railVisible} mobile=${mobileSidebar.railMobileVisible} disclosure=${mobileSidebar.disclosureVisible}`,
     );
     check(
       rows,
