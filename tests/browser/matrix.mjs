@@ -7047,6 +7047,29 @@ async function runAppearanceContractScenario(chrome) {
     await sleep(400);
 
     // ── INTERACTION STATES: only the ones the platform really implements ─────────────────────────
+    /**
+     * HOVER IS A TRANSITION, NOT A SNAPSHOT. These controls animate their colour
+     * (`transition-colors`, 150ms), and a renderer only advances that animation on a frame — so a
+     * single read straight after the synthetic pointer move can legitimately still observe the
+     * RESTING value (it did on the Linux CI runner while the identical check passed locally). This
+     * waits, BOUNDED, for the documented value to arrive; the assertion below still fails when it
+     * never does, so a real regression cannot pass by waiting.
+     */
+    const settleState = async (read, expected, attempts = 8) => {
+      const nextFrame = () =>
+        cdp.evaluate(
+          "new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))",
+        );
+      await nextFrame();
+      let last = await read();
+      for (let attempt = 0; attempt < attempts && last && last.color !== expected; attempt += 1) {
+        await sleep(250);
+        await nextFrame();
+        last = await read();
+      }
+      return last;
+    };
+
     await cdp.navigate(`${surfaceUrl}/ww/en`);
     await waitReady(cdp);
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
@@ -7055,7 +7078,10 @@ async function runAppearanceContractScenario(chrome) {
     const navRest = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
     await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: navRest.point.x, y: navRest.point.y });
     await sleep(250);
-    const navHover = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
+    const navHover = await settleState(
+      async () => JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE)),
+      navRest.foreground,
+    );
     check(
       rows,
       "appearance.interaction.railNavHoverMovesToTheForegroundToken",
@@ -7098,7 +7124,10 @@ async function runAppearanceContractScenario(chrome) {
     const footerRest = JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE));
     await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: footerLinkPoint.x, y: footerLinkPoint.y });
     await sleep(250);
-    const footerHover = JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE));
+    const footerHover = await settleState(
+      async () => JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE)),
+      footerRest.primary,
+    );
     check(
       rows,
       "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
