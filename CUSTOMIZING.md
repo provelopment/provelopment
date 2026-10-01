@@ -826,8 +826,12 @@ What it does:
 [ Site ] [ Location ] [ Language ]
 ```
 
-The navigation-MODE selector keeps the top row's right edge; an identity too long to share the line
-wraps BELOW the selector instead of moving it. Every other header control — the contextual
+The navigation-MODE selector keeps the top row's right edge; a TEXT identity too long to share the
+line wraps BELOW the selector instead of moving it (its continuation lines stay left-aligned with it,
+inside its own column). A GRAPHIC identity follows the same row contract but not the text rule: it
+keeps its natural aspect and may continue BENEATH the selector's occupied area, with the selector
+painted above it — a graphic never displaces the selector, is never shrunk into the text column, and
+never moves the selector onto another line. Every other header control — the contextual
 Site/Location/Language selectors, and the ≥md header navigation a custom composition presents —
 stays in the second row, left-aligned, wrapping inside that row when the width requires it.
 

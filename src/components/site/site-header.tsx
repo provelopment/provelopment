@@ -191,8 +191,25 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
                     stretches across the row, and never moves into the control row below. The
                     identity takes the remaining space; when the two cannot share one line the
                     identity wraps BELOW the selector (never over it, never moving it). */}
-                <div className="ui-site-header-top grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2">
-                    <div className="ui-site-header-identity min-w-0 break-words">
+                <div
+                    className={
+                        headerLogoSrc
+                            ? // NAV1B-V1 — A GRAPHIC IDENTITY IS NOT A WRAPPING TEXT COLUMN. The row
+                              // keeps ONE track, so the graphic's clamp is the header's own CONTENT
+                              // width (never a narrow column), the selector stays in the same cell at
+                              // its right edge, and the stylesheet stacks it ABOVE the graphic it
+                              // overlaps. The TEXT case below is untouched.
+                              "ui-site-header-top ui-site-header-top--graphic grid items-start"
+                            : "ui-site-header-top grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2"
+                    }
+                >
+                    <div
+                        className={
+                            headerLogoSrc
+                                ? "ui-site-header-identity min-w-0"
+                                : "ui-site-header-identity min-w-0 break-words"
+                        }
+                    >
                         {headerLogoSrc ? (
                             <Link
                                 href={`/${locale}`}

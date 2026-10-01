@@ -1387,6 +1387,52 @@ html[data-ui-shell-layout="menu-bar"] .ui-shell-sidebar:has([data-ui-shell-part=
   object-fit: contain;
 }
 
+/* ── NAV1B-V1 — THE GRAPHIC IDENTITY PASSES BENEATH THE FIXED TOP-RIGHT SELECTOR ───────────────
+ *
+ * The owner's rule for a GRAPHIC page/site identity is NOT the text rule. A text identity wraps
+ * inside its own column and never goes under the navigation-MODE selector (`.ui-site-header-top`
+ * grid: two tracks, text in the flexible first one). A GRAPHIC identity has no reason to reflow
+ * around a control: it begins in its normal left-hand identity position, keeps its natural aspect,
+ * and MAY continue geometrically beneath the selector's occupied area — the selector stays fixed at
+ * the top-right and paints ABOVE it, hiding whatever lies underneath.
+ *
+ * THE MECHANICS, and why they are what they are:
+ *  - the row keeps ONE track, so the graphic's clamp (`max-width`) is the header's own CONTENT box
+ *    (the page-edge inset) rather than a narrow first column: the graphic is never shrunk into a
+ *    column and never distorted (`object-fit: contain` above);
+ *  - the identity and the selector occupy the SAME cell, the selector right-aligned and stacked
+ *    above (`z-index`), which is what makes an overlap an OVERLAY instead of a collision;
+ *  - the brand link is sized to the graphic (`max-content`, capped by the cell), so it remains a
+ *    lockup-sized "go home" target instead of a row-wide one;
+ *  - the selector keeps an opaque surface of the header's own background behind it, so the graphic
+ *    beneath it is obscured rather than showing through the control.
+ *
+ * The graphic is decorative/identity content that already had no interactivity: nothing here makes
+ * it interactive, and the selector keeps every pointer event inside its own box.
+ */
+.ui-site-header-top--graphic {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ui-site-header-top--graphic .ui-site-header-identity {
+  grid-area: 1 / 1;
+}
+
+.ui-site-header-top--graphic .ui-site-header-brand {
+  width: max-content;
+  max-width: 100%;
+}
+
+.ui-site-header-top--graphic .ui-site-header-mode {
+  grid-area: 1 / 1;
+  justify-self: end;
+  align-self: start;
+  position: relative;
+  z-index: 10;
+  padding-inline-start: 0.75rem;
+  background-color: var(--background);
+}
+
 /* The page banner (P6-3B; P6-3C scaling contract). ALWAYS centered, never
  * overflowing, no structural padding/margin/border/shadow/radius, and no
  * artificial height: the rendered height follows the graphic's own aspect

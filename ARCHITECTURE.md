@@ -1529,7 +1529,7 @@ which exists so a deployment can demonstrate the same site in two presentations.
   fails loudly rather than picking one).
 - **THE HEADER'S TWO SEMANTIC ROWS NEVER CHANGE OWNERSHIP** (NAV1B). The header composes two
   regions at every width: the TOP row owns the identity and the navigation-MODE selector, which
-  is anchored to the right edge of the padded content (an identity too long to share the line
+  is anchored to the right edge of the padded content (a TEXT identity too long to share the line
   wraps below the selector rather than moving it); the SECOND row owns every other header control
   — the contextual Site/Location/Language selectors, and the ≥md header navigation a CUSTOM
   composition presents. Responsive behaviour may wrap a region's own content, close the sidebar
@@ -1538,6 +1538,14 @@ which exists so a deployment can demonstrate the same site in two presentations.
   disclosure is composed by the ENGINE at the SIDEBAR BOUNDARY (`sidebarLead`, above the content
   row) for exactly that reason: inside the header it migrated between the rows as the visitor
   controls changed width, which is the reported defect.
+- **A GRAPHIC IDENTITY UNDERLAYS THE SELECTOR — IT DOES NOT REFLOW AROUND IT** (NAV1B-V1). The
+  owner's rule distinguishes the two identity kinds, and so does the shell: a text identity wraps
+  inside its own column, while a configured logo keeps the row's ONE track (so its clamp is the
+  header's content width — never a narrow column, never shrunk, never distorted) and may continue
+  beneath the selector's occupied area, the selector staying right-aligned in the same cell and
+  painting ABOVE it (`.ui-site-header-top--graphic` in the stylesheet). Nothing becomes
+  interactive: the graphic keeps its existing identity semantics and the selector keeps every
+  pointer event inside its own box.
 - **One exposed navigation, by construction.** The shell composes the structures of both
   layouts and marks each one with the layouts it is the active navigation for
   (`data-ui-shell-part="rail" | "top-nav" | "bottom-bar" | "mobile-drawer"` +

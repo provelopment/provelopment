@@ -3856,6 +3856,11 @@ const LAYOUT_PROBE = `(() => {
   const barContent = bar ? bar.querySelector(':scope > div') : null;
   const barFirstLink = barLinks[0] || null;
   const barLastLink = barLinks[barLinks.length - 1] || null;
+  // NAV1B-V1 - the graphic identity (a configured logo) and the selector's own box, for the overlay
+  // and hit-test proofs.
+  const logo = document.querySelector('.ui-site-header-logo');
+  const modeBox = document.querySelector('.ui-site-header-mode');
+  const controlRect = control ? control.getBoundingClientRect() : null;
   // The ACCEPTED desktop navigation disclosure (the rail's own toggle): the constrained-width
   // disclosure must present the SAME control scale, so both are measured.
   const railToggle = [...document.querySelectorAll('.ui-sidebar-toggle')].find(shown) || null;
@@ -3870,6 +3875,7 @@ const LAYOUT_PROBE = `(() => {
     path: location.pathname,
     innerWidth: root.clientWidth,
     windowWidth: window.innerWidth,
+    documentOverflow: document.documentElement.scrollWidth - window.innerWidth,
     controlLabel: control ? control.getAttribute('aria-label') : null,
     controlValue: control ? control.value : null,
     options: control ? Array.from(control.options).map((option) => option.textContent) : [],
@@ -3904,6 +3910,12 @@ const LAYOUT_PROBE = `(() => {
       : null,
     barContentWidth: barContent ? Math.round(barContent.getBoundingClientRect().width) : null,
     headerContentWidth: headerInner ? Math.round(headerInner.getBoundingClientRect().width) : null,
+    headerContentLeft: headerInner
+      ? Math.round(
+          headerInner.getBoundingClientRect().left +
+            (parseFloat(getComputedStyle(headerInner).paddingLeft) || 0),
+        )
+      : null,
     selectorInTopRow: !!control && !!headerTop && headerTop.contains(control),
     selectorInControlRow: !!control && !!headerContext && headerContext.contains(control),
     selectorRightInset:
@@ -3930,8 +3942,49 @@ const LAYOUT_PROBE = `(() => {
     identityRight: headerTop && headerTop.firstElementChild
       ? Math.round(headerTop.firstElementChild.getBoundingClientRect().right)
       : null,
+    identityLeft: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().left)
+      : null,
+    identityTop: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().top)
+      : null,
     selectorBottom: control ? Math.round(control.getBoundingClientRect().bottom) : null,
+    selectorTop: control ? Math.round(control.getBoundingClientRect().top) : null,
     selectorLeft: control ? Math.round(control.getBoundingClientRect().left) : null,
+    // NAV1B-V1 - THE GRAPHIC IDENTITY (a configured logo): its box, its natural aspect, whether it
+    // reaches beneath the selector, and whether the selector really WINS THE HIT TEST at its own
+    // centre. The last two are behaviour, not styling: a graphic must never intercept a pointer
+    // intended for the control that sits above it.
+    logoPresent: !!logo,
+    logoNaturalBox: logo ? logo.naturalWidth + "x" + logo.naturalHeight : null,
+    logoLeft: logo ? Math.round(logo.getBoundingClientRect().left) : null,
+    logoRight: logo ? Math.round(logo.getBoundingClientRect().right) : null,
+    logoWidth: logo ? Math.round(logo.getBoundingClientRect().width) : null,
+    logoHeight: logo ? Math.round(logo.getBoundingClientRect().height) : null,
+    logoIntersectsSelector: !!logo && !!controlRect
+      ? logo.getBoundingClientRect().left < controlRect.right &&
+        controlRect.left < logo.getBoundingClientRect().right &&
+        logo.getBoundingClientRect().top < controlRect.bottom &&
+        controlRect.top < logo.getBoundingClientRect().bottom
+      : false,
+    selectorHitAtItsOwnCentre: modeBox && controlRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            controlRect.left + controlRect.width / 2,
+            controlRect.top + controlRect.height / 2,
+          );
+          return !!el && modeBox.contains(el);
+        })()
+      : false,
+    graphicInterceptsSelector: logo && controlRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            controlRect.left + controlRect.width / 2,
+            controlRect.top + controlRect.height / 2,
+          );
+          return !!el && (el === logo || logo.contains(el));
+        })()
+      : false,
     disclosureInHeader: !!disclosure && !!disclosure.closest('.ui-site-header'),
     showNavFontSize: showNav ? Math.round(parseFloat(getComputedStyle(showNav).fontSize)) : null,
     showNavHeight: showNav ? Math.round(showNav.getBoundingClientRect().height) : null,
@@ -4503,6 +4556,20 @@ async function runBottomNavWrapScenario(chrome) {
 }
 
 /**
+ * NAV1B-V1 — THE GRAPHIC-IDENTITY FIXTURE (test-owned CONFIGURATION; no new file, nothing authored
+ * is modified).
+ *
+ * The identity under test is a graphic, so the fixture points the `site.assets.logo` role at a
+ * SHIPPED, deliberately WIDE placeholder (`header-graphic.svg`, 4096x512 = aspect 8): at the
+ * accepted `h-8` lockup height it is 256px wide, which is wider than a narrow identity column but
+ * still inside a phone-width content box — exactly the geometry where the navigation-MODE selector
+ * and the graphic intersect. `site.assets.*` is an ABSOLUTE URL by contract, and the framework
+ * re-derives the same-origin path, which is where the shipped asset is served from.
+ */
+const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/header-graphic.svg";
+const GRAPHIC_FIXTURE_NATURAL_BOX = "4096x512";
+
+/**
  * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
  *
  * Two pressures the reported defect was about, neither of which the reference deployment can exert:
@@ -4562,8 +4629,10 @@ async function runHeaderRowsScenario(chrome) {
       },
       [
         [1280, 900],
-        [767, 820],
+        [900, 800],
+        [768, 820],
         [390, 844],
+        [320, 700],
       ],
       0,
     );
@@ -4571,9 +4640,30 @@ async function runHeaderRowsScenario(chrome) {
       const tag = `nav1b.title.w${width}`;
       check(rows, `${tag}.selectorStaysTopRight`, !!probe && probe.selectorInTopRow === true && Math.abs(probe.selectorRightInset) <= 1, `topRow=${probe && probe.selectorInTopRow} rightInset=${probe && probe.selectorRightInset}`);
       check(rows, `${tag}.selectorNeverInControlRow`, !!probe && probe.selectorInControlRow === false);
+      // NAV1B-V1 — the TEXT contract: the identity BEGINS ON THE SELECTOR'S OWN FIRST LINE (never a
+      // selector-only first row), at the padded left edge, and wraps inside its own left column.
+      check(
+        rows,
+        `${tag}.textBeginsOnTheSelectorsFirstLine`,
+        !!probe &&
+          probe.identityTop !== null &&
+          probe.selectorTop !== null &&
+          Math.abs(probe.identityTop - probe.selectorTop) <= 8,
+        `identityTop=${probe && probe.identityTop} selectorTop=${probe && probe.selectorTop}`,
+      );
+      check(
+        rows,
+        `${tag}.textStartsAtThePaddedLeftEdge`,
+        !!probe &&
+          probe.identityLeft !== null &&
+          probe.headerContentLeft !== null &&
+          Math.abs(probe.identityLeft - probe.headerContentLeft) <= 1,
+        `identityLeft=${probe && probe.identityLeft} contentLeft=${probe && probe.headerContentLeft}`,
+      );
       check(rows, `${tag}.titleNeverOverlapsSelector`, !!probe && probe.identityRight <= probe.selectorLeft + 1, `identityRight=${probe && probe.identityRight} selectorLeft=${probe && probe.selectorLeft}`);
       check(rows, `${tag}.controlRowStillBelow`, !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true), `topBottom=${probe && probe.topRowBottom} contextTop=${probe && probe.contextRowTop}`);
-      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.windowWidth + 1 >= probe.innerWidth && probe.selectorRightInset !== null);
+      check(rows, `${tag}.noGraphicIsComposed`, !!probe && probe.logoPresent === false, `logo=${probe && probe.logoPresent}`);
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
     }
     const phone = longTitle.measured[longTitle.measured.length - 1].probe;
     check(
@@ -4606,6 +4696,81 @@ async function runHeaderRowsScenario(chrome) {
     check(rows, "nav1b.labels.wrapInsideTheControlRow", !!labels && labels.contextRows >= 2, `rows=${labels && labels.contextRows}`);
     check(rows, "nav1b.labels.neverJumpIntoTheTopRow", !!labels && labels.selectorInControlRow === false && labels.contextRowTop >= labels.topRowBottom, `contextTop=${labels && labels.contextRowTop} topBottom=${labels && labels.topRowBottom}`);
     check(rows, "nav1b.labels.noHorizontalOverflow", !!labels && labels.selectorRightInset !== null);
+
+    // ── GRAPHIC IDENTITY (NAV1B-V1): the selector keeps the top-right and paints ABOVE the graphic,
+    // which may pass beneath its occupied area — never shrunk into one column, never pushed onto
+    // another row, never widening the page. The fixture is a test-owned CONFIGURATION pointing the
+    // logo role at a SHIPPED wide placeholder; nothing authored is modified and no file is written.
+    const graphic = await phase(
+      "graphic",
+      (config) => {
+        config.site = {
+          ...config.site,
+          assets: { ...(config.site?.assets ?? {}), logo: GRAPHIC_FIXTURE_LOGO_URL },
+        };
+      },
+      [
+        [1280, 900],
+        [900, 800],
+        [768, 820],
+        [390, 844],
+        [320, 700],
+      ],
+      2,
+    );
+    for (const { width, probe } of graphic.measured) {
+      const tag = `nav1b.graphic.w${width}`;
+      check(rows, `${tag}.graphicIsTheIdentity`, !!probe && probe.logoPresent === true, `present=${probe && probe.logoPresent}`);
+      check(rows, `${tag}.graphicIsTheShippedFixture`, !!probe && probe.logoNaturalBox === GRAPHIC_FIXTURE_NATURAL_BOX, `natural=${probe && probe.logoNaturalBox}`);
+      // The graphic starts in its normal left-hand identity position, at its accepted lockup height.
+      check(rows, `${tag}.graphicStartsAtThePaddedLeftEdge`, !!probe && probe.logoLeft !== null && probe.headerContentLeft !== null && Math.abs(probe.logoLeft - probe.headerContentLeft) <= 1, `left=${probe && probe.logoLeft} contentLeft=${probe && probe.headerContentLeft}`);
+      check(rows, `${tag}.graphicKeepsItsAcceptedHeight`, !!probe && probe.logoHeight === 32, `height=${probe && probe.logoHeight}`);
+      // Never shrunk into one column: it renders at its natural width when that fits the header's
+      // content box, and at the full content width when it does not.
+      check(
+        rows,
+        `${tag}.graphicIsNeverShrunkIntoOneColumn`,
+        !!probe &&
+          probe.logoPresent === true &&
+          probe.logoWidth !== null &&
+          probe.headerContentWidth !== null &&
+          (() => {
+            const box = String(probe.logoNaturalBox).split("x").map(Number);
+            const entitled = Math.min((box[0] / box[1]) * 32, probe.headerContentWidth);
+            return probe.logoWidth >= entitled - 2;
+          })(),
+        `width=${probe && probe.logoWidth} natural=${probe && probe.logoNaturalBox} content=${probe && probe.headerContentWidth}`,
+      );
+      // The selector never moves, and never widens the row: both hold at every width.
+      check(rows, `${tag}.selectorStaysTopRight`, !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false && Math.abs(probe.selectorRightInset) <= 1, `topRow=${probe && probe.selectorInTopRow} rightInset=${probe && probe.selectorRightInset}`);
+      check(rows, `${tag}.controlRowStillBelow`, !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true), `contextTop=${probe && probe.contextRowTop} topBottom=${probe && probe.topRowBottom}`);
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+    }
+    // At a narrow width the graphic must reach BENEATH the selector's occupied area…
+    const narrowGraphic = graphic.measured[graphic.measured.length - 1].probe;
+    check(
+      rows,
+      "nav1b.graphic.graphicPassesBeneathTheSelector",
+      !!narrowGraphic &&
+        narrowGraphic.logoIntersectsSelector === true &&
+        narrowGraphic.logoRight > narrowGraphic.selectorLeft + 1,
+      `logoRight=${narrowGraphic && narrowGraphic.logoRight} selectorLeft=${narrowGraphic && narrowGraphic.selectorLeft} intersects=${narrowGraphic && narrowGraphic.logoIntersectsSelector}`,
+    );
+    // …while the selector WINS the hit test at its own centre, and never leaves the page content box.
+    check(
+      rows,
+      "nav1b.graphic.selectorPaintsAboveTheGraphic",
+      !!narrowGraphic &&
+        narrowGraphic.selectorHitAtItsOwnCentre === true &&
+        narrowGraphic.graphicInterceptsSelector === false,
+      `hitInMode=${narrowGraphic && narrowGraphic.selectorHitAtItsOwnCentre} hitInLogo=${narrowGraphic && narrowGraphic.graphicInterceptsSelector}`,
+    );
+    check(
+      rows,
+      "nav1b.graphic.graphicStaysInsideThePageContent",
+      !!narrowGraphic && narrowGraphic.logoRight <= narrowGraphic.innerWidth - 8,
+      `logoRight=${narrowGraphic && narrowGraphic.logoRight} inner=${narrowGraphic && narrowGraphic.innerWidth}`,
+    );
   } catch (error) {
     check(rows, "headerRows.scenario.error", false, String(error));
   } finally {

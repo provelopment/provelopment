@@ -251,11 +251,14 @@ tree stays clean.
   rows keep their ownership at 1280/1024/900/768/767/390/360/320 — through real resize transitions
   and real mode switches made while already at a phone width (the withdrawn surface never keeps a
   stale dialog or the body's scroll lock).
-- **header semantic rows** (`header-rows` scenario, NAV1B): with test-owned fixtures (a very long
-  site name, and long Site/Language labels) the navigation-MODE selector keeps its top-right place
-  at every width, the identity wraps below it without ever overlapping or displacing it, the
-  contextual controls stay in the row below and wrap INSIDE that row when the width requires more
-  than one line, and no fixture overflows the page.
+- **header semantic rows** (`header-rows` scenario, NAV1B/NAV1B-V1): with test-owned fixtures the
+  navigation-MODE selector keeps its top-right place at every width. A TEXT identity (a very long
+  site name) begins on the selector's own first line at the padded left edge, wraps inside its own
+  left column and never overlaps the selector. A GRAPHIC identity (a test-owned configuration
+  pointing the logo role at a shipped wide placeholder) keeps its natural aspect, is never shrunk
+  into the text column, reaches BENEATH the selector's occupied area at narrow widths, and the
+  selector WINS the hit test at its own centre — with no page overflow in either case. Long
+  contextual labels wrap INSIDE the row below, which never lets a control jump into the top row.
 - **bottom navigation layout** (`bottom-nav-wrap` scenario, NAV1A): the sticky bar's rows
   are the `<li>` children of its `<ul>`, so the LIST owns their flow and wrapping. Proven
   with test-owned navigation fixtures on the disposable copy: SHORT labels share ONE row at
