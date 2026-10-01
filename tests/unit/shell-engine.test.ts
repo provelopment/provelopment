@@ -82,7 +82,9 @@ describe("ShellEngine (server) — frame & decision-driven composition", () => {
     const html = renderToStaticMarkup(
       ShellEngine({ resolved, header, main, footer, mainId: "main", ...base }),
     );
-    expect(html).toContain('class="flex flex-col flex-1"');
+    // NAV1D-V2 — the frame carries the shell page layout's ONE marker (`ui-shell-frame`), which owns
+    // the deliberate minimum layout width.
+    expect(html).toContain('class="ui-shell-frame flex flex-col flex-1"');
   });
 
   it("renders NO CTA by default (cta.enabled=false — Foundation never invents one)", () => {

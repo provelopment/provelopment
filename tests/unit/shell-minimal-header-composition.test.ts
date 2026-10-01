@@ -175,7 +175,7 @@ describe("ShellEngine — Minimal-header SSR shell (no sidebar, no bottom bar, n
     );
     // P5-3 — Minimal-header resolves the narrow content column, so the wrapper carries
     // `max-w-screen-md` (the narrow intent), not the plain default wrapper.
-    expect(html).toContain('class="flex flex-col flex-1 max-w-screen-md"');
+    expect(html).toContain('class="ui-shell-frame flex flex-col flex-1 max-w-screen-md"');
     expect(html).not.toContain("shell-sidebar");
     expect(html).not.toContain("ui-shell-sidebar");
     expect(html).not.toContain("lg:flex-row");

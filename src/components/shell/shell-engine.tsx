@@ -209,7 +209,10 @@ export function ShellEngine({
   // the TOP of the page content — the reported tablet defect. The aside band
   // breakpoints themselves are unchanged (`md:block` / `lg:*`): the fix is that
   // any composed rail is laid out as a side rail, never a top-of-content list.
-  const wrapperClass = `flex flex-col flex-1 ${asideActive ? (railAtMobile ? "flex-row flex-wrap" : "md:flex-row md:flex-wrap") : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
+  // …and the frame carries the ONE marker of the shell's page layout (`ui-shell-frame`), which owns
+  // the deliberate minimum layout width the stylesheet declares (NAV1D-V2): the shell's geometry has
+  // an established 320px floor instead of shredding itself below it.
+  const wrapperClass = `ui-shell-frame flex flex-col flex-1 ${asideActive ? (railAtMobile ? "flex-row flex-wrap" : "md:flex-row md:flex-wrap") : ""} ${densityClass(resolved.density)} ${contentWidthClass(resolved.content.width)}`.replace(/\s+/g, " ").trim();
 
   // P0-2/P6-3C — the primary CTA is the one shared `Cta` capability. `Cta` owns
   // WHETHER one exists (enabled ∧ href ∧ (label ∨ icon) ∧ a real accessible

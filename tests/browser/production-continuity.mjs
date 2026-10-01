@@ -496,7 +496,7 @@ function lastControlReading(observed) {
  * One production-mode navigation, judged by the same invariant as the matrix rows: the rail may be
  * replaced, but it may not commit the opposite state and may not start a width transition.
  */
-async function continuityLeg(cdp, { label, selector, path, expected, expectedState }) {
+async function continuityLeg(cdp, { label, selector, path, expected, expectedState, closesOnSelection = false }) {
   await resetRecorder(cdp);
   const clicked = await cdp.clickCenter(selector);
   const ready = await waitReady(cdp, path);
@@ -509,6 +509,20 @@ async function continuityLeg(cdp, { label, selector, path, expected, expectedSta
     JSON.stringify(after),
   );
   check(`production.${label}.commitsNoOppositeState`, opposite.length === 0, `writes=${JSON.stringify(observed.writes)}`);
+  if (closesOnSelection) {
+    // NAV1D-V2 — THE DELIBERATE CLOSE. Selecting a destination dismisses the expanded OVERLAY, so this
+    // interval is ALLOWED to change the presented variant (open → closed) and to animate the width the
+    // rail already animates on an explicit toggle. What it must never do is re-open: the close is the
+    // last thing that happens to the rail, so the destination page is presented closed.
+    const frameVariants = observed.frames.map((frame) => presentedIconVariant(frame.ctl));
+    const firstClosedVariant = frameVariants.indexOf("closed");
+    check(
+      `production.${label}.selectionClosesAndStaysClosed`,
+      firstClosedVariant !== -1 && frameVariants.slice(firstClosedVariant).includes("open") === false,
+      `variants=${JSON.stringify(frameVariants)}`,
+    );
+    return observed;
+  }
   check(
     `production.${label}.startsNoWidthTransition`,
     observed.transitions.length === 0,
@@ -627,10 +641,19 @@ async function runProductionContinuity() {
     await waitReady(cdp);
     await firstPaintRows(cdp, "openRefresh", "open");
 
-    await continuityLeg(cdp, { label: "open.homeToAbout", selector: '#shell-sidebar-desktop-rail a[href$="/about"]', path: ABOUT, expected: "false", expectedState: "false" });
-    await continuityLeg(cdp, { label: "open.aboutToHome", selector: "#shell-sidebar-desktop-rail ul li:first-child a", path: HOME, expected: "false", expectedState: "false" });
+    // NAV1D-V2 — SELECTING A DESTINATION DISMISSES THE OVERLAY: each leg below starts with the rail
+    // OPEN and must end CLOSED on the destination, through the rail's own state owner (never route
+    // state, never a breakpoint).
+    await continuityLeg(cdp, { label: "open.homeToAbout", selector: '#shell-sidebar-desktop-rail a[href$="/about"]', path: ABOUT, expected: "true", expectedState: "true", closesOnSelection: true });
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    await continuityLeg(cdp, { label: "open.aboutToHome", selector: "#shell-sidebar-desktop-rail ul li:first-child a", path: HOME, expected: "true", expectedState: "true", closesOnSelection: true });
 
     // ── the reciprocal proof for the state that already looked smooth ─────────────────────────────
+    // The selection legs above end CLOSED by contract, so open the rail again (a visitor action) before
+    // the explicit-toggle proof below.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
     await resetRecorder(cdp);
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
     await sleep(250);

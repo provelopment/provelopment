@@ -894,6 +894,25 @@ html[data-ui-hero="showcase"] .home-hero {
   overflow-wrap: anywhere;
 }
 
+/* NAV1D-V2 — THE SUPPORTED MINIMUM LAYOUT WIDTH.
+ *
+ * The shell's page layout has a deliberate floor: the established 320px boundary. At and above it
+ * nothing scrolls sideways — the rail, the content column and every region fit the viewport's own
+ * content box (which is what keeps a 320px window free of a horizontal scrollbar: the vertical
+ * scrollbar already takes part of that width). BELOW it the layout keeps that floor instead of
+ * deforming or shredding itself to fit an arbitrarily narrow window, and the VIEWPORT scrolls
+ * horizontally — the honest behaviour for a width this platform does not support. Declared as a token
+ * so a deployment can lower or raise its own floor without touching the shell's rules. */
+:root {
+  --ui-shell-min-inline-size: 20rem;
+}
+
+@media (max-width: 19.99rem) {
+  .ui-shell-frame {
+    min-inline-size: var(--ui-shell-min-inline-size);
+  }
+}
+
 .ui-sidebar-rail {
   width: var(--ui-sidebar-rail-expanded);
   height: 100%;
@@ -910,6 +929,46 @@ html[data-ui-hero="showcase"] .home-hero {
    * long label overflowing the rail — without creating a scroll container. */
   overflow-x: clip;
   transition: width 200ms ease;
+}
+
+/* ── NAV1D-V2 — THE OPEN SIDEBAR OVERLAYS THE PAGE ────────────────────────────────────────────
+ *
+ * THE CONTRACT (owner decision): opening the rail must NOT expand the page's own layout column. The
+ * normal page geometry stays exactly where it is, and the expanded rail is painted ABOVE it — the
+ * rail overlays the page instead of pushing the content aside. Closing it returns to the same
+ * geometry, because the geometry never changed.
+ *
+ * HOW, and why it is only this much:
+ *  - the rail's FRAME (`.ui-shell-sidebar`, the engine's flex item) keeps the COLLAPSED rail's width
+ *    for as long as the rail is collapsible — that is the width the page layout reserves, and it is
+ *    the SAME in both states, so nothing in the row moves when the visitor opens or closes the rail;
+ *  - the rail itself leaves the flow inside that frame and is anchored to the frame's own axis:
+ *    `inset-inline-start: 0` keeps the exact left edge it had in flow, and `inset-block: 0` gives it
+ *    the frame's full height (the shell row's height, i.e. the page's), so its sticky content column
+ *    still pins while the page scrolls — the DIVIDER and the full-height box are unchanged;
+ *  - it takes the persistent-navigation band of the existing stacking system (`z-index: 30`, the
+ *    value the shell's top region itself uses when IT is the persistent navigation), so the expanded
+ *    rail paints above ordinary page content and above the page's own header while staying well below
+ *    the disclosure overlays (40/50) that own modal layers. No new z-index vocabulary is invented;
+ *  - the rail's own width is untouched: still `--ui-sidebar-rail-expanded` (220px) when open, still
+ *    `--ui-sidebar-rail-collapsed` (36px) when closed, at every viewport width. Only the PAGE's
+ *    geometry stops depending on which of the two it is.
+ *
+ * SCOPE. `:has(.ui-sidebar-toggle)` restricts this to a rail that HAS the visitor's disclosure — the
+ * collapsible rail every sidebar composition presents. A composition whose rail is NOT collapsible
+ * (the immersive `floating` aside, a custom static rail) keeps its accepted in-flow, always-expanded
+ * layout untouched, and so does every non-sidebar composition. */
+.ui-shell-sidebar:has(.ui-sidebar-toggle) {
+  position: relative;
+  /* The width the row reserves for the rail: the collapsed column, in BOTH states. */
+  width: var(--ui-sidebar-rail-collapsed);
+}
+
+.ui-shell-sidebar:has(.ui-sidebar-toggle) .ui-sidebar-rail {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  z-index: 30;
 }
 
 /* ── UI1-A2 — THE BOOT PRESENTATION BRIDGE (canonical CLOSED rail, presented as OPEN) ────────────

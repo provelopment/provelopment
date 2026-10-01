@@ -115,7 +115,7 @@ describe("PERSISTENT NAVIGATION — the shell's TOP region", () => {
     // direct child of the shell frame (a content-sized wrapper would leave
     // `sticky` no room to stay pinned).
     expect(html.indexOf('class="ui-shell-top')).toBeLessThan(html.indexOf("<header>"));
-    expect(html).toContain('<div class="flex flex-col flex-1 md:flex-row md:flex-wrap');
+    expect(html).toContain('<div class="ui-shell-frame flex flex-col flex-1 md:flex-row md:flex-wrap');
   });
 
   it("a HEADER-SLOT composition marks no rail band — the header is the persistent navigation at every width", () => {

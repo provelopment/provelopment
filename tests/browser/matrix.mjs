@@ -397,6 +397,21 @@ async function clickVisibleRailToggle(cdp) {
   })()`);
 }
 
+/**
+ * NAV1D-V2 — close the PRESENTED rail if it is open, through its own control: the deterministic
+ * canonical state a measurement loop starts from.
+ */
+async function closeVisibleRail(cdp) {
+  return cdp.evaluate(`(() => {
+    const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find((el) => el.getBoundingClientRect().width > 0) || null;
+    if (!rail || rail.getAttribute('data-collapsed') !== 'false') return false;
+    const toggle = rail.querySelector('.ui-sidebar-toggle');
+    if (!toggle) return false;
+    toggle.click();
+    return true;
+  })()`);
+}
+
 function startDevServer(port, { synthetic = true } = {}) {
   const proc = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
     cwd: ROOT,
@@ -669,6 +684,15 @@ async function probeAside(cdp, { railSel, panelSel, controlsId }) {
       // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
       railLeft: sr ? Math.round(sr.left) : null,
       railRight: sr ? Math.round(sr.right) : null,
+      // NAV1D-V2 — the RAIL's own box as well as the frame's: with the open rail overlaying the page the
+      // two differ (the frame reserves the collapsed column), and the rail's OWN insets are what the
+      // padding contract is about.
+      railBox: rail
+        ? (() => {
+            const r = rail.getBoundingClientRect();
+            return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
+          })()
+        : null,
       toggleLeft: tr ? Math.round(tr.left) : null,
       toggleRight: tr ? Math.round(tr.right) : null,
       itemLeft: fir ? Math.round(fir.left) : null,
@@ -765,8 +789,8 @@ async function runAsidePresentation(rows, presentation, cdp) {
             ? expanded.toggleLeft - expanded.railLeft
             : null;
         const toggleInsetRight =
-          expanded.railRight != null && expanded.toggleRight != null
-            ? expanded.railRight - expanded.toggleRight
+          expanded.railBox && expanded.toggleRight != null
+            ? expanded.railBox[1] - expanded.toggleRight
             : null;
         const itemInsetLeft =
           expanded.itemLeft != null && expanded.railLeft != null
@@ -4124,6 +4148,35 @@ const LAYOUT_PROBE = `(() => {
     railMobileVisible: shown(railMobile),
     presentedRailBand: railEl ? String(railEl.id || "") : null,
     presentedRailBox: railRect ? [Math.round(railRect.left), Math.round(railRect.right)] : null,
+    // NAV1D-V2 — the rail's own box, out-of-flow state and the OVERLAY's z-order evidence: the rail
+    // must win the hit test inside its own expanded area (the page never paints above it).
+    presentedRailWidth: railRect ? Math.round(railRect.width) : null,
+    presentedRailPosition: railCs ? railCs.position : null,
+    railOverlayHit: railRect
+      ? (() => {
+          const el = document.elementFromPoint(railRect.right - 6, railRect.top + 8);
+          return !!el && (el === railEl || railEl.contains(el));
+        })()
+      : null,
+    pageHitOverRail: railRect
+      ? (() => {
+          const el = document.elementFromPoint(
+            railRect.right - 6,
+            Math.min(window.innerHeight - 8, railRect.top + 120),
+          );
+          return !!el && (el === railEl || railEl.contains(el));
+        })()
+      : null,
+    // NAV1D-V2 — the page FRAME (the shell's own layout box) and the document's own overflow against
+    // the CONTENT box, which is the measurement that says whether a horizontal scrollbar exists.
+    frameBox: (() => {
+      const frame = document.querySelector('.ui-shell-frame');
+      if (!frame) return null;
+      const r = frame.getBoundingClientRect();
+      return [Math.round(r.left), Math.round(r.right), Math.round(r.width)];
+    })(),
+    documentScrollWidth: document.documentElement.scrollWidth,
+    documentOverflowClient: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     presentedRailPadInline: railCs
       ? [
           Math.round(parseFloat(railCs.paddingInlineStart) || 0),
@@ -4531,12 +4584,19 @@ async function runLayoutSwitcherScenario(chrome) {
       `rail=${desktopRail && desktopRail.railVisible} band=${desktopRail && desktopRail.presentedRailBand}`,
     );
     const constrained = {};
-    for (const [width, height] of [[767, 820], [768, 820], [390, 844], [360, 740], [320, 700]]) {
+    // NAV1D-V2 — the widths the closed-layout contract is proved at, including the wide ones: the
+    // rail must coexist with the page WITHOUT a horizontal scrollbar at every one of them (>= 320).
+    for (const [width, height] of [[1280, 900], [1024, 820], [900, 800], [768, 820], [767, 820], [390, 844], [360, 740], [320, 700]]) {
       await cdp.setViewport(width, height);
       await settle();
       constrained[width] = await cdp.evaluate(LAYOUT_PROBE);
       const probe = constrained[width];
-      const expectedBand = width < 768 ? "shell-sidebar-mobile-rail" : "shell-sidebar-tablet-rail";
+      const expectedBand =
+        width >= 1024
+          ? "shell-sidebar-desktop-rail"
+          : width >= 768
+            ? "shell-sidebar-tablet-rail"
+            : "shell-sidebar-mobile-rail";
       const tag = `nav1d.sidebar.w${width}`;
       check(
         rows,
@@ -4593,6 +4653,14 @@ async function runLayoutSwitcherScenario(chrome) {
         `item=${probe && probe.presentedRailItemLeft} toggle=${probe && probe.presentedRailToggleBox && probe.presentedRailToggleBox[0]}`,
       );
       check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
+      // …measured against the CONTENT box too — the owner's own criterion, which is what says whether
+      // a horizontal SCROLLBAR exists (the vertical scrollbar already takes part of the width).
+      check(
+        rows,
+        `${tag}.noHorizontalScrollbar`,
+        !!probe && probe.documentOverflowClient <= 1,
+        `scrollW=${probe && probe.documentScrollWidth} clientW=${probe && probe.documentScrollWidth - probe.documentOverflowClient} overflow=${probe && probe.documentOverflowClient}`,
+      );
     }
     // THE SAME SIDEBAR, MEASURED ACROSS BANDS: the control's typography, its icon and the rail's own
     // padding are identical at every width — the breakpoint changes WHICH band presents the rail, not
@@ -4647,6 +4715,102 @@ async function runLayoutSwitcherScenario(chrome) {
       await cdp.evaluate("window.scrollTo(0, 0); true");
       await settle();
     }
+
+    // ── NAV1D-V2 — THE OPEN RAIL OVERLAYS THE PAGE ──────────────────────────────────────────────
+    // The owner's contract: opening the rail must NOT expand the page's own layout column. The page
+    // geometry before and after opening is therefore IDENTICAL, the document's own width does not
+    // change, the expanded rail keeps its accepted 220px, and it wins the hit test inside its own
+    // area (the page never paints above it).
+    for (const [width, height] of [[1280, 900], [900, 800], [768, 820], [390, 844], [360, 740], [320, 700]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await closeVisibleRail(cdp);
+      await settle();
+      const closed = await cdp.evaluate(LAYOUT_PROBE);
+      const opened = await clickVisibleRailToggle(cdp);
+      await settle();
+      const open = await cdp.evaluate(LAYOUT_PROBE);
+      const tag = `nav1d.v2.overlay.w${width}`;
+      check(rows, `${tag}.railOpened`, opened === true && !!open && open.presentedRailCollapsed === "false", `collapsed=${open && open.presentedRailCollapsed}`);
+      check(
+        rows,
+        `${tag}.expandedRailKeepsItsAcceptedWidth`,
+        !!open && open.presentedRailWidth === 220,
+        `width=${open && open.presentedRailWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.pageGeometryUnchanged`,
+        !!closed &&
+          !!open &&
+          closed.mainLeft === open.mainLeft &&
+          closed.mainWidth === open.mainWidth &&
+          closed.presentedRailBox[0] === open.presentedRailBox[0],
+        `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, railLeft ${closed && closed.presentedRailBox && closed.presentedRailBox[0]} -> ${open && open.presentedRailBox && open.presentedRailBox[0]}`,
+      );
+      check(
+        rows,
+        `${tag}.documentWidthNotIncreasedByOpening`,
+        !!closed &&
+          !!open &&
+          open.documentOverflowClient <= 1 &&
+          closed.documentScrollWidth === open.documentScrollWidth,
+        `scrollW ${closed && closed.documentScrollWidth} -> ${open && open.documentScrollWidth} overflow=${open && open.documentOverflowClient}`,
+      );
+      check(
+        rows,
+        `${tag}.railPaintsAboveThePage`,
+        !!open && open.railOverlayHit === true && open.pageHitOverRail === true,
+        `overlayHit=${open && open.railOverlayHit} pageHit=${open && open.pageHitOverRail}`,
+      );
+      // The Hide-navigation control is INSIDE the overlaid rail and stays usable there.
+      check(
+        rows,
+        `${tag}.hideControlUsable`,
+        !!open && open.railToggleHeight != null && open.railToggleHeight >= 24,
+        `height=${open && open.railToggleHeight}`,
+      );
+      await closeVisibleRail(cdp);
+      await settle();
+    }
+
+    // ── NAV1D-V2 — BELOW THE SUPPORTED BOUNDARY (< 320) ─────────────────────────────────────────
+    // The layout keeps its deliberate 320px floor instead of deforming, and the VIEWPORT scrolls
+    // horizontally — the honest behaviour for a width this platform does not support. Opening the rail
+    // still adds no width of its own.
+    await cdp.setViewport(300, 700);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
+    const belowClosed = await cdp.evaluate(LAYOUT_PROBE);
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    const belowOpen = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.keepsTheMinimumLayout",
+      !!belowClosed && belowClosed.documentScrollWidth >= 320 && belowClosed.presentedRailWidth === 36,
+      `scrollW=${belowClosed && belowClosed.documentScrollWidth} rail=${belowClosed && belowClosed.presentedRailWidth}`,
+    );
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.scrollsInsteadOfDeforming",
+      !!belowClosed && belowClosed.documentOverflowClient > 1,
+      `overflow=${belowClosed && belowClosed.documentOverflowClient}`,
+    );
+    check(
+      rows,
+      "nav1d.v2.belowBoundary.sidebarRemainsFunctional",
+      !!belowClosed &&
+        !!belowOpen &&
+        belowOpen.presentedRailCollapsed === "false" &&
+        belowOpen.presentedRailWidth === 220 &&
+        belowOpen.documentScrollWidth === belowClosed.documentScrollWidth &&
+        belowOpen.railToggleHeight >= 24,
+      `rail=${belowOpen && belowOpen.presentedRailWidth} scrollW ${belowClosed && belowClosed.documentScrollWidth}->${belowOpen && belowOpen.documentScrollWidth} toggle=${belowOpen && belowOpen.railToggleHeight}`,
+    );
+    await closeVisibleRail(cdp);
+    await settle();
 
     // ── MENU-BAR mode: the ACTUAL NAVIGATION LINKS are the STICKY BOTTOM BAR at EVERY width ──
     // NAV1B — the top navigation bar presentation is no longer part of Menu Bar mode: the bar is
@@ -5920,7 +6084,7 @@ const resetSidebarTransition = (cdp) => cdp.evaluate(SIDEBAR_TRANSITION_RESET);
  * the composition likes. The recorder's health is calibrated by `toggle.stillAnimatesTheRail`, which
  * requires a real write and a real width transition on an explicit toggle in the same document.
  */
-async function checkSidebarContinuity(rows, cdp, label, expectedState) {
+async function checkSidebarContinuity(rows, cdp, label, expectedState, { allowWidthTransition = false } = {}) {
   const observed = await sidebarTransition(cdp);
   const committedOpposite = observed.writes.filter((write) => write.value !== expectedState);
   check(
@@ -5953,7 +6117,7 @@ async function checkSidebarContinuity(rows, cdp, label, expectedState) {
   check(
     rows,
     `continuity.${label}.startsNoWidthTransition`,
-    observed.transitions.length === 0,
+    allowWidthTransition || observed.transitions.length === 0,
     `transitions=${JSON.stringify(observed.transitions)}`,
   );
   return observed;
@@ -6072,25 +6236,120 @@ async function runSidebarStateScenario(chrome) {
     // transition) — they are the durable, failing-without-the-fix proof.
     await checkSidebarFirstPaint(rows, cdp, "openRefresh", "open", { expectMarker: "open" });
 
-    // ── NAVIGATION with OPEN, through the REAL navigation control ───────────────────────────────
+    // ── NAVIGATION WITH OPEN — the overlay CLOSES on selection (NAV1D-V2) ───────────────────────
+    // The expanded rail is an overlay, so selecting a destination dismisses it: the visitor lands on
+    // the page with the collapsed sticky rail. The state still moves through the rail's OWN writer and
+    // owner, and it is not derived from the route — which is why the close also happens for the page
+    // the visitor is already on.
     const openedAt = openWatch.after;
     await resetSidebarTransition(cdp);
     const toAbout = await clickSidebarNav(cdp, SIDEBAR_ABOUT_LINK, ABOUT);
-    const aboutOpen = await sidebarState(cdp);
-    check(rows, "navigate.openStaysOpen", !!toAbout && aboutOpen.path === ABOUT && aboutOpen.collapsed === "false" && aboutOpen.expanded === "true", JSON.stringify(aboutOpen));
+    const aboutAfterSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.openClosesOnSelection",
+      !!toAbout && aboutAfterSelection.path === ABOUT && aboutAfterSelection.collapsed === "true" && aboutAfterSelection.expanded === "false",
+      JSON.stringify(aboutAfterSelection),
+    );
+    // …and the destination is presented with the collapsed, STICKY rail (never an open overlay).
+    const destinationRail = await cdp.evaluate(`(() => {
+      const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+      const rail = [...document.querySelectorAll('.ui-sidebar-rail')].find(shown) || null;
+      const column = rail ? rail.querySelector('.ui-sidebar-rail-sticky') : null;
+      return JSON.stringify({
+        collapsed: rail ? rail.getAttribute('data-collapsed') : null,
+        columnPosition: column ? getComputedStyle(column).position : null,
+        width: rail ? Math.round(rail.getBoundingClientRect().width) : null,
+      });
+    })()`);
+    const destinationRailState = JSON.parse(destinationRail);
+    check(
+      rows,
+      "navigate.destinationPresentsCollapsedStickyRail",
+      destinationRailState.collapsed === "true" &&
+        destinationRailState.columnPosition === "sticky" &&
+        destinationRailState.width != null &&
+        destinationRailState.width <= SIDEBAR_PAINTED_NARROW_MAX,
+      destinationRail,
+    );
+    // The close is the LAST thing that happens to the rail in this interval: once CLOSED it stays
+    // CLOSED, so the visitor never sees it re-open on the destination page. The close animation the
+    // visitor asked for is the one deliberate width transition here.
     const openNavWatch = await sidebarWatch(cdp);
-    check(rows, "navigate.openNeverPaintedClosed", openNavWatch.frames.slice(openedAt).includes("true") === false, `frames=${openNavWatch.frames.slice(openedAt).join(",")}`);
-    // UI1-A1 — CONTINUITY, not merely the destination state: the transition interval may not commit CLOSED
-    // on the (replacement) rail and may not start its width transition, or the visitor sees the rail
-    // collapse and expand again on the way (the owner-observed flicker).
-    await checkSidebarContinuity(rows, cdp, "openNavigation", "false");
+    const framesAfterSelection = openNavWatch.frames.slice(openedAt);
+    const firstClosedFrame = framesAfterSelection.indexOf("true");
+    check(
+      rows,
+      "navigate.openSelectionClosesAndStaysClosed",
+      firstClosedFrame !== -1 && framesAfterSelection.slice(firstClosedFrame).includes("false") === false,
+      `frames=${framesAfterSelection.join(",")}`,
+    );
+    await checkSidebarContinuity(rows, cdp, "openSelection", "true", { allowWidthTransition: true });
 
-    // Back home through the rail's own Home control (the second ordinary route).
+    // A SECOND destination, through the rail's own Home control: open the rail again, select, close.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
     await resetSidebarTransition(cdp);
     const toHome = await clickSidebarNav(cdp, SIDEBAR_HOME_LINK, HOME);
-    const homeOpen = await sidebarState(cdp);
-    check(rows, "navigate.back.openStaysOpen", !!toHome && homeOpen.path === HOME && homeOpen.collapsed === "false", JSON.stringify(homeOpen));
-    await checkSidebarContinuity(rows, cdp, "openBackNavigation", "false");
+    const homeAfterSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.back.openClosesOnSelection",
+      !!toHome && homeAfterSelection.path === HOME && homeAfterSelection.collapsed === "true",
+      JSON.stringify(homeAfterSelection),
+    );
+    await checkSidebarContinuity(rows, cdp, "openBackSelection", "true", { allowWidthTransition: true });
+
+    // ── THE PAGE THE VISITOR IS ALREADY ON (NAV1D-V2) ────────────────────────────────────────────
+    // Selecting a destination dismisses the overlay whether or not the ROUTE changes: choosing the
+    // current page's own link must close it too, because the selection — not the transition — is what
+    // dismisses the overlay.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const openOnCurrentPage = await sidebarState(cdp);
+    await cdp.clickCenter(SIDEBAR_HOME_LINK);
+    await sleep(600);
+    const afterActivePageSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.activePageSelectionClosesWithoutARouteChange",
+      openOnCurrentPage.collapsed === "false" &&
+        afterActivePageSelection.path === HOME &&
+        afterActivePageSelection.collapsed === "true",
+      `open=${openOnCurrentPage.collapsed} after=${JSON.stringify(afterActivePageSelection)}`,
+    );
+
+    // ── KEYBOARD ACTIVATION (NAV1D-V2) ───────────────────────────────────────────────────────────
+    // The same contract for a keyboard visitor: focus a rail link, press Enter, and the overlay closes
+    // on the destination. Assistive technology activates the very same click event.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const openBeforeKeyboard = await sidebarState(cdp);
+    await cdp.evaluate(`(() => { const a = document.querySelector(${JSON.stringify(SIDEBAR_ABOUT_LINK)}); if (a) a.focus(); return !!a; })()`);
+    await cdp.pressKey("Enter");
+    await waitReady(cdp, { path: ABOUT });
+    const afterKeyboardSelection = await sidebarState(cdp);
+    check(
+      rows,
+      "navigate.keyboardSelectionCloses",
+      openBeforeKeyboard.collapsed === "false" &&
+        afterKeyboardSelection.path === ABOUT &&
+        afterKeyboardSelection.collapsed === "true" &&
+        afterKeyboardSelection.expanded === "false",
+      `open=${openBeforeKeyboard.collapsed} after=${JSON.stringify(afterKeyboardSelection)}`,
+    );
+
+    // The explicit toggle is proved next, and the selection legs above end CLOSED by contract (that IS
+    // their contract) — so open the rail first, through the very same control: a visitor action.
+    await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");
+    await sleep(250);
+    const reopenedBeforeCloseContract = await sidebarState(cdp);
+    check(
+      rows,
+      "toggle.openAgainBeforeTheCloseContract",
+      reopenedBeforeCloseContract.collapsed === "false",
+      JSON.stringify(reopenedBeforeCloseContract),
+    );
 
     // ── TOGGLE → CLOSED, then REFRESH with CLOSED ───────────────────────────────────────────────
     await cdp.clickCenter("#shell-sidebar-desktop-rail .ui-sidebar-toggle");

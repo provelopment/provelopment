@@ -517,17 +517,35 @@ export async function run(chrome, harness) {
       !!navigatedClosed && closedAfterNavigation.collapsed === "true",
       JSON.stringify(closedAfterNavigation),
     );
-    // …and the OPEN case through the same controls: open, navigate home, reload.
+    // …and the OPEN case through the same controls. NAV1D-V2 — selecting a destination dismisses the
+    // expanded OVERLAY, so this navigation leg proves the CLOSE (the visitor lands with the collapsed
+    // sticky rail), and the reload leg proves the unchanged rule that a stored OPEN preference
+    // survives a refresh.
     await cdp.clickCenter(".ui-sidebar-toggle");
     await sleep(400);
-    const reopenAfterNavigation = await cdp.clickCenter("#shell-sidebar-desktop-rail ul li:first-child a");
+    const navigatedFromOpenOverlay = await cdp.clickCenter("#shell-sidebar-desktop-rail ul li:first-child a");
     await waitReady(cdp, { path: "/ww/en" });
-    const openAfterNavigation = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    const closedAfterSelection = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
     check(
       rows,
-      "reference.disclosure.openSurvivesNavigationIcon",
-      !!reopenAfterNavigation && openAfterNavigation.collapsed === "false" && openAfterNavigation.labelVisible === true && openAfterNavigation.label === "Hide navigation",
-      JSON.stringify(openAfterNavigation),
+      "reference.disclosure.selectionDismissesTheOpenOverlay",
+      !!navigatedFromOpenOverlay &&
+        closedAfterSelection.collapsed === "true" &&
+        closedAfterSelection.rail.w <= 64 &&
+        closedAfterSelection.label === "Show navigation",
+      JSON.stringify(closedAfterSelection),
+    );
+
+    // The stored OPEN preference still survives a refresh: open the rail again (a visitor action) and
+    // reload — the rail is presented OPEN from the stored preference, exactly as before.
+    await cdp.clickCenter(".ui-sidebar-toggle");
+    await sleep(400);
+    const reopenedForReload = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
+    check(
+      rows,
+      "reference.disclosure.reopenedBeforeReload",
+      reopenedForReload.collapsed === "false",
+      JSON.stringify(reopenedForReload),
     );
     await cdp.reload();
     await waitReady(cdp);

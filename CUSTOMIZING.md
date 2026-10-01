@@ -281,11 +281,20 @@ desktop / tablet / mobile.
 never substitutes a different navigation for it. Sidebar mode uses ONE persistent sticky sidebar
 presentation at every viewport width (`navigation.mobile: "persistent-sidebar"`): the same rail — a
 collapsible rail ≥`lg`, a collapsed rail ≥`md`, and THE SAME rail below `md`, where the page frame
-lays the rail and the content out side by side (the content simply has less remaining width) rather
-than stacking the rail above the page — closed by default and reopened from its own Show/Hide
-navigation control, whose placement, scale and geometry never change with the viewport. Viewport
-width does not substitute a drawer or a header disclosure, so Sidebar mode composes no drawer, no
-`Show navigation` band and no header affordance at all. Menu Bar mode uses a full-width sticky
+keeps the rail and the content on one row (the content simply has less remaining width) rather than
+stacking the rail above the page — closed by default and reopened from its own Show/Hide navigation
+control, whose placement, scale and geometry never change with the viewport. The rail's two states
+are a LAYOUT contract, not merely a width change: CLOSED it reserves its narrow column and the page
+is laid out beside it; OPEN it expands to its accepted **220px as an OVERLAY** — the normal page
+geometry does not move, the document gets no wider, and the rail paints above the page. **Selecting a
+destination dismisses the overlay** (by pointer, by keyboard or by assistive technology — it is the
+link's own activation), so the destination is presented with the collapsed, sticky rail; the rail's
+own `Hide navigation` control still closes it without navigating. Viewport width does not substitute
+a drawer or a header disclosure, so Sidebar mode composes no drawer, no `Show navigation` band and no
+header affordance at all. Nothing in the shell scrolls sideways at the supported widths: the layout
+has a deliberate **320px floor** (`--ui-shell-min-inline-size`), so every width from 320px up — rail
+closed or open — fits the viewport without a horizontal scrollbar, and a narrower window scrolls
+horizontally by design instead of deforming the layout. Menu Bar mode uses a full-width sticky
 bottom navigation at every viewport width: the top navigation is not part of Menu Bar mode. The
 bottom bar's content rule is deterministic: the first **4** configured `navigation` items render in
 the bar; the remainder (when non-empty) is exposed through the "More" drawer. The bar's SURFACE

@@ -1520,6 +1520,28 @@ which exists so a deployment can demonstrate the same site in two presentations.
   Sidebar mode consequently composes no drawer, no disclosure band, no trigger and no dialog at
   all; the generic `Drawer`/`OverlayNavigation` capability, and a site that explicitly configures
   `navigation.mobile: "drawer"`, are untouched.
+- **THE RAIL'S TWO STATES ARE A LAYOUT CONTRACT, AND OPEN MEANS OVERLAY** (NAV1D-V2 — owner
+  decisions). The three bands are RETAINED as separate surfaces, deliberately, for future
+  configurability; today they render from the ONE composition and behave identically. CLOSED, the
+  rail reserves its narrow column and the page is laid out beside it. OPEN, the rail expands to its
+  accepted 220px **as an overlay**: the rail's frame reserves the SAME narrow column in both states,
+  so the page's own geometry never moves and the document never gets wider, and the rail leaves the
+  flow inside that frame (`inset-inline-start: 0` keeps its left edge, `inset-block: 0` gives it the
+  frame's full height so its sticky column still pins) on the persistent-navigation stacking band
+  (`z-index: 30`, the value the shell's top region itself uses). It is scoped by the disclosure
+  control's presence (`:has(.ui-sidebar-toggle)`), so a non-collapsible rail and every non-sidebar
+  composition keep their accepted in-flow presentation. **SELECTING a destination dismisses the
+  overlay**: the close goes through the rail's ONE state owner (`Sidebar.apply`, shared with the
+  disclosure control), is decided by the SELECTION rather than by the route — so it also closes for
+  the page the visitor is already on, and never depends on a breakpoint — and is reachable by
+  pointer, keyboard and assistive technology alike, because it is one delegated click listener on
+  the rail's own panel. `NavItem` stays plain data + href, and no routing API enters the state
+  modules.
+- **THE PAGE LAYOUT HAS A DELIBERATE MINIMUM WIDTH** (NAV1D-V2). `--ui-shell-min-inline-size`
+  (320px, the platform's established support boundary) is applied to the shell frame only BELOW that
+  boundary. At and above it the layout fits the viewport's own content box — no horizontal scrollbar,
+  with the rail closed or with the overlay open — and a narrower viewport scrolls horizontally
+  instead of deforming the layout.
 - **MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH** (NAV1B). The top navigation bar
   presentation is no longer part of Menu Bar mode: the layout's preset also CLOSES its ≥md top
   menu (`topMenu: "closed"` — the shipped three-state menu contract), so no ≥md header

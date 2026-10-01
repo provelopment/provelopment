@@ -190,7 +190,11 @@ tree stays clean.
   and the desktop band share ONE state, a Site switch does not partition it, the
   Layout switcher is independent of it, and at `<md` the SAME rail carries that state — the
   stored preference opens the RAIL there too, so no drawer or bottom bar becomes a second,
-  ephemeral authority over the visitor's choice (NAV1D). Since FOUNDATION-UI1-A1 the scenario
+  ephemeral authority over the visitor's choice (NAV1D). NAV1D-V2 — SELECTING a destination inside
+  the rail dismisses the open overlay through that same state owner: the scenario proves the close
+  for a route change, for the page the visitor is already on, and for keyboard activation, and that
+  the destination is presented with the collapsed STICKY rail (never an open overlay, never a
+  re-open). Since FOUNDATION-UI1-A1 the scenario
   judges the whole navigation INTERVAL rather than its end state: a transition
   observer records every `data-collapsed` write on a rail and every `width`
   transition on one, so the interval must commit **no opposite state** (a
@@ -253,7 +257,13 @@ tree stays clean.
   and the rail's padding are identical to the desktop band's, because the breakpoint changes WHICH
   band presents the rail, not WHAT the rail is; and the header's two semantic rows keep their
   ownership at the same widths — through real resize transitions and real mode switches made while
-  already at a phone width (no stale dialog, no scroll lock, no substituted surface). The Menu Bar
+  already at a phone width (no stale dialog, no scroll lock, no substituted surface). NAV1D-V2 — the
+  OPEN rail is measured as an OVERLAY: its accepted 220px, the page's content column and the rail's
+  left edge IDENTICAL before and after opening, the document's own width unchanged by opening, the
+  rail winning the hit test inside its own area, and the Hide control still usable; the CLOSED layout
+  is proved free of a horizontal scrollbar at all eight widths (measured against the viewport's
+  content box), and a deliberate below-boundary width (300px) proves the 320px floor: the layout keeps
+  its geometry, the viewport scrolls, and the rail stays functional. The Menu Bar
   surface is measured too: its sticky surface spans the viewport and its navigation region uses the
   available width minus the page-edge inset (never the page's own `max-w-page` bound).
 - **header semantic rows** (`header-rows` scenario, NAV1B/NAV1B-V1): with test-owned fixtures the

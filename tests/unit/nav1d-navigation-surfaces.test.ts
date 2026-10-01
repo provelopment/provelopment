@@ -57,6 +57,11 @@ const barSource = readFileSync(
   path.join(process.cwd(), "src", "components", "shell", "shell-bottom-bar.tsx"),
   "utf8",
 );
+// NAV1D-V2 — the rail's own primitive owns the disclosure state and the close-on-selection path.
+const sidebarSource = readFileSync(
+  path.join(process.cwd(), "src", "components", "ui", "sidebar.tsx"),
+  "utf8",
+);
 
 /** The switcher enabled with the documented default; the canonical single composition. */
 const enabled = resolveUiConfig({ layoutSwitcher: { enabled: true } });
@@ -301,5 +306,65 @@ describe("NAV1D — the Menu Bar surface spans the viewport", () => {
     expect(barSource).toContain(
       'BOTTOM_NAV_LIST_CLASS = "flex flex-wrap items-center gap-x-4 gap-y-2"',
     );
+  });
+});
+
+/**
+ * NAV1D-V2 — THE OPEN SIDEBAR OVERLAYS THE PAGE (owner decision).
+ *
+ * The rail's expanded state must not expand the page's own layout column: the normal page geometry
+ * stays where it is and the expanded rail paints above it. The three bands stay separate surfaces
+ * (for future configurability) and currently behave identically, and the state keeps its ONE owner —
+ * which is also the place that closes the overlay when a destination is selected.
+ */
+describe("NAV1D-V2 — an open sidebar overlays the page", () => {
+  it("reserves the collapsed rail's space in the row and paints the expanded rail above it", () => {
+    // The frame keeps the SAME width in both states — the collapsed column — so nothing in the page
+    // layout moves when the visitor opens or closes the rail.
+    const frame = /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(frame).toContain("position: relative;");
+    expect(frame).toContain("width: var(--ui-sidebar-rail-collapsed);");
+    // …and the rail itself leaves the flow inside that frame: its own left edge, the frame's full
+    // height (so its sticky column still pins), on the persistent-navigation stacking band.
+    const overlay = /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \.ui-sidebar-rail \{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(overlay).toContain("position: absolute;");
+    expect(overlay).toContain("inset-block: 0;");
+    expect(overlay).toContain("inset-inline-start: 0;");
+    expect(overlay).toContain("z-index: 30;");
+    // The rail's own accepted widths are untouched (220px expanded / 36px collapsed, both tokens).
+    expect(globals).toMatch(/--ui-sidebar-rail-expanded:\s*13\.75rem/);
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*calc\(/);
+  });
+
+  it("scopes the overlay to the collapsible rail, so other compositions keep their layout", () => {
+    const overlayRules = globals.match(/\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\)[^{]*\{/g) ?? [];
+    expect(overlayRules).toHaveLength(2);
+    // Nothing else makes a rail absolute: a non-collapsible (immersive/static) rail and every
+    // non-sidebar composition keep their accepted in-flow, always-expanded presentation.
+    expect(globals).not.toMatch(/\n\.ui-sidebar-rail \{[^}]*position: absolute/);
+  });
+
+  it("declares the deliberate minimum layout width BELOW the supported boundary", () => {
+    expect(globals).toMatch(/--ui-shell-min-inline-size:\s*20rem/);
+    // The floor is scoped to viewports NARROWER than the boundary: at and above it the layout fits
+    // the viewport's own content box (a 320px window therefore has no horizontal scrollbar).
+    expect(globals).toMatch(
+      /@media \(max-width: 19\.99rem\) \{\r?\n\s*\.ui-shell-frame \{\r?\n\s*min-inline-size: var\(--ui-shell-min-inline-size\);/,
+    );
+    expect(engineSource).toContain("ui-shell-frame flex flex-col flex-1");
+  });
+
+  it("retains the three bands, currently identical, on the ONE state owner", () => {
+    for (const band of ["shell-sidebar-desktop", "shell-sidebar-tablet", "shell-sidebar-mobile"]) {
+      expect(engineSource, band).toContain(`"${band}"`);
+    }
+    // One composition serves all three bands today; the per-band structure is what stays available
+    // for a future, deliberately different configuration.
+    expect(railLayouts(enabled, "desktop")).toEqual(["sidebar"]);
+    expect(railLayouts(enabled, "tablet")).toEqual(["sidebar"]);
+    expect(railLayouts(enabled, "mobile")).toEqual(["sidebar"]);
+    // The close-on-selection path lives in that ONE owner and reads no routing API.
+    expect(sidebarSource).toContain("closeForSelection");
+    expect(sidebarSource).not.toMatch(/from "next\/navigation"/);
   });
 });
