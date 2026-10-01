@@ -504,8 +504,8 @@ artwork; it documents only the file/rendering contract and the substitution path
 | Consumer | Next.js metadata `icons.icon` — a single authoritative `<link rel="icon">` declaration. There is no competing file-based icon route |
 | Required file type | **HARD:** a browser icon format. **RECOMMENDED:** SVG. PNG and ICO also work |
 | Engine-required dimensions | **HARD: none.** The browser renders it at its own icon size |
-| Source of truth / derivation | **HARD (2026-09 owner ruling): the favicon is DERIVED from `content/assets/branding/identity/mark.svg`** — the high-resolution mark is never modified. `content/assets/branding/identity/favicon.svg` is the mark rendered into a **24 × 24 canvas**, mirrored to `public/assets/favicon.svg` |
-| Required favicon geometry | **HARD: 24 × 24 canvas, the mark's own (square) `viewBox`, uniform scaling, no crop, no distortion, whole circular mark visible with transparent breathing room.** A narrowed `viewBox` (e.g. `256 256 1536 1536` on a 2048 mark) crops the artwork and produces flat-sided edges — locked against by `tests/unit/favicon-contract.test.ts` |
+| Source of truth / derivation | **Scope: a deployment that supplies its own brand pack.** **HARD for that deployment (2026-09 owner ruling):** the favicon is DERIVED from its own `content/assets/branding/identity/mark.svg` — the high-resolution mark is never modified — and `content/assets/branding/identity/favicon.svg` is the mark rendered into a **24 × 24 canvas**, mirrored to `public/assets/favicon.svg`. **This generic template supplies no mark and derives nothing** (§1): its `public/assets/favicon.svg` is the byte-identical mirror of the neutral `content/assets/placeholders/favicon.svg` (`MIRRORED`, `scripts/sync-runtime-assets.mjs`), and the capsule's taxonomy test asserts that no `content/assets/branding/` tree ships |
+| Required favicon geometry | **HARD for a deployment that derives its own favicon: 24 × 24 canvas, the mark's own (square) `viewBox`, uniform scaling, no crop, no distortion, whole circular mark visible with transparent breathing room.** A narrowed `viewBox` (e.g. `256 256 1536 1536` on a 2048 mark) crops the artwork and produces flat-sided edges. The template has no derivation to check, and **no suite in this repository locks the derivation itself** — the suite that did (`tests/unit/favicon-contract.test.ts`) went with the branded asset set at the FS1 de-bloat (see §14) |
 | Recommended production master | square, transparent, legible at 16px (the approved Foundation master uses a square `viewBox`). **RECOMMENDED only** |
 | Required SVG viewBox | square recommended (a non-square viewBox is letterboxed by the browser) |
 | Transparency requirement | **RECOMMENDED:** transparent |
@@ -1038,13 +1038,26 @@ Locking tests for this contract:
 | --- | --- |
 | `tests/unit/brand-asset-swap-contract.test.ts` | the swap/file contract itself — role index ↔ config keys, filename-only resolution, optional-role removal, the file-only swap guarantee, the placeholder's neutrality, that this document names every shipped role, that the decorative header/footer defaults are blank, and that the icon colour seam is stated as measured (no inheritance claim) |
 | `deployment/tests/unit/asset-taxonomy-mirror.test.ts` | the shipped source categories, the source→runtime mirror (byte-identical, no undeclared runtime file, icon-library retention), and the blank placeholder rules — including that this template ships no `content/assets/branding/` tree |
-| `tests/unit/favicon-contract.test.ts` | the favicon is DERIVED from the untouched `mark.svg`: same `viewBox`, same path data, uniform scaling, no clip/crop, artwork strictly inside the 24 × 24 canvas |
 | `tests/unit/sidebar-page-icon-contract.test.ts` | 16 × 16 sidebar page icons on desktop and tablet, the page → icon-library mapping and precedence, expanded/collapsed behaviour and tooltip discoverability, and unchanged mobile navigation |
-| `tests/unit/approved-assets-integration.test.ts` | the Foundation-owned page graphics ship **and** are active; the header/footer decorative defaults are blank; the admitted/withheld mark register; availability never creates a link |
 | `tests/unit/p12-hg-header-graphic.test.ts` | the header band contract — attributes only, no DOM, no height, no stacking context, no recolouring, removable by config, blank default artwork |
 | `tests/unit/p12-bg-page-background.test.ts` · `p12-fg-footer-graphic.test.ts` · `p12-sg-status-graphic.test.ts` | the background / footer / status contracts, including that each role is independent |
 | `tests/unit/connectivity-icons.test.ts` | the filename-only connectivity contract |
-| `tests/unit/branding-placeholders.test.ts` | the shipped default role filenames |
+| `tests/browser/matrix.mjs` | live behaviour in a real browser: the band resolves and paints, the header stays non-stacking, no horizontal overflow, navigation and the mobile drawer keep working, and the icon colour seam is **measured** — a deliberately non-neutral colour is set on the link and the icon's painted pixels are read back from a canvas |
+
+> **Three locks named by earlier revisions were removed with the branded asset set.** The FS1
+> de-bloat (`v2026.09.17-foundation-generic-template`, `b9f7a18`) deleted
+> `tests/unit/favicon-contract.test.ts` (the favicon derived from an untouched `identity/mark.svg`:
+> same `viewBox`, same path data, uniform scaling, no clip/crop, artwork strictly inside the
+> 24 × 24 canvas), `tests/unit/approved-assets-integration.test.ts` (the branded page graphics
+> shipping **and** active, plus the admitted/withheld mark register) and
+> `tests/unit/branding-placeholders.test.ts` (the shipped default role filenames).
+>
+> Nothing in this product locks the **favicon derivation** today: the rule binds a deployment that
+> supplies its own mark (§10.1.3), and the shipped-template half is locked by the suites above. The
+> other two contracts survive in narrower form: `tests/unit/brand-asset-swap-contract.test.ts` locks
+> that the identity roles and the blank decorative roles ship and that no artwork-only role does, and
+> `deployment/tests/unit/asset-taxonomy-mirror.test.ts` locks the source categories, the mirror and
+> the blank placeholder rules. The admitted/withheld **mark register** is not locked in this product.
 | `tests/architecture/boundaries.test.ts` | the layer boundaries (config may touch the filesystem; `src/core` and UI primitives may not) |
 | `tests/browser/matrix.mjs` | live behaviour in a real browser: the band resolves and paints, the header stays non-stacking, no horizontal overflow, navigation and the mobile drawer keep working, and the icon colour seam is **measured** — a deliberately non-neutral colour is set on the link and the icon's painted pixels are read back from a canvas |
 

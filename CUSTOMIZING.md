@@ -1639,14 +1639,14 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 The repository carries the **source** asset tree in `content/assets/`. It is NOT served
 under `public/`; the runtime files are byte-identical mirrors of it (see below). This generic
 template ships **three** populated categories — `icon-library/`, `placeholders/` and
-`platform-marks/` — and an **empty** `branding/` category: a deployment that adds its own artwork
-creates it there, and the template's own taxonomy test asserts that `content/assets/branding/` is
-**not** shipped in this repository
+`platform-marks/` — and **no** `branding/` category at all: a deployment that supplies its own
+artwork creates and populates it, and the template's own taxonomy test asserts that
+`content/assets/branding/` is **not** shipped in this repository
 (`deployment/tests/unit/asset-taxonomy-mirror.test.ts`).
 
 ```text
 content/assets/
-├── branding/          — YOUR deployment/business artwork; nothing ships here.
+├── branding/          — YOUR deployment/business artwork; NOT present in this template.
 │   ├── banners/         The generic template has no brand of its own, so these
 │   ├── identity/        folders are yours to create (banners, identity, logos,
 │   ├── logos/           page-graphics are the categories an adopter uses)

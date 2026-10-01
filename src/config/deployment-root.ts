@@ -45,7 +45,7 @@
  * ------------------
  * `public/assets/**` is NOT a deployment-owned location: Next.js serves static files from `public/`
  * only, so it is GENERATED build output (`pnpm assets:sync`, byte-verified by
- * `tests/unit/asset-taxonomy-mirror.test.ts`). It is exposed here so that even the one platform path
+ * `deployment/tests/unit/asset-taxonomy-mirror.test.ts`). It is exposed here so that even the one platform path
  * is spelled in one place, but it is never part of a deployment agent's write boundary.
  */
 // NOTE (ISO-B1C) — there is deliberately NO `import … from "../../site.config.json"` here. The build
