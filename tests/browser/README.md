@@ -334,5 +334,30 @@ tree stays clean.
   reachability survives switching; exactly one navigation structure stays exposed; and no band
   shows horizontal overflow. The configuration and every fixture page are restored/removed in
   `finally`, so the shipped template still ships one site and no pages.
+- **appearance contract** (`appearance-contract` scenario, FOUNDATION-DEFECT-NAV3): every surface the
+  appearance audit (NAV2) named an authority for is read from a REAL engine and compared with the
+  value the engine itself computes for that token — so the contract cannot drift from the stylesheet
+  and no second copy of a colour lives in the harness. In the LIGHT scheme, at desktop / tablet /
+  mobile: the page's canvas and text (`--background` / `--foreground`), prose links (`--primary`),
+  the sidebar's surface (`--background`), its navigation text (`--muted-foreground`) and its divider
+  (`--border`), the header's text plus the layout selector's surface and border, and the ordinary
+  footer's TRANSPARENT surface with its `--border` hairline, `--muted-foreground` headings and
+  `--foreground` links. Those values must be IDENTICAL at all three widths (one
+  breakpoint-independent colour signature). In the DARK scheme (engine-emulated) the same surfaces
+  must resolve to the dark tokens. The Menu Bar's sticky full-width surface is proven as a PAINT
+  contract: it spans the whole client width, paints `--background` across it, carries `--border` on
+  top and `--foreground` links, and is hit-testable at BOTH edges — so a min-content block with an
+  unpainted remainder fails. Interaction states are only the three the platform really implements: a
+  sidebar navigation link's hover moves `--muted-foreground` → `--foreground`, the global
+  `:focus-visible` ring resolves to `--ring`, and an ordinary footer link's hover resolves to
+  `--primary` (all measured with real input). ONE test-owned configuration phase then proves the
+  propagation end to end on its own server: `ui.theme.background: "#00ff00"` appears on `<html>`, and
+  the body, the sidebar rail, the selector and the Menu Bar surface all render exactly that colour
+  while the text and the transparent footer keep their tokens; `site.assets.backgrounds.all` and
+  `site.assets.footerGraphic` (pointed at SHIPPED mirrored placeholders — no new artwork) render
+  exactly ONE decorative page layer (fixed, `cover`, centred, `no-repeat`, `z-index: -1`,
+  `pointer-events: none`, `aria-hidden`) that never captures a hit from the content and adds no
+  overflow, plus one inert layer behind the footer's own content. The configuration and the
+  task-owned prose page are restored/removed in `finally`.
 
 

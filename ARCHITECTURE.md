@@ -1290,9 +1290,9 @@ ever invented:
 | Leaf | Foundation default |
 | --- | --- |
 | `shell.header` / `shell.footer` | `standard` |
-| `navigation.desktop` | `top` |
-| `navigation.tablet` | `top-compact` |
-| `navigation.mobile` | `drawer` |
+| `navigation.desktop` | `sidebar` |
+| `navigation.tablet` | `collapsed-sidebar` |
+| `navigation.mobile` | `bottom-bar` |
 | `density` | `comfortable` |
 | `content.width` | `standard` |
 | `cta.enabled` | `false` |

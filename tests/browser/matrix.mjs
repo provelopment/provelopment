@@ -6685,6 +6685,591 @@ async function runSidebarStateScenario(chrome) {
   return rows;
 }
 
+/**
+ * FOUNDATION-DEFECT-NAV3 — THE APPEARANCE CONTRACT (own servers + task-owned fixtures).
+ *
+ * FOUNDATION-DEFECT-NAV2 established WHICH authority owns each surface (and that no surface had
+ * regressed); this scenario PINS that wiring, so a later change cannot silently disconnect a
+ * surface from its token. Every assertion compares a RENDERED `rgb(...)` with the value the engine
+ * itself computes for the token (`getComputedStyle(documentElement)` → a throwaway element), so the
+ * gate never carries a second copy of a hex — a token that is a `color-mix()` in the dark scheme is
+ * compared correctly, and re-pointing a token at a different value keeps the gate honest.
+ *
+ * Two dev servers, two phases:
+ *
+ *   · `surface`     the disposable copy AS IT SHIPS. Its own configuration already enables
+ *                   `ui.layoutSwitcher` (`tests/fixtures/synthetic-deployment/site.config.json`), so
+ *                   the selector exists and the Menu Bar mode is reachable in the same server: the
+ *                   page, sidebar, header/selector, ordinary footer and Menu Bar surfaces are read at
+ *                   desktop/tablet/mobile, then the dark scheme (emulated, as the theme scenarios
+ *                   already do) and the three interaction states the platform really implements.
+ *   · `configured`  ONE test-owned configuration fixture: `ui.theme.background` = `#00ff00` and the
+ *                   decorative `backgrounds.all` + `footerGraphic` roles pointed at SHIPPED mirrored
+ *                   placeholders (`header-graphic.svg`, `footer-graphic.svg`). Nothing authored is
+ *                   modified and no artwork is added — the fixture is a configuration write into the
+ *                   disposable COPY (restored in `finally`), exactly like every other scenario's.
+ *
+ * Deliberately NOT asserted here: that the current page must LOOK different (it does not — the
+ * platform conveys it semantically, by `aria-current`), and that Menu Bar links must change on hover
+ * (they do not). Both are current behaviour, not contracts, and NAV2 recorded them as such.
+ */
+
+/** The one configured background this scenario proves the propagation of (its own input value). */
+const APPEARANCE_CONFIGURED_BACKGROUND = "#00ff00";
+/** The mirrored, shipped decorative assets the fixture points the two graphic roles at. */
+const APPEARANCE_BACKGROUND_FIXTURE_URL = "https://example.com/assets/header-graphic.svg";
+const APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL = "https://example.com/assets/footer-graphic.svg";
+
+/**
+ * Every audited surface, as one JSON document. `token(name)` resolves a custom property THROUGH the
+ * engine (a throwaway element's `background-color`), so the comparison is rendered value against
+ * rendered value.
+ */
+const APPEARANCE_PROBE = `(() => {
+  const cs = (el) => (el ? getComputedStyle(el) : null);
+  const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  const boxOf = (el) => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; };
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  };
+  const rail = ['desktop','tablet','mobile'].map((band) => document.querySelector('#shell-sidebar-' + band + '-rail')).find(shown) || null;
+  const railLink = rail ? rail.querySelector('ul li a') : null;
+  const bar = document.querySelector('.ui-shell-bottom-bar');
+  const barPresent = bar && shown(bar);
+  const barBox = barPresent ? boxOf(bar) : null;
+  const barHit = (x) => {
+    if (!barBox) return null;
+    const cx = Math.max(1, Math.min(document.documentElement.clientWidth - 2, x));
+    const el = document.elementFromPoint(cx, Math.round(barBox[1] + barBox[3] / 2));
+    return el ? (el.closest('.ui-shell-bottom-bar') ? 'BAR' : 'OTHER') : null;
+  };
+  const footer = document.querySelector('footer');
+  const footerLink = footer ? footer.querySelector('a') : null;
+  const footerHeading = footer ? footer.querySelector('h2') : null;
+  const prose = document.querySelector('.prose');
+  const pageBackground = document.querySelector('.ui-page-background');
+  const footerGraphic = document.querySelector('.ui-footer-graphic');
+  const selector = document.querySelector('[data-ui-layout-switcher]');
+  const siteHeader = document.querySelector('.ui-site-header');
+  return JSON.stringify({
+    tokens: {
+      background: token('--background'),
+      foreground: token('--foreground'),
+      mutedForeground: token('--muted-foreground'),
+      border: token('--border'),
+      primary: token('--primary'),
+      ring: token('--ring'),
+    },
+    htmlStyleAttribute: document.documentElement.getAttribute('style'),
+    schemeDark: window.matchMedia('(prefers-color-scheme: dark)').matches,
+    viewport: {
+      innerWidth: window.innerWidth,
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    },
+    body: { bg: cs(document.body).backgroundColor, color: cs(document.body).color },
+    headerColor: siteHeader ? cs(siteHeader).color : null,
+    selector: selector ? { bg: cs(selector).backgroundColor, borderTop: cs(selector).borderTopColor } : null,
+    rail: rail ? {
+      bg: cs(rail).backgroundColor,
+      divider: cs(rail).borderInlineEndColor,
+      dividerWidth: cs(rail).borderInlineEndWidth,
+      navLink: railLink ? cs(railLink).color : null,
+      collapsed: rail.getAttribute('data-collapsed'),
+    } : null,
+    bar: barPresent ? {
+      bg: cs(bar).backgroundColor,
+      borderTop: cs(bar).borderTopColor,
+      link: bar.querySelector('ul li a') ? cs(bar.querySelector('ul li a')).color : null,
+      box: barBox,
+      leftEdgeHit: barHit(barBox[0] + 2),
+      rightEdgeHit: barHit(document.documentElement.clientWidth - 3),
+    } : null,
+    footer: footer ? {
+      bg: cs(footer).backgroundColor,
+      borderTop: cs(footer).borderTopColor,
+      heading: footerHeading ? cs(footerHeading).color : null,
+      link: footerLink ? cs(footerLink).color : null,
+    } : null,
+    prose: prose ? { color: cs(prose).color, link: prose.querySelector('a') ? cs(prose.querySelector('a')).color : null } : null,
+    pageBackgroundCount: document.querySelectorAll('.ui-page-background').length,
+    pageBackground: pageBackground ? {
+      image: cs(pageBackground).backgroundImage,
+      size: cs(pageBackground).backgroundSize,
+      position: cs(pageBackground).backgroundPosition,
+      repeat: cs(pageBackground).backgroundRepeat,
+      zIndex: cs(pageBackground).zIndex,
+      mode: cs(pageBackground).position,
+      pointerEvents: cs(pageBackground).pointerEvents,
+      ariaHidden: pageBackground.getAttribute('aria-hidden'),
+      box: boxOf(pageBackground),
+    } : null,
+    footerGraphicCount: document.querySelectorAll('.ui-footer-graphic').length,
+    footerGraphic: footerGraphic ? {
+      image: cs(footerGraphic).backgroundImage,
+      zIndex: cs(footerGraphic).zIndex,
+      mode: cs(footerGraphic).position,
+      pointerEvents: cs(footerGraphic).pointerEvents,
+      ariaHidden: footerGraphic.getAttribute('aria-hidden'),
+      footerIsolation: footer ? cs(footer).isolation : null,
+    } : null,
+    hitAtProse: prose ? (() => {
+      const r = prose.getBoundingClientRect();
+      const el = document.elementFromPoint(Math.round(r.left + 12), Math.round(Math.max(r.top + 12, 2)));
+      if (!el) return null;
+      return el.closest('.ui-page-background') || el.closest('.ui-footer-graphic') ? 'DECORATIVE-LAYER' : 'CONTENT';
+    })() : null,
+  });
+})()`;
+
+/** The first presented rail navigation link, for the hover contract. */
+const APPEARANCE_NAV_STATE = `(() => {
+  const token = (name) => {
+    const probe = document.createElement('div');
+    probe.style.backgroundColor = 'var(' + name + ')';
+    document.body.appendChild(probe);
+    const value = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return value;
+  };
+  const shown = (el) => !!el && el.getBoundingClientRect().width > 0 && el.getBoundingClientRect().height > 0;
+  const rail = ['desktop','tablet','mobile'].map((band) => document.querySelector('#shell-sidebar-' + band + '-rail')).find(shown) || null;
+  const link = rail ? rail.querySelector('ul li a') : null;
+  if (!link) return 'null';
+  const r = link.getBoundingClientRect();
+  return JSON.stringify({
+    color: getComputedStyle(link).color,
+    hovered: link.matches(':hover'),
+    point: { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) },
+    foreground: token('--foreground'),
+    mutedForeground: token('--muted-foreground'),
+  });
+})()`;
+
+/** The keyboard-focused element's own ring, or null while no interactive element carries one. */
+const APPEARANCE_RING_STATE = `(() => {
+  const el = document.activeElement;
+  if (!el || !/^(A|BUTTON|SELECT|TEXTAREA|INPUT)$/i.test(el.tagName)) return 'null';
+  const probe = document.createElement('div');
+  probe.style.backgroundColor = 'var(--ring)';
+  document.body.appendChild(probe);
+  const ring = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  const cs = getComputedStyle(el);
+  return JSON.stringify({
+    tag: el.tagName,
+    hovered: el.matches(':hover'),
+    outlineStyle: cs.outlineStyle,
+    outlineWidth: cs.outlineWidth,
+    outlineColor: cs.outlineColor,
+    ring,
+  });
+})()`;
+
+/** The first ordinary-footer link's colour, for the hover contract. */
+const APPEARANCE_FOOTER_LINK_STATE = `(() => {
+  const link = document.querySelector('footer a');
+  if (!link) return 'null';
+  const probe = document.createElement('div');
+  probe.style.backgroundColor = 'var(--primary)';
+  document.body.appendChild(probe);
+  const primary = getComputedStyle(probe).backgroundColor;
+  probe.remove();
+  return JSON.stringify({ color: getComputedStyle(link).color, hovered: link.matches(':hover'), primary });
+})()`;
+
+
+/**
+ * The appearance contract, proved against a real engine (see the phase notes above).
+ */
+async function runAppearanceContractScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+  // A task-owned PROSE page (the shipped fixture's pages carry no link; `--primary` on prose links is
+  // one of the authorities this contract pins). Written into the disposable copy, removed in `finally`.
+  const prosePath = join(CONTENT_ROOT, "markdown", "ww", "en", "zz-appearance-prose.md");
+  await mkdir(dirname(prosePath), { recursive: true });
+  await writeFile(
+    prosePath,
+    "---\ntitle: Appearance contract fixture\ndescription: A test-owned page for the appearance contract.\n---\n\nA test-owned page for the appearance contract.\n\n[Appearance fixture link](/ww/en/about)\n",
+    "utf8",
+  );
+
+  const surfacePort = BASE_PORT + 600;
+  const surfaceUrl = `http://localhost:${surfacePort}`;
+  /** The colour-only signature of a frame: every audited surface, no state and no geometry. */
+  const signatureOf = (probe) =>
+    JSON.stringify({
+      tokens: probe.tokens,
+      body: probe.body,
+      headerColor: probe.headerColor,
+      selector: probe.selector,
+      rail: probe.rail ? { bg: probe.rail.bg, divider: probe.rail.divider, navLink: probe.rail.navLink } : null,
+      footer: probe.footer,
+    });
+
+  /**
+   * The disposable copy currently carries the CANONICAL scenario's own mutation (`ui.layoutSwitcher`
+   * DISABLED — see the canonical runner, which restores the file only at the very end of the run).
+   * This contract needs the values the FIXTURE itself ships
+   * (`tests/fixtures/synthetic-deployment/site.config.json` enables the switcher with the `sidebar`
+   * default): the layout selector, the Menu Bar presentation and the sidebar layout's
+   * `persistent-sidebar` mobile band all exist only when the layout choice does. Restored in
+   * `finally`, exactly like every other scenario's fixture.
+   */
+  const patchShippedUi = (config) => ({
+    ...config,
+    ui: { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "sidebar" } },
+  });
+  await writeFile(CONFIG_PATH, JSON.stringify(patchShippedUi(JSON.parse(original)), null, 2) + "\n", "utf8");
+
+  const surface = startDevServer(surfacePort);
+  let cdp = null;
+  const signatures = [];
+  try {
+    BASE_URL = surfaceUrl;
+    await waitForServer(`${surfaceUrl}/ww/en`);
+    cdp = await Cdp.connect(chrome);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    let light = null;
+
+    // ── LIGHT SCHEME: every shared surface resolves to its documented token ──────────────────────
+    for (const [name, viewport] of [
+      ["desktop", VIEWPORTS.desktop],
+      ["tablet", VIEWPORTS.tablet],
+      ["mobile", VIEWPORTS.mobile],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await cdp.navigate(`${surfaceUrl}/ww/en`);
+      await waitReady(cdp);
+      await closeVisibleRail(cdp);
+      await sleep(300);
+      const probe = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+      if (name === "desktop") light = probe;
+      const tag = `appearance.surface.${name}`;
+      check(rows, `${tag}.bodyPaintsTheBackgroundToken`, probe.body.bg === probe.tokens.background, `body=${probe.body.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.bodyTextUsesTheForegroundToken`, probe.body.color === probe.tokens.foreground, `text=${probe.body.color} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.headerTextUsesTheForegroundToken`, probe.headerColor === probe.tokens.foreground, `header=${probe.headerColor} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.selectorSurfaceUsesTheBackgroundToken`, !!probe.selector && probe.selector.bg === probe.tokens.background, `selector=${probe.selector && probe.selector.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.selectorBorderUsesTheBorderToken`, !!probe.selector && probe.selector.borderTop === probe.tokens.border, `border=${probe.selector && probe.selector.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.railPaintsTheBackgroundToken`, !!probe.rail && probe.rail.bg === probe.tokens.background, `rail=${probe.rail && probe.rail.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.railNavTextUsesTheMutedToken`, !!probe.rail && probe.rail.navLink === probe.tokens.mutedForeground, `link=${probe.rail && probe.rail.navLink} token=${probe.tokens.mutedForeground}`);
+      check(rows, `${tag}.railDividerUsesTheBorderToken`, !!probe.rail && probe.rail.divider === probe.tokens.border && probe.rail.dividerWidth === "1px", `divider=${probe.rail && probe.rail.divider}/${probe.rail && probe.rail.dividerWidth} token=${probe.tokens.border}`);
+      check(rows, `${tag}.footerSurfaceStaysTransparent`, !!probe.footer && probe.footer.bg === "rgba(0, 0, 0, 0)", `footer=${probe.footer && probe.footer.bg}`);
+      check(rows, `${tag}.footerDividerUsesTheBorderToken`, !!probe.footer && probe.footer.borderTop === probe.tokens.border, `divider=${probe.footer && probe.footer.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.footerHeadingUsesTheMutedToken`, !!probe.footer && probe.footer.heading === probe.tokens.mutedForeground, `heading=${probe.footer && probe.footer.heading} token=${probe.tokens.mutedForeground}`);
+      check(rows, `${tag}.footerLinkUsesTheForegroundToken`, !!probe.footer && probe.footer.link === probe.tokens.foreground, `link=${probe.footer && probe.footer.link} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.noGraphicBackgroundWithoutConfiguration`, probe.pageBackgroundCount === 0, `layers=${probe.pageBackgroundCount}`);
+      check(rows, `${tag}.noHorizontalOverflow`, probe.viewport.scrollWidth <= probe.viewport.clientWidth + 1, `scroll=${probe.viewport.scrollWidth}/${probe.viewport.clientWidth}`);
+      signatures.push({ name, signature: signatureOf(probe) });
+    }
+
+    // ── CROSS-VIEWPORT CONSISTENCY: none of these COLOURS is breakpoint-driven ───────────────────
+    check(
+      rows,
+      "appearance.consistency.coloursAreBreakpointIndependent",
+      signatures.length === 3 && new Set(signatures.map((s) => s.signature)).size === 1,
+      signatures.map((s) => `${s.name}:${s.signature}`).join(" | "),
+    );
+
+    // ── PROSE: the documented text and link authorities ──────────────────────────────────────────
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.navigate(`${surfaceUrl}/ww/en/zz-appearance-prose`);
+    await waitReady(cdp);
+    const prose = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(rows, "appearance.surface.prose.textUsesTheForegroundToken", !!prose.prose && prose.prose.color === prose.tokens.foreground, `prose=${prose.prose && prose.prose.color} token=${prose.tokens.foreground}`);
+    check(rows, "appearance.surface.prose.linkUsesThePrimaryToken", !!prose.prose && prose.prose.link === prose.tokens.primary, `link=${prose.prose && prose.prose.link} token=${prose.tokens.primary}`);
+
+    // ── MENU BAR: the full-width sticky surface is PAINTED across the whole viewport ─────────────
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(400);
+    for (const [name, viewport] of [
+      ["desktop", VIEWPORTS.desktop],
+      ["mobile", VIEWPORTS.mobile],
+    ]) {
+      await cdp.setViewport(viewport.width, viewport.height);
+      await sleep(400);
+      const probe = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+      const tag = `appearance.menuBar.${name}`;
+      const spans = !!probe.bar && probe.bar.box[0] <= 1 && probe.bar.box[0] + probe.bar.box[2] >= probe.viewport.clientWidth - 1;
+      check(rows, `${tag}.surfacePresent`, !!probe.bar, `bar=${!!probe.bar}`);
+      check(rows, `${tag}.surfaceSpansTheFullClientWidth`, spans, `box=${probe.bar && probe.bar.box} clientW=${probe.viewport.clientWidth}`);
+      check(rows, `${tag}.surfacePaintsTheBackgroundToken`, !!probe.bar && probe.bar.bg === probe.tokens.background, `bg=${probe.bar && probe.bar.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.surfaceBorderUsesTheBorderToken`, !!probe.bar && probe.bar.borderTop === probe.tokens.border, `border=${probe.bar && probe.bar.borderTop} token=${probe.tokens.border}`);
+      check(rows, `${tag}.navigationLinksUseTheForegroundToken`, !!probe.bar && probe.bar.link === probe.tokens.foreground, `link=${probe.bar && probe.bar.link} token=${probe.tokens.foreground}`);
+      check(rows, `${tag}.surfaceIsPaintedAtBothEdges`, !!probe.bar && probe.bar.leftEdgeHit === "BAR" && probe.bar.rightEdgeHit === "BAR", `left=${probe.bar && probe.bar.leftEdgeHit} right=${probe.bar && probe.bar.rightEdgeHit}`);
+      check(rows, `${tag}.footerSurfacesAreUnchangedByTheMode`, !!probe.footer && probe.footer.bg === "rgba(0, 0, 0, 0)" && probe.footer.borderTop === probe.tokens.border, `footer=${probe.footer && probe.footer.bg}/${probe.footer && probe.footer.borderTop}`);
+      check(rows, `${tag}.pageBackgroundIsUnchangedByTheMode`, probe.body.bg === probe.tokens.background, `body=${probe.body.bg} token=${probe.tokens.background}`);
+      check(rows, `${tag}.noHorizontalOverflow`, probe.viewport.scrollWidth <= probe.viewport.clientWidth + 1, `scroll=${probe.viewport.scrollWidth}/${probe.viewport.clientWidth}`);
+    }
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── DARK SCHEME: the same surfaces resolve to the DARK tokens (engine-emulated) ──────────────
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await cdp.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-color-scheme", value: "dark" }],
+    });
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await closeVisibleRail(cdp);
+    await sleep(300);
+    const dark = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.dark.schemeEmulatedAndTokensDiffer",
+      dark.schemeDark === true && dark.tokens.background !== light.tokens.background && dark.tokens.foreground !== light.tokens.foreground,
+      `dark=${dark.schemeDark} lightBg=${light.tokens.background} darkBg=${dark.tokens.background}`,
+    );
+    check(rows, "appearance.dark.bodyPaintsTheDarkBackgroundToken", dark.body.bg === dark.tokens.background && dark.body.color === dark.tokens.foreground, `body=${dark.body.bg}/${dark.body.color} token=${dark.tokens.background}/${dark.tokens.foreground}`);
+    check(rows, "appearance.dark.headerTextUsesTheDarkForegroundToken", dark.headerColor === dark.tokens.foreground, `header=${dark.headerColor} token=${dark.tokens.foreground}`);
+    check(rows, "appearance.dark.selectorUsesTheDarkTokens", !!dark.selector && dark.selector.bg === dark.tokens.background && dark.selector.borderTop === dark.tokens.border, `selector=${dark.selector && dark.selector.bg}/${dark.selector && dark.selector.borderTop}`);
+    check(rows, "appearance.dark.railPaintsTheDarkBackgroundToken", !!dark.rail && dark.rail.bg === dark.tokens.background, `rail=${dark.rail && dark.rail.bg} token=${dark.tokens.background}`);
+    check(rows, "appearance.dark.railNavTextUsesTheDarkMutedToken", !!dark.rail && dark.rail.navLink === dark.tokens.mutedForeground, `link=${dark.rail && dark.rail.navLink} token=${dark.tokens.mutedForeground}`);
+    check(rows, "appearance.dark.railDividerUsesTheDarkBorderToken", !!dark.rail && dark.rail.divider === dark.tokens.border, `divider=${dark.rail && dark.rail.divider} token=${dark.tokens.border}`);
+    check(rows, "appearance.dark.footerStaysTransparentWithTheDarkDivider", !!dark.footer && dark.footer.bg === "rgba(0, 0, 0, 0)" && dark.footer.borderTop === dark.tokens.border, `footer=${dark.footer && dark.footer.bg}/${dark.footer && dark.footer.borderTop}`);
+    check(rows, "appearance.dark.footerHeadingUsesTheDarkMutedToken", !!dark.footer && dark.footer.heading === dark.tokens.mutedForeground, `heading=${dark.footer && dark.footer.heading} token=${dark.tokens.mutedForeground}`);
+    await cdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(400);
+    const darkBar = JSON.parse(await cdp.evaluate(APPEARANCE_PROBE));
+    check(rows, "appearance.dark.menuBarUsesTheDarkTokens", !!darkBar.bar && darkBar.bar.bg === darkBar.tokens.background && darkBar.bar.borderTop === darkBar.tokens.border && darkBar.bar.link === darkBar.tokens.foreground, `bar=${darkBar.bar && darkBar.bar.bg}/${darkBar.bar && darkBar.bar.borderTop} link=${darkBar.bar && darkBar.bar.link}`);
+    await cdp.evaluate(chooseLayout("sidebar"));
+    await cdp.send("Emulation.setEmulatedMedia", { features: [] });
+    await sleep(400);
+
+    // ── INTERACTION STATES: only the ones the platform really implements ─────────────────────────
+    await cdp.navigate(`${surfaceUrl}/ww/en`);
+    await waitReady(cdp);
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await clickVisibleRailToggle(cdp);
+    await sleep(450);
+    const navRest = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: navRest.point.x, y: navRest.point.y });
+    await sleep(250);
+    const navHover = JSON.parse(await cdp.evaluate(APPEARANCE_NAV_STATE));
+    check(
+      rows,
+      "appearance.interaction.railNavHoverMovesToTheForegroundToken",
+      navRest.color === navRest.mutedForeground && navHover.color === navHover.foreground && navHover.hovered === true,
+      `rest=${navRest.color} hover=${navHover.color} hovered=${navHover.hovered} tokens=${navRest.mutedForeground}/${navRest.foreground}`,
+    );
+    await closeVisibleRail(cdp);
+    await sleep(300);
+
+    // The global focus ring is the ONE `--ring` rule: real Tab presses, then the focused element's
+    // own outline (the same idiom the existing focus scenario uses).
+    let ring = null;
+    for (let i = 0; i < 10 && !ring; i += 1) {
+      await cdp.pressKey("Tab");
+      await sleep(70);
+      ring = JSON.parse(await cdp.evaluate(APPEARANCE_RING_STATE));
+    }
+    check(
+      rows,
+      "appearance.interaction.focusRingResolvesToTheRingToken",
+      !!ring && ring.outlineStyle === "solid" && ring.outlineWidth === "2px" && ring.outlineColor === ring.ring,
+      `active=${ring && ring.tag} outline=${ring && ring.outlineStyle} ${ring && ring.outlineWidth} ${ring && ring.outlineColor} token=${ring && ring.ring}`,
+    );
+
+    // The ordinary footer's link hover, with real input: bring the first footer link well inside the
+    // viewport (the sticky bar owns the very bottom) before hovering it.
+    await cdp.evaluate(`(() => {
+      const link = document.querySelector('footer a');
+      if (!link) return false;
+      window.scrollTo(0, Math.max(0, Math.round(link.getBoundingClientRect().top + window.scrollY) - 220));
+      return true;
+    })()`);
+    await sleep(350);
+    const footerLinkPoint = JSON.parse(await cdp.evaluate(`(() => {
+      const link = document.querySelector('footer a');
+      if (!link) return 'null';
+      const r = link.getBoundingClientRect();
+      return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+    })()`));
+    const footerRest = JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE));
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: footerLinkPoint.x, y: footerLinkPoint.y });
+    await sleep(250);
+    const footerHover = JSON.parse(await cdp.evaluate(APPEARANCE_FOOTER_LINK_STATE));
+    check(
+      rows,
+      "appearance.interaction.footerLinkHoverResolvesToThePrimaryToken",
+      !!footerHover && footerHover.hovered === true && footerHover.color === footerHover.primary && footerRest.color !== footerHover.color,
+      `rest=${footerRest && footerRest.color} hover=${footerHover && footerHover.color} hovered=${footerHover && footerHover.hovered} token=${footerHover && footerHover.primary}`,
+    );
+    await cdp.evaluate("window.scrollTo(0, 0); true");
+
+  } catch (error) {
+    check(rows, "appearance.surface.scenario.error", false, String(error));
+  } finally {
+    if (cdp) await cdp.close();
+    await stopServer(surface);
+  }
+
+  // ── CONFIGURED PHASE: one test-owned configuration, one own server ────────────────────────────
+  // `ui.theme.background` (the only configured colour authority that exists) plus the two decorative
+  // graphic roles, pointed at SHIPPED mirrored placeholders. The config write lands in the disposable
+  // COPY and is restored here and by the runner's own `finally`.
+  const configuredPort = BASE_PORT + 601;
+  const configuredUrl = `http://localhost:${configuredPort}`;
+  const configuredConfig = patchShippedUi(JSON.parse(original));
+  configuredConfig.ui = {
+    ...(configuredConfig.ui ?? {}),
+    theme: { ...(configuredConfig.ui?.theme ?? {}), background: APPEARANCE_CONFIGURED_BACKGROUND },
+  };
+  configuredConfig.site = {
+    ...configuredConfig.site,
+    assets: {
+      ...(configuredConfig.site?.assets ?? {}),
+      backgrounds: { all: APPEARANCE_BACKGROUND_FIXTURE_URL },
+      footerGraphic: APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL,
+    },
+  };
+  await writeFile(CONFIG_PATH, JSON.stringify(configuredConfig, null, 2) + "\n", "utf8");
+
+  const configured = startDevServer(configuredPort);
+  let configuredCdp = null;
+  try {
+    await waitForServer(`${configuredUrl}/ww/en`);
+    configuredCdp = await Cdp.connect(chrome);
+    await configuredCdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await configuredCdp.navigate(`${configuredUrl}/ww/en`);
+    await waitReady(configuredCdp);
+    await closeVisibleRail(configuredCdp);
+    await sleep(300);
+    const themed = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    // The fixture's OWN input, stated as a rendered value (the one place a literal is the subject).
+    const configuredRgb = "rgb(0, 255, 0)";
+    check(
+      rows,
+      "appearance.configured.backgroundReachesTheRootToken",
+      (themed.htmlStyleAttribute ?? "").includes(`--background: ${APPEARANCE_CONFIGURED_BACKGROUND}`) &&
+        themed.tokens.background === configuredRgb,
+      `htmlStyle="${themed.htmlStyleAttribute}" token=${themed.tokens.background}`,
+    );
+    check(rows, "appearance.configured.bodyFollowsTheConfiguredBackground", themed.body.bg === configuredRgb, `body=${themed.body.bg}`);
+    check(rows, "appearance.configured.railFollowsTheConfiguredBackground", !!themed.rail && themed.rail.bg === configuredRgb, `rail=${themed.rail && themed.rail.bg}`);
+    check(rows, "appearance.configured.selectorFollowsTheConfiguredBackground", !!themed.selector && themed.selector.bg === configuredRgb, `selector=${themed.selector && themed.selector.bg}`);
+    check(rows, "appearance.configured.textKeepsTheForegroundToken", themed.body.color === themed.tokens.foreground && themed.headerColor === themed.tokens.foreground, `text=${themed.body.color}/${themed.headerColor} token=${themed.tokens.foreground}`);
+    check(
+      rows,
+      "appearance.configured.footerStaysTransparentOverTheCanvas",
+      !!themed.footer && themed.footer.bg === "rgba(0, 0, 0, 0)" && themed.footer.borderTop === themed.tokens.border,
+      `footer=${themed.footer && themed.footer.bg}/${themed.footer && themed.footer.borderTop}`,
+    );
+
+    // The Menu Bar surface follows the same configured authority.
+    await configuredCdp.evaluate(chooseLayout("menu-bar"));
+    await sleep(450);
+    const themedBar = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.configured.menuBarSurfaceFollowsTheConfiguredBackground",
+      !!themedBar.bar && themedBar.bar.bg === configuredRgb && themedBar.bar.box[2] >= themedBar.viewport.clientWidth - 1,
+      `bar=${themedBar.bar && themedBar.bar.bg} width=${themedBar.bar && themedBar.bar.box[2]}`,
+    );
+    await configuredCdp.evaluate(chooseLayout("sidebar"));
+    await sleep(400);
+
+    // ── THE DECORATIVE PAGE BACKGROUND (P12-BG) ──────────────────────────────────────────────────
+    const layer = themed.pageBackground;
+    check(rows, "appearance.watermark.exactlyOneLayer", themed.pageBackgroundCount === 1, `layers=${themed.pageBackgroundCount}`);
+    check(
+      rows,
+      "appearance.watermark.resolvesTheConfiguredAsset",
+      !!layer && layer.image.includes("/assets/header-graphic.svg"),
+      `image=${layer && layer.image}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.isAFixedViewportLayer",
+      !!layer &&
+        layer.mode === "fixed" &&
+        layer.box[0] === 0 &&
+        layer.box[1] === 0 &&
+        layer.box[2] >= themed.viewport.clientWidth - 1,
+      `mode=${layer && layer.mode} box=${layer && layer.box} clientW=${themed.viewport.clientWidth}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.coversCentredAndNeverRepeats",
+      !!layer && layer.size === "cover" && layer.position === "50% 50%" && layer.repeat === "no-repeat",
+      `size=${layer && layer.size} position=${layer && layer.position} repeat=${layer && layer.repeat}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.isInertAndDecorative",
+      !!layer && layer.pointerEvents === "none" && layer.ariaHidden === "true",
+      `pointerEvents=${layer && layer.pointerEvents} ariaHidden=${layer && layer.ariaHidden}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.stacksBehindTheContent",
+      !!layer && layer.zIndex === "-1" && themed.hitAtProse === "CONTENT",
+      `zIndex=${layer && layer.zIndex} hit=${themed.hitAtProse}`,
+    );
+    check(
+      rows,
+      "appearance.watermark.addsNoHorizontalOverflow",
+      themed.viewport.scrollWidth <= themed.viewport.clientWidth + 1,
+      `scroll=${themed.viewport.scrollWidth}/${themed.viewport.clientWidth}`,
+    );
+
+    // ── THE DECORATIVE FOOTER GRAPHIC (P12-FG), configured by the same fixture ───────────────────
+    const footerLayer = themed.footerGraphic;
+    check(rows, "appearance.footerGraphic.exactlyOneLayer", themed.footerGraphicCount === 1, `layers=${themed.footerGraphicCount}`);
+    check(
+      rows,
+      "appearance.footerGraphic.isAnInertAbsoluteLayerBehindFooterContent",
+      !!footerLayer &&
+        !footerLayer.image.includes("none") &&
+        footerLayer.mode === "absolute" &&
+        footerLayer.zIndex === "-1" &&
+        footerLayer.pointerEvents === "none" &&
+        footerLayer.ariaHidden === "true" &&
+        footerLayer.footerIsolation === "isolate",
+      `mode=${footerLayer && footerLayer.mode} z=${footerLayer && footerLayer.zIndex} pe=${footerLayer && footerLayer.pointerEvents} aria=${footerLayer && footerLayer.ariaHidden} isolate=${footerLayer && footerLayer.footerIsolation}`,
+    );
+    check(
+      rows,
+      "appearance.footerGraphic.doesNotReplaceTheFooterSurface",
+      !!themed.footer && themed.footer.bg === "rgba(0, 0, 0, 0)",
+      `footer=${themed.footer && themed.footer.bg}`,
+    );
+
+    // A page WITHOUT a page-specific entry still renders the GLOBAL (`all`) entry — the fallback the
+    // resolution contract documents, proved on a second route of the same server.
+    await configuredCdp.navigate(`${configuredUrl}/ww/en/about`);
+    await waitReady(configuredCdp);
+    await sleep(300);
+    const aboutPage = JSON.parse(await configuredCdp.evaluate(APPEARANCE_PROBE));
+    check(
+      rows,
+      "appearance.watermark.globalEntryCoversEveryPage",
+      aboutPage.pageBackgroundCount === 1 && aboutPage.pageBackground.image.includes("/assets/header-graphic.svg"),
+      `layers=${aboutPage.pageBackgroundCount} image=${aboutPage.pageBackground && aboutPage.pageBackground.image}`,
+    );
+  } catch (error) {
+    check(rows, "appearance.configured.scenario.error", false, String(error));
+  } finally {
+    if (configuredCdp) await configuredCdp.close();
+    await stopServer(configured);
+  }
+
+  // Deterministic cleanup: the configuration AND the task-owned prose fixture leave nothing behind.
+  await writeFile(CONFIG_PATH, original, "utf8");
+  await rm(prosePath, { force: true });
+  return rows;
+}
+
 async function runMatrix(chrome, scope) {
 /**
  * MULTISITE / MULTILINGUAL, IN A REAL BROWSER (FOUNDATION-S1).
@@ -6858,6 +7443,14 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(sidebarRows.map((r) => ({ presentation: "sidebar-state", ...r })));
       const sidebarFails = sidebarRows.filter((r) => !r.ok).length;
       console.log(`[matrix] sidebar-state: ${sidebarRows.length - sidebarFails}/${sidebarRows.length} checks passed${sidebarFails ? ` FAIL=${sidebarFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV3 — APPEARANCE CONTRACT: every documented surface resolves to the token
+      // NAV2 named it by (page, sidebar, header/selector, ordinary footer, Menu Bar), in the light and
+      // dark schemes, at desktop/tablet/mobile; plus one configured background/graphic fixture
+      // (own servers + task-owned fixtures, configuration and the task-owned page restored).
+      const appearanceRows = await runAppearanceContractScenario(chrome);
+      allRows = allRows.concat(appearanceRows.map((r) => ({ presentation: "appearance-contract", ...r })));
+      const appearanceFails = appearanceRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] appearance-contract: ${appearanceRows.length - appearanceFails}/${appearanceRows.length} checks passed${appearanceFails ? ` FAIL=${appearanceFails}` : ""}`);
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
