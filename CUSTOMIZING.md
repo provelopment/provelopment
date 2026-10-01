@@ -283,13 +283,18 @@ presentation at every viewport width (`navigation.mobile: "persistent-sidebar"`)
 collapsible rail ≥`lg`, a collapsed rail ≥`md`, and THE SAME rail below `md`, where the page frame
 keeps the rail and the content on one row (the content simply has less remaining width) rather than
 stacking the rail above the page — closed by default and reopened from its own Show/Hide navigation
-control, whose placement, scale and geometry never change with the viewport. The rail's two states
-are a LAYOUT contract, not merely a width change: CLOSED it reserves its narrow column and the page
-is laid out beside it; OPEN it expands to its accepted **220px as an OVERLAY** — the normal page
-geometry does not move, the document gets no wider, and the rail paints above the page. **Selecting a
-destination dismisses the overlay** (by pointer, by keyboard or by assistive technology — it is the
-link's own activation), so the destination is presented with the collapsed, sticky rail; the rail's
-own `Hide navigation` control still closes it without navigating. Viewport width does not substitute
+control, whose placement, scale and geometry never change with the viewport. The rail sits ON the page
+edge (it carries no outer shell gutter) and its two states are a LAYOUT contract, not merely a width
+change: CLOSED it reserves its narrow column and the page is laid out beside it; OPEN it keeps its
+accepted **220px**, and how the page coexists with it depends on the BAND. At **tablet and desktop
+widths the rail expands in the normal layout**, so the page's own column moves right and gets narrower
+— exactly what any in-flow column does — with no overlay and no overlap. At **mobile widths (below
+768px) the rail expands over the page as an opaque overlay**: the page keeps the geometry it had while
+the rail was closed, the document gets no wider, and the rail — painted with the site's own background
+colour — never lets page text show through it. **Selecting a destination dismisses an open rail in
+every band** (by pointer, by keyboard or by assistive technology — it is the link's own activation),
+so the destination is presented with the collapsed, sticky rail; the rail's own `Hide navigation`
+control still closes it without navigating. Viewport width does not substitute
 a drawer or a header disclosure, so Sidebar mode composes no drawer, no `Show navigation` band and no
 header affordance at all. Nothing in the shell scrolls sideways at the supported widths: the layout
 has a deliberate **320px floor** (`--ui-shell-min-inline-size`), so every width from 320px up — rail
@@ -559,11 +564,12 @@ and the same left-side vertical position.
   origin**: changing Site, Language or Location through the selector controls
   changes the URL and nothing else about the sidebar. With **no stored preference
   the canonical state is CLOSED**, and exactly TWO actions change it: the rail's
-  own disclosure control, and **selecting a destination inside the rail**. The
-  open sidebar is an OVERLAY, so choosing a page dismisses it — by pointer, by
-  keyboard or by assistive technology, and also when the destination is the page
+  own disclosure control, and **selecting a destination inside the rail**. Choosing a destination
+  dismisses an open rail — by pointer, by keyboard or by assistive
+  technology, and also when the destination is the page
   the visitor is already on — and the destination is presented with the collapsed,
-  sticky rail. No route DERIVES the state: no route, remount or breakpoint opens,
+  sticky rail (at tablet/desktop widths the page also returns to its full width; at
+  mobile widths the overlay is cleared). No route DERIVES the state: no route, remount or breakpoint opens,
   closes or resets the rail. The tablet and mobile bands follow the same
   preference and the same control. A missing,
   unusable or blocked stored value falls back to the canonical CLOSED state. A page

@@ -774,9 +774,10 @@ async function runAsidePresentation(rows, presentation, cdp) {
       // P6-1 — ONE vocabulary: open rail → "Hide navigation".
       check(rows, `${vpName}.aside.toggle.labelHide`, expanded.toggleText === "Hide navigation");
       if (vpName === "desktop") {
-        // P6-1 — edge spacing + second-level inset (control vs navigation items) is the DESKTOP rail's
-        // contract (the rows below are unchanged; only the state they are measured in is explicit now).
-        check(rows, `${vpName}.aside.spacing.railInset`, !!(expanded.railLeft != null && expanded.railLeft >= 16), `railLeft=${expanded.railLeft}`);
+        // P6-1 — edge placement + second-level inset (control vs navigation items) is the DESKTOP
+        // rail's contract. NAV1D-V3 — the rail now sits ON the page edge (the old ~20px shell gutter is
+        // gone), so the edge contract is the OPPOSITE of what it was: the rail's left edge is the page's.
+        check(rows, `${vpName}.aside.spacing.railOnThePageEdge`, !!(expanded.railLeft != null && expanded.railLeft <= 1), `railLeft=${expanded.railLeft}`);
         // NAV1D — SYMMETRICAL HORIZONTAL PADDING (owner ruling): the sidebar's left padding equals
         // its right padding, BOTH are the rail's own inline padding token, the control's box IS the
         // rail's content box, and the navigation rows use that SAME inset. The superseded contract
@@ -818,7 +819,15 @@ async function runAsidePresentation(rows, presentation, cdp) {
           itemInsetLeft != null && toggleInsetLeft != null && Math.abs(itemInsetLeft - toggleInsetLeft) <= 1,
           `item=${itemInsetLeft} toggle=${toggleInsetLeft}`,
         );
-        check(rows, `${vpName}.aside.spacing.noEdgeClip`, !!(expanded.itemLeft != null && expanded.itemLeft >= 24), `itemLeft=${expanded.itemLeft}`);
+        // NAV1D-V3 — the item's inset from the PAGE edge IS the rail's own padding: neither clipped at
+        // the edge nor pushed in by a second (shell) gutter. The old absolute threshold encoded the
+        // ~20px outer offset this task removed.
+        check(
+          rows,
+          `${vpName}.aside.spacing.itemInsetIsTheRailPadding`,
+          !!(expanded.itemLeft != null && railPadStart != null && Math.abs(expanded.itemLeft - railPadStart) <= 1),
+          `itemLeft=${expanded.itemLeft} railPad=${railPadStart}`,
+        );
       }
     } else {
       // immersive floating rail: static, expanded, no toggle (capability off).
@@ -977,7 +986,8 @@ const s = await cdp.evaluate(`(() => ({
           noBroken: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
         };
       })()`);
-      check(rows, `p6-1.${w}.railInset`, !!sp && sp.railLeft != null && sp.railLeft >= 16, `rail=${sp && sp.railLeft}`);
+      // NAV1D-V3 — the rail sits ON the page edge at every width (the old ~20px shell gutter is gone).
+      check(rows, `p6-1.${w}.railOnThePageEdge`, !!sp && sp.railLeft != null && sp.railLeft <= 1, `rail=${sp && sp.railLeft}`);
       // NAV1D — the SAME symmetry contract as the canonical desktop rail, at every width: the rail's
       // padding is equal on both sides, the control's box is its content box, and the navigation rows
       // share that one inset (the superseded "control ~5px, items 20px deeper" contract is gone).
@@ -4201,6 +4211,14 @@ const LAYOUT_PROBE = `(() => {
     presentedRailColumnPosition: railColumn ? getComputedStyle(railColumn).position : null,
     presentedRailColumnTop: railColumnRect ? Math.round(railColumnRect.top) : null,
     presentedRailCollapsed: railEl ? railEl.getAttribute('data-collapsed') : null,
+    // NAV1D-V3 — the rail's SURFACE: how opaque it is, and the colour the site's ONE background
+    // authority owns (the same token the header consumes, and the value ui.theme.background sets).
+    presentedRailBackgroundColor: railCs ? railCs.backgroundColor : null,
+    presentedRailBackgroundImage: railCs ? railCs.backgroundImage : null,
+    presentedRailOpacity: railCs ? railCs.opacity : null,
+    tokenBackground: getComputedStyle(document.documentElement)
+      .getPropertyValue("--background")
+      .trim(),
     // NAV1D — the room the control's box has inside its clipping column: the global focus ring is
     // 2px wide at a 2px offset, so >= 4px on every side is "the ring can be painted in full".
     ringRoomLeft:
@@ -4716,12 +4734,62 @@ async function runLayoutSwitcherScenario(chrome) {
       await settle();
     }
 
-    // ── NAV1D-V2 — THE OPEN RAIL OVERLAYS THE PAGE ──────────────────────────────────────────────
-    // The owner's contract: opening the rail must NOT expand the page's own layout column. The page
-    // geometry before and after opening is therefore IDENTICAL, the document's own width does not
-    // change, the expanded rail keeps its accepted 220px, and it wins the hit test inside its own
-    // area (the page never paints above it).
-    for (const [width, height] of [[1280, 900], [900, 800], [768, 820], [390, 844], [360, 740], [320, 700]]) {
+    // ── NAV1D-V3 — THE CLOSED RAIL SITS ON THE PAGE EDGE, WITH SYMMETRIC ICON GAPS ──────────────
+    // The owner's contract for a closed rail, at every band: the rail occupies the page edge (the old
+    // ~20px shell gutter is gone) and the 24px control is centred between that edge and the divider,
+    // keeping the accepted ~5–6px on its left exactly as on its right. The accepted internal padding
+    // (6px / 6px minus the 1px border) is asserted, not the outer placement it used to be confused
+    // with. The rail must also still fit the viewport's content box with no horizontal scrollbar.
+    for (const [width, height] of [[1280, 900], [900, 800], [768, 820], [767, 820], [390, 844], [320, 700]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      await closeVisibleRail(cdp);
+      await settle();
+      const probe = await cdp.evaluate(LAYOUT_PROBE);
+      const tag = `nav1d.v3.closedEdge.w${width}`;
+      const iconGapLeft =
+        probe && probe.presentedRailToggleBox ? probe.presentedRailToggleBox[0] - probe.presentedRailBox[0] : null;
+      const iconGapRight =
+        probe && probe.presentedRailToggleBox ? probe.presentedRailBox[1] - 1 - probe.presentedRailToggleBox[1] : null;
+      check(
+        rows,
+        `${tag}.railOnThePageEdge`,
+        !!probe && probe.presentedRailBox != null && probe.presentedRailBox[0] <= 1 && probe.presentedRailWidth === 36,
+        `railLeft=${probe && probe.presentedRailBox && probe.presentedRailBox[0]} railW=${probe && probe.presentedRailWidth}`,
+      );
+      check(
+        rows,
+        `${tag}.iconCentredBetweenEdgeAndDivider`,
+        iconGapLeft != null && iconGapRight != null && Math.abs(iconGapLeft - iconGapRight) <= 1,
+        `left=${iconGapLeft} right(divider)=${iconGapRight}`,
+      );
+      check(
+        rows,
+        `${tag}.acceptedInternalPadding`,
+        !!probe && probe.presentedRailPadInline && probe.presentedRailPadInline[0] === 6 && probe.presentedRailPadInline[1] === 5,
+        `pad=${probe && probe.presentedRailPadInline}`,
+      );
+      check(
+        rows,
+        `${tag}.noHorizontalScrollbar`,
+        !!probe && probe.documentOverflowClient <= 1,
+        `scrollW=${probe && probe.documentScrollWidth} overflow=${probe && probe.documentOverflowClient}`,
+      );
+    }
+
+    // ── NAV1D-V3 — AN OPEN RAIL: IN FLOW AT ≥768, AN OVERLAY BELOW IT ───────────────────────────
+    // The owner's band contract, with the 768/767 boundary asserted on both sides: desktop and tablet
+    // EXPAND THE RAIL IN THE PAGE LAYOUT (the page's x-position and width change, and the rail never
+    // covers the content), while mobile OVERLAYS the page (the page keeps the geometry it had while
+    // the rail was closed, and the document gains no width).
+    for (const [width, height, mode] of [
+      [1280, 900, "in-flow"],
+      [900, 800, "in-flow"],
+      [768, 820, "in-flow"],
+      [767, 820, "overlay"],
+      [390, 844, "overlay"],
+      [320, 700, "overlay"],
+    ]) {
       await cdp.setViewport(width, height);
       await settle();
       await closeVisibleRail(cdp);
@@ -4730,7 +4798,7 @@ async function runLayoutSwitcherScenario(chrome) {
       const opened = await clickVisibleRailToggle(cdp);
       await settle();
       const open = await cdp.evaluate(LAYOUT_PROBE);
-      const tag = `nav1d.v2.overlay.w${width}`;
+      const tag = `nav1d.v3.open.w${width}`;
       check(rows, `${tag}.railOpened`, opened === true && !!open && open.presentedRailCollapsed === "false", `collapsed=${open && open.presentedRailCollapsed}`);
       check(
         rows,
@@ -4740,30 +4808,78 @@ async function runLayoutSwitcherScenario(chrome) {
       );
       check(
         rows,
-        `${tag}.pageGeometryUnchanged`,
-        !!closed &&
-          !!open &&
-          closed.mainLeft === open.mainLeft &&
-          closed.mainWidth === open.mainWidth &&
-          closed.presentedRailBox[0] === open.presentedRailBox[0],
-        `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, railLeft ${closed && closed.presentedRailBox && closed.presentedRailBox[0]} -> ${open && open.presentedRailBox && open.presentedRailBox[0]}`,
+        `${tag}.openUsesThe${mode === "in-flow" ? "InFlow" : "Overlay"}Layout`,
+        !!open && open.presentedRailPosition === (mode === "in-flow" ? "static" : "absolute"),
+        `position=${open && open.presentedRailPosition}`,
       );
+      if (mode === "in-flow") {
+        // IN FLOW: the page's own column moves right and shrinks by exactly the rail's growth, and the
+        // rail never covers it — the page begins at the rail's right edge.
+        check(
+          rows,
+          `${tag}.pageGeometryFollowsTheRail`,
+          !!closed &&
+            !!open &&
+            open.mainLeft === closed.mainLeft + (220 - 36) &&
+            open.mainWidth === closed.mainWidth - (220 - 36) &&
+            open.mainLeft >= open.presentedRailBox[1] - 1,
+          `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, railRight=${open && open.presentedRailBox && open.presentedRailBox[1]}`,
+        );
+        check(
+          rows,
+          `${tag}.noHorizontalScrollbar`,
+          !!open && open.documentOverflowClient <= 1,
+          `scrollW=${open && open.documentScrollWidth} overflow=${open && open.documentOverflowClient}`,
+        );
+      } else {
+        // OVERLAY: the page keeps the geometry it had while the rail was closed, and the document's
+        // own width does not change merely because the rail opened.
+        check(
+          rows,
+          `${tag}.pageGeometryUnchanged`,
+          !!closed &&
+            !!open &&
+            closed.mainLeft === open.mainLeft &&
+            closed.mainWidth === open.mainWidth &&
+            closed.presentedRailBox[0] === open.presentedRailBox[0] &&
+            open.documentScrollWidth === closed.documentScrollWidth &&
+            open.documentOverflowClient <= 1,
+          `main ${closed && closed.mainLeft}/${closed && closed.mainWidth} -> ${open && open.mainLeft}/${open.mainWidth}, scrollW ${closed && closed.documentScrollWidth} -> ${open && open.documentScrollWidth}`,
+        );
+        // …and the overlay's surface is OPAQUE, so page text behind it cannot blend through the
+        // navigation's text: no alpha channel, no opacity on the rail, no image layer.
+        check(
+          rows,
+          `${tag}.overlayIsOpaque`,
+          !!open &&
+            /^rgb\(/.test(String(open.presentedRailBackgroundColor)) &&
+            open.presentedRailOpacity === "1" &&
+            open.presentedRailBackgroundImage === "none",
+          `bg=${open && open.presentedRailBackgroundColor} opacity=${open && open.presentedRailOpacity} image=${open && open.presentedRailBackgroundImage} token=${open && open.tokenBackground}`,
+        );
+        check(
+          rows,
+          `${tag}.railPaintsAboveThePage`,
+          !!open && open.railOverlayHit === true && open.pageHitOverRail === true,
+          `overlayHit=${open && open.railOverlayHit} pageHit=${open && open.pageHitOverRail}`,
+        );
+      }
+      // The Hide-navigation control keeps its accepted 20/20 inset inside the open rail (equal within
+      // the rail's own 1px divider border) and stays usable in every band.
+      const hideInsetLeft =
+        open && open.presentedRailToggleBox && open.presentedRailBox
+          ? open.presentedRailToggleBox[0] - open.presentedRailBox[0]
+          : null;
+      const hideInsetRight =
+        open && open.presentedRailToggleBox && open.presentedRailBox
+          ? open.presentedRailBox[1] - open.presentedRailToggleBox[1]
+          : null;
       check(
         rows,
-        `${tag}.documentWidthNotIncreasedByOpening`,
-        !!closed &&
-          !!open &&
-          open.documentOverflowClient <= 1 &&
-          closed.documentScrollWidth === open.documentScrollWidth,
-        `scrollW ${closed && closed.documentScrollWidth} -> ${open && open.documentScrollWidth} overflow=${open && open.documentOverflowClient}`,
+        `${tag}.hideControlInsetBalanced`,
+        hideInsetLeft === 20 && hideInsetRight != null && Math.abs(hideInsetLeft - hideInsetRight) <= 1,
+        `left=${hideInsetLeft} right=${hideInsetRight} railPad=${open && open.presentedRailPadInline}`,
       );
-      check(
-        rows,
-        `${tag}.railPaintsAboveThePage`,
-        !!open && open.railOverlayHit === true && open.pageHitOverRail === true,
-        `overlayHit=${open && open.railOverlayHit} pageHit=${open && open.pageHitOverRail}`,
-      );
-      // The Hide-navigation control is INSIDE the overlaid rail and stays usable there.
       check(
         rows,
         `${tag}.hideControlUsable`,
@@ -4773,6 +4889,47 @@ async function runLayoutSwitcherScenario(chrome) {
       await closeVisibleRail(cdp);
       await settle();
     }
+
+    // ── NAV1D-V3 — THE RAIL'S BACKGROUND COMES FROM THE SITE'S ONE AUTHORITY ────────────────────
+    // The adopter-owned `ui.theme.background` reaches the stylesheet as `--background` on `<html>`
+    // (FS-5; see `src/app/[...segments]/layout.tsx`). Overriding THAT token at runtime must therefore
+    // change the rail's surface — which is what proves the rail consumes the site's ONE authority
+    // rather than a colour of its own.
+    await cdp.setViewport(390, 844);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
+    await clickVisibleRailToggle(cdp);
+    await settle();
+    const baselineBackground = await cdp.evaluate(LAYOUT_PROBE);
+    const overridden = await cdp.evaluate(`(() => {
+      document.documentElement.style.setProperty('--background', '#ff00ff');
+      return true;
+    })()`);
+    await settle();
+    const afterOverride = await cdp.evaluate(LAYOUT_PROBE);
+    check(
+      rows,
+      "nav1d.v3.background.followsTheConfiguredAuthority",
+      overridden === true &&
+        !!afterOverride &&
+        afterOverride.presentedRailBackgroundColor === "rgb(255, 0, 255)" &&
+        afterOverride.presentedRailBackgroundColor !==
+          (baselineBackground && baselineBackground.presentedRailBackgroundColor),
+      `before=${baselineBackground && baselineBackground.presentedRailBackgroundColor} after=${afterOverride && afterOverride.presentedRailBackgroundColor}`,
+    );
+    check(
+      rows,
+      "nav1d.v3.background.railMatchesTheDocumentedToken",
+      !!baselineBackground &&
+        baselineBackground.presentedRailBackgroundColor === "rgb(255, 255, 255)" &&
+        ["#fff", "#ffffff"].includes(String(baselineBackground.tokenBackground).toLowerCase()),
+      `rail=${baselineBackground && baselineBackground.presentedRailBackgroundColor} token=${baselineBackground && baselineBackground.tokenBackground}`,
+    );
+    await cdp.evaluate(`(() => { document.documentElement.style.removeProperty('--background'); return true; })()`);
+    await settle();
+    await closeVisibleRail(cdp);
+    await settle();
 
     // ── NAV1D-V2 — BELOW THE SUPPORTED BOUNDARY (< 320) ─────────────────────────────────────────
     // The layout keeps its deliberate 320px floor instead of deforming, and the VIEWPORT scrolls

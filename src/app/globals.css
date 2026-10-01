@@ -857,9 +857,24 @@ html[data-ui-hero="showcase"] .home-hero {
   --ui-focus-ring-room: 0.25rem;
 }
 
-.ui-shell-sidebar {
-  margin-inline-start: 1.25rem;
-}
+/* NAV1D-V3 — THE RAIL SITS ON THE PAGE EDGE, NOT BEHIND A SHELL GUTTER.
+ *
+ * The rail's frame used to carry `margin-inline-start: 1.25rem` (20px). THAT offset is what the owner
+ * saw, and it is the whole of the defect: CLOSED, the 24px control appeared ~20px in from the page
+ * edge while it kept only the accepted ~5–6px on the divider side, so the icon looked pushed in from
+ * the left rather than centred between the two edges; OPEN, the same 20px added to the rail's own
+ * 20px padding, so the left distance around `Hide navigation` looked two to three times the right one.
+ * The offset is the rail's OUTER placement — not its internal padding (6px left / 5px right, which the
+ * owner accepts and which stays exactly as it is) and not the control's inset (which is the owner-
+ * accepted 20/20 in the open rail and is untouched).
+ *
+ * Removing it needs NO compensation, which is why there is no rule here any more: no negative margin,
+ * no per-control re-anchoring, no asymmetric positioning, no change to the collapsed paddings, to the
+ * 24px control, to the rail's widths or to its divider. The frame and the rail simply begin where the
+ * page begins, and — because the rail is the first thing in the page frame's row — the content column
+ * begins after the rail. Seen from the content's side that is the same correction: the page's own
+ * content sits 20px further left than it used to, immediately beside the persistent rail instead of
+ * behind a gutter. */
 
 /* Full-height rail (P6-3B): frame → band child → rail all fill the shell row. */
 .ui-shell-sidebar > div {
@@ -913,9 +928,36 @@ html[data-ui-hero="showcase"] .home-hero {
   }
 }
 
+/* NAV1D-V3 — THE RAIL'S SURFACE IS OPAQUE, AND ITS COLOUR IS THE SITE'S ONE BACKGROUND AUTHORITY.
+ *
+ * The rail was a transparent column, so it LOOKED like the page simply because the page's own
+ * background showed through it. That is harmless while it sits beside the content, and wrong the
+ * moment it covers content: the MOBILE band's open rail is an overlay, and page text behind it was
+ * blending into the navigation's text (the owner's defect).
+ *
+ * The fix is ONE declaration on the ONE surface, and its colour is not invented here. A shell surface
+ * already paints itself with the site's background token — the header does exactly this (it is
+ * `.ui-shell-top`, and its only background declaration is `background-color: var(--background)`) —
+ * and that token is the adopter-owned
+ * page/background colour: `ui.theme.background` in `site.config.json` (FS-5) is resolved into the
+ * `--background` CSS variable on `<html>` (see `src/app/[...segments]/layout.tsx`), which the body,
+ * the header and now the rail all consume. So there is exactly ONE authority behind all four of the
+ * states the owner named:
+ *
+ *     ui.theme.background (or the canonical :root / dark default)
+ *                 ↓                     ↓                        ↓
+ *        closed rail        open desktop/tablet rail        open mobile overlay
+ *
+ * Nothing about the rail's geometry, padding, border, widths or stacking changes: the surface it
+ * already had is simply painted with the colour it already appeared to have, and the value follows the
+ * configuration. `--background` is an opaque colour token by construction (`#ffffff` in the light
+ * scheme, `#0f172a` in the dark one, or whatever hex an adopter configures), the rail's own `opacity`
+ * is never touched, and no ancestor applies transparency to it — so an opened overlay cannot let page
+ * content through. */
 .ui-sidebar-rail {
   width: var(--ui-sidebar-rail-expanded);
   height: 100%;
+  background-color: var(--background);
   /* Vertical rhythm lives INSIDE the rail so its right border spans the FULL
    * shell-row height (not just the content height). */
   padding-block: 1rem 1.5rem;
@@ -931,44 +973,52 @@ html[data-ui-hero="showcase"] .home-hero {
   transition: width 200ms ease;
 }
 
-/* ── NAV1D-V2 — THE OPEN SIDEBAR OVERLAYS THE PAGE ────────────────────────────────────────────
+/* ── NAV1D-V2 / NAV1D-V3 — THE OPEN RAIL AT ≥md IS IN-FLOW; BELOW md IT IS AN OVERLAY ─────────
  *
- * THE CONTRACT (owner decision): opening the rail must NOT expand the page's own layout column. The
- * normal page geometry stays exactly where it is, and the expanded rail is painted ABOVE it — the
- * rail overlays the page instead of pushing the content aside. Closing it returns to the same
- * geometry, because the geometry never changed.
+ * THE CONTRACT (owner decision, NAV1D-V3). The closed rail is persistent and identical in every band.
+ * Opening it differs BY BAND, and the bands are the shell's own width bands — not a second breakpoint
+ * vocabulary:
  *
- * HOW, and why it is only this much:
- *  - the rail's FRAME (`.ui-shell-sidebar`, the engine's flex item) keeps the COLLAPSED rail's width
- *    for as long as the rail is collapsible — that is the width the page layout reserves, and it is
- *    the SAME in both states, so nothing in the row moves when the visitor opens or closes the rail;
- *  - the rail itself leaves the flow inside that frame and is anchored to the frame's own axis:
- *    `inset-inline-start: 0` keeps the exact left edge it had in flow, and `inset-block: 0` gives it
- *    the frame's full height (the shell row's height, i.e. the page's), so its sticky content column
- *    still pins while the page scrolls — the DIVIDER and the full-height box are unchanged;
+ *   · DESKTOP (≥lg) and TABLET (md…lg) — opening the rail changes the NORMAL LAYOUT: the rail
+ *     occupies its accepted 220px in the page frame's row and the content column takes what is left,
+ *     so the page's x-position and width change exactly as they do for any in-flow column. No
+ *     overlay, no leaving the flow, no reserved collapsed column: the frame simply follows the rail's
+ *     own width (`--ui-sidebar-rail-expanded` / `--ui-sidebar-rail-collapsed`), which is why these
+ *     bands need no rule here at all.
+ *   · MOBILE (<md) — opening the rail must NOT move the page: the rail's frame keeps the COLLAPSED
+ *     column's width in both states, and the rail leaves the flow inside it to be painted ABOVE the
+ *     page. The rule set below is that band's implementation.
+ *
+ * HOW THE MOBILE OVERLAY WORKS (unchanged from NAV1D-V2, now scoped to its band):
+ *  - the frame keeps the collapsed rail's width in BOTH states, so nothing in the row moves;
+ *  - the rail is anchored to the frame's own axis — `inset-inline-start: 0` keeps the exact left edge
+ *    it has in flow, `inset-block: 0` gives it the frame's full height (the shell row's height, i.e.
+ *    the page's), so its sticky content column still pins while the page scrolls and its divider
+ *    still spans the row;
  *  - it takes the persistent-navigation band of the existing stacking system (`z-index: 30`, the
  *    value the shell's top region itself uses when IT is the persistent navigation), so the expanded
- *    rail paints above ordinary page content and above the page's own header while staying well below
- *    the disclosure overlays (40/50) that own modal layers. No new z-index vocabulary is invented;
- *  - the rail's own width is untouched: still `--ui-sidebar-rail-expanded` (220px) when open, still
- *    `--ui-sidebar-rail-collapsed` (36px) when closed, at every viewport width. Only the PAGE's
- *    geometry stops depending on which of the two it is.
+ *    rail paints above ordinary page content while staying well below the disclosure overlays (40/50)
+ *    that own modal layers. No new z-index vocabulary is invented;
+ *  - it is OPAQUE (see the rail's own background, below), so the page beneath it can never blend
+ *    through its text and controls.
  *
- * SCOPE. `:has(.ui-sidebar-toggle)` restricts this to a rail that HAS the visitor's disclosure — the
- * collapsible rail every sidebar composition presents. A composition whose rail is NOT collapsible
- * (the immersive `floating` aside, a custom static rail) keeps its accepted in-flow, always-expanded
- * layout untouched, and so does every non-sidebar composition. */
-.ui-shell-sidebar:has(.ui-sidebar-toggle) {
-  position: relative;
-  /* The width the row reserves for the rail: the collapsed column, in BOTH states. */
-  width: var(--ui-sidebar-rail-collapsed);
-}
+ * SCOPE. `:has(.ui-sidebar-toggle)` restricts the overlay to a rail that HAS the visitor's disclosure
+ * — the collapsible rail every sidebar composition presents. A composition whose rail is NOT
+ * collapsible (the immersive `floating` aside, a custom static rail) keeps its accepted in-flow,
+ * always-expanded layout untouched, and so does every non-sidebar composition. */
+@media (max-width: 47.999rem) {
+  .ui-shell-sidebar:has(.ui-sidebar-toggle) {
+    position: relative;
+    /* The width the row reserves for the rail: the collapsed column, in BOTH states. */
+    width: var(--ui-sidebar-rail-collapsed);
+  }
 
-.ui-shell-sidebar:has(.ui-sidebar-toggle) .ui-sidebar-rail {
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  z-index: 30;
+  .ui-shell-sidebar:has(.ui-sidebar-toggle) .ui-sidebar-rail {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    z-index: 30;
+  }
 }
 
 /* ── UI1-A2 — THE BOOT PRESENTATION BRIDGE (canonical CLOSED rail, presented as OPEN) ────────────

@@ -528,7 +528,7 @@ export async function run(chrome, harness) {
     const closedAfterSelection = JSON.parse(await cdp.evaluate(DISCLOSURE_PROBE));
     check(
       rows,
-      "reference.disclosure.selectionDismissesTheOpenOverlay",
+      "reference.disclosure.selectionDismissesTheOpenRail",
       !!navigatedFromOpenOverlay &&
         closedAfterSelection.collapsed === "true" &&
         closedAfterSelection.rail.w <= 64 &&

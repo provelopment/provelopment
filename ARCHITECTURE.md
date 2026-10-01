@@ -1505,43 +1505,52 @@ which exists so a deployment can demonstrate the same site in two presentations.
   removed the mode control below `md` because there was "nothing to switch", and left the
   sidebar layout's bottom bar stacking its links one per row. No pre-existing mode was
   repurposed, and no navigation data is duplicated.
-- **A viewport may not SUBSTITUTE a different navigation for the mode** (NAV1D). Changing HOW a
-  mode is presented is not a licence to present something else: the sidebar preset used to name
-  the capability's off-canvas drawer (`navigation.mobile: "drawer"`) and so, below `md`, replaced
-  the sidebar with a `Show navigation` disclosure band — a substitute the owner rejects, because
-  the site's navigation had become a button rather than the sidebar. The preset therefore names
-  `persistent-sidebar`, the ONE `navigation.mobile` value meaning "the SAME persistent rail, here
-  too": the three rail bands (mobile `<md`, tablet `md…lg`, desktop `≥lg`) render from ONE
-  composition, with byte-identical rail markup per band and a single visitor-owned state, and the
-  page frame is a wrapping row at every width, so the rail sits BESIDE the content there instead of
-  stacking above it. Adding that value is a vocabulary extension made in the ONE place the closed
-  vocabularies live (`@/core/ui/vocabulary.ts`; the schema derives from it), and it is deliberately
-  NOT called `sidebar`, so each tier's vocabulary stays disjoint (`ui-architecture.test.ts`).
-  Sidebar mode consequently composes no drawer, no disclosure band, no trigger and no dialog at
-  all; the generic `Drawer`/`OverlayNavigation` capability, and a site that explicitly configures
+- **A VIEWPORT MAY NOT SUBSTITUTE A DIFFERENT NAVIGATION FOR THE MODE, AND WHERE AN OPEN RAIL PUTS
+  THE PAGE IS A PER-BAND CONTRACT** (NAV1D, corrected by NAV1D-V3). Changing HOW a mode is presented
+  is not a licence to present something else: the sidebar preset used to name the capability's
+  off-canvas drawer (`navigation.mobile: "drawer"`) and so, below `md`, replaced the sidebar with a
+  `Show navigation` disclosure band — a substitute the owner rejects, because the site's navigation
+  had become a button rather than the sidebar. The preset therefore names `persistent-sidebar`, the
+  ONE `navigation.mobile` value meaning "the SAME persistent rail, here too": the three rail bands
+  (mobile `<md`, tablet `md…lg`, desktop `≥lg`) render from ONE composition, with byte-identical rail
+  markup per band and a single visitor-owned state, and the page frame is a wrapping row at every
+  width. Adding that value is a vocabulary extension made in the ONE place the closed vocabularies
+  live (`@/core/ui/vocabulary.ts`; the schema derives from it), and it is deliberately NOT called
+  `sidebar`, so each tier's vocabulary stays disjoint (`ui-architecture.test.ts`). Sidebar mode
+  consequently composes no drawer, no disclosure band, no trigger and no dialog at all; the generic
+  `Drawer`/`OverlayNavigation` capability, and a site that explicitly configures
   `navigation.mobile: "drawer"`, are untouched.
-- **THE RAIL'S TWO STATES ARE A LAYOUT CONTRACT, AND OPEN MEANS OVERLAY** (NAV1D-V2 — owner
-  decisions). The three bands are RETAINED as separate surfaces, deliberately, for future
-  configurability; today they render from the ONE composition and behave identically. CLOSED, the
-  rail reserves its narrow column and the page is laid out beside it. OPEN, the rail expands to its
-  accepted 220px **as an overlay**: the rail's frame reserves the SAME narrow column in both states,
-  so the page's own geometry never moves and the document never gets wider, and the rail leaves the
-  flow inside that frame (`inset-inline-start: 0` keeps its left edge, `inset-block: 0` gives it the
-  frame's full height so its sticky column still pins) on the persistent-navigation stacking band
-  (`z-index: 30`, the value the shell's top region itself uses). It is scoped by the disclosure
-  control's presence (`:has(.ui-sidebar-toggle)`), so a non-collapsible rail and every non-sidebar
-  composition keep their accepted in-flow presentation. **SELECTING a destination dismisses the
-  overlay**: the close goes through the rail's ONE state owner (`Sidebar.apply`, shared with the
-  disclosure control), is decided by the SELECTION rather than by the route — so it also closes for
-  the page the visitor is already on, and never depends on a breakpoint — and is reachable by
-  pointer, keyboard and assistive technology alike, because it is one delegated click listener on
-  the rail's own panel. `NavItem` stays plain data + href, and no routing API enters the state
-  modules.
+- **THE CLOSED RAIL IS IDENTICAL IN EVERY BAND; OPENING IT DIFFERS BY BAND** (NAV1D-V2, corrected by
+  NAV1D-V3 — owner decisions). The three bands are RETAINED as separate surfaces, deliberately, for
+  future configurability; today they render from the ONE composition. CLOSED, the rail is persistent
+  at the PAGE EDGE in every band (it carries no outer shell gutter: any such offset is a placement
+  defect, not a padding one). OPEN, the rail keeps its accepted 220px and the band decides how the
+  page coexists with it: at `md` and above — tablet AND desktop — the rail expands **IN FLOW**, so the
+  page's x-position and width change exactly as they do for any in-flow column and the rail never
+  covers the content; below `md` — mobile — the rail leaves the flow and is painted **above** the
+  page, so the page keeps the geometry it had while the rail was closed and the document gains no
+  width. Only the mobile band has overlay stacking, and it is the existing persistent-navigation band
+  (`z-index: 30`, the value the shell's top region itself uses) — no new z-index vocabulary and no
+  window-measuring JavaScript, because the shell's own width bands own the distinction. **SELECTING a
+  destination dismisses an open rail in every band**: the close goes through the rail's ONE state
+  owner (`Sidebar.apply`, shared with the disclosure control), is decided by the SELECTION rather than
+  by the route — so it also closes for the page the visitor is already on, and never depends on a
+  breakpoint — and is reachable by pointer, keyboard and assistive technology alike, because it is one
+  delegated click listener on the rail's own panel. `NavItem` stays plain data + href, and no routing
+  API enters the state modules.
+- **THE RAIL'S SURFACE IS OPAQUE AND ITS COLOUR IS THE SITE'S ONE BACKGROUND AUTHORITY** (NAV1D-V3).
+  The rail used to be a transparent column — it looked like the page only because the page's own
+  background showed through it — which is wrong the moment it covers content. It now paints itself
+  with `--background`, the same token the body and the shell's top region consume and the one the
+  adopter-owned `ui.theme.background` (FS-5) resolves onto `<html>`. So one authority governs the
+  closed rail, an open desktop/tablet rail and the mobile overlay alike; nothing about the rail's
+  geometry, padding, divider or stacking changes, and an opened overlay can never let page content
+  blend through its text.
 - **THE PAGE LAYOUT HAS A DELIBERATE MINIMUM WIDTH** (NAV1D-V2). `--ui-shell-min-inline-size`
   (320px, the platform's established support boundary) is applied to the shell frame only BELOW that
   boundary. At and above it the layout fits the viewport's own content box — no horizontal scrollbar,
-  with the rail closed or with the overlay open — and a narrower viewport scrolls horizontally
-  instead of deforming the layout.
+  with the rail closed or open — and a narrower viewport scrolls horizontally instead of deforming the
+  layout.
 - **MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH** (NAV1B). The top navigation bar
   presentation is no longer part of Menu Bar mode: the layout's preset also CLOSES its ≥md top
   menu (`topMenu: "closed"` — the shipped three-state menu contract), so no ≥md header

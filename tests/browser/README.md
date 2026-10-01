@@ -190,10 +190,10 @@ tree stays clean.
   and the desktop band share ONE state, a Site switch does not partition it, the
   Layout switcher is independent of it, and at `<md` the SAME rail carries that state — the
   stored preference opens the RAIL there too, so no drawer or bottom bar becomes a second,
-  ephemeral authority over the visitor's choice (NAV1D). NAV1D-V2 — SELECTING a destination inside
-  the rail dismisses the open overlay through that same state owner: the scenario proves the close
+  ephemeral authority over the visitor's choice (NAV1D). NAV1D-V2/V3 — SELECTING a destination inside
+  the rail dismisses an open rail through that same state owner: the scenario proves the close
   for a route change, for the page the visitor is already on, and for keyboard activation, and that
-  the destination is presented with the collapsed STICKY rail (never an open overlay, never a
+  the destination is presented with the collapsed STICKY rail (never an open rail, never a
   re-open). Since FOUNDATION-UI1-A1 the scenario
   judges the whole navigation INTERVAL rather than its end state: a transition
   observer records every `data-collapsed` write on a rail and every `width`
@@ -257,11 +257,17 @@ tree stays clean.
   and the rail's padding are identical to the desktop band's, because the breakpoint changes WHICH
   band presents the rail, not WHAT the rail is; and the header's two semantic rows keep their
   ownership at the same widths — through real resize transitions and real mode switches made while
-  already at a phone width (no stale dialog, no scroll lock, no substituted surface). NAV1D-V2 — the
-  OPEN rail is measured as an OVERLAY: its accepted 220px, the page's content column and the rail's
-  left edge IDENTICAL before and after opening, the document's own width unchanged by opening, the
-  rail winning the hit test inside its own area, and the Hide control still usable; the CLOSED layout
-  is proved free of a horizontal scrollbar at all eight widths (measured against the viewport's
+  already at a phone width (no stale dialog, no scroll lock, no substituted surface). NAV1D-V3 — the
+  CLOSED rail is measured on the PAGE EDGE at every width (no ~20px shell gutter) with the 24px control
+  centred between that edge and the divider and the accepted 6px/5px padding intact; the OPEN rail is
+  measured per band, with the 768/767 boundary asserted on both sides: at and above `md` it expands IN
+  FLOW (the page's x-position and width change by exactly the rail's growth, the rail never covers the
+  content, and the Hide control keeps its balanced 20/20 inset), while below `md` it is an opaque
+  OVERLAY (the page keeps its closed geometry, the document gains no width, the rail wins the hit test
+  inside its own area, and its surface has no alpha channel, no opacity and no image layer); and the
+  rail's colour is proved to follow the site's ONE background authority by overriding `--background`
+  at runtime. The CLOSED layout is proved free of a horizontal scrollbar at all eight widths
+  (measured against the viewport's
   content box), and a deliberate below-boundary width (300px) proves the 320px floor: the layout keeps
   its geometry, the viewport scrolls, and the rail stays functional. The Menu Bar
   surface is measured too: its sticky surface spans the viewport and its navigation region uses the

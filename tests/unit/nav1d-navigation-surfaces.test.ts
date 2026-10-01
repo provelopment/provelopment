@@ -53,6 +53,12 @@ const engineSource = readFileSync(
   path.join(process.cwd(), "src", "components", "shell", "shell-engine.tsx"),
   "utf8",
 );
+// NAV1D-V3 — the adopter-owned background authority the rail's surface now consumes, and the file
+// that resolves `ui.theme.background` into it.
+const layoutSource = readFileSync(
+  path.join(process.cwd(), "src", "app", "[...segments]", "layout.tsx"),
+  "utf8",
+);
 const barSource = readFileSync(
   path.join(process.cwd(), "src", "components", "shell", "shell-bottom-bar.tsx"),
   "utf8",
@@ -310,38 +316,82 @@ describe("NAV1D — the Menu Bar surface spans the viewport", () => {
 });
 
 /**
- * NAV1D-V2 — THE OPEN SIDEBAR OVERLAYS THE PAGE (owner decision).
+ * NAV1D-V2 / NAV1D-V3 — WHERE AN OPEN SIDEBAR PUTS THE PAGE, AND WHAT ITS SURFACE IS.
  *
- * The rail's expanded state must not expand the page's own layout column: the normal page geometry
- * stays where it is and the expanded rail paints above it. The three bands stay separate surfaces
- * (for future configurability) and currently behave identically, and the state keeps its ONE owner —
- * which is also the place that closes the overlay when a destination is selected.
+ * The CLOSED rail is persistent and identical in every band. OPENING it is band-specific (owner
+ * decision, NAV1D-V3): at `md` and above — tablet AND desktop — the rail expands IN FLOW and the
+ * page's own column takes what is left, so the page's x-position and width change exactly as they do
+ * for any in-flow column; below `md` — mobile — the rail leaves the flow and is painted above the
+ * page, so the page keeps the geometry it had while the rail was closed. The three bands stay
+ * separate surfaces (retained, deliberately, for future configurability) and the state keeps its ONE
+ * owner — which is also where a selected destination closes the overlay.
+ *
+ * NAV1D-V3 also places the rail ON the page edge (the old ~20px shell gutter is gone, with no
+ * compensation anywhere) and makes its surface opaque, using the site's ONE background authority.
  */
-describe("NAV1D-V2 — an open sidebar overlays the page", () => {
-  it("reserves the collapsed rail's space in the row and paints the expanded rail above it", () => {
-    // The frame keeps the SAME width in both states — the collapsed column — so nothing in the page
-    // layout moves when the visitor opens or closes the rail.
-    const frame = /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \{([^}]*)\}/.exec(globals)?.[1] ?? "";
-    expect(frame).toContain("position: relative;");
-    expect(frame).toContain("width: var(--ui-sidebar-rail-collapsed);");
-    // …and the rail itself leaves the flow inside that frame: its own left edge, the frame's full
-    // height (so its sticky column still pins), on the persistent-navigation stacking band.
-    const overlay = /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \.ui-sidebar-rail \{([^}]*)\}/.exec(globals)?.[1] ?? "";
-    expect(overlay).toContain("position: absolute;");
-    expect(overlay).toContain("inset-block: 0;");
-    expect(overlay).toContain("inset-inline-start: 0;");
-    expect(overlay).toContain("z-index: 30;");
-    // The rail's own accepted widths are untouched (220px expanded / 36px collapsed, both tokens).
+describe("NAV1D-V2/V3 — an open sidebar, by band, on the page edge", () => {
+  it("keeps the rail IN FLOW at md and above, with no overlay rule outside the mobile band", () => {
+    const overlayStart = globals.indexOf("@media (max-width: 47.999rem)");
+    expect(overlayStart).toBeGreaterThan(-1);
+    const aboveMobile = globals.slice(0, overlayStart);
+    // Nothing outside the mobile band takes the rail out of the flow or fixes the frame's width.
+    expect(aboveMobile).not.toMatch(
+      /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\)[^{]*\{[^}]*position:\s*absolute/,
+    );
+    expect(aboveMobile).not.toMatch(
+      /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\)\s*\{[^}]*width:\s*var\(--ui-sidebar-rail-collapsed\)/,
+    );
+    // The rail's real widths are the in-flow geometry the tablet/desktop bands use.
     expect(globals).toMatch(/--ui-sidebar-rail-expanded:\s*13\.75rem/);
     expect(globals).toMatch(/--ui-sidebar-rail-collapsed:\s*calc\(/);
   });
 
-  it("scopes the overlay to the collapsible rail, so other compositions keep their layout", () => {
-    const overlayRules = globals.match(/\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\)[^{]*\{/g) ?? [];
-    expect(overlayRules).toHaveLength(2);
-    // Nothing else makes a rail absolute: a non-collapsible (immersive/static) rail and every
-    // non-sidebar composition keep their accepted in-flow, always-expanded presentation.
+  it("overlays the page in the MOBILE band only", () => {
+    const mobile = /@media \(max-width: 47\.999rem\) \{([\s\S]*?)\n\}/.exec(globals)?.[1] ?? "";
+    expect(mobile).not.toBe("");
+    // The frame keeps the SAME width in both states — the collapsed column — so the page cannot move.
+    const frame = /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \{([^}]*)\}/.exec(mobile)?.[1] ?? "";
+    expect(frame).toContain("position: relative;");
+    expect(frame).toContain("width: var(--ui-sidebar-rail-collapsed);");
+    // …and the rail leaves the flow inside that frame: its own left edge, the frame's full height (so
+    // its sticky column still pins), on the persistent-navigation stacking band.
+    const overlay =
+      /\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\) \.ui-sidebar-rail \{([^}]*)\}/.exec(mobile)?.[1] ??
+      "";
+    expect(overlay).toContain("position: absolute;");
+    expect(overlay).toContain("inset-block: 0;");
+    expect(overlay).toContain("inset-inline-start: 0;");
+    expect(overlay).toContain("z-index: 30;");
+    // Still scoped to the collapsible rail, so other compositions keep their accepted layout.
+    expect(globals.match(/\.ui-shell-sidebar:has\(\.ui-sidebar-toggle\)[^{]*\{/g) ?? []).toHaveLength(2);
     expect(globals).not.toMatch(/\n\.ui-sidebar-rail \{[^}]*position: absolute/);
+  });
+
+  it("places the rail on the page edge, with no shell gutter and no compensation (NAV1D-V3)", () => {
+    // The ~20px outer offset is gone, and NOTHING replaced it: no inline margin on the frame, no
+    // negative margin, no per-control re-anchoring.
+    expect(globals).not.toMatch(/\.ui-shell-sidebar\s*\{[^}]*margin-inline-start/);
+    expect(globals).not.toMatch(/margin-inline-start:\s*calc\(/);
+    // The owner-accepted padding is untouched on both sides: collapsed 6px / (6px − 1px border), and
+    // the open rail's ONE inline padding token (20px).
+    expect(globals).toMatch(/--ui-sidebar-rail-collapsed-pad:\s*0\.375rem/);
+    expect(globals).toMatch(
+      /\.ui-sidebar-rail\[data-collapsed="true"\] \{[\s\S]{0,200}?padding-inline: var\(--ui-sidebar-rail-collapsed-pad\)\s*\r?\n\s*calc\(var\(--ui-sidebar-rail-collapsed-pad\) - var\(--ui-sidebar-rail-border\)\)/,
+    );
+    expect(globals).toMatch(/--ui-sidebar-rail-inline:\s*1\.25rem/);
+  });
+
+  it("paints the rail's surface with the site's ONE background authority (NAV1D-V3)", () => {
+    const rail = /\n\.ui-sidebar-rail \{([^}]*)\}/.exec(globals)?.[1] ?? "";
+    expect(rail).toContain("background-color: var(--background);");
+    // …never a hard-coded colour, a transparent surface, or a translucent layer behind its text.
+    expect(rail).not.toContain("transparent");
+    expect(rail).not.toMatch(/background-color:\s*(#|rgb|rgba|white)/);
+    expect(rail).not.toMatch(/opacity:/);
+    // The header already consumes the very same token, and the adopter-owned value reaches both from
+    // `ui.theme.background` (FS-5), resolved onto `<html>` by the route layout.
+    expect(globals).toMatch(/\.ui-shell-top \{[^}]*background-color: var\(--background\)/);
+    expect(layoutSource).toContain('"--background": resolvedUi.theme.background');
   });
 
   it("declares the deliberate minimum layout width BELOW the supported boundary", () => {
