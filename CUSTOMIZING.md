@@ -555,16 +555,17 @@ and the same left-side vertical position.
   key, `foundation.sidebar`, whose only values are `open` and `closed`. It has two
   layers: the **resolved** preference is the authority for as long as the page is
   in view, and browser storage is what carries the choice to the next visit. So
-  the choice **survives a refresh** and **survives page navigation** — a
-  navigation re-creates the rail already in the visitor's state, so an **open
-  sidebar stays visibly open while the destination loads** and never collapses and
-  expands on the way — and it applies to **every route of the origin**: changing
-  Site, Language or Location through the selector controls changes the URL and
-  nothing else about the sidebar. With **no stored preference the canonical state
-  is CLOSED**, and only the disclosure control changes it — clicking a navigation
-  icon navigates and never opens, closes or resets the rail. The tablet rail
-  follows the same preference; the `<md` drawer/bottom bar is a separate,
-  ephemeral interaction model that this preference does not govern. A missing,
+  the choice **survives a refresh** and it applies to **every route of the
+  origin**: changing Site, Language or Location through the selector controls
+  changes the URL and nothing else about the sidebar. With **no stored preference
+  the canonical state is CLOSED**, and exactly TWO actions change it: the rail's
+  own disclosure control, and **selecting a destination inside the rail**. The
+  open sidebar is an OVERLAY, so choosing a page dismisses it — by pointer, by
+  keyboard or by assistive technology, and also when the destination is the page
+  the visitor is already on — and the destination is presented with the collapsed,
+  sticky rail. No route DERIVES the state: no route, remount or breakpoint opens,
+  closes or resets the rail. The tablet and mobile bands follow the same
+  preference and the same control. A missing,
   unusable or blocked stored value falls back to the canonical CLOSED state. A page
   load is still served with the canonical CLOSED rail — no cookie, no session, no
   request-time rendering, so every page stays statically generated — and the stored
