@@ -25,12 +25,14 @@ import {
  * box ABOVE the status heading, is purely decorative, and never replaces the
  * heading, the message or the controls.
  *
- * The approved Foundation status artwork is now INTEGRATED at
- * `public/assets/status-graphic.svg`; the positive/negative availability cases
- * still reuse the repository's existing neutral `logo-header.svg` fixture, so the
- * availability rule stays proven independently of which artwork a deployment has
- * activated. It is used ONLY as an availability fixture — it is NOT
- * status-graphic artwork.
+ * The approved Foundation status artwork is NOT integrated here, and no artwork placeholder stands in
+ * for it: the generic template ships no brand of its own, so `public/assets/status-graphic.svg` does
+ * not exist in this repository and the optional role renders nothing until a deployment configures
+ * `site.assets.statusGraphic` against a file it supplies (see BRAND_ASSETS.md §1). The
+ * positive/negative availability cases therefore reuse the repository's existing neutral
+ * `logo-header.svg` fixture, so the availability rule stays proven independently of which artwork a
+ * deployment has activated. It is used ONLY as an availability fixture — it is NOT status-graphic
+ * artwork.
  */
 
 const root = process.cwd();

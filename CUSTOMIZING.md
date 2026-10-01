@@ -1199,8 +1199,7 @@ the single source.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[...segments]/layout.tsx` (P6-2D, `content/assets/branding/branding-schema.md`
-  — the spec names Inter, Plus Jakarta Sans, or Geist Sans); monospace stays
+  loaded in `src/app/[...segments]/layout.tsx`; monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
 - **To change the brand font:** swap the `next/font/*` call in `layout.tsx`
@@ -1638,18 +1637,21 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
 #### Source asset tree — `content/assets/` (the three ownership categories)
 
 The repository carries the **source** asset tree in `content/assets/`. It is NOT served
-under `public/`; the runtime files are byte-identical mirrors of it (see below):
+under `public/`; the runtime files are byte-identical mirrors of it (see below). This generic
+template ships **three** populated categories — `icon-library/`, `placeholders/` and
+`platform-marks/` — and an **empty** `branding/` category: a deployment that adds its own artwork
+creates it there, and the template's own taxonomy test asserts that `content/assets/branding/` is
+**not** shipped in this repository
+(`deployment/tests/unit/asset-taxonomy-mirror.test.ts`).
 
 ```text
 content/assets/
-├── branding/          — deployment/business-specific artwork (this repo: the
-│   ├── banners/         Provelopment Foundation mark, favicons, logos, banners,
-│   ├── identity/        branded page graphics and the brand specification)
-│   ├── logos/           logo lockups/wordmark/emblem sources
-│   ├── page-graphics/   branded page graphics (background, header/footer/status
-│   │                    graphics, Open Graph image)
-│   └── branding-schema.md  the brand-system specification (docs live with the
-│                        category they document, never inside a graphic folder)
+├── branding/          — YOUR deployment/business artwork; nothing ships here.
+│   ├── banners/         The generic template has no brand of its own, so these
+│   ├── identity/        folders are yours to create (banners, identity, logos,
+│   ├── logos/           page-graphics are the categories an adopter uses)
+│   ├── page-graphics/   (see the capsule's content/assets/README.md)
+│   └── branding-schema.md  a brand-system specification you keep, if you keep one
 ├── icon-library/      — reusable, NON-business-specific generic icons (ALL
 │   ├── icons/           retained, whether or not a page currently uses them)
 │   └── licensing/       provenance + upstream licence
@@ -1671,15 +1673,19 @@ Foundation components / site.assets.* configuration
 - `pnpm assets:sync` writes the mirror; `pnpm assets:check` fails on **any** drift,
   on a missing declared source and on an **undeclared** file appearing under
   `public/assets/`. `pnpm build` runs the mirror first, so a half-applied asset
-  move can never ship. `tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
+  move can never ship. `deployment/tests/unit/asset-taxonomy-mirror.test.ts` enforces all of it.
 - There are **no permanent runtime-only exceptions**: every persistent runtime
-  visual asset has an authoritative source beneath `content/assets/` (the ten
-  `banner-<page>.png` page banners live in `content/assets/branding/banners/` and are
-  mirrored like any other graphic, so the runtime-only allowlist is empty).
-- The header and footer logo ROLES derive from **one** authoritative coloured
-  source (`content/assets/branding/logos/lockup-horizontal.svg`), so the footer uses the
-  same coloured lockup as the header; the monochrome lockup remains a retained
-  optional source asset.
+  visual asset the template ships has an authoritative source beneath
+  `content/assets/`, so the runtime-only allowlist is empty (`RUNTIME_ONLY` in
+  `scripts/sync-runtime-assets.mjs`). The mirror's `from` paths are relative to the
+  **selected deployment**, so a deployment that adds artwork points the same
+  mechanism at its own source rather than at a runtime-only file.
+- The header and footer logo ROLES derive from **one** authoritative source: in this
+  template both resolve to the neutral `content/assets/placeholders/logo-header.svg`
+  (one file, two runtime basenames — see `MIRRORED` in
+  `scripts/sync-runtime-assets.mjs`), so the footer shows the same mark as the
+  header. A branded deployment mirrors its own single coloured lockup through the
+  same mechanism, so the relationship holds whatever the source is.
 - The four categories have distinct responsibilities: **branding** is the
   deployment's own artwork, **icon-library** is the reusable generic store,
   **placeholders** are the blank/generic defaults, **platform-marks** are the

@@ -285,17 +285,18 @@ Rules that follow from this:
 | viewBox | `0 0 4096 512` — the documented **RECOMMENDED CANONICAL MASTER** for this role |
 | Content | transparent canvas + neutral dashed bounds, diagonals and corner ticks. No brand artwork, no script, no animation, no embedded raster, no font dependency, no external resource |
 | Purpose | give the swap-contract tests controlled, neutral bytes at the exact canonical filename, so the seam is validated **without touching or asserting on any approved artwork's visual content** |
-| Runtime status | **blank by default (2026-09 owner ruling).** The decorative header/footer roles ship a valid, transparent, drawing-free placeholder, so the default presentation is "blank / not used". The role stays ACTIVATED and swappable — see §10.5 and §10.4 |
+| Runtime status | **blank by default (2026-09 owner ruling).** The decorative header/footer roles ship a valid, transparent, drawing-free placeholder, so the default presentation is "blank / not used". The role stays **supported and swappable** — it paints nothing here until a deployment configures `site.assets.headerGraphic` against a file it supplies; see §1, §10.5 and §10.4 |
 | Shipped blank placeholder (header) | `content/assets/placeholders/header-graphic.svg` → mirrored to `public/assets/header-graphic.svg` |
 | Shipped blank placeholder (footer) | `content/assets/placeholders/footer-graphic.svg` → mirrored to `public/assets/footer-graphic.svg` |
-| Optional branded artwork | the branded Foundation masters are retained as **source** in `content/assets/branding/page-graphics/` (`header-graphic.svg`, `footer-graphic.svg`) and are activated by replacing the runtime file — a pure artwork swap |
+| Optional branded artwork | a **branded deployment** retains its approved masters as **source** in its own `content/assets/branding/page-graphics/` (`header-graphic.svg`, `footer-graphic.svg`) and activates them by replacing the runtime file — a pure artwork swap. This generic template ships no such tree (§1) |
 
-> **The decorative defaults are blank, and the branded artwork is one copy away.**
-> The header/footer decorative roles are ACTIVE against a **transparent, empty**
-> placeholder: nothing paints, nothing is required, and a deployment activates its
-> own graphic by replacing the SOURCE artwork at
+> **The decorative defaults are blank, and branded artwork is one copy away.**
+> The header/footer decorative roles ship a **transparent, empty** placeholder: nothing
+> paints, nothing is required, and a deployment activates its own graphic by replacing
+> the SOURCE artwork at
 > `content/assets/placeholders/header-graphic.svg` /
-> `content/assets/placeholders/footer-graphic.svg` (or by re-pointing the role). The neutral
+> `content/assets/placeholders/footer-graphic.svg` (or by re-pointing the role and
+> supplying its own configured asset). The neutral
 > *test* fixture at `tests/fixtures/placeholder-assets/header-graphic.svg` remains a
 > testing-only source and is never resolved by the runtime.
 
@@ -701,17 +702,17 @@ navigation.
 
 #### Activation status (recorded, not a coding gate)
 
-The role **ships** and the canonical role is **ACTIVE**, and the artwork it paints by
-default is the **blank transparent placeholder** — the default presentation is
-"blank / not used", so no branded decorative header graphic is required (2026-09
-owner ruling). The seam is technically validated (resolves, paints nothing, adds no
-DOM/height/stacking context, no overflow, navigation and the mobile drawer
-unaffected); enabling a branded graphic is **a file replacement or a one-line
-config change, with no code change**. The branded Foundation master — and the
-measured `cover` crop it implies inside the wide, short header box — is retained in
-the source package
-(`content/assets/branding/page-graphics/header-graphic.svg`) and the living-pack provenance
-(the living-pack provenance record, maintained outside this repository);
+The role **ships as a capability** and its shipped default artwork is the **blank transparent
+placeholder** — the default presentation is "blank / not used", so no branded decorative header
+graphic is required (2026-09 owner ruling). It is **unconfigured in this generic template**, which
+ships no `content/assets/branding/` tree at all (§1), so it paints nothing here. The seam is
+technically validated (resolves, paints nothing, adds no DOM/height/stacking context, no overflow,
+navigation and the mobile drawer unaffected); enabling a branded graphic is **a file replacement or
+a one-line config change, with no code change**. The branded Foundation master — and the measured
+`cover` crop it implies inside the wide, short header box — is retained in a branded deployment's
+own source package
+(`content/assets/branding/page-graphics/header-graphic.svg`, a tree this template does not ship) and
+the living-pack provenance record is maintained outside this repository;
 that crop remains a **Master-Brand-Architect-owned aesthetic judgement**, never a
 coding acceptance criterion.
 
@@ -1036,7 +1037,7 @@ Locking tests for this contract:
 | Suite | What it locks |
 | --- | --- |
 | `tests/unit/brand-asset-swap-contract.test.ts` | the swap/file contract itself — role index ↔ config keys, filename-only resolution, optional-role removal, the file-only swap guarantee, the placeholder's neutrality, that this document names every shipped role, that the decorative header/footer defaults are blank, and that the icon colour seam is stated as measured (no inheritance claim) |
-| `tests/unit/asset-taxonomy-mirror.test.ts` | the four source categories, the source→runtime mirror (byte-identical, no undeclared runtime file, icon-library retention), and the blank placeholder rules |
+| `deployment/tests/unit/asset-taxonomy-mirror.test.ts` | the shipped source categories, the source→runtime mirror (byte-identical, no undeclared runtime file, icon-library retention), and the blank placeholder rules — including that this template ships no `content/assets/branding/` tree |
 | `tests/unit/favicon-contract.test.ts` | the favicon is DERIVED from the untouched `mark.svg`: same `viewBox`, same path data, uniform scaling, no clip/crop, artwork strictly inside the 24 × 24 canvas |
 | `tests/unit/sidebar-page-icon-contract.test.ts` | 16 × 16 sidebar page icons on desktop and tablet, the page → icon-library mapping and precedence, expanded/collapsed behaviour and tooltip discoverability, and unchanged mobile navigation |
 | `tests/unit/approved-assets-integration.test.ts` | the Foundation-owned page graphics ship **and** are active; the header/footer decorative defaults are blank; the admitted/withheld mark register; availability never creates a link |
@@ -1096,7 +1097,7 @@ A short map, for maintainers — not required reading for an artwork task.
 | Sidebar page icons (16 × 16 contract, icon-library mapping, tooltip) | `src/app/globals.css` (`--ui-sidebar-nav-icon-size`) · `src/components/site/nav-links.ts` (`withSidebarNavIcons`) · `src/components/ui/nav-item.tsx` · `site.config.json` (`navigation[].iconOpen/iconClosed`) |
 | Sidebar open/close CONTROL (24 × 24; expanded inset / collapsed centred) | `src/app/globals.css` (`--ui-sidebar-control-icon-size`, `--ui-shell-control-inset`, `--ui-sidebar-rail-collapsed`, `--ui-sidebar-rail-collapsed-pad`) · `src/components/ui/sidebar.tsx` · `src/components/shell/shell-engine.tsx` (`resolveControlPresentation`) |
 | **Foundation accent** (the ONE hardcoded `--ui-foundation-accent` → wordmark + highlights; dark derived) | `src/app/globals.css` (`--ui-foundation-accent`; `--ui-brand-accent`, `--primary`, `--ring` derive from it) · consumers: `src/app/[locale]/page.tsx` (wordmark), `src/components/site/{location,language}-switcher.tsx` (selector emphasis), `src/components/ui/cta.tsx` (CTA fill) |
-| Header/footer logo source relationship + shared display size | `scripts/sync-runtime-assets.mjs` (`MIRRORED`: both roles ← `content/assets/branding/logos/lockup-horizontal.svg`) · `src/app/globals.css` (`--ui-logo-display-size`, `.ui-site-header-logo` / `.ui-site-footer-logo`) |
+| Header/footer logo source relationship + shared display size | `scripts/sync-runtime-assets.mjs` (`MIRRORED`: both roles ← the neutral `content/assets/placeholders/logo-header.svg` — one file, two runtime basenames; a branded deployment mirrors its own single coloured lockup through the same pair) · `src/app/globals.css` (`--ui-logo-display-size`, `.ui-site-header-logo` / `.ui-site-footer-logo`) |
 
 ---
 

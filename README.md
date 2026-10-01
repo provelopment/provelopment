@@ -359,6 +359,8 @@ configuration, content, assets and branding.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — boundaries, dependency direction, internationalization blueprint
 - [`instruction-manuals/README.md`](instruction-manuals/README.md) — the operating manuals: adoption, upgrade, customization, branding, content, validation, deployment, troubleshooting
 - [`AGENTS.md`](AGENTS.md) — the operating contract for AI coding agents
+- [`ui-ideas-and-improvements.md`](ui-ideas-and-improvements.md) — the durable register of **future** UI ideas (not a roadmap, not approved, not release scope: see the governance rule it opens with)
+- [`testing-ideas-and-improvements.md`](testing-ideas-and-improvements.md) — the same register for testing/validation tooling ideas
 
 ## What the reference deployment demonstrates
 
