@@ -1,5 +1,6 @@
 import type {
   DesktopNavigationPattern,
+  MenuMode,
   MobileNavigationPattern,
   TabletNavigationPattern,
 } from "./vocabulary";
@@ -66,11 +67,27 @@ export const SHELL_LAYOUT_PATTERNS: Readonly<
       readonly desktop: DesktopNavigationPattern;
       readonly tablet: TabletNavigationPattern;
       readonly mobile: MobileNavigationPattern;
+      /**
+       * NAV1B — the ≥md top menu this layout presents, when it presets that leaf at all. A
+       * layout that omits it leaves `ui.navigation.top.mode` exactly as configured (the value
+       * is inert there, because that layout composes no ≥md header navigation).
+       */
+      readonly topMenu?: MenuMode;
     }
   >
 > = {
   sidebar: { desktop: "sidebar", tablet: "collapsed-sidebar", mobile: "drawer" },
-  "menu-bar": { desktop: "top", tablet: "top-compact", mobile: "bottom-bar" },
+  // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH. Its ≥md top menu is CLOSED,
+  // so no top navigation is composed in any band, and the sticky bottom bar — which covers
+  // every band this composition leaves open — IS the navigation. Nothing new is invented:
+  // `closed` is the shipped three-state menu contract the header already honors (a closed
+  // menu composes no navigation landmark at all, so no hidden duplicate can be tabbed to).
+  "menu-bar": {
+    desktop: "top",
+    tablet: "top-compact",
+    mobile: "bottom-bar",
+    topMenu: "closed",
+  },
 };
 
 /** Whether a value is a layout this platform implements (never a free-form name). */
@@ -94,6 +111,12 @@ export function applyShellLayout(resolved: ResolvedUiConfig, layout: ShellLayout
       desktop: patterns.desktop,
       tablet: patterns.tablet,
       mobile: patterns.mobile,
+      // NAV1B — a layout may also preset the ≥md top menu (the menu-bar layout closes it,
+      // because its navigation is the sticky bottom bar at every width). A layout that
+      // declares no top menu leaves the configured value untouched.
+      ...(patterns.topMenu === undefined
+        ? {}
+        : { top: { ...resolved.navigation.top, mode: patterns.topMenu } }),
     },
   };
 }
@@ -154,13 +177,20 @@ export function railLayouts(
     .filter((layout): layout is ShellLayout => layout !== null);
 }
 
-/** The compositions that place the primary navigation in the header (≥md). */
+/**
+ * The compositions that present the primary navigation in the header (≥md) — a header SLOT
+ * whose band actually carries a navigation (NAV1B: a closed ≥md top menu composes none, which
+ * is how a Menu-bar composition hands its navigation to the sticky bottom bar at every width).
+ */
 export function headerNavigationCompositions(
   resolved: ResolvedUiConfig,
 ): readonly ShellLayoutComposition[] {
   return shellLayoutCompositions(resolved).filter(
     (composition) =>
-      composition.decision.desktop.slot === "header" || composition.decision.tablet.slot === "header",
+      (composition.decision.desktop.slot === "header" &&
+        composition.decision.desktop.presentsNavigation) ||
+      (composition.decision.tablet.slot === "header" &&
+        composition.decision.tablet.presentsNavigation),
   );
 }
 

@@ -76,6 +76,15 @@ export interface ShellBottomBarProps {
    */
   readonly scope?: Readonly<Record<string, string>>;
   /**
+   * NAV1B — the width gate this bar is presented at, derived from the composition that owns
+   * it (`bandClassName(mobileSurfaceBands(composition.decision))`): `md:hidden` for the
+   * canonical sidebar composition, and NO gate for a Menu-bar composition, whose sticky bar
+   * is the navigation at every width. The shell engine is the only caller that decides it;
+   * the component never reads a breakpoint of its own, and the default is the shipped
+   * mobile-only presentation so a direct consumer is unchanged.
+   */
+  readonly bandsClassName?: string;
+  /**
    * NAV1A — the layouts this bar presents, forwarded to its "More" drawer so an
    * open overflow dialog is withdrawn (and closed) when the visitor switches away
    * from this layout. See `ShellMobileNav`.
@@ -125,6 +134,7 @@ export function ShellBottomBar({
   mode,
   scope,
   activeLayouts,
+  bandsClassName = "md:hidden",
   sidebarClose,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
@@ -165,31 +175,43 @@ export function ShellBottomBar({
 
   return (
     <div
-      className={`ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background ${PAGE_EDGE_INSET_CLASS} md:hidden ${menuModeClass(mode ?? "open") ?? ""}`}
+      // NAV1B — the BAR spans the viewport (it is the sticky surface), while its CONTENT is
+      // bounded by the site's own page width and padded by the SAME page-edge inset the header and
+      // footer use. On a wide display a handful of links therefore stays aligned with the page
+      // instead of being spread from edge to edge, and no link can ever touch the viewport edge.
+      className={[
+        "ui-shell-bottom-bar sticky bottom-0 z-40 border-t border-border bg-background",
+        bandsClassName,
+        menuModeClass(mode ?? "open"),
+      ]
+        .filter(Boolean)
+        .join(" ")}
       {...scope}
     >
-      <BottomNavigation
-        label={label}
-        items={primary}
-        listClassName={BOTTOM_NAV_LIST_CLASS}
-        linkClassName={BOTTOM_NAV_LINK_CLASS}
-      />
-      {remainder.length > 0 ? (
-        <ShellMobileNav
-          pattern="drawer"
-          id="shell-bottom-more"
-          triggerLabel={moreLabel}
-          closeLabel={closeLabel}
-          close={sidebarClose}
-          activeLayouts={activeLayouts}
-        >
-          <ul>
-            {remainder.map((item) => (
-              <NavItem key={item.key ?? item.href} item={item} />
-            ))}
-          </ul>
-        </ShellMobileNav>
-      ) : null}
+      <div className={`mx-auto max-w-page ${PAGE_EDGE_INSET_CLASS} py-1`}>
+        <BottomNavigation
+          label={label}
+          items={primary}
+          listClassName={BOTTOM_NAV_LIST_CLASS}
+          linkClassName={BOTTOM_NAV_LINK_CLASS}
+        />
+        {remainder.length > 0 ? (
+          <ShellMobileNav
+            pattern="drawer"
+            id="shell-bottom-more"
+            triggerLabel={moreLabel}
+            closeLabel={closeLabel}
+            close={sidebarClose}
+            activeLayouts={activeLayouts}
+          >
+            <ul>
+              {remainder.map((item) => (
+                <NavItem key={item.key ?? item.href} item={item} />
+              ))}
+            </ul>
+          </ShellMobileNav>
+        ) : null}
+      </div>
     </div>
   );
 }

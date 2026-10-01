@@ -237,24 +237,31 @@ tree stays clean.
   facts identically.
 - **shell layout presentation** (`layout-switcher` scenario): with `ui.layoutSwitcher`
   enabled, the header offers one labelled **Layout** control (Sidebar / Menu bar), at
-  EVERY width. The sidebar layout exposes the rail ≥`md` and hides the header navigation;
-  choosing Menu bar does the reverse — and a Tab sweep proves the hidden structure is never
-  focusable. The document, its main content, the route, the locale and the usable content
+  EVERY width, anchored at the top row's right edge. The sidebar layout exposes the rail ≥`md`
+  and its own disclosure below `md`; choosing Menu bar exposes the **sticky bottom bar at EVERY
+  width** and no top navigation at all — and a Tab sweep proves the withdrawn structures are
+  never focusable. The document, its main content, the route, the locale and the usable content
   column are unchanged, persistent navigation and fragment clearance follow the active
   layout, and the choice survives client-side navigation and a full reload (an unusable
-  stored value falls back to the configured default). NAV1A adds the MOBILE contract: the
-  configured mode owns the navigation below `md` too — the sidebar layout presents its own
-  off-canvas drawer (closed by default, opened from its disclosure, closed by Escape) and
-  the menu-bar layout the sticky bottom bar — proven at 1280/1024/900/768/767/390/360/320,
-  through real resize transitions (mode preserved, drawer substituting the rail and back),
-  and through real mode switches made while already at a phone width (the withdrawn surface
-  never keeps a stale dialog or the body's scroll lock).
+  stored value falls back to the configured default). The MOBILE/handover contract (NAV1A/NAV1B)
+  is measured rather than asserted by class: the sidebar's disclosure opens from its own trigger,
+  carries the navigation and closes on Escape; its computed font size, icon box and control height
+  are IDENTICAL to the accepted desktop rail control (no breakpoint-induced enlargement); it is
+  composed at the sidebar boundary, never inside the page header; and the header's two semantic
+  rows keep their ownership at 1280/1024/900/768/767/390/360/320 — through real resize transitions
+  and real mode switches made while already at a phone width (the withdrawn surface never keeps a
+  stale dialog or the body's scroll lock).
+- **header semantic rows** (`header-rows` scenario, NAV1B): with test-owned fixtures (a very long
+  site name, and long Site/Language labels) the navigation-MODE selector keeps its top-right place
+  at every width, the identity wraps below it without ever overlapping or displacing it, the
+  contextual controls stay in the row below and wrap INSIDE that row when the width requires more
+  than one line, and no fixture overflows the page.
 - **bottom navigation layout** (`bottom-nav-wrap` scenario, NAV1A): the sticky bar's rows
   are the `<li>` children of its `<ul>`, so the LIST owns their flow and wrapping. Proven
   with test-owned navigation fixtures on the disposable copy: SHORT labels share ONE row at
   a phone width (no forced one-item-per-row, no needless wrapping) and LONG labels WRAP
   onto another row because the available width genuinely requires it — every link stays
-  inside the `px-4` page-edge inset, the bar GROWS in height instead of clipping, and the
+  inside the page-edge inset, the bar GROWS in height instead of clipping, and the
   page never scrolls horizontally.
 - **advanced JSON** (`advanced-json` scenario): a declarative document authored under
   `content/pages/json/en/` is discovered, validated and served by the real application —

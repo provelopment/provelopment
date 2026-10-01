@@ -28,6 +28,14 @@ export interface AppShellProps {
   /** Optional navigation slot (sidebar rail, top bar, etc.). */
   readonly navigation?: ReactNode;
   /**
+   * Optional band rendered BETWEEN the header region and the sidebar/main row, without a
+   * wrapper and without a landmark of its own (NAV1B). It is the frame's one addition for a
+   * surface that belongs to the sidebar boundary but must be presented where no rail is
+   * composed — the sidebar's constrained-width disclosure — so it can never be pushed into a
+   * header row by the layout around it.
+   */
+  readonly sidebarLead?: ReactNode;
+  /**
    * Optional aside/sidebar slot (UI-05). Rendered between the header and the
    * main landmark WITHOUT an extra landmark wrapper, so a consumer-side
    * navigation rail (e.g. the `Sidebar` primitive, which is itself a `<nav>`)
@@ -56,6 +64,7 @@ export function AppShell({
   navigationLabel,
   sidebar,
   sidebarClassName,
+  sidebarLead,
   secondaryPanel,
   mobileNavigation,
   mainId,
@@ -64,6 +73,7 @@ export function AppShell({
   return (
     <>
       {header}
+      {sidebarLead ?? null}
       {sidebar ? <div className={sidebarClassName}>{sidebar}</div> : null}
       {navigation ? (
         <nav aria-label={navigationLabel}>{navigation}</nav>

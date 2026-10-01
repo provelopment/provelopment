@@ -171,7 +171,11 @@ export function ShellMobileNav({
           // icon's own height) is too small to hit reliably. `min-h-11 min-w-11`
           // grows the INTERACTIVE box, not the artwork: the icon keeps its `h-8 w-8`
           // visual scale and is centred inside the larger target.
-          className="ui-shell-mobile-nav-trigger inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 md:hidden"
+          // NAV1B — the disclosure's HOST owns its width gate (the composition's band), so the
+          // trigger itself carries none: it is a normal navigation control at the scale of the
+          // rail's own toggle (`text-sm` label, 24px icon via `--ui-sidebar-control-icon-size`,
+          // ≥44px hit area), and it never grows with the typography around it.
+          className="ui-shell-mobile-nav-trigger inline-flex min-h-11 min-w-11 items-center gap-1.5"
         >
           <DisclosureIcon asset={openControl.icon} className="ui-mobile-nav-icon h-8 w-8 shrink-0" />
           {openControl.text === "" ? null : <span>{openControl.text}</span>}

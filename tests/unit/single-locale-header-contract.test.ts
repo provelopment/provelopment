@@ -22,7 +22,10 @@ describe("D1 — single-locale header contract (LanguageSwitcher gate)", () => {
   });
 
   it("the LanguageSwitcher render is gated on more than one configured locale", () => {
-    expect(header).toContain("{siteConfig.locales.length > 1 ? (");
+    // NAV1B — the header reads the gate as a NAMED boolean (its two semantic rows make the
+    // condition explicit), and the boolean's definition is the SAME locale-count rule.
+    expect(header).toContain("{languageSelectorPresent ? (");
+    expect(header).toContain("const languageSelectorPresent = siteConfig.locales.length > 1;");
   });
 
   it("there is no ungated LanguageSwitcher composition in the header", () => {
@@ -31,7 +34,7 @@ describe("D1 — single-locale header contract (LanguageSwitcher gate)", () => {
     // occurrence of the opening tag.
     const occurrences = header.match(/<LanguageSwitcher/g);
     expect(occurrences?.length ?? 0).toBe(1);
-    const gatePosition = header.indexOf("siteConfig.locales.length > 1");
+    const gatePosition = header.indexOf("languageSelectorPresent");
     const renderPosition = header.indexOf("<LanguageSwitcher");
     expect(gatePosition).toBeGreaterThanOrEqual(0);
     expect(renderPosition).toBeGreaterThan(gatePosition);

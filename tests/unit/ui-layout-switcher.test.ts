@@ -12,6 +12,7 @@ import {
   TABLET_NAVIGATION_PATTERNS,
   applyShellLayout,
   assertResolvedUiConfigComplete,
+  bandClassName,
   bottomBarCompositions,
   bottomBarLayouts,
   headerNavigationCompositions,
@@ -21,6 +22,7 @@ import {
   layoutScopeAttributes,
   mobileDisclosureCompositions,
   mobileDisclosureLayouts,
+  mobileSurfaceBands,
   railCompositions,
   railLayouts,
   resolveShellPattern,
@@ -53,10 +55,15 @@ describe("the shell layout vocabulary", () => {
       tablet: "collapsed-sidebar",
       mobile: "drawer",
     });
+    // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH: the preset also CLOSES the
+    // ≥md top menu (`closed` is the shipped three-state menu contract), so no top navigation is
+    // composed in any band and the bar — which covers every band the composition leaves open —
+    // IS the navigation. No new value and no new mode: the leaves are the shipped vocabulary.
     expect(SHELL_LAYOUT_PATTERNS["menu-bar"]).toEqual({
       desktop: "top",
       tablet: "top-compact",
       mobile: "bottom-bar",
+      topMenu: "closed",
     });
     for (const [layout, patterns] of Object.entries(SHELL_LAYOUT_PATTERNS)) {
       expect(DESKTOP_NAVIGATION_PATTERNS, layout).toContain(patterns.desktop);
@@ -103,20 +110,23 @@ describe("the shell layout vocabulary", () => {
     const menuBar = resolveShellPattern(applyShellLayout(sidebarEnabled, "menu-bar"));
     expect(menuBar.desktop.slot).toBe("header");
     expect(menuBar.tablet.slot).toBe("header");
-    // NAV1A — the MOBILE composition follows the configured mode, never the viewport:
-    // the sidebar layout presents its own disclosure (drawer + its trigger), the
-    // menu-bar layout the sticky bottom bar (no disclosure trigger).
+    // NAV1A/NAV1B — the MOBILE composition follows the configured mode, never the viewport:
+    // the sidebar layout presents its own disclosure (drawer + its trigger), the menu-bar
+    // layout the sticky bottom bar (no disclosure trigger). `presentsNavigation` is the band
+    // model: the mobile band always presents a surface of its own.
     expect(sidebar.mobile).toEqual({
       primitiveKind: "drawer",
       slot: "header",
       ctaSlot: "none",
       trigger: true,
+      presentsNavigation: true,
     });
     expect(menuBar.mobile).toEqual({
       primitiveKind: "bottom-bar",
       slot: "header",
       ctaSlot: "none",
       trigger: false,
+      presentsNavigation: true,
     });
     expect(menuBar.mobile).not.toEqual(sidebar.mobile);
   });
@@ -223,16 +233,18 @@ describe("the shell layout switcher configuration", () => {
   });
 
   it("tells the shell which structure serves which layout", () => {
-    // Sidebar default: the rail serves the sidebar layout in both bands; the header
-    // navigation is composed for the menu-bar layout only.
+    // Sidebar default: the rail serves the sidebar layout in both bands, and the sidebar's own
+    // disclosure serves it where no rail is composed. NAV1B — the MENU-BAR layout composes NO
+    // ≥md header navigation at all (its ≥md top menu is closed): its navigation is the sticky
+    // bottom bar, presented at every width.
     expect(railLayouts(sidebarEnabled, "desktop")).toEqual(["sidebar"]);
     expect(railLayouts(sidebarEnabled, "tablet")).toEqual(["sidebar"]);
-    expect(headerNavigationLayouts(sidebarEnabled)).toEqual(["menu-bar"]);
+    expect(headerNavigationLayouts(sidebarEnabled)).toEqual([]);
     // Menu-bar default: the rail still serves the sidebar layout, the header nav serves
     // the menu-bar layout (`railCompositions` counts the unscoped composition).
     expect(railLayouts(menuBarDefault, "desktop")).toEqual(["sidebar"]);
     expect(railCompositions(menuBarDefault, "tablet")).toHaveLength(1);
-    expect(headerNavigationLayouts(menuBarDefault)).toEqual(["menu-bar"]);
+    expect(headerNavigationLayouts(menuBarDefault)).toEqual([]);
     // Disabled: exactly the single resolved composition, which is UNNAMED — no layout
     // governs it, so no layout label can appear in its markup.
     expect(railCompositions(disabled, "desktop")).toHaveLength(1);
@@ -249,6 +261,37 @@ describe("the shell layout switcher configuration", () => {
     expect(shellLayoutCompositions(topBarOnly)).toEqual([
       { layout: null, decision: resolveShellPattern(topBarOnly), scoped: false },
     ]);
+  });
+
+  /**
+   * NAV1B — WHICH BANDS EACH MODE'S NAVIGATION COVERS. The bottom bar is presented in every band
+   * its composition leaves without navigation, so a MENU-BAR composition (≥md top menu closed)
+   * presents it at every width while the canonical sidebar composition keeps the historic `<md`
+   * bar. The same derived gate places each composition's constrained-width disclosure.
+   */
+  it("derives each surface's width band from the composition, never from the viewport", () => {
+    const [sidebarComposition, menuBarComposition] = shellLayoutCompositions(sidebarEnabled);
+    // Sidebar: the rails cover desktop + tablet, so its disclosure is `<md`-only.
+    expect(sidebarComposition.decision.openBands).toEqual([]);
+    expect(mobileSurfaceBands(sidebarComposition.decision)).toEqual(["mobile"]);
+    expect(bandClassName(mobileSurfaceBands(sidebarComposition.decision))).toBe("md:hidden");
+    // Menu bar: NO band carries a ≥md navigation, so the sticky bar is presented at EVERY width.
+    expect(menuBarComposition.decision.openBands).toEqual(["tablet", "desktop"]);
+    expect(mobileSurfaceBands(menuBarComposition.decision)).toEqual([
+      "mobile",
+      "tablet",
+      "desktop",
+    ]);
+    expect(bandClassName(mobileSurfaceBands(menuBarComposition.decision))).toBe("");
+    // A one-composition site is unchanged: the canonical default still presents the bar `<md` only.
+    expect(bandClassName(mobileSurfaceBands(resolveShellPattern(disabled)))).toBe("md:hidden");
+    // The exhaustive gate table: every band set maps to a gate (never a call-site guess).
+    expect(bandClassName([])).toBe("");
+    expect(bandClassName(["tablet"])).toBe("hidden md:block lg:hidden");
+    expect(bandClassName(["desktop"])).toBe("hidden lg:block");
+    expect(bandClassName(["mobile", "tablet"])).toBe("lg:hidden");
+    expect(bandClassName(["tablet", "desktop"])).toBe("hidden md:block");
+    expect(bandClassName(["mobile", "desktop"])).toBe("md:hidden lg:block");
   });
 
   it("exposes the active layout as an inert attribute, and a preference-only storage key", () => {

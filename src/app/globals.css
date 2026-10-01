@@ -1019,9 +1019,70 @@ html[data-ui-hero="showcase"] .home-hero {
   flex-shrink: 0;
 }
 
-/* P6-3B — mobile sidebar disclosure control icon (>=32px) is sized at the
- * component level (`h-8 w-8` in ShellMobileNav) so it does not override the
- * shared utility classes from an unlayered rule. */
+/* P6-3B — mobile sidebar disclosure control icon is sized at the component level
+ * (`h-8 w-8` in ShellMobileNav) so it does not override the shared utility classes from an
+ * unlayered rule. NAV1B — the CONSTRAINED-WIDTH sidebar disclosure overrides that size with
+ * the shared navigation-control token below, because the owner rejected the enlarged mobile
+ * presentation; the bar's own More control keeps its shipped scale. */
+
+/* ── NAV1B — THE SIDEBAR'S CONSTRAINED-WIDTH DISCLOSURE ─────────────────────────────────────
+ *
+ * WHERE IT LIVES. The shell composes this band at the SIDEBAR BOUNDARY — below the header
+ * region, above the content row — and never inside the page header: the affordance therefore
+ * has ONE stable place at every constrained width and cannot migrate between header lines as
+ * the visitor controls change width. Its content is aligned with the page's own content bounds,
+ * so it begins at the same padded left edge as the header and the content.
+ *
+ * WHAT SCALE IT HAS. It reuses the rail toggle's accepted navigation-control treatment
+ * (`.ui-sidebar-toggle`): `text-sm`, a 24px icon from `--ui-sidebar-control-icon-size`, the
+ * small radius, the input border and the card surface — normal control sizing at every width.
+ * The icon size is set HERE, not by utility classes, so no context can re-enlarge it (the
+ * previous mobile control used a >=32px asset and inherited the header's typography). The
+ * >=44px interactive box on the trigger is a FLOOR for the target, never an enlargement of the
+ * artwork, so nothing grows because the viewport narrowed.
+ */
+.ui-shell-sidebar-disclosure {
+  padding-block: 0.5rem;
+}
+
+.ui-shell-sidebar-disclosure > div {
+  max-width: var(--container-page);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.ui-shell-sidebar-disclosure .ui-shell-mobile-nav-trigger {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background-color: var(--card);
+  color: var(--card-foreground);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  cursor: pointer;
+  transition:
+    background-color 150ms,
+    color 150ms,
+    border-color 150ms;
+}
+
+.ui-shell-sidebar-disclosure .ui-shell-mobile-nav-trigger:hover {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.ui-shell-sidebar-disclosure .ui-shell-mobile-nav-trigger:active {
+  background-color: var(--muted-foreground);
+  color: var(--background);
+}
+
+.ui-shell-sidebar-disclosure .ui-mobile-nav-icon {
+  width: var(--ui-sidebar-control-icon-size);
+  height: var(--ui-sidebar-control-icon-size);
+  max-width: none;
+  object-fit: contain;
+}
 
 
 /* P6-3B — collapsed rail: labels GENUINELY hidden (sr-only; kept for assistive
@@ -1262,6 +1323,13 @@ html[data-ui-shell-layout="sidebar"] [data-ui-shell-part="bottom-bar"] {
 }
 
 html[data-ui-shell-layout="menu-bar"] [data-ui-shell-part="mobile-drawer"] {
+  display: none;
+}
+
+/* NAV1B — where the ACTIVE layout composes no rail, the rail's FRAME is hidden too (not only the
+ * bands inside it), so it can leave neither an empty box nor its own inline offset in the shell
+ * row. The sidebar layout keeps the frame, because that is where its rail lives. */
+html[data-ui-shell-layout="menu-bar"] .ui-shell-sidebar:has([data-ui-shell-part="rail"]) {
   display: none;
 }
 

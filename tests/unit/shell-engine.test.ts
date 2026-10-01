@@ -287,7 +287,11 @@ describe("ShellMobileNav (client) — deterministic SSR states + dialog semantic
     const html = renderToStaticMarkup(
       ShellMobileNav({ pattern: "drawer", triggerLabel: "Menu", id: "m", children: items }),
     );
-    expect(html).toContain("md:hidden");
+    // NAV1B — the trigger carries NO width gate of its own: its HOST owns the gate (the
+    // composition's band), so the SAME control serves the sidebar's constrained band and the
+    // bar's More drawer without a breakpoint of its own to drift.
+    expect(html).not.toContain("md:hidden");
+    expect(html).toContain("ui-shell-mobile-nav-trigger");
     expect(html).toContain('aria-expanded="false"');
     // B1: the trigger owns the deterministic id; aria-controls targets the
     // `${id}-panel` id that exists only once the dialog is open.

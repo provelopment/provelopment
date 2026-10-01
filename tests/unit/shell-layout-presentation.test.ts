@@ -94,46 +94,53 @@ function headerHtml(resolved: typeof enabled): string {
 describe("shell layout presentation — composed markup", () => {
   it("composes BOTH structures when a visitor may choose, each scoped to its layout", () => {
     const engine = engineHtml(enabled);
-    // The rail is composed in its two deterministic bands, and both bands declare that
-    // they serve the SIDEBAR layout.
+    // The rail is composed in its two deterministic bands, each declaring that it serves the
+    // SIDEBAR layout; the sidebar's own constrained-width disclosure carries the same marker.
     expect(engine.match(/data-ui-shell-part="rail"/g) ?? []).toHaveLength(2);
-    expect(engine.match(/data-ui-shell-layouts="sidebar"/g) ?? []).toHaveLength(2);
+    expect(engine.match(/data-ui-shell-layouts="sidebar"/g) ?? []).toHaveLength(3);
     expect(engine).toContain("hidden lg:block");
     expect(engine).toContain("hidden md:block lg:hidden");
     expect(engine).toContain("ui-sidebar-rail");
-    // NAV1A — the MOBILE bar belongs to the MENU-BAR layout: it is composed (so switching
-    // to that layout at <md presents it without a reload) and marked with the layout it
-    // serves, so the sidebar layout can never be presented through it.
-    expect(engine).toContain('data-ui-shell-part="bottom-bar"');
+    // NAV1A/NAV1B — the sidebar layout's MOBILE surface is its own off-canvas disclosure, composed
+    // at the SIDEBAR BOUNDARY (never in the page header) and `<md`-only, because the rail covers
+    // ≥md for this composition.
+    expect(engine).toContain('data-ui-shell-part="mobile-drawer"');
+    expect(engine).toContain("ui-shell-sidebar-disclosure md:hidden");
+    expect(engine).toContain("shell-mobile-nav");
+    // NAV1B — the MENU-BAR layout's navigation is the sticky bottom bar at EVERY width (its ≥md top
+    // menu is closed): marked with the layout it serves, and carrying NO width gate at all.
+    expect(engine.match(/data-ui-shell-part="bottom-bar"/g) ?? []).toHaveLength(1);
     expect(engine).toContain('data-ui-shell-layouts="menu-bar"');
-    expect(engine).toContain("ui-shell-bottom-bar");
+    const barTag = engine.slice(
+      engine.indexOf("ui-shell-bottom-bar"),
+      engine.indexOf(">", engine.indexOf("ui-shell-bottom-bar")),
+    );
+    expect(barTag).not.toContain("md:hidden");
 
+    // The HEADER composes no navigation at all for either layout: the ≥md top navigation is closed
+    // by the menu-bar layout, and the mobile disclosure is the shell's.
     const header = headerHtml(enabled);
-    // The header carries the navigation for the MENU-BAR layout, covering both md bands.
-    expect(header).toContain('data-ui-shell-part="top-nav"');
-    expect(header).toContain('data-ui-shell-layouts="menu-bar"');
-    expect(header).toContain("hidden md:block");
-    expect(header).toContain("Primary navigation");
-    // …and the SIDEBAR layout's own mobile navigation: the off-canvas drawer disclosure,
-    // marked for the sidebar layout only.
-    expect(header).toContain('data-ui-shell-part="mobile-drawer"');
-    expect(header).toContain('data-ui-shell-layouts="sidebar"');
-    expect(header).toContain("shell-mobile-nav");
+    expect(header).not.toContain('data-ui-shell-part="top-nav"');
+    expect(header).not.toContain('data-ui-shell-part="mobile-drawer"');
+    expect(header).not.toContain("shell-mobile-nav");
+    // What the header DOES own: its two semantic rows and the navigation-MODE control.
+    expect(header).toContain("ui-site-header-top");
+    expect(header).toContain("ui-site-header-mode");
+    expect(header).toContain("data-ui-layout-switcher");
   });
 
   it("serves each structure to the layout that needs it, whatever the default", () => {
-    // With the menu-bar as the configured default the markup is the MIRROR of the
-    // sidebar default: the rail still serves only the sidebar layout.
+    // With the menu-bar as the configured default the markup is the MIRROR of the sidebar
+    // default: the rail (and the sidebar's own disclosure) still serve only the sidebar layout.
     const engine = engineHtml(menuBarDefault);
-    expect(engine.match(/data-ui-shell-layouts="sidebar"/g) ?? []).toHaveLength(2);
-    expect(engine).toContain('data-ui-shell-part="bottom-bar"');
+    expect(engine.match(/data-ui-shell-layouts="sidebar"/g) ?? []).toHaveLength(3);
+    expect(engine.match(/data-ui-shell-part="bottom-bar"/g) ?? []).toHaveLength(1);
     expect(engine).toContain('data-ui-shell-layouts="menu-bar"');
+    // No ≥md top navigation anywhere — the menu-bar layout's navigation is the bottom bar.
+    expect(engine).not.toContain('data-ui-shell-part="top-nav"');
     const header = headerHtml(menuBarDefault);
-    expect(header).toContain('data-ui-shell-layouts="menu-bar"');
-    // The sidebar layout's mobile drawer is composed here too: the visitor may switch to
-    // it, and at <md that layout presents THAT drawer, never the bottom bar.
-    expect(header).toContain('data-ui-shell-part="mobile-drawer"');
-    expect(header).toContain('data-ui-shell-layouts="sidebar"');
+    expect(header).not.toContain('data-ui-shell-part="top-nav"');
+    expect(header).not.toContain('data-ui-shell-part="mobile-drawer"');
     // …and the control starts on the configured default.
     expect(header).toContain('<option value="menu-bar" selected=""');
   });

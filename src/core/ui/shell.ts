@@ -48,6 +48,14 @@ export interface PerViewportDecision {
   readonly ctaSlot: "top" | "none";
   /** Whether a client trigger opens the layer (drawer/overlay only; false otherwise). */
   readonly trigger?: boolean;
+  /**
+   * NAV1B — whether this band PRESENTS a navigation structure of its own: a rail in the
+   * aside slot (while the sidebar capability is composed), or a ≥md header navigation while
+   * the top menu is not closed. A band that presents nothing is OPEN, and the composition's
+   * mobile surface (its sticky bottom bar, or the sidebar's own disclosure) covers it — which
+   * is what lets the configured MODE, not the viewport width, own the navigation.
+   */
+  readonly presentsNavigation: boolean;
 }
 
 /** The deterministic shell composition decision for one resolved config. */
@@ -59,6 +67,61 @@ export interface ShellPatternDecision {
   readonly classes: { readonly densityClass: string; readonly contentWidthClass: string };
   /** Whether a primary CTA is composed at all (resolved.cta.enabled). */
   readonly cta: { readonly present: boolean };
+  /**
+   * NAV1B — the bands in which this composition presents NO navigation of its own. A MOBILE
+   * navigation surface is presented in every band listed here PLUS its own `mobile` band, so
+   * which surface carries the navigation follows the configured MODE at every width.
+   */
+  readonly openBands: readonly ShellBand[];
+}
+
+/**
+ * NAV1B — THE VIEWPORT BANDS A COMPOSITION IS PRESENTED IN.
+ *
+ * `mobile` = <md, `tablet` = md…lg, `desktop` = ≥lg — the SAME 48rem/64rem bounds the
+ * stylesheet's `md:`/`lg:` utilities resolve from, so a band and the class that renders it can
+ * never disagree about where it begins.
+ */
+export const SHELL_BANDS = ["mobile", "tablet", "desktop"] as const;
+export type ShellBand = (typeof SHELL_BANDS)[number];
+
+/**
+ * NAV1B — the width gate that presents a surface in EXACTLY `bands`.
+ *
+ * A composition property, never a call-site guess: the gate is derived from `bands` with this
+ * exhaustive table (one row per subset, unit-tested), because viewport width may decide how a
+ * MODE is presented but never which navigation the mode owns. An empty set means the surface
+ * is not composed at all, so no gate is emitted.
+ */
+export function bandClassName(bands: readonly ShellBand[]): string {
+  const key = SHELL_BANDS.filter((band) => bands.includes(band)).join(" ");
+  switch (key) {
+    case "mobile":
+      return "md:hidden";
+    case "tablet":
+      return "hidden md:block lg:hidden";
+    case "desktop":
+      return "hidden lg:block";
+    case "mobile tablet":
+      return "lg:hidden";
+    case "mobile desktop":
+      return "md:hidden lg:block";
+    case "tablet desktop":
+      return "hidden md:block";
+    default:
+      // Every width (the full set) — and the not-composed case, which emits nothing.
+      return "";
+  }
+}
+
+/**
+ * NAV1B — the bands a MOBILE navigation surface is presented in: its own `mobile` band plus every
+ * band this composition leaves without navigation. `mobile-bar + desktop + tablet` therefore means
+ * a Menu-bar composition whose sticky bar is the navigation at EVERY width, while the canonical
+ * sidebar composition (rails ≥md) yields `mobile` alone — the historic `<md`-only bar, unchanged.
+ */
+export function mobileSurfaceBands(decision: ShellPatternDecision): readonly ShellBand[] {
+  return SHELL_BANDS.filter((band) => band === "mobile" || decision.openBands.includes(band));
 }
 
 /**
@@ -72,18 +135,34 @@ function ctaSlotFor(ctaPresent: boolean): "top" | "none" {
   return ctaPresent ? "top" : "none";
 }
 
-function desktopDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
+function desktopDecision(
+  kind: ShellPrimitiveKind,
+  presentsNavigation: boolean,
+  ctaPresent: boolean,
+): PerViewportDecision {
   const slot = kind === "sidebar" || kind === "floating" ? "aside" : "header";
-  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent) };
+  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent), presentsNavigation };
 }
 
-function tabletDecision(kind: ShellPrimitiveKind, ctaPresent: boolean): PerViewportDecision {
+function tabletDecision(
+  kind: ShellPrimitiveKind,
+  presentsNavigation: boolean,
+  ctaPresent: boolean,
+): PerViewportDecision {
   const slot = kind === "collapsed-sidebar" || kind === "floating" ? "aside" : "header";
-  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent) };
+  return { primitiveKind: kind, slot, ctaSlot: ctaSlotFor(ctaPresent), presentsNavigation };
 }
 
 function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaPresent: boolean): PerViewportDecision {
-  return { primitiveKind: kind, slot: "header", ctaSlot: ctaSlotFor(ctaPresent), trigger };
+  // The mobile band always presents a surface of its own (the sticky bar, or the sidebar
+  // composition's disclosure) — never an open band.
+  return {
+    primitiveKind: kind,
+    slot: "header",
+    ctaSlot: ctaSlotFor(ctaPresent),
+    trigger,
+    presentsNavigation: true,
+  };
 }
 
 /**
@@ -169,15 +248,33 @@ export function resolveShellPattern(resolved: ResolvedUiConfig): ShellPatternDec
         : "drawer";
 
   const ctaPresent = resolved.cta.enabled === true;
+  // NAV1B — WHICH BANDS CARRY A NAVIGATION OF THEIR OWN.
+  //
+  // An aside slot carries a rail only while the sidebar capability is composed
+  // (`ui.navigation.sidebar.mode !== "closed"`); a header slot carries the ≥md top menu only
+  // while that menu is not closed. Everything else is an OPEN band, which the composition's
+  // mobile surface covers — so a Menu-bar composition (whose ≥md top menu is closed, its
+  // navigation being the sticky bottom bar) is honestly described rather than special-cased.
+  const topMenuPresented = resolved.navigation.top.mode !== "closed";
+  const sidebarComposed = resolved.navigation.sidebar.mode !== "closed";
+  const desktopPresents =
+    desktopKind === "sidebar" || desktopKind === "floating" ? sidebarComposed : topMenuPresented;
+  const tabletPresents =
+    tabletKind === "collapsed-sidebar" || tabletKind === "floating"
+      ? sidebarComposed
+      : topMenuPresented;
 
   return {
-    desktop: desktopDecision(desktopKind, ctaPresent),
-    tablet: tabletDecision(tabletKind, ctaPresent),
+    desktop: desktopDecision(desktopKind, desktopPresents, ctaPresent),
+    tablet: tabletDecision(tabletKind, tabletPresents, ctaPresent),
     mobile: mobileDecision(mobileKind, mobileKind === "drawer" || mobileKind === "overlay", ctaPresent),
     classes: {
       densityClass: densityClass(resolved.density),
       contentWidthClass: contentWidthClass(resolved.content.width),
     },
     cta: { present: ctaPresent },
+    openBands: SHELL_BANDS.filter((band) =>
+      band === "desktop" ? !desktopPresents : band === "tablet" ? !tabletPresents : false,
+    ),
   };
 }

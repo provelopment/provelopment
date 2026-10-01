@@ -279,11 +279,13 @@ desktop / tablet / mobile.
 **Responsive behavior:** the CONFIGURED layout owns the navigation at every width. In the
 canonical `sidebar` layout that is a collapsible rail ≥`lg`, a collapsed rail ≥`md`, and the
 sidebar's own off-canvas **drawer** below `md` (closed by default, reopened from its
-`Show navigation` disclosure). In the `menu-bar` layout it is the header navigation ≥`md`
-and the sticky **bottom bar** below `md`. The bottom bar's content rule is deterministic:
+`Show navigation` disclosure, which is composed at the SIDEBAR'S OWN BOUNDARY — never inside the
+page header). In the `menu-bar` layout the navigation is the sticky **bottom bar at EVERY width**:
+the top navigation is not part of Menu Bar mode. The bottom bar's content rule is deterministic:
 the first **4** configured `navigation` items render in the bar; the remainder (when
-non-empty) is exposed through the "More" drawer. The bar's links flow horizontally inside
-the page-edge inset and wrap onto another row only when the width requires it.
+non-empty) is exposed through the "More" drawer. The bar spans the viewport while its CONTENT
+follows the page's own width (`max-w-page` plus the page-edge inset), and its links flow
+horizontally inside that content, wrapping onto another row only when the width requires it.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
@@ -631,6 +633,11 @@ three-state contract as the sidebar — `open` (icon + text), `compact`
 (icon-only), `closed` (menu not composed). One vocabulary, one renderer, three
 surfaces — not three unrelated systems.
 
+In the shipped layouts the ≥md header navigation is the CUSTOM-composition case
+(`navigation.desktop`/`tablet` as `top`/`minimal`, no layout switcher): the Menu-bar
+layout presents its navigation in the sticky bottom bar at every width and closes its
+top menu, so `ui.navigation.top.mode` describes nothing there.
+
 **Compact semantics (exact, browser-verified):** `compact` hides the visible
 label **only of items that have a configured icon** (labels stay in the DOM,
 visually collapsed via the sr-only technique, so the accessible name is
@@ -642,10 +649,12 @@ use `compact` to get the icon-only rail on any surface (sidebar rail, header
 top-nav, or bottom bar).
 
 **Closed semantics (exact, browser-verified):** the menu is **not rendered**
-at all — the header navigation landmark (≥md), the bottom bar (<md), or the
+at all — the header navigation landmark, the bottom bar, or the
 aside rail respectively disappears. No empty placeholder, no orphaned
 `aria-controls` target, no layout gap. On surfaces that own other navigation
 (the responsive "Show navigation" disclosure), that other mechanism is untouched.
+(The Menu-bar layout uses exactly this value to retire its top menu: see
+`ui.layoutSwitcher` below.)
 
 #### Navigation items — icons, regions, disabled
 
@@ -791,14 +800,15 @@ switcher:
 
 What it does:
 
-- renders one secondary **Layout** dropdown in the header (`Sidebar` / `Menu bar`),
-  labelled for screen readers from the dictionary and offered at **every** width;
+- renders one secondary **Layout** dropdown (`Sidebar` / `Menu bar`), labelled for screen
+  readers from the dictionary and offered at **every** width. It is the RIGHT-ALIGNED occupant of
+  the header's TOP row (beside the identity), in normal control sizing;
 - switches the **shell layout only** — the page, its route, its locale, its content, its
-  assets and every other `ui` leaf are untouched. Each layout brings its OWN mobile
-  presentation, so the mode you are in is the mode you navigate at every width: the sidebar
-  layout presents its off-canvas drawer below `md`, the menu-bar layout the sticky bottom
-  bar. Switching the mode on a phone is therefore a real change — the surface follows the
-  mode immediately, without a reload;
+  assets and every other `ui` leaf are untouched. Each layout brings its OWN navigation at every
+  width: the sidebar layout presents a rail ≥`md` and its own off-canvas drawer below `md`, and the
+  menu-bar layout presents the sticky bottom bar at EVERY width (the top navigation is not part of
+  Menu Bar mode). Switching the mode is therefore a real change at any width — the surface follows
+  the mode immediately, without a reload;
 - remembers the visitor's choice in browser-local storage (that preference and nothing
   else — no cookie, no session, no account, and no route becomes dynamically rendered);
   storage that is blocked, empty or holds a value the vocabulary does not declare falls
@@ -809,6 +819,18 @@ What it does:
   clearance follow the active layout automatically. An open mobile drawer whose layout stops
   being active closes itself, so nothing invisible keeps the page's scroll lock.
 
+**The header's two semantic rows never change ownership.** At every width the header is:
+
+```text
+[ identity                                     ] [ Sidebar / Menu bar ]
+[ Site ] [ Location ] [ Language ]
+```
+
+The navigation-MODE selector keeps the top row's right edge; an identity too long to share the line
+wraps BELOW the selector instead of moving it. Every other header control — the contextual
+Site/Location/Language selectors, and the ≥md header navigation a custom composition presents —
+stays in the second row, left-aligned, wrapping inside that row when the width requires it.
+
 | Leaf | Values |
 | --- | --- |
 | `ui.layoutSwitcher.enabled` | `true` \| `false` (absent = off) |
@@ -816,16 +838,19 @@ What it does:
 
 The two layouts are named presets of existing vocabulary, nothing more:
 
-| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` | `ui.navigation.mobile` |
-| --- | --- | --- | --- |
-| `sidebar` | `sidebar` | `collapsed-sidebar` | `drawer` |
-| `menu-bar` | `top` | `top-compact` | `bottom-bar` |
+| Layout | `ui.navigation.desktop` | `ui.navigation.tablet` | `ui.navigation.mobile` | ≥`md` top menu |
+| --- | --- | --- | --- | --- |
+| `sidebar` | `sidebar` | `collapsed-sidebar` | `drawer` | left as configured (inert: this layout composes no ≥`md` header navigation) |
+| `menu-bar` | `top` | `top-compact` | `bottom-bar` | `closed` — the navigation is the bottom bar at every width |
 
 Because a layout IS those three leaves, enabling the switcher **and** setting
 `ui.navigation.desktop`, `ui.navigation.tablet` or `ui.navigation.mobile` is refused at
 build time with an actionable message — remove those leaves, or leave the switcher off.
 Everything else (the sidebar/top/bottom presentation modes, density, width, theme, CTA and
-the P5-3 presentation intent) still applies to both layouts.
+the P5-3 presentation intent) still applies to both layouts. `ui.navigation.top.mode` is not an
+input while the switcher is enabled: neither layout presents a ≥`md` header navigation (the
+sidebar layout's navigation is its rail, the menu-bar layout's is the bottom bar), so there is no
+top menu for that leaf to describe.
 
 The active layout is observable on `<html>` as `data-ui-shell-layout` (the same inert
 attribute surface as `data-ui-typography`, `data-ui-sidebar-mode`, …), so downstream CSS

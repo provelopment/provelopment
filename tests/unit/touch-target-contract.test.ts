@@ -87,8 +87,10 @@ describe("VIS1C — shared shell touch targets", () => {
     // The control is a real button and stays the sole drawer trigger.
     expect(tag).toContain("<button");
     expect(tag).toContain('aria-controls="shell-mobile-nav-panel"');
-    // Still phone-only: the >=md compositions are unaffected by this contract.
-    expect(tag).toContain("md:hidden");
+    // NAV1B — the width gate lives on the HOST that composes the trigger (the composer's
+    // wrapper), never on the trigger: one control serves every band.
+    expect(tag).not.toContain("md:hidden");
+    expect(mobileNavHtml()).toContain('class="md:hidden"');
   });
 
   it("does NOT enlarge the trigger's artwork to reach the target size", () => {
@@ -189,11 +191,14 @@ describe("EN-M — shared header navigation link contract", () => {
     expect(declaration).not.toMatch(/text-|font-|leading-/);
   });
 
-  it("keeps ONE contract definition consumed by both header lists (drift guard)", () => {
+  it("keeps ONE contract definition consumed by the header navigation list (drift guard)", () => {
     expect(HEADER_SOURCE).toContain("export const HEADER_NAV_LINK_CLASS");
     const uses = HEADER_SOURCE.match(/linkClassName=\{HEADER_NAV_LINK_CLASS\}/g) ?? [];
-    // The ≥md top-navigation list AND the mobile disclosure list.
-    expect(uses.length).toBe(2);
+    // NAV1B — the header composes ONE navigation list: the ≥md header navigation a CUSTOM
+    // composition presents. Its mobile list is gone with the disclosure, which the shell engine
+    // now composes at the sidebar boundary and which reuses the RAIL's own list — so the link
+    // contract is not duplicated there either.
+    expect(uses.length).toBe(1);
     // The text brand fallback (no configured logo) takes the same box.
     expect(HEADER_SOURCE).toContain("linkClassName={TOUCH_TARGET_BOX_CLASS}");
     // No surface may fall back to the undersized inline class again.

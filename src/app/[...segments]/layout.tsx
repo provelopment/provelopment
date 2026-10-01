@@ -26,6 +26,7 @@ import { buildLanguageAlternates } from "@/core/locale";
 import {
   bottomBarCompositions,
   layoutDataAttributes,
+  mobileDisclosureCompositions,
   presentationDataAttributes,
   radiusDataAttribute,
   railCompositions,
@@ -280,19 +281,25 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
       }
     : undefined;
 
-  const asideContent = usesAside ? (
-    <ContextNavLinks
-      locale={locale}
-      // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the
-      // configured `iconOpen`/`iconClosed`, else the shipped dot/plus defaults).
-      links={withSidebarNavIcons(navLinks)}
-      className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
-      linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
-      // P5-5 — the aside rail orders by configured region (top → middle →
-      // bottom), stable within each group; labels stay readable.
-      sortByRegion
-    />
-  ) : undefined;
+  // NAV1B — the sidebar's navigation LIST is needed wherever a sidebar composition presents it:
+  // the rail (≥md) AND that composition's constrained-width disclosure. `usesAside` still gates the
+  // RAIL itself (and its pre-paint preference bridge), so `navigation.sidebar.mode: "closed"`
+  // continues to mean "no persistent rail — the disclosure is how navigation is reached", exactly
+  // as that leaf documents.
+  const sidebarNavContent =
+    usesAside || mobileDisclosureCompositions(resolvedUi).length > 0 ? (
+      <ContextNavLinks
+        locale={locale}
+        // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the
+        // configured `iconOpen`/`iconClosed`, else the shipped dot/plus defaults).
+        links={withSidebarNavIcons(navLinks)}
+        className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
+        linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        // P5-5 — the aside rail orders by configured region (top → middle →
+        // bottom), stable within each group; labels stay readable.
+        sortByRegion
+      />
+    ) : undefined;
 
   const bottomNav = usesBottomBar
     ? {
@@ -410,7 +417,7 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             icon: availableIconName(resolvedUi.navigation.sidebar.close.icon),
             text: resolvedUi.navigation.sidebar.close.text,
           }}
-          asideContent={asideContent}
+          asideContent={sidebarNavContent}
           bottomNav={bottomNav}
           locale={locale}
           pageBindings={siteConfig.pageBindings}

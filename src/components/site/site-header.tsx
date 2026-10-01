@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { siteConfig } from "@/config";
-import { assetPathFromUrl, availableHeaderGraphicPath, availableIconName } from "@/config/assets";
+import { assetPathFromUrl, availableHeaderGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { regionsForSite } from "@/core/regional-pages";
@@ -9,14 +9,11 @@ import {
     headerNavigationLayouts,
     layoutScopeAttributes,
     menuModeClass,
-    mobileDisclosureCompositions,
-    mobileDisclosureLayouts,
     resolveShellPattern,
     type ResolvedUiConfig,
 } from "@/core/ui";
-import { ShellMobileNav } from "@/components/shell";
-import { Stack } from "@/components/ui/stack";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
+import { Stack } from "@/components/ui/stack";
 import { LanguageSwitcher } from "./language-switcher";
 import { LayoutSwitcher } from "./layout-switcher";
 import { LocationSwitcher } from "./location-switcher";
@@ -82,26 +79,12 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     const decision = resolveShellPattern(resolved);
     const desktopSlot = decision.desktop.slot;
     const tabletSlot = decision.tablet.slot;
-    // NAV1A — the MOBILE disclosure is a per-layout surface, exactly like the ≥md navigation
-    // above. The header composes the disclosure of every layout whose MOBILE composition is a
-    // disclosure (the `sidebar` layout's off-canvas drawer), marks it with the layouts it IS
-    // the mobile navigation for, and the stylesheet exposes exactly one mobile navigation per
-    // active layout — so a sidebar site is never presented through the menu-bar's bottom bar.
-    // With the switcher disabled this is the single configured composition and no markers are
-    // emitted, which keeps a one-composition site byte-identical.
-    const mobileDisclosures = mobileDisclosureCompositions(resolved);
-    const mobileDisclosureLayoutList = mobileDisclosureLayouts(resolved);
-    // The shipped vocabulary maps both layouts onto ONE disclosure pattern (`drawer`); the
-    // first composed disclosure therefore names the pattern the shell's mobile layer renders.
-    const mobilePattern: "drawer" | "overlay" | null =
-        mobileDisclosures.length > 0
-            ? (mobileDisclosures[0].decision.mobile.primitiveKind as "drawer" | "overlay")
-            : null;
-    const mobileDisclosureScope = layoutScopeAttributes(
-        "mobile-drawer",
-        mobileDisclosureLayoutList,
-        resolved.layoutSwitcher.enabled,
-    );
+    // NAV1B — THE HEADER COMPOSES NO MOBILE NAVIGATION. The sidebar composition's
+    // constrained-width disclosure belongs to the sidebar/shell boundary and is composed there
+    // by the shell engine, so this header owns exactly two semantic rows (identity + the
+    // navigation-MODE selector, then every other control). Previously it lived here, where it
+    // migrated between the header's lines as the visitor controls changed width — the reported
+    // defect.
     // N2 — when the layout switcher is enabled the header must ALSO carry the
     // navigation for every composed layout that uses the header slot, because which
     // structure is displayed is decided client-side: the header's nav and the rail
@@ -119,7 +102,6 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
         desktopSlot === "header" || tabletSlot === "header" || layoutHeaderLayouts.length > 0;
     const hasHeaderNav = headerNavPresent && resolved.navigation.top.mode !== "closed";
     const topModeClass = menuModeClass(resolved.navigation.top.mode);
-    const sidebarModeClass = menuModeClass(resolved.navigation.sidebar.mode);
     const desktopNavClassName = !hasHeaderNav
         ? undefined
         : layoutHeaderLayouts.length > 0
@@ -163,6 +145,9 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     // page banner, the identity logo or the navigation.
     const headerGraphic = availableHeaderGraphicPath(siteConfig.assets?.headerGraphic);
 
+    // The ≥md header navigation list — composed only for a CUSTOM composition that presents
+    // one (NAV1B: neither shipped layout does; a Menu-bar composition presents its navigation
+    // in the sticky bottom bar at every width).
     const navListElement = (
         <ContextNavLinks
             locale={locale}
@@ -172,26 +157,18 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
         />
     );
 
-    // P5-4 — Shared responsive navigation contract: the mobile sidebar
-    // disclosure (drawer AND overlay — the whole "Show navigation" contract)
-    // presents navigation as a clean VERTICAL list, one item per line. The
-    // horizontal `flex flex-wrap` class belongs ONLY to the ≥md header
-    // top-navigation; previously the drawer pattern reused that horizontal
-    // list, so classic/focus/workspace wrapped multiple items per line inside
-    // the drawer (immersive's overlay showed the intended vertical layout).
-    // A single vocabulary-agnostic list now yields the same vertical
-    // presentation for every mobile disclosure (immersive markup is unchanged).
-    const mobileNavListElement = (
-        <ContextNavLinks
-            locale={locale}
-            links={navLinks}
-            className={`flex flex-col items-start gap-y-2 ${sidebarModeClass ?? ""}`}
-            linkClassName={HEADER_NAV_LINK_CLASS}
-            // P5-5 — the mobile sidebar disclosure orders by configured
-            // region (top → middle → bottom) like the aside rail.
-            sortByRegion
-        />
-    );
+    // NAV1B — WHO BELONGS TO THE SECONDARY ROW. `SiteSelector` (only when the deployment
+    // serves more than one site), `LocationSwitcher` (only where the active site binds
+    // locations) and `LanguageSwitcher` (only when more than one locale is configured) are the
+    // existing CONTEXTUAL SELECTION GROUP: the controls that choose the context a page is read
+    // in. The navigation-MODE selector is deliberately NOT one of them — it belongs to the top
+    // row, beside the identity. A ≥md navigation a custom composition presents is not a
+    // dropdown either, but it is secondary chrome: it shares this row rather than disturbing
+    // the top row's fixed ownership.
+    const siteSelectorPresent = siteSwitch !== undefined && siteSwitch.length > 1;
+    const languageSelectorPresent = siteConfig.locales.length > 1;
+    const hasSecondaryControls =
+        hasHeaderNav || siteSelectorPresent || hasLocations || languageSelectorPresent;
 
     // P6-3C — NO mobile drawer/overlay CTA is composed here. The primary CTA
     // has ONE authoritative home (the shell's top region, below the header), so
@@ -206,37 +183,81 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     // the header renders exactly as it did before P12-HG.
     return (
         <header className="ui-site-header border-b border-border" {...headerGraphicBandProps(headerGraphic)}>
-            <div className="mx-auto flex max-w-page flex-wrap items-center justify-between gap-x-4 gap-y-3 px-4 py-4">
-                {headerLogoSrc ? (
-                    <Link
-                        href={`/${locale}`}
-                        aria-label={siteConfig.name}
-                        // VIS1C — a >= 44px-tall HIT AREA for the brand/home link.
-                        // The lockup artwork stays at its `h-8` visual scale; the
-                        // interactive box around it grows so the site's primary
-                        // "go home" target is comfortably tappable.
-                        className="ui-site-header-brand inline-flex min-h-11 min-w-11 items-center"
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={headerLogoSrc}
-                            alt={siteConfig.name}
-                            className="ui-site-header-logo h-8 w-auto"
-                        />
-                    </Link>
-                ) : (
-                    <ContextNavLinks
-                        locale={locale}
-                        links={[{ href: "/", label: siteConfig.name }]}
-                        className="font-semibold tracking-tight"
-                        // EN-M — the text brand fallback is the "go home" target for an
-                        // adopter with no configured logo; it takes the same ≥44px box
-                        // (its own typography and weight are untouched).
-                        linkClassName={TOUCH_TARGET_BOX_CLASS}
-                    />
-                )}
+            <div className="mx-auto max-w-page px-4 py-4">
+                {/* ── TOP SEMANTIC ROW — IDENTITY + THE NAVIGATION-MODE SELECTOR ────────
+                    NAV1B — this row owns exactly two things, at EVERY width: the identity,
+                    and the Sidebar/Menu-bar selector anchored to the right edge of the padded
+                    header content. The selector keeps its normal control sizing, never
+                    stretches across the row, and never moves into the control row below. The
+                    identity takes the remaining space; when the two cannot share one line the
+                    identity wraps BELOW the selector (never over it, never moving it). */}
+                <div className="ui-site-header-top grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-4 gap-y-2">
+                    <div className="ui-site-header-identity min-w-0 break-words">
+                        {headerLogoSrc ? (
+                            <Link
+                                href={`/${locale}`}
+                                aria-label={siteConfig.name}
+                                // VIS1C — a >= 44px-tall HIT AREA for the brand/home link.
+                                // The lockup artwork stays at its `h-8` visual scale; the
+                                // interactive box around it grows so the site's primary
+                                // "go home" target is comfortably tappable.
+                                className="ui-site-header-brand inline-flex min-h-11 min-w-11 items-center"
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={headerLogoSrc}
+                                    alt={siteConfig.name}
+                                    className="ui-site-header-logo h-8 w-auto"
+                                />
+                            </Link>
+                        ) : (
+                            <ContextNavLinks
+                                locale={locale}
+                                links={[{ href: "/", label: siteConfig.name }]}
+                                className="font-semibold tracking-tight"
+                                // EN-M — the text brand fallback is the "go home" target for an
+                                // adopter with no configured logo; it takes the same ≥44px box
+                                // (its own typography and weight are untouched).
+                                linkClassName={TOUCH_TARGET_BOX_CLASS}
+                            />
+                        )}
+                    </div>
 
-                <Stack direction="row" gap="gap-x-4 gap-y-2" items="items-center">
+                    {/* N2/NAV1B — the ONE navigation-MODE control, shown only when the visitor
+                        actually has more than one presentation to choose from (the switcher's
+                        own `enabled` semantics: disabled → the site presents exactly one
+                        effective option, so there is nothing to select and no control). */}
+                    {resolved.layoutSwitcher.enabled ? (
+                        <div className="ui-site-header-mode justify-self-end">
+                            <LayoutSwitcher
+                                label={dictionary.layout.label}
+                                defaultLayout={resolved.layoutSwitcher.default}
+                                labels={{
+                                    sidebar: dictionary.layout.sidebar,
+                                    "menu-bar": dictionary.layout.menuBar,
+                                }}
+                            />
+                        </div>
+                    ) : null}
+                </div>
+
+                {/* ── SECONDARY SEMANTIC ROW — EVERY OTHER HEADER CONTROL ───────────────
+                    NAV1B — the contextual selectors (Site → Location → Language) and any ≥md
+                    header navigation a CUSTOM composition presents live HERE: always below the
+                    top row, left-aligned at the padded edge, in normal control sizing. They
+                    wrap INSIDE this row when the width needs it and never move up. */}
+                {hasSecondaryControls ? (
+                    // The shared `Stack` (flex-wrap row + gap + item alignment) owns this row's
+                    // flow: its controls wrap INSIDE the row and can never move up. The TOP row is
+                    // a two-column grid instead, because its contract is not a wrapping flow —
+                    // the selector stays anchored at the right edge while the identity yields
+                    // (`Stack` deliberately expresses no column tracks: see `ui/stack.tsx`).
+                    <Stack
+                        direction="row"
+                        gap="gap-x-3 gap-y-2"
+                        items="items-center"
+                        className="ui-site-header-context mt-3"
+                    >
                     {hasHeaderNav ? (
                         <nav
                             aria-label={dictionary.navigation.primaryLabel}
@@ -251,81 +272,29 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
                         </nav>
                     ) : null}
 
-                    <Stack direction="row" gap="gap-x-3 gap-y-2" items="items-center">
-                        {/* S1E2 — the SITE selector comes first: it changes the whole context
-                            (page tree + labels + navigation), which every other selector then
-                            acts INSIDE. Rendered only when the deployment serves more than one
-                            site, so a single-site deployment is unchanged. */}
-                        {siteSwitch !== undefined && siteSwitch.length > 1 ? (
-                            <SiteSelector
-                                current={siteId ?? siteConfig.defaultSite.code}
-                                label={dictionary.site.label}
-                                options={siteSwitch}
-                            />
-                        ) : null}
-                        {hasLocations ? (
-                            <LocationSwitcher
-                                locale={locale}
-                                label={dictionary.location.label}
-                                unspecifiedLabel={dictionary.location.unspecified}
-                                regionLabels={regionLabels}
-                            />
-                        ) : null}
-                        {siteConfig.locales.length > 1 ? (
-                            <LanguageSwitcher
-                                locale={locale}
-                                label={dictionary.language.label}
-                            />
-                        ) : null}
-                        {/* N2/NAV1A — the layout presentation control is available at EVERY
-                            width. The configured mode is authoritative at every viewport (the
-                            sidebar layout presents its own mobile drawer, the menu-bar layout
-                            its sticky bottom bar), so switching the mode is meaningful on a
-                            phone too: this is the ONE owned control — never a second,
-                            mobile-only selector. */}
-                        {resolved.layoutSwitcher.enabled ? (
-                            <LayoutSwitcher
-                                label={dictionary.layout.label}
-                                defaultLayout={resolved.layoutSwitcher.default}
-                                labels={{
-                                    sidebar: dictionary.layout.sidebar,
-                                    "menu-bar": dictionary.layout.menuBar,
-                                }}
-                            />
-                        ) : null}
+                    {/* S1E2 — the SITE selector comes first: it changes the whole context
+                        (page tree + labels + navigation), which every other selector then
+                        acts INSIDE. Rendered only when the deployment serves more than one
+                        site, so a single-site deployment is unchanged. */}
+                    {siteSelectorPresent ? (
+                        <SiteSelector
+                            current={siteId ?? siteConfig.defaultSite.code}
+                            label={dictionary.site.label}
+                            options={siteSwitch ?? []}
+                        />
+                    ) : null}
+                    {hasLocations ? (
+                        <LocationSwitcher
+                            locale={locale}
+                            label={dictionary.location.label}
+                            unspecifiedLabel={dictionary.location.unspecified}
+                            regionLabels={regionLabels}
+                        />
+                    ) : null}
+                    {languageSelectorPresent ? (
+                        <LanguageSwitcher locale={locale} label={dictionary.language.label} />
+                    ) : null}
                     </Stack>
-                </Stack>
-
-                {mobilePattern === "drawer" || mobilePattern === "overlay" ? (
-                    <ShellMobileNav
-                        pattern={mobilePattern}
-                        id="shell-mobile-nav"
-                        triggerLabel={dictionary.navigation.showSidebar}
-                        className="md:hidden"
-                        closeLabel={dictionary.navigation.hideSidebar}
-                        // NAV1A — inert layout-scope markers + the layouts this disclosure
-                        // serves: the stylesheet exposes exactly one mobile navigation, and an
-                        // open drawer withdraws (and closes) when the visitor switches away
-                        // from this layout.
-                        scope={mobileDisclosureScope}
-                        activeLayouts={
-                            resolved.layoutSwitcher.enabled ? mobileDisclosureLayoutList : undefined
-                        }
-                        // P5-5/P6-1 — the sidebar disclosure content is configured by
-                        // `ui.navigation.sidebar` (icon asset + visible text). Icons are
-                        // screened against public/assets here (the framework boundary) so
-                        // the DOM never contains a broken-image element.
-                        open={{
-                            icon: availableIconName(resolved.navigation.sidebar.open.icon),
-                            text: resolved.navigation.sidebar.open.text,
-                        }}
-                        close={{
-                            icon: availableIconName(resolved.navigation.sidebar.close.icon),
-                            text: resolved.navigation.sidebar.close.text,
-                        }}
-                    >
-                        {mobileNavListElement}
-                    </ShellMobileNav>
                 ) : null}
             </div>
         </header>

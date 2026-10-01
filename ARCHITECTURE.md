@@ -1459,7 +1459,7 @@ width**:
 | Where | What persists | Why |
 | --- | --- | --- |
 | any width where a **rail band** is composed beside the content | the rail's **content column** (`.ui-sidebar-rail-sticky`: its show/hide control and its navigation list) | the composition already puts the navigation beside the content |
-| everywhere else — a header-slot composition, and every width below `md` | the shell's **top region** (`.ui-shell-top`: identity, any header-slot navigation, and the mobile disclosure trigger) | the header is where the navigation is |
+| everywhere else — a header-slot composition, and every width below `md` | the shell's **top region** (`.ui-shell-top`: the header — identity, the navigation-mode selector, any header-slot navigation, and the contextual controls) | the header is where the controls are |
 
 - The engine (UI-04 `ShellEngine`) emits the rail-band markers
   (`ui-shell-top--rail-md` / `ui-shell-top--rail-lg`) as a pure function of the
@@ -1489,9 +1489,8 @@ width**:
 ### Shell layout presentation — the optional visitor switcher (N2)
 
 A Foundation site has **one** shell composition. N2 adds the *optional* capability for a
-visitor to choose between the platform's two layouts — a desktop **sidebar** and a top
-**menu bar** — which exists so a deployment can demonstrate the same site in two
-presentations.
+visitor to choose between the platform's two layouts — a **sidebar** and a bottom **menu bar** —
+which exists so a deployment can demonstrate the same site in two presentations.
 
 - **A layout is a PRESET, not a second shell system.** It names three existing vocabulary
   leaves — one per viewport width: `sidebar` = `navigation.desktop: "sidebar"` +
@@ -1501,13 +1500,26 @@ presentations.
   composition the shell engine does not already implement.
 - **The viewport changes HOW a mode is presented, never WHICH mode it is** (NAV1A). The
   mobile leaf belongs to the layout precisely so that narrowing a window cannot turn a
-  sidebar site into a menu-bar site: below `md` the sidebar layout presents its own
-  off-canvas drawer and the menu-bar layout its sticky bottom bar. One shared mobile
-  surface for both — the shipped behaviour this contract corrects — made viewport width the
-  owner of the navigation architecture, removed the mode control below `md` because there
-  was "nothing to switch", and left the sidebar layout's bottom bar stacking its links one
-  per row. No new mode was introduced: each preset names one of the four already-shipped
-  `navigation.mobile` patterns, and no navigation data is duplicated.
+  sidebar site into a menu-bar site: the sidebar layout presents its own off-canvas drawer
+  where its rail is not composed. One shared mobile surface for both — the shipped behaviour
+  this contract corrects — made viewport width the owner of the navigation architecture,
+  removed the mode control below `md` because there was "nothing to switch", and left the
+  sidebar layout's bottom bar stacking its links one per row. No new mode was introduced:
+  each preset names one of the four already-shipped `navigation.mobile` patterns, and no
+  navigation data is duplicated.
+- **MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH** (NAV1B). The top navigation bar
+  presentation is no longer part of Menu Bar mode: the layout's preset also CLOSES its ≥md top
+  menu (`topMenu: "closed"` — the shipped three-state menu contract), so no ≥md header
+  navigation is composed in any band, and the sticky bottom bar — which covers EVERY band the
+  composition leaves without navigation — IS the navigation at desktop, tablet and mobile
+  widths alike. Nothing is left behind: a closed menu composes no landmark at all, so there is
+  no hidden duplicate to reach by keyboard or assistive technology.
+- **Which BANDS a surface occupies is a composition property, never a call-site breakpoint.**
+  `resolveShellPattern` reports the bands a composition presents no navigation of its own in
+  (`openBands`), and `mobileSurfaceBands` + `bandClassName` turn that into the surface's width
+  gate (an exhaustive table, unit-tested). The canonical sidebar composition therefore keeps
+  the historic `<md` bottom bar EXACTLY as shipped, while a Menu-bar composition presents it at
+  every width — and the sidebar's own constrained-width disclosure is placed by the same rule.
 - **Configuration decides whether it exists.** `ui.layoutSwitcher: { enabled, default }`
   (`@/core/ui/defaults.ts` → `FOUNDATION_UI_DEFAULTS.layoutSwitcher`) is **disabled by
   default**: the Foundation's own composition offers no choice, exactly as it renders no
@@ -1515,6 +1527,17 @@ presentations.
   `navigation.desktop`/`tablet`/`mobile`, and the schema REFUSES enabling it alongside any
   of those three leaves (two answers to one question is a contradiction, and the Foundation
   fails loudly rather than picking one).
+- **THE HEADER'S TWO SEMANTIC ROWS NEVER CHANGE OWNERSHIP** (NAV1B). The header composes two
+  regions at every width: the TOP row owns the identity and the navigation-MODE selector, which
+  is anchored to the right edge of the padded content (an identity too long to share the line
+  wraps below the selector rather than moving it); the SECOND row owns every other header control
+  — the contextual Site/Location/Language selectors, and the ≥md header navigation a CUSTOM
+  composition presents. Responsive behaviour may wrap a region's own content, close the sidebar
+  or wrap the bar's links; it may never move a control between rows, enlarge a navigation control
+  because the viewport narrowed, or relocate a mode's navigation. The sidebar's constrained-width
+  disclosure is composed by the ENGINE at the SIDEBAR BOUNDARY (`sidebarLead`, above the content
+  row) for exactly that reason: inside the header it migrated between the rows as the visitor
+  controls changed width, which is the reported defect.
 - **One exposed navigation, by construction.** The shell composes the structures of both
   layouts and marks each one with the layouts it is the active navigation for
   (`data-ui-shell-part="rail" | "top-nav" | "bottom-bar" | "mobile-drawer"` +
@@ -1522,8 +1545,9 @@ presentations.
   exposes exactly one for the active `data-ui-shell-layout` value on `<html>`. The gate is
   `display: none`, which is SEMANTIC: the inactive structure leaves the accessibility tree
   and the focus order, so there is never a second focusable navigation system and never a
-  duplicate landmark. The MOBILE surfaces are part of that same contract (NAV1A): below
-  `md` the sidebar layout exposes its drawer and the menu-bar layout its bar, never both.
+  duplicate landmark. The MOBILE surfaces are part of that same contract (NAV1A/NAV1B): where
+  a rail is not composed the sidebar layout exposes its drawer, and the menu-bar layout exposes
+  its bar at every width — never both.
   An open drawer whose layout stops being active also CLOSES itself (the active layout is
   watched on `<html>`), so a withdrawn disclosure can never keep the body scroll lock or
   the background `inert` it applied. Persistent navigation and fragment clearance follow
@@ -1541,17 +1565,21 @@ presentations.
   locale model; `/ww/de/about` stays `/ww/de/about` under both layouts, and switching changes no
   DOM content — only which of the two composed navigation structures is exposed.
 - Asserted by `tests/unit/ui-layout-switcher.test.ts` (vocabulary, resolution, the mobile
-  leaf each layout owns, configuration coherence, completeness), by
-  `tests/unit/shell-layout-presentation.test.ts` (the composed markup, the scope markers
+  leaf each layout owns, the band each surface covers, configuration coherence, completeness),
+  by `tests/unit/shell-header-rows.test.ts` (the header's two semantic rows and their ownership),
+  by `tests/unit/shell-layout-presentation.test.ts` (the composed markup, the scope markers
   including the two mobile surfaces, the byte-identity guarantee, and the stylesheet
   contract) and by the browser matrix's `layout-switcher` scenario (rendered behaviour:
-  one exposed navigation, Tab never reaching the hidden structure, unchanged
-  content/route/locale, persistence through client navigation and reload, an unusable
-  stored value ignored, the control available at every width, the per-layout mobile
-  presentation at 1280/1024/900/768/767/390/360/320, real resize transitions, and mobile
-  mode switching) plus its `bottom-nav-wrap` scenario (the sticky bar's list layout: one
-  row when the links fit, genuine wrapping when they do not, page-edge inset, no
-  horizontal overflow, no clipping).
+  one exposed navigation, Tab never reaching the hidden structure, unchanged content/route/
+  locale, persistence through client navigation and reload, an unusable stored value ignored,
+  the control available at every width, the per-layout navigation at
+  1280/1024/900/768/767/390/360/320 — the menu-bar sticky bar at EVERY width with no top
+  navigation, the sidebar's own disclosure at the sidebar boundary at a scale identical to the
+  accepted rail control — real resize transitions, and mobile mode switching) plus its
+  `bottom-nav-wrap` scenario (the sticky bar's list layout: one row when the links fit, genuine
+  wrapping when they do not, page-edge inset, content following the page width, no horizontal
+  overflow, no clipping) and its `header-rows` scenario (the fixed semantic rows under a very
+  long identity and under long contextual labels, with test-owned fixtures).
 
 ### Boundaries
 

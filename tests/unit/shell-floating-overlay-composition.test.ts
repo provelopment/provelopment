@@ -149,6 +149,33 @@ const base = { locale: "en", pageBindings: [], siteSet: SITE_SET };
 const allIds = (html: string) => [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
 
 const rail = el("ul", null, el("li", null, el("a", { href: "/en/1" }, "One")));
+
+/**
+ * NAV1B — THE DISCLOSURE CONTRACT, PROVEN ON THE ENGINE.
+ *
+ * The sidebar composition's constrained-width disclosure is composed at the SIDEBAR/SHELL
+ * BOUNDARY by `ShellEngine` — never in the page header, where it used to migrate between header
+ * rows as the visitor controls changed width. These assertions therefore render the engine's
+ * composition with the props the content layer supplies (the rail's own list is what the
+ * disclosure carries: one model, one presentation).
+ */
+function disclosureHtml(resolved: ReturnType<typeof resolveUiConfig>) {
+  return renderToStaticMarkup(
+    ShellEngine({
+      resolved,
+      header: el("header", null, "Brand"),
+      main: el("main", null, "Content"),
+      footer: el("footer", null, "Footer"),
+      mainId: "main",
+      navigationLabel: "Primary navigation",
+      asideContent: rail,
+      sidebarLabels: { show: "Show navigation", hide: "Hide navigation" },
+      locale: "en",
+      pageBindings: [],
+      siteSet: SITE_SET,
+    }),
+  );
+}
 const immersive = resolveUiConfig(FLOATING_OVERLAY_UI);
 const immersiveWithCta = resolveUiConfig({
   ...FLOATING_OVERLAY_UI,
@@ -318,15 +345,19 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
   });
 
   it("CLOSED SSR: trigger present; NO dialog/CTA/focusable; single nav landmark; no duplicate ids", () => {
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     expect(html).toContain('id="shell-mobile-nav"');
     expect(html).toContain('aria-controls="shell-mobile-nav-panel"');
     expect(html).not.toContain('id="shell-mobile-nav-panel"');
     expect(html).toContain('aria-expanded="false"');
-    expect(html).toContain("md:hidden");
-    // Floating-overlay (aside composition) exposes its single ≥md nav landmark in the
-    // shell SIDEBAR (both desktop+tablet slots are aside), not in the header:
-    expect(html).not.toContain('aria-label="Primary navigation"');
+    // NAV1B — the HOST band carries the composition's width gate, not the trigger; both
+    // desktop and tablet slots are aside here, so the disclosure is `<md`-only.
+    expect(html).toContain("ui-shell-sidebar-disclosure md:hidden");
+    // The composition exposes its ≥md nav landmarks in the shell SIDEBAR (the two mutually
+    // exclusive rail bands) — the page header composes none:
+    expect((html.match(/aria-label="Primary navigation"/g) ?? [])).toHaveLength(2);
+    expect(html).toContain('id="shell-sidebar-desktop-rail"');
+    expect(html).toContain('id="shell-sidebar-tablet-rail"');
     // Closed overlay contributes no dialog, no CTA, no links/focusables:
     expect(html).not.toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
@@ -337,7 +368,7 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
 
   it("P6-3C — OPEN overlay (forced): the disclosure carries NAVIGATION only (no CTA inside it)", () => {
     mockForcedOpen = true;
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = disclosureHtml(resolvedCta);
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
     // No CTA is composed into the overlay: the ONE Book Now lives in the shell's
     // top region (engine-composed), independently of the disclosure.
@@ -356,7 +387,7 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
       ...FLOATING_OVERLAY_UI,
       cta: { enabled: true, action: "book", label: "Book Now" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedNoHref }));
+    const html = disclosureHtml(resolvedNoHref);
     expect(html).toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
   });
@@ -367,7 +398,7 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
       ...FLOATING_OVERLAY_UI,
       cta: { enabled: false, action: "book", label: "Book", href: "/booking" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedDisabled }));
+    const html = disclosureHtml(resolvedDisabled);
     expect(html).toContain('role="dialog"');
     expect(html).not.toContain("nav-item-cta");
     expect(html).not.toContain("/booking");
@@ -385,7 +416,7 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
   });
 });
 
-describe("SiteHeader — the disclosure consumer is CTA-free for every mobile pattern (P6-3C)", () => {
+describe("ShellEngine — the disclosure consumer is CTA-free for every mobile pattern (P6-3C)", () => {
   // A drawer-based configuration (sidebar-drawer) with a complete CTA composes NO CTA inside
   // the DRAWER anymore: the one action lives in the shell's top region for every
   // pattern. Uses the same forced-open hook.
@@ -395,7 +426,7 @@ describe("SiteHeader — the disclosure consumer is CTA-free for every mobile pa
       ...SIDEBAR_DRAWER_UI,
       cta: { enabled: true, action: "book", label: "Book", href: "/book" },
     });
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedDrawer }));
+    const html = disclosureHtml(resolvedDrawer);
     expect(html.match(/role="dialog"/g) ?? []).toHaveLength(1);
     expect(html).not.toContain("nav-item-cta");
     expect(html).not.toContain("/book");

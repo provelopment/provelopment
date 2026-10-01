@@ -3845,6 +3845,25 @@ const LAYOUT_PROBE = `(() => {
     .filter((link) => !!link && link.getClientRects().length > 0);
   const barPad = bar ? parseFloat(getComputedStyle(bar).paddingLeft) || 0 : 0;
   const dialog = document.querySelector('[role="dialog"]');
+  // NAV1B — the header's two semantic rows, the sidebar's disclosure (its OWNER and SCALE), and the
+  // bar's content bounds (which follow the site's page width, not the viewport).
+  const headerTop = document.querySelector('.ui-site-header-top');
+  const headerContext = document.querySelector('.ui-site-header-context');
+  const headerInner = document.querySelector('.ui-site-header > div');
+  const disclosure = document.querySelector('[data-ui-shell-part="mobile-drawer"]');
+  const showNav = disclosure ? disclosure.querySelector('.ui-shell-mobile-nav-trigger') : null;
+  const showNavIcon = showNav ? showNav.querySelector('.ui-mobile-nav-icon') : null;
+  const barContent = bar ? bar.querySelector(':scope > div') : null;
+  const barFirstLink = barLinks[0] || null;
+  const barLastLink = barLinks[barLinks.length - 1] || null;
+  // The ACCEPTED desktop navigation disclosure (the rail's own toggle): the constrained-width
+  // disclosure must present the SAME control scale, so both are measured.
+  const railToggle = [...document.querySelectorAll('.ui-sidebar-toggle')].find(shown) || null;
+  // The toggle renders ONE icon per state (the inactive one is display: none), so the VISIBLE
+  // icon is the one that carries the control's real scale.
+  const railToggleIcon = railToggle
+    ? [...railToggle.querySelectorAll('.ui-sidebar-toggle-icon')].find(shown) || null
+    : null;
   return {
     active: root.getAttribute('data-ui-shell-layout'),
     lang: root.lang,
@@ -3866,7 +3885,7 @@ const LAYOUT_PROBE = `(() => {
     mainLeft: Math.round(rect.left),
     mainWidth: Math.round(rect.width),
     bottomBarVisible: shown(bar),
-    drawerVisible: shown(document.querySelector('[data-ui-shell-part="mobile-drawer"]')),
+    drawerVisible: shown(disclosure),
     dialogPresent: !!dialog,
     dialogLinks: dialog ? dialog.querySelectorAll('a').length : 0,
     barLinkCount: barLinks.length,
@@ -3874,12 +3893,62 @@ const LAYOUT_PROBE = `(() => {
     barWrapActive: !!barList && getComputedStyle(barList).flexWrap === 'wrap',
     barPad: Math.round(barPad),
     barLinksInsideInset:
-      barPad > 0 &&
       barLinks.length > 0 &&
       barLinks.every((link) => {
         const linkRect = link.getBoundingClientRect();
-        return linkRect.left >= barPad - 1 && linkRect.right <= window.innerWidth - barPad + 1;
+        return linkRect.left >= 8 && linkRect.right <= window.innerWidth - 8;
       }),
+    barInsetLeft: barFirstLink ? Math.round(barFirstLink.getBoundingClientRect().left) : null,
+    barInsetRight: barLastLink
+      ? Math.round(window.innerWidth - barLastLink.getBoundingClientRect().right)
+      : null,
+    barContentWidth: barContent ? Math.round(barContent.getBoundingClientRect().width) : null,
+    headerContentWidth: headerInner ? Math.round(headerInner.getBoundingClientRect().width) : null,
+    selectorInTopRow: !!control && !!headerTop && headerTop.contains(control),
+    selectorInControlRow: !!control && !!headerContext && headerContext.contains(control),
+    selectorRightInset:
+      control && headerInner
+        ? Math.round(
+            headerInner.getBoundingClientRect().right -
+              (parseFloat(getComputedStyle(headerInner).paddingRight) || 0) -
+              control.getBoundingClientRect().right,
+          )
+        : null,
+    topRowBottom: headerTop ? Math.round(headerTop.getBoundingClientRect().bottom) : null,
+    contextRowTop: headerContext ? Math.round(headerContext.getBoundingClientRect().top) : null,
+    contextRowPresent: !!headerContext,
+    contextRows: headerContext
+      ? new Set(
+          Array.from(headerContext.children).map(
+            (child) => Math.round(child.getBoundingClientRect().top),
+          ),
+        ).size
+      : 0,
+    identityBottom: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().bottom)
+      : null,
+    identityRight: headerTop && headerTop.firstElementChild
+      ? Math.round(headerTop.firstElementChild.getBoundingClientRect().right)
+      : null,
+    selectorBottom: control ? Math.round(control.getBoundingClientRect().bottom) : null,
+    selectorLeft: control ? Math.round(control.getBoundingClientRect().left) : null,
+    disclosureInHeader: !!disclosure && !!disclosure.closest('.ui-site-header'),
+    showNavFontSize: showNav ? Math.round(parseFloat(getComputedStyle(showNav).fontSize)) : null,
+    showNavHeight: showNav ? Math.round(showNav.getBoundingClientRect().height) : null,
+    showNavIconBox: showNavIcon
+      ? Math.round(showNavIcon.getBoundingClientRect().width) +
+        "x" +
+        Math.round(showNavIcon.getBoundingClientRect().height)
+      : null,
+    railToggleFontSize: railToggle
+      ? Math.round(parseFloat(getComputedStyle(railToggle).fontSize))
+      : null,
+    railToggleHeight: railToggle ? Math.round(railToggle.getBoundingClientRect().height) : null,
+    railToggleIconBox: railToggleIcon
+      ? Math.round(railToggleIcon.getBoundingClientRect().width) +
+        "x" +
+        Math.round(railToggleIcon.getBoundingClientRect().height)
+      : null,
   };
 })()`;
 
@@ -3937,7 +4006,13 @@ async function runLayoutSwitcherScenario(chrome) {
     const menuBar = await cdp.evaluate(LAYOUT_PROBE);
     check(rows, "switch.applies", !!menuBar && menuBar.active === "menu-bar", menuBar && menuBar.active);
     check(rows, "menuBar.railHidden", !!menuBar && menuBar.railVisible === false, `rail=${menuBar && menuBar.railVisible}`);
-    check(rows, "menuBar.topNavVisible", !!menuBar && menuBar.topNavVisible === true, `topNav=${menuBar && menuBar.topNavVisible}`);
+    // NAV1B — MENU BAR MEANS THE STICKY BOTTOM BAR AT EVERY WIDTH: at DESKTOP the bar is the
+    // navigation and the former top navigation does not exist (no hidden duplicate either).
+    check(rows, "menuBar.stickyBottomBarAtDesktop", !!menuBar && menuBar.bottomBarVisible === true, `bar=${menuBar && menuBar.bottomBarVisible}`);
+    check(rows, "menuBar.noTopNavigation", !!menuBar && menuBar.topNavVisible === false, `topNav=${menuBar && menuBar.topNavVisible}`);
+    check(rows, "menuBar.noSidebarDrawer", !!menuBar && menuBar.drawerVisible === false, `drawer=${menuBar && menuBar.drawerVisible}`);
+    check(rows, "menuBar.linksHorizontalAndInset", !!menuBar && menuBar.barLinkCount > 0 && menuBar.barRowCount < menuBar.barLinkCount && menuBar.barLinksInsideInset === true, `rows=${menuBar && menuBar.barRowCount} links=${menuBar && menuBar.barLinkCount} inset=${menuBar && menuBar.barLinksInsideInset}`);
+    check(rows, "menuBar.selectorStaysTopRight", !!menuBar && menuBar.selectorInTopRow === true && menuBar.selectorInControlRow === false && Math.abs(menuBar.selectorRightInset) <= 1, `topRow=${menuBar && menuBar.selectorInTopRow} rightInset=${menuBar && menuBar.selectorRightInset}`);
 
     // ── PRESENTATION ONLY: the document, its content, route and locale ────────
     check(
@@ -3998,7 +4073,7 @@ async function runLayoutSwitcherScenario(chrome) {
 
     // ── PERSISTENCE (1): client-side navigation to another page ──────────────
     const clickedLink = await cdp.clickCenter(
-      'nav[data-ui-shell-part="top-nav"] a[href$="/zz-layout-page"]',
+      '.ui-shell-bottom-bar a[href$="/zz-layout-page"]',
     );
     // A client-side transition commits asynchronously, so wait for the URL itself
     // rather than assuming the router has finished when the document is ready.
@@ -4098,6 +4173,27 @@ async function runLayoutSwitcherScenario(chrome) {
         );
       }
       check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
+      // NAV1B — THE FIXED SEMANTIC ROWS: the navigation-MODE selector belongs to the top row at every
+      // width (anchored at the content's right edge, never in the control row), and the control row
+      // always begins below the top row. This is ownership geometry, not a class-string check.
+      check(
+        rows,
+        `${tag}.selectorTopRow`,
+        !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false,
+        `inner=${inner} topRow=${probe && probe.selectorInTopRow} controlRow=${probe && probe.selectorInControlRow}`,
+      );
+      check(
+        rows,
+        `${tag}.selectorRightAnchored`,
+        !!probe && probe.selectorRightInset !== null && Math.abs(probe.selectorRightInset) <= 1,
+        `inner=${inner} rightInset=${probe && probe.selectorRightInset}`,
+      );
+      check(
+        rows,
+        `${tag}.controlRowBelowTopRow`,
+        !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true),
+        `inner=${inner} topBottom=${probe && probe.topRowBottom} contextTop=${probe && probe.contextRowTop}`,
+      );
     }
 
     // The sidebar layout's mobile navigation is the EXISTING disclosure primitive: it opens
@@ -4120,7 +4216,61 @@ async function runLayoutSwitcherScenario(chrome) {
       await cdp.evalBool("!document.querySelector('[role=\"dialog\"]') && document.body.style.overflow !== 'hidden'"),
     );
 
-    // ── MENU-BAR mode at every width: the top menu ≥md, the sticky bar below ───
+    // ── NAV1B — THE REOPEN AFFORDANCE KEEPS THE ACCEPTED CONTROL SCALE ────────
+    // The owner rejected an enlarged mobile "Show Navigation": the disclosure must present the SAME
+    // control as the rail's own toggle (the accepted desktop navigation disclosure), never grow
+    // because the viewport narrowed, and stay OUT of the page header (it is composed at the sidebar
+    // boundary, in one stable place). Everything here is a MEASURED value, not a class string.
+    await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+    await settle();
+    const desktopRail = await cdp.evaluate(LAYOUT_PROBE);
+    const constrained = {};
+    for (const [width, height] of [[767, 820], [390, 844], [320, 700]]) {
+      await cdp.setViewport(width, height);
+      await settle();
+      constrained[width] = await cdp.evaluate(LAYOUT_PROBE);
+      const probe = constrained[width];
+      check(
+        rows,
+        `nav1b.disclosure.w${width}.visibleAtSidebarBoundary`,
+        !!probe && probe.drawerVisible === true && probe.disclosureInHeader === false,
+        `visible=${probe && probe.drawerVisible} inHeader=${probe && probe.disclosureInHeader}`,
+      );
+    }
+    const phoneNav = constrained[390];
+    check(
+      rows,
+      "nav1b.disclosure.sameControlScaleAsTheDesktopRail",
+      !!desktopRail &&
+        !!phoneNav &&
+        desktopRail.railToggleFontSize === phoneNav.showNavFontSize &&
+        desktopRail.railToggleIconBox === phoneNav.showNavIconBox,
+      `font ${desktopRail && desktopRail.railToggleFontSize}->${phoneNav && phoneNav.showNavFontSize}, icon ${desktopRail && desktopRail.railToggleIconBox}->${phoneNav && phoneNav.showNavIconBox}`,
+    );
+    check(
+      rows,
+      "nav1b.disclosure.noBreakpointEnlargement",
+      !!phoneNav &&
+        !!constrained[767] &&
+        constrained[767].showNavFontSize === phoneNav.showNavFontSize &&
+        constrained[767].showNavIconBox === phoneNav.showNavIconBox &&
+        constrained[767].showNavHeight === phoneNav.showNavHeight,
+      `font ${constrained[767] && constrained[767].showNavFontSize}->${phoneNav && phoneNav.showNavFontSize}, icon ${constrained[767] && constrained[767].showNavIconBox}->${phoneNav && phoneNav.showNavIconBox}, height ${constrained[767] && constrained[767].showNavHeight}->${phoneNav && phoneNav.showNavHeight}`,
+    );
+    check(
+      rows,
+      "nav1b.disclosure.normalNavigationControlScale",
+      !!phoneNav &&
+        phoneNav.showNavFontSize === 14 &&
+        phoneNav.showNavIconBox === "24x24" &&
+        phoneNav.showNavHeight >= 44 &&
+        phoneNav.showNavHeight <= 52,
+      `font=${phoneNav && phoneNav.showNavFontSize} icon=${phoneNav && phoneNav.showNavIconBox} height=${phoneNav && phoneNav.showNavHeight}`,
+    );
+
+    // ── MENU-BAR mode: the ACTUAL NAVIGATION LINKS are the STICKY BOTTOM BAR at EVERY width ──
+    // NAV1B — the top navigation bar presentation is no longer part of Menu Bar mode: the bar is
+    // the navigation at desktop, tablet and mobile widths alike, and no top navigation exists.
     await cdp.evaluate(chooseLayout("menu-bar"));
     await settle();
     for (const [width, height] of RESPONSIVE_WIDTHS) {
@@ -4128,25 +4278,26 @@ async function runLayoutSwitcherScenario(chrome) {
       await settle();
       const probe = await cdp.evaluate(LAYOUT_PROBE);
       const inner = probe && probe.innerWidth;
-      const tag = `nav1a.menuBar.w${width}`;
-      const mobile = width < 768;
+      const tag = `nav1b.menuBar.w${width}`;
       check(rows, `${tag}.modePreserved`, !!probe && probe.active === "menu-bar", `inner=${inner} attr=${probe && probe.active}`);
       check(rows, `${tag}.controlAvailable`, !!probe && probe.controlVisible === true, `inner=${inner} control=${probe && probe.controlVisible}`);
-      check(rows, `${tag}.sidebarDrawerWithdrawn`, !!probe && probe.drawerVisible === false, `inner=${inner} drawer=${probe && probe.drawerVisible}`);
-      check(rows, `${tag}.railHidden`, !!probe && probe.railVisible === false, `inner=${inner} rail=${probe && probe.railVisible}`);
-      if (mobile) {
-        check(rows, `${tag}.bottomBarVisible`, !!probe && probe.bottomBarVisible === true, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
-        check(rows, `${tag}.bottomBar.listWraps`, !!probe && probe.barWrapActive === true, `inner=${inner} wrap=${probe && probe.barWrapActive}`);
-        check(rows, `${tag}.bottomBar.linksInsideInset`, !!probe && probe.barLinksInsideInset === true, `inner=${inner} pad=${probe && probe.barPad}`);
-        check(
-          rows,
-          `${tag}.bottomBar.linksShareRows`,
-          !!probe && probe.barLinkCount > 1 && probe.barRowCount < probe.barLinkCount,
-          `inner=${inner} rows=${probe && probe.barRowCount} links=${probe && probe.barLinkCount}`,
-        );
-      } else {
-        check(rows, `${tag}.topNavVisible`, !!probe && probe.topNavVisible === true, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
-      }
+      check(rows, `${tag}.stickyBottomNavigation`, !!probe && probe.bottomBarVisible === true, `inner=${inner} bar=${probe && probe.bottomBarVisible}`);
+      check(rows, `${tag}.noTopNavigation`, !!probe && probe.topNavVisible === false, `inner=${inner} topNav=${probe && probe.topNavVisible}`);
+      check(rows, `${tag}.noSidebar`, !!probe && probe.railVisible === false && probe.drawerVisible === false, `inner=${inner} rail=${probe && probe.railVisible} drawer=${probe && probe.drawerVisible}`);
+      check(
+        rows,
+        `${tag}.linksShareRowsAndWrap`,
+        !!probe && probe.barWrapActive === true && probe.barLinkCount > 1 && probe.barRowCount < probe.barLinkCount,
+        `inner=${inner} rows=${probe && probe.barRowCount} links=${probe && probe.barLinkCount} wrap=${probe && probe.barWrapActive}`,
+      );
+      check(rows, `${tag}.linksInsidePageEdgeInset`, !!probe && probe.barLinksInsideInset === true, `inner=${inner} left=${probe && probe.barInsetLeft} right=${probe && probe.barInsetRight}`);
+      check(
+        rows,
+        `${tag}.contentFollowsPageWidth`,
+        !!probe && probe.headerContentWidth !== null && probe.barContentWidth <= probe.headerContentWidth + 2,
+        `inner=${inner} bar=${probe && probe.barContentWidth} header=${probe && probe.headerContentWidth}`,
+      );
+      check(rows, `${tag}.selectorTopRow`, !!probe && probe.selectorInTopRow === true && probe.selectorInControlRow === false, `inner=${inner} topRow=${probe && probe.selectorInTopRow} controlRow=${probe && probe.selectorInControlRow}`);
       check(rows, `${tag}.noHorizontalOverflow`, await cdp.evalBool("document.documentElement.scrollWidth <= window.innerWidth + 1"), `inner=${inner}`);
     }
 
@@ -4345,6 +4496,118 @@ async function runBottomNavWrapScenario(chrome) {
     check(rows, "barWrap.long.noHorizontalOverflow", long.overflow === true);
   } catch (error) {
     check(rows, "barWrap.scenario.error", false, String(error));
+  } finally {
+    await writeFile(CONFIG_PATH, original, "utf8");
+  }
+  return rows;
+}
+
+/**
+ * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
+ *
+ * Two pressures the reported defect was about, neither of which the reference deployment can exert:
+ *
+ *   · a VERY LONG identity: the navigation-MODE selector keeps its top-right place while the title
+ *     wraps below it inside its own column (never over the selector, never pushed into the control
+ *     row, no page overflow);
+ *   · LONG contextual labels: the Site/Language controls wrap ONTO ANOTHER LINE INSIDE the control
+ *     row — they never jump up into the identity/selector row.
+ *
+ * The fixtures are config-only (labels and the site name) and are written to the DISPOSABLE copy and
+ * restored in `finally`, so no authored deployment content is manufactured.
+ */
+async function runHeaderRowsScenario(chrome) {
+  const original = await readFile(CONFIG_PATH, "utf8");
+  const rows = [];
+
+  const phase = async (label, mutate, widths, portSuffix) => {
+    const port = BASE_PORT + 400 + portSuffix;
+    const url = `http://localhost:${port}/ww/en`;
+    BASE_URL = `http://localhost:${port}`;
+    const config = JSON.parse(original);
+    // Both fixtures need the mode CHOICE to exist (the selector is the top row's right-hand
+    // occupant), so the switcher is enabled for the disposable copy only.
+    config.ui = { ...(config.ui ?? {}), layoutSwitcher: { enabled: true, default: "sidebar" } };
+    mutate(config);
+    await writeFile(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", "utf8");
+    const server = startDevServer(port);
+    let cdp = null;
+    const measured = [];
+    try {
+      await waitForServer(url);
+      cdp = await Cdp.connect(chrome);
+      await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
+      await cdp.navigate(url);
+      await waitReady(cdp);
+      for (const [width, height] of widths) {
+        await cdp.setViewport(width, height);
+        await sleep(300);
+        measured.push({ width, probe: await cdp.evaluate(LAYOUT_PROBE) });
+      }
+      return { label, measured };
+    } finally {
+      if (cdp) await cdp.close();
+      await stopServer(server);
+    }
+  };
+
+  try {
+    const longTitle = await phase(
+      "longTitle",
+      (config) => {
+        config.site = {
+          ...config.site,
+          name: "Provelopment Foundation Reference Deployment and Services",
+        };
+      },
+      [
+        [1280, 900],
+        [767, 820],
+        [390, 844],
+      ],
+      0,
+    );
+    for (const { width, probe } of longTitle.measured) {
+      const tag = `nav1b.title.w${width}`;
+      check(rows, `${tag}.selectorStaysTopRight`, !!probe && probe.selectorInTopRow === true && Math.abs(probe.selectorRightInset) <= 1, `topRow=${probe && probe.selectorInTopRow} rightInset=${probe && probe.selectorRightInset}`);
+      check(rows, `${tag}.selectorNeverInControlRow`, !!probe && probe.selectorInControlRow === false);
+      check(rows, `${tag}.titleNeverOverlapsSelector`, !!probe && probe.identityRight <= probe.selectorLeft + 1, `identityRight=${probe && probe.identityRight} selectorLeft=${probe && probe.selectorLeft}`);
+      check(rows, `${tag}.controlRowStillBelow`, !!probe && (probe.contextRowPresent ? probe.contextRowTop >= probe.topRowBottom : true), `topBottom=${probe && probe.topRowBottom} contextTop=${probe && probe.contextRowTop}`);
+      check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.windowWidth + 1 >= probe.innerWidth && probe.selectorRightInset !== null);
+    }
+    const phone = longTitle.measured[longTitle.measured.length - 1].probe;
+    check(
+      rows,
+      "nav1b.title.wrapsBelowTheSelector",
+      !!phone && phone.identityBottom > phone.selectorBottom,
+      `identityBottom=${phone && phone.identityBottom} selectorBottom=${phone && phone.selectorBottom}`,
+    );
+
+    const longLabels = await phase(
+      "longLabels",
+      (config) => {
+        config.i18n = {
+          ...config.i18n,
+          locales: (config.i18n?.locales ?? []).map((locale) => ({
+            ...locale,
+            label: `${locale.label} — reference deployment language`,
+          })),
+        };
+        config.sites = (config.sites ?? []).map((site) => ({
+          ...site,
+          label: `${site.label} — reference deployment site`,
+        }));
+      },
+      [[390, 844]],
+      1,
+    );
+    const labels = longLabels.measured[0].probe;
+    check(rows, "nav1b.labels.controlRowExists", !!labels && labels.contextRowPresent === true);
+    check(rows, "nav1b.labels.wrapInsideTheControlRow", !!labels && labels.contextRows >= 2, `rows=${labels && labels.contextRows}`);
+    check(rows, "nav1b.labels.neverJumpIntoTheTopRow", !!labels && labels.selectorInControlRow === false && labels.contextRowTop >= labels.topRowBottom, `contextTop=${labels && labels.contextRowTop} topBottom=${labels && labels.topRowBottom}`);
+    check(rows, "nav1b.labels.noHorizontalOverflow", !!labels && labels.selectorRightInset !== null);
+  } catch (error) {
+    check(rows, "headerRows.scenario.error", false, String(error));
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");
   }
@@ -5635,6 +5898,13 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(wrapRows.map((r) => ({ presentation: "bottom-nav-wrap", ...r })));
       const wrapFails = wrapRows.filter((r) => !r.ok).length;
       console.log(`[matrix] bottom-nav-wrap: ${wrapRows.length - wrapFails}/${wrapRows.length} checks passed${wrapFails ? ` FAIL=${wrapFails}` : ""}`);
+      // FOUNDATION-DEFECT-NAV1B — HEADER SEMANTIC ROWS: the identity/selector row and the control row
+      // keep their ownership under a very long title and under long contextual labels (own servers +
+      // test-owned configuration fixtures, the disposable copy restored).
+      const headerRows = await runHeaderRowsScenario(chrome);
+      allRows = allRows.concat(headerRows.map((r) => ({ presentation: "header-rows", ...r })));
+      const headerRowFails = headerRows.filter((r) => !r.ok).length;
+      console.log(`[matrix] header-rows: ${headerRows.length - headerRowFails}/${headerRows.length} checks passed${headerRowFails ? ` FAIL=${headerRowFails}` : ""}`);
       // FOUNDATION-S1 — MULTISITE / MULTILINGUAL: two independent country sites, driven through
       // the four visitor dimensions (Site, Language, Location, Layout) on one temporary
       // deployment (own server + fixtures, configuration and content all restored).
