@@ -1,0 +1,507 @@
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
+
+import { DEPLOYMENT_CONFIG_FILE_NAME } from "@/config/deployment-root";
+import {
+  INSTALLATION_SPOKE_COLLECTION_FILE_NAME,
+  SPOKE_ROOTS_DIRECTORY_NAME,
+  installationSpokeCollectionSchema,
+  resolveInstallationSpokeRoots,
+} from "@/config/spoke-roots";
+import { IMPLICIT_SPOKE_ID, spokeCollectionIssues } from "@/core/spoke";
+
+/**
+ * THE INSTALLATION'S SPOKE COLLECTION (FOUNDATION-MULTISITE-S3C1)
+ * ==============================================================
+ *
+ * `spokes.json` is the MEMBERSHIP AUTHORITY: it declares which Spokes an Installation owns, their
+ * internal ids and where each is authored. Legacy is the ABSENCE of that manifest; a directory under
+ * `spokes/` is inert; a manifest ENTRY is an assertion.
+ *
+ * Every proof below runs on a SYNTHETIC Installation root in OS temp — created and removed by this
+ * file — so the canonical deployment and the committed repository authoring are never involved. The
+ * slice is deliberately UNWIRED, so these tests are its only consumers.
+ */
+
+const trees: string[] = [];
+
+/** A disposable synthetic tree (OS temp), removed when this file finishes. */
+function syntheticTree(prefix: string): string {
+  const root = mkdtempSync(path.join(tmpdir(), prefix));
+  trees.push(root);
+  return root;
+}
+
+afterAll(() => {
+  for (const tree of trees) rmSync(tree, { recursive: true, force: true });
+});
+
+/**
+ * The `spokes/<id>` authoring CONVENTION, spelled with the one exported constant.
+ *
+ * A LOCATOR is POSIX-style authored data, so it is joined with "/" — never with `path.join`, which
+ * would emit the HOST's separator and (correctly) be refused by the resolver.
+ */
+const spokeDir = (...parts: string[]): string => [SPOKE_ROOTS_DIRECTORY_NAME, ...parts].join("/");
+
+/** Absolute path under a tree, from a POSIX-style locator (fixtures only). */
+const at = (root: string, locator: string): string => path.join(root, ...locator.split("/"));
+
+/** An authored Spoke root: the ONE surface S3C1 asserts at root level. */
+function authoredSpokeRoot(directory: string): string {
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(path.join(directory, DEPLOYMENT_CONFIG_FILE_NAME), "{}\n", "utf8");
+  return directory;
+}
+
+function writeManifest(root: string, manifest: unknown): string {
+  const file = path.join(root, INSTALLATION_SPOKE_COLLECTION_FILE_NAME);
+  writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  return file;
+}
+
+/** A LEGACY installation: the website material sits at the Installation root itself. */
+function legacyInstallation(): string {
+  const root = syntheticTree("foundation-legacy-");
+  writeFileSync(path.join(root, DEPLOYMENT_CONFIG_FILE_NAME), "{}\n", "utf8");
+  return root;
+}
+
+/** An EXPLICIT installation: a manifest at the root, plus whichever Spoke roots it declares. */
+function explicitInstallation(
+  spokes: readonly { readonly id: string; readonly root: string }[],
+  options: { readonly manifest?: unknown; readonly strayDirectories?: readonly string[] } = {},
+): string {
+  const root = syntheticTree("foundation-explicit-");
+  for (const stray of options.strayDirectories ?? []) authoredSpokeRoot(at(root, stray));
+  for (const spoke of spokes) authoredSpokeRoot(at(root, spoke.root));
+  writeManifest(root, options.manifest ?? { spokes: [...spokes] });
+  return root;
+}
+
+describe("legacy implicit mode — an Installation that declares no collection", () => {
+  it("yields ONE descriptor: the reserved id, rooted at the Installation root", () => {
+    const root = legacyInstallation();
+    const resolved = resolveInstallationSpokeRoots(root);
+
+    expect(resolved.mode).toBe("legacy");
+    expect(resolved.manifestFile).toBeNull();
+    expect(resolved.installationRoot).toBe(root);
+    expect(resolved.descriptors).toEqual([{ id: IMPLICIT_SPOKE_ID, root }]);
+  });
+
+  it("keeps the reserved id's literal value stable", () => {
+    expect(IMPLICIT_SPOKE_ID).toBe("implicit");
+  });
+
+  it("is unchanged by an empty `spokes/` directory (directory presence is inert)", () => {
+    const root = legacyInstallation();
+    mkdirSync(path.join(root, SPOKE_ROOTS_DIRECTORY_NAME));
+
+    const resolved = resolveInstallationSpokeRoots(root);
+    expect(resolved.mode).toBe("legacy");
+    expect(resolved.descriptors.map((descriptor) => descriptor.id)).toEqual([IMPLICIT_SPOKE_ID]);
+  });
+
+  it("ignores an unlisted directory under `spokes/` (it creates no Spoke)", () => {
+    const root = legacyInstallation();
+    authoredSpokeRoot(at(root, spokeDir("stray")));
+
+    const resolved = resolveInstallationSpokeRoots(root);
+    expect(resolved.mode).toBe("legacy");
+    expect(resolved.descriptors).toHaveLength(1);
+  });
+
+  it("refuses an Installation root authored NEITHER way", () => {
+    expect(() => resolveInstallationSpokeRoots(syntheticTree("foundation-empty-"))).toThrow(
+      /authored NEITHER way/,
+    );
+  });
+
+  it("refuses a root that does not exist", () => {
+    expect(() => resolveInstallationSpokeRoots(path.join(tmpdir(), "foundation-absent-s3c1"))).toThrow(
+      /is not an existing directory/,
+    );
+  });
+});
+
+describe("explicit mode — an authored Spoke collection", () => {
+  it("supports ONE declared Spoke (explicit is not legacy)", () => {
+    const root = explicitInstallation([{ id: "foundation", root: spokeDir("foundation") }]);
+    const resolved = resolveInstallationSpokeRoots(root);
+
+    expect(resolved.mode).toBe("explicit");
+    expect(resolved.manifestFile).toBe(path.join(root, INSTALLATION_SPOKE_COLLECTION_FILE_NAME));
+    expect(resolved.descriptors).toEqual([
+      { id: "foundation", root: at(root, spokeDir("foundation")) },
+    ]);
+  });
+
+  it("preserves AUTHORED manifest order (never sorted, never filesystem order)", () => {
+    const root = explicitInstallation([
+      { id: "zeta", root: spokeDir("zeta") },
+      { id: "alpha", root: spokeDir("alpha") },
+    ]);
+
+    expect(resolveInstallationSpokeRoots(root).descriptors.map((entry) => entry.id)).toEqual([
+      "zeta",
+      "alpha",
+    ]);
+  });
+
+  it("keeps identity and directory spelling INDEPENDENT (the id need not name the directory)", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("site-one") }]);
+
+    expect(resolveInstallationSpokeRoots(root).descriptors).toEqual([
+      { id: "one", root: at(root, spokeDir("site-one")) },
+    ]);
+  });
+
+  it("accepts a Spoke root NESTED deeper inside the namespace", () => {
+    const root = explicitInstallation([{ id: "europe", root: spokeDir("region", "europe") }]);
+
+    expect(resolveInstallationSpokeRoots(root).descriptors).toEqual([
+      { id: "europe", root: at(root, spokeDir("region", "europe")) },
+    ]);
+  });
+
+  it("keeps ordinary ids VERBATIM: case is not normalized and padding is not trimmed", () => {
+    const root = explicitInstallation([
+      { id: "IMPLICIT", root: spokeDir("upper") },
+      { id: " one ", root: spokeDir("padded") },
+    ]);
+
+    expect(resolveInstallationSpokeRoots(root).descriptors.map((entry) => entry.id)).toEqual([
+      "IMPLICIT",
+      " one ",
+    ]);
+  });
+
+  it("ignores an unlisted directory under `spokes/`", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      strayDirectories: [spokeDir("unlisted")],
+    });
+
+    expect(resolveInstallationSpokeRoots(root).descriptors.map((entry) => entry.id)).toEqual(["one"]);
+  });
+});
+
+describe("authored-state refusals", () => {
+  it("refuses legacy + explicit authored SIMULTANEOUSLY (no precedence, no migration)", () => {
+    const root = legacyInstallation();
+    authoredSpokeRoot(at(root, spokeDir("one")));
+    writeManifest(root, { spokes: [{ id: "one", root: spokeDir("one") }] });
+
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/authored SIMULTANEOUSLY/);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/No precedence rule exists/);
+  });
+
+  it("refuses an empty collection", () => {
+    const root = explicitInstallation([], { manifest: { spokes: [] } });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/needs at least one Spoke/);
+  });
+
+  it("refuses duplicate ids", () => {
+    const root = explicitInstallation([
+      { id: "one", root: spokeDir("one") },
+      { id: "one", root: spokeDir("one-b") },
+    ]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/repeats id "one"/);
+  });
+
+  it("refuses the reserved implicit id", () => {
+    const root = explicitInstallation([{ id: IMPLICIT_SPOKE_ID, root: spokeDir("legacy-ish") }]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/is reserved for the legacy/);
+  });
+
+  it("refuses a PADDED reserved id (padding cannot launder it)", () => {
+    const root = explicitInstallation([{ id: ` ${IMPLICIT_SPOKE_ID} `, root: spokeDir("padded") }]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/is reserved for the legacy/);
+  });
+
+  it("refuses a blank id", () => {
+    const root = explicitInstallation([{ id: "   ", root: spokeDir("blank") }]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/has a blank id/);
+  });
+});
+
+describe("structural validation — ONE strict schema, structure only", () => {
+  it("refuses a malformed document", () => {
+    const root = syntheticTree("foundation-bad-json-");
+    writeFileSync(path.join(root, INSTALLATION_SPOKE_COLLECTION_FILE_NAME), "{ not json\n", "utf8");
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/is not valid JSON/);
+  });
+
+  it("refuses an unknown TOP-LEVEL leaf", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one", root: spokeDir("one") }], canonicalHostname: "example.com" },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/Unrecognized key/);
+  });
+
+  it("refuses every leaf the collection must NOT author (membership and location only)", () => {
+    for (const leaf of [
+      "hostname",
+      "canonicalHostname",
+      "hostnames",
+      "aliases",
+      "label",
+      "site",
+      "hub",
+      "locales",
+      "assets",
+      "configuration",
+    ]) {
+      const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+        manifest: { spokes: [{ id: "one", root: spokeDir("one"), [leaf]: "x" }] },
+      });
+      expect(() => resolveInstallationSpokeRoots(root), leaf).toThrow(/Unrecognized key/);
+    }
+  });
+
+  it("refuses a non-string id and a missing root", () => {
+    const nonString = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: 7, root: spokeDir("one") }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(nonString)).toThrow(/spokes\.0\.id/);
+
+    const missingRoot = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one" }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(missingRoot)).toThrow(/spokes\.0\.root/);
+  });
+
+  it("restates NO identity semantics: the schema accepts a blank id the pure domain refuses", () => {
+    expect(
+      installationSpokeCollectionSchema.safeParse({ spokes: [{ id: "   ", root: "x" }] }).success,
+    ).toBe(true);
+    expect(spokeCollectionIssues(["   "])).toHaveLength(1);
+  });
+});
+
+describe("root locator refusals", () => {
+  it("refuses an absolute locator", () => {
+    const root = syntheticTree("foundation-absolute-");
+    authoredSpokeRoot(at(root, spokeDir("one")));
+    writeManifest(root, { spokes: [{ id: "one", root: at(root, spokeDir("one")) }] });
+
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/must be root-relative, not absolute/);
+  });
+
+  it("refuses a drive-letter locator on every platform", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one", root: "C:/outside/one" }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/must be root-relative, not absolute/);
+  });
+
+  it("refuses a backslash locator (POSIX-style only)", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one", root: "spokes\\one" }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/must use POSIX/);
+  });
+
+  it("refuses a `..` escape", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one", root: "../outside" }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/must not contain a "\.\." segment/);
+  });
+
+  it("refuses a root OUTSIDE the dedicated namespace even when it exists, is a directory and has a config", () => {
+    const root = syntheticTree("foundation-outside-namespace-");
+    // Perfectly valid-looking authored material — but NOT inside `spokes/`, so it is not a Spoke root.
+    authoredSpokeRoot(at(root, "authoring/site-one"));
+    writeManifest(root, { spokes: [{ id: "one", root: "authoring/site-one" }] });
+
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(
+      /must live beneath the dedicated "spokes\/" namespace/,
+    );
+  });
+
+  it("refuses every namespace that is not the dedicated one (no aliases, no misspellings)", () => {
+    for (const locator of [
+      "authoring/site-one",
+      "content/site-one",
+      "config/site-one",
+      "spoke/one",
+      "Spokes/one",
+      "./spokes/one",
+    ]) {
+      const root = explicitInstallation([], { manifest: { spokes: [{ id: "one", root: locator }] } });
+      expect(() => resolveInstallationSpokeRoots(root), locator).toThrow(
+        /must live beneath the dedicated "spokes\/" namespace/,
+      );
+    }
+  });
+
+  it("refuses the namespace container itself (a Spoke root lives INSIDE it)", () => {
+    for (const locator of [SPOKE_ROOTS_DIRECTORY_NAME, `${SPOKE_ROOTS_DIRECTORY_NAME}/`]) {
+      const root = explicitInstallation([], { manifest: { spokes: [{ id: "one", root: locator }] } });
+      expect(() => resolveInstallationSpokeRoots(root), locator).toThrow(/is not a Spoke root/);
+    }
+  });
+
+  it("refuses an empty locator", () => {
+    const root = explicitInstallation([{ id: "one", root: spokeDir("one") }], {
+      manifest: { spokes: [{ id: "one", root: "   " }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/root must not be empty/);
+  });
+
+  it("refuses a missing Spoke root (an entry is an ASSERTION)", () => {
+    const root = explicitInstallation([], {
+      manifest: { spokes: [{ id: "one", root: spokeDir("one") }] },
+    });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/does not exist/);
+  });
+
+  it("refuses a locator that is a file, not a directory", () => {
+    const root = syntheticTree("foundation-file-locator-");
+    mkdirSync(path.join(root, SPOKE_ROOTS_DIRECTORY_NAME), { recursive: true });
+    writeFileSync(at(root, spokeDir("not-a-directory")), "x\n", "utf8");
+    writeManifest(root, { spokes: [{ id: "one", root: spokeDir("not-a-directory") }] });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/is not a directory/);
+  });
+
+  it("refuses a Spoke root carrying no configuration file", () => {
+    const root = syntheticTree("foundation-no-config-");
+    mkdirSync(at(root, spokeDir("one")), { recursive: true });
+    writeManifest(root, { spokes: [{ id: "one", root: spokeDir("one") }] });
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(
+      /carries no "site\.config\.json"/,
+    );
+  });
+
+  it("refuses two Spokes sharing ONE authored root (identical spelling)", () => {
+    const root = explicitInstallation([
+      { id: "one", root: spokeDir("shared") },
+      { id: "two", root: spokeDir("shared") },
+    ]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/same directory as Spoke #1/);
+  });
+
+  it("refuses two Spokes sharing ONE root through DIFFERENT spellings", () => {
+    const root = explicitInstallation([
+      { id: "one", root: spokeDir("one") },
+      { id: "two", root: `${spokeDir("one")}/` },
+    ]);
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/same directory as Spoke #1/);
+  });
+});
+
+describe("physical containment — a link is not an escape hatch", () => {
+  const linkType = (): "junction" | "dir" => (process.platform === "win32" ? "junction" : "dir");
+
+  it("refuses a linked root that resolves OUTSIDE the Installation root", () => {
+    const outside = authoredSpokeRoot(syntheticTree("foundation-outside-"));
+    const root = syntheticTree("foundation-escape-");
+    const link = at(root, spokeDir("escaped"));
+    mkdirSync(path.dirname(link), { recursive: true });
+    symlinkSync(outside, link, linkType());
+    writeManifest(root, { spokes: [{ id: "escaped", root: spokeDir("escaped") }] });
+
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(
+      /resolves outside the Installation root/,
+    );
+  });
+
+  it("refuses a link inside `spokes/` that reaches material elsewhere in the Installation", () => {
+    const root = syntheticTree("foundation-namespace-link-");
+    const elsewhere = authoredSpokeRoot(at(root, "authoring/site-one"));
+    const link = at(root, spokeDir("linked"));
+    mkdirSync(path.dirname(link), { recursive: true });
+    symlinkSync(elsewhere, link, linkType());
+    writeManifest(root, { spokes: [{ id: "linked", root: spokeDir("linked") }] });
+
+    // Lexically beneath `spokes/`, physically not: the CONTAINER is the boundary, not the root.
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(
+      /resolves outside the dedicated "spokes\/" namespace/,
+    );
+  });
+
+  it("accepts a linked root that stays INSIDE the Installation root", () => {
+    const root = syntheticTree("foundation-inside-link-");
+    const real = authoredSpokeRoot(at(root, spokeDir("real")));
+    const link = at(root, spokeDir("alias"));
+    symlinkSync(real, link, linkType());
+    writeManifest(root, { spokes: [{ id: "alias", root: spokeDir("alias") }] });
+
+    const resolved = resolveInstallationSpokeRoots(root);
+    expect(resolved.descriptors.map((entry) => entry.id)).toEqual(["alias"]);
+    expect(resolved.descriptors[0].root).toBe(link);
+  });
+
+  it("refuses two Spokes that reach ONE root through a link", () => {
+    const root = syntheticTree("foundation-link-duplicate-");
+    const real = authoredSpokeRoot(at(root, spokeDir("real")));
+    symlinkSync(real, at(root, spokeDir("alias")), linkType());
+    writeManifest(root, {
+      spokes: [
+        { id: "real", root: spokeDir("real") },
+        { id: "alias", root: spokeDir("alias") },
+      ],
+    });
+
+    expect(() => resolveInstallationSpokeRoots(root)).toThrow(/same directory as Spoke #1/);
+  });
+});
+
+describe("the pure identity authority — the ONE place the rules live", () => {
+  it("reports exactly the identity issues, and nothing about paths or roots", () => {
+    expect(spokeCollectionIssues([])).toEqual([
+      "an explicit Spoke collection needs at least one Spoke",
+    ]);
+    expect(spokeCollectionIssues(["one", "two"])).toEqual([]);
+    expect(spokeCollectionIssues(["IMPLICIT"])).toEqual([]);
+    expect(spokeCollectionIssues(["one", "one"])).toEqual([
+      'Spoke #2 repeats id "one", already declared by Spoke #1',
+    ]);
+    expect(spokeCollectionIssues(["   "])).toEqual(["Spoke #1 has a blank id"]);
+    expect(spokeCollectionIssues([IMPLICIT_SPOKE_ID])).toEqual([
+      'Spoke #1: id "implicit" is reserved for the legacy compatibility Spoke and cannot be ' +
+        "declared explicitly",
+    ]);
+    expect(spokeCollectionIssues([` ${IMPLICIT_SPOKE_ID} `])).toHaveLength(1);
+  });
+});
+
+describe("S3C1 is UNWIRED — today's build and runtime are untouched", () => {
+  /** Every executable source file under `src/**` (the surface a production importer would appear in). */
+  function sourceFiles(directory: string): string[] {
+    const found: string[] = [];
+    for (const entry of readdirSync(directory)) {
+      const full = path.join(directory, entry);
+      if (statSync(full).isDirectory()) found.push(...sourceFiles(full));
+      else if (/\.(ts|tsx|mjs)$/.test(full)) found.push(full);
+    }
+    return found;
+  }
+
+  it("no application module imports the Spoke-roots resolver", () => {
+    const offenders = sourceFiles(path.join(process.cwd(), "src")).filter((file) =>
+      /from\s+["'][^"']*spoke-roots["']/.test(readFileSync(file, "utf8")),
+    );
+    expect(offenders.map((file) => path.relative(process.cwd(), file))).toEqual([]);
+  });
+
+  it("the config barrel does not publish it", () => {
+    expect(readFileSync(path.join(process.cwd(), "src", "config", "index.ts"), "utf8")).not.toContain(
+      "spoke-roots",
+    );
+  });
+
+  it("the build-selection seam knows NOTHING about Spoke collections", () => {
+    // S3C1 must not change WHICH deployment a build selects: the selection seam still keys on ONE
+    // root-level site.config.json and never consults spokes.json — making an explicit Installation
+    // selectable is S3D's act, and this pin is what makes the boundary visible until then. The
+    // capsule probe's own behaviour is proved, unchanged, by `deployment-root-guard.test.ts`.
+    for (const file of ["src/config/deployment-build.mjs", "next.config.ts", "vitest.config.mts"]) {
+      const source = readFileSync(path.join(process.cwd(), ...file.split("/")), "utf8");
+      expect(source, file).not.toMatch(/spokes/i);
+    }
+  });
+});
