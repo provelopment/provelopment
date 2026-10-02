@@ -18,5 +18,13 @@ export { isCoherentSpokeHub, spokeHubIssues } from "./coherence";
 
 export { hubForSiteCode } from "./site-ownership";
 
+export {
+  HubMembershipError,
+  IMPLICIT_HUB_ID,
+  hubMembershipIssues,
+  partitionSitesIntoHubs,
+} from "./hub-membership";
+export type { SiteHubAssignment } from "./hub-membership";
+
 export { resolveSpokeFromHost, spokeById } from "./resolve";
 export type { SpokeSelection, SpokeSelectionReason } from "./resolve";

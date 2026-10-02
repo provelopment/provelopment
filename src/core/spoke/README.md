@@ -19,6 +19,7 @@ Site        the EXISTING Foundation `sites[]` context     (unchanged; owned by `
 | `coherence.ts` | the pure rules that make `hostname → Spoke` total and unambiguous |
 | `resolve.ts` | the pure decision: a raw request host → exactly one Spoke, or none |
 | `site-ownership.ts` | the pure decision: an already-selected Spoke + a Site code → its owning Hub, or none |
+| `hub-membership.ts` | the pure partition: one resolved Spoke-wide Site population + authored membership → `Hub[]` (no membership → one implicit Hub) |
 
 Import from `@/core/spoke`; the inner modules are not a consumer surface.
 
@@ -34,6 +35,16 @@ the same code in two *different* Spokes is valid, because the hostname already s
 **Exactly one default Site per Spoke.** `ResolvedSite.isDefault` is the Site domain's own flag, but
 the designation is Spoke-wide: because `/` carries no Site segment, a Spoke must have exactly one
 default Site across all of its Hubs — while each Spoke has its own.
+
+**Resolve once, then partition.** A Spoke's Sites are resolved ONCE from its authoritative `sites[]`
+and `defaultSite`, and that one population is then partitioned into Hubs by the authored membership.
+No membership at all means one implicit Hub holding every Site; ANY membership means every Site must
+be assigned (all or none). Resolving a separate Site population per Hub would create two defaults,
+which coherence already refuses.
+
+**The implicit Hub id is reserved and never authorable.** `IMPLICIT_HUB_ID` is the domain's marker
+for "no membership was authored"; an explicit assignment may never use it, so an authored Hub can
+never be confused with the marker the compatibility path uses.
 
 ## What is deliberately NOT here
 
