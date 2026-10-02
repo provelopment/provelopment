@@ -130,6 +130,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/browser/cdp.mjs": "the headless-Chrome profile directory it created, under OS temp",
   "tests/architecture/deployment-root-guard.test.ts": "OS temp trees for its layout proofs",
   "tests/architecture/write-ownership-guard.test.ts": "OS temp trees for this suite's own proofs",
+  "tests/unit/spoke-roots.test.ts":
+    "synthetic Installation roots it creates under OS temp (legacy, explicit and deliberately invalid " +
+    "collections) and removes afterwards — the canonical deployment and the committed authoring are " +
+    "never touched (S3C1)",
   "tests/integration/json-page-rendering.test.ts": "the synthetic deployment's JSON page tree (ISO-H2)",
   "tests/support/synthetic-deployment-root.ts": "the synthetic deployment's disposable copy in OS temp (ISO-H2)",
   "tests/support/disposable-deployment.ts": "a byte-identical COPY of the selected deployment in OS temp (ISO-B3C2B)",

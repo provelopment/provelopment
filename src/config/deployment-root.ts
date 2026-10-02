@@ -92,6 +92,15 @@ const CONFIG_ENV = "FOUNDATION_DEPLOYMENT_CONFIG";
 const ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
 
 /**
+ * The authored configuration FILE NAME a deployment root carries (FOUNDATION-MULTISITE-S3C1).
+ *
+ * Exported so that the spelling lives in ONE place: this authority's `siteConfigFile`, and the
+ * Installation's Spoke-resolution module (`./spoke-roots`, which asserts that a declared Spoke root
+ * carries this same surface) both consume it rather than restating it.
+ */
+export const DEPLOYMENT_CONFIG_FILE_NAME = "site.config.json";
+
+/**
  * The layout this BUILD resolved. Pure: the value is a build-time string, inlined by Next into both
  * bundles, so it is safe to read at module load from client code. An unset value means the
  * repository layout — the behaviour of every deployment today.
@@ -144,7 +153,7 @@ export function deploymentPaths(): DeploymentRoot {
   cachedPaths = {
     layout,
     root,
-    siteConfigFile: `${root}/site.config.json`,
+    siteConfigFile: `${root}/${DEPLOYMENT_CONFIG_FILE_NAME}`,
     dictionaryDirectory: `${root}/config/i18n`,
     dictionaryOverrideDirectory: `${root}/config/i18n/sites`,
     markdownPagesRoot: `${root}/content/pages/markdown`,

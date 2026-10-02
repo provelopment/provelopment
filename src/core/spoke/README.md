@@ -46,6 +46,19 @@ which coherence already refuses.
 for "no membership was authored"; an explicit assignment may never use it, so an authored Hub can
 never be confused with the marker the compatibility path uses.
 
+## Spoke identity (FOUNDATION-MULTISITE-S3C1)
+
+`IMPLICIT_SPOKE_ID` is the reserved id of the LEGACY compatibility Spoke: when an Installation declares
+no Spoke collection, its single Spoke IS the Installation root and carries this id. Like
+`IMPLICIT_HUB_ID` it is deterministic, internal, non-public, non-filesystem and NOT authorable — an
+explicit `spokes.json` entry may never declare it (padding cannot launder it), while an ordinary id is
+carried verbatim and compared exactly (no case folding, no trimming, no slugging).
+
+`spokeCollectionIssues(...)` is the ONE authority for the identity semantics of an authored collection:
+at least one Spoke, non-blank ids, the reserved id, and exact uniqueness. Where a Spoke is AUTHORED —
+`spokes.json`, the `spokes/` directory, paths, roots — is configuration's business and never this
+module's: no path type and no filesystem concern enters `@/core/spoke`.
+
 ## What is deliberately NOT here
 
 The domain vocabulary itself stays pure: no request is dispatched through it and no root selects a
