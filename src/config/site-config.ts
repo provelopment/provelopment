@@ -3,6 +3,7 @@ import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import type { ResolvedSite } from "@/core/site";
+import type { Hub } from "@/core/spoke";
 import type {
   ContentWidth,
   CtaAction,
@@ -362,6 +363,18 @@ export interface SiteConfig {
    */
   readonly sites: readonly ResolvedSite[];
   readonly defaultSite: ResolvedSite;
+  /**
+   * S3B — the Spoke's Hubs: the partition/ownership view of the SAME resolved Sites above.
+   *
+   * `hubs[*].sites` holds the very `ResolvedSite` OBJECTS `sites` holds — nothing is re-resolved and
+   * nothing is cloned — so `sites` stays the complete Spoke-wide population, `defaultSite` stays the
+   * one Spoke-wide default, and this adds only WHICH HUB owns which Site. No Hub has a public
+   * address, a filesystem path, a dictionary layer or an asset namespace.
+   *
+   * A deployment that authors no `sites[].hub` keeps one implicit Hub holding every Site, which is
+   * today's behaviour; consumer code need not read this yet.
+   */
+  readonly hubs: readonly Hub[];
   /**
    * S1E2 — page-facing overrides per site CODE (`navigation`, `footerNavigation`, `legal`,
    * `connect`). A code that is absent serves the SHARED values below; a leaf that is absent on a

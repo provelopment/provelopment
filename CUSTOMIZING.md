@@ -2568,6 +2568,32 @@ config/i18n/sites/ca/fr-ca.json    → an exact-locale refinement (wins over the
 Overrides are **optional** and **partial** (state only the keys you change), an **unknown key is
 refused** with the file named, and **another site's override is never used**.
 
+### Grouping sites into Hubs (optional)
+
+A deployment may **group its sites into Hubs** by adding one optional leaf, `hub`, to a site entry. A
+Hub is an internal grouping only: it has **no URL segment, no hostname, no directory and no asset
+namespace**.
+
+```json
+{
+  "sites": [
+    { "code": "ww", "hub": "europe" },
+    { "code": "de", "hub": "europe" },
+    { "code": "ca", "hub": "north-america" },
+    { "code": "us", "hub": "north-america" }
+  ]
+}
+```
+
+- **All or none.** If any site declares `hub`, **every** site must declare one. A partially grouped
+  population is refused at build time rather than guessed.
+- **Absent means one implicit Hub.** A deployment that declares no `hub` anywhere keeps working
+  exactly as it did: all of its sites belong to one implicit Hub.
+- **`implicit` is reserved.** It names the Hub a deployment gets when it groups nothing, so it can
+  never be used as an authored Hub id.
+- **A Hub is not an address.** It never appears in a public URL, it adds no filesystem path, and a
+  site keeps exactly the URLs it already had.
+
 ### The four visitor controls
 
 | Control | What it changes | When it appears |

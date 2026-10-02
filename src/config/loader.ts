@@ -8,6 +8,7 @@ import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import { assertRegionsValid } from "@/core/region";
 import { resolveSites } from "@/core/site";
 import type { SiteConfig, SitePageOverrides } from "./site-config";
+import { hubsForAuthoredSites } from "./hub-membership";
 
 /** The validated shape of `site.config.json`. */
 export type SiteConfigFile = z.infer<typeof siteConfigFileSchema>;
@@ -47,6 +48,13 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     locales: localeCodes,
   });
 
+  // S3B — the Hub composition of THAT SAME resolved population. The Site population is resolved ONCE
+  // above and merely partitioned here (never re-resolved per Hub), so the single Spoke-wide default
+  // and every `ResolvedSite` object stay exactly what `resolveSites` produced. The authored
+  // `sites[].hub` leaves are read through the ONE config-layer seam the schema also uses, so
+  // validation and normalization cannot disagree.
+  const hubs = hubsForAuthoredSites(sites, json.sites);
+
   const pageBindings = toPageBindings(json.business?.pages, defaultSite.code);
 
   // S1E2 — the page-facing concerns a site OVERRIDES (navigation, footer navigation, legal, the
@@ -80,6 +88,7 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     assets: json.site.assets,
     sites,
     defaultSite,
+    hubs,
     sitePageOverrides,
     defaultLocale: json.i18n.defaultLocale,
     locales: json.i18n.locales,
