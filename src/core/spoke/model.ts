@@ -6,7 +6,7 @@
  *
  *   Spoke Hub   coordinates the installation's Spokes        (1..* Spokes)
  *   Spoke       ONE independently addressable domain          (1..* Hubs)
- *   Hub         an internal grouping of Sites in one Spoke    (1..* Sites — modelled later)
+ *   Hub         an internal grouping of Sites in one Spoke    (1..* Sites)
  *   Site        the EXISTING Foundation `sites[]` context     (unchanged; owned by `@/core/site`)
  *
  * WHY THE FOUR LEVELS ARE NOT COLLAPSED
@@ -25,16 +25,19 @@
  *
  * THIS SLICE MODELS CONTAINERS, NOT CONTENT
  * -----------------------------------------
- * A `Hub` carries an identity and nothing else: its Sites, assets, configuration, locales, pages and
- * routing are LATER slices and are deliberately absent, so this module cannot influence the released
- * Foundation at all. A `Spoke` carries an identity plus its Hubs; a `SpokeHub` carries its Spokes. The
- * `1..*` cardinality of the RESOLVED domain model is expressed by the pure coherence rules
- * (`./coherence`) — never by filesystem state, because authored material may legitimately be
- * incomplete.
+ * A `Hub` carries its identity and the EXISTING Foundation Sites it owns (`ResolvedSite`,
+ * `@/core/site` — the very type a deployment's `sites[]` already resolves to), and nothing else: a
+ * Hub's assets, configuration, locales, pages and routing are LATER slices and are deliberately
+ * absent, so this module cannot influence the released Foundation at all. A `Spoke` carries an
+ * identity plus its Hubs; a `SpokeHub` carries its Spokes. The `1..*` cardinality of the RESOLVED
+ * domain model — including that a Site code is unique across a Spoke — is expressed by the pure
+ * coherence rules (`./coherence`), never by filesystem state, because authored material may
+ * legitimately be incomplete.
  *
  * Framework-neutral: pure types only. No filesystem, no configuration, no request.
  */
 import type { Hostname } from "./hostname";
+import type { ResolvedSite } from "@/core/site";
 
 /** A Spoke's stable identifier. */
 export type SpokeId = string;
@@ -52,10 +55,17 @@ export interface HubIdentity {
  *
  * It has NO public address. A Hub is reached through a Site — a `/<site>` URL segment names a Site,
  * and the Site's membership identifies its Hub — never through a hostname and never through a Hub
- * path segment. This slice gives it an identity and nothing more.
+ * path segment.
+ *
+ * `sites` holds the EXISTING Foundation Site values (`ResolvedSite`, `@/core/site`) this Hub owns:
+ * the same type a deployment's `sites[]` already resolves to, so this composition introduces no
+ * second Site concept and no Site semantics of its own. A Hub owns `1..*` Sites, and a Site code is
+ * unique across the WHOLE Spoke (`./coherence`) — which is what makes `/<site>/…` unambiguous once
+ * the hostname has selected the Spoke.
  */
 export interface Hub {
   readonly identity: HubIdentity;
+  readonly sites: readonly ResolvedSite[];
 }
 
 /**
@@ -77,7 +87,13 @@ export interface SpokeIdentity {
   readonly hostnameClaims: readonly Hostname[];
 }
 
-/** A SPOKE: ONE independently addressable domain, owning `1..*` Hubs. */
+/**
+ * A SPOKE: ONE independently addressable domain, owning `1..*` Hubs.
+ *
+ * Because a Hub never appears in a public URL, the Site domain's own default flag
+ * (`ResolvedSite.isDefault`) is a SPOKE-wide fact: exactly ONE Site across all of the Spoke's Hubs is
+ * the domain's default (`./coherence`), and each Spoke has its own.
+ */
 export interface Spoke {
   readonly identity: SpokeIdentity;
   readonly hubs: readonly Hub[];

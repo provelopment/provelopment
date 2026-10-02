@@ -16,5 +16,7 @@ export type { Hub, HubId, HubIdentity, Spoke, SpokeHub, SpokeId, SpokeIdentity }
 
 export { isCoherentSpokeHub, spokeHubIssues } from "./coherence";
 
+export { hubForSiteCode } from "./site-ownership";
+
 export { resolveSpokeFromHost, spokeById } from "./resolve";
 export type { SpokeSelection, SpokeSelectionReason } from "./resolve";

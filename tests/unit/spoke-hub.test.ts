@@ -9,6 +9,7 @@ import {
   type Spoke,
   type SpokeHub,
 } from "@/core/spoke";
+import { resolveSites, type ResolvedSite } from "@/core/site";
 
 /**
  * THE SPOKE HUB / SPOKE / HUB CONTRACT (FOUNDATION-MULTISITE-S1 / S1A)
@@ -26,8 +27,18 @@ import {
  * The module is unwired (nothing in the application imports it); these tests are its only consumer.
  */
 
+/** REAL Foundation Site values — the same ones a deployment's `sites[]` resolves to (S2). */
+function sitesFor(...codes: readonly string[]): readonly ResolvedSite[] {
+  return resolveSites({
+    input: codes.map((code) => ({ code })),
+    defaultLocale: "en",
+    locales: ["en"],
+  }).sites;
+}
+
+/** A Hub carries an identity and the Sites it owns; S1's tests need a non-empty Site list. */
 function hub(id: string): Hub {
-  return { identity: { id } };
+  return { identity: { id }, sites: sitesFor("ww") };
 }
 
 function spokeOf(

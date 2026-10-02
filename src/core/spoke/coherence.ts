@@ -7,10 +7,25 @@
  * no claim can ever match). None of them is filesystem state — they are properties of CONSTRUCTED
  * VALUES — so they belong in `@/core` and the checks are pure.
  *
+ * ONE SITE CODE BELONGS TO ONE HUB IN ITS SPOKE (S2)
+ * --------------------------------------------------
+ * A public URL is `/<site>/<locale>/<route>` and carries NO Hub segment, so once the hostname has
+ * chosen the Spoke the Site code alone must identify the Site. Two Hubs of the same Spoke therefore
+ * may not claim the same code. The uniqueness boundary is the SPOKE, not the installation: the same
+ * code in two DIFFERENT Spokes is perfectly valid, because the hostname already told them apart.
+ *
+ * ONE DEFAULT SITE PER SPOKE (S2A)
+ * --------------------------------
+ * A Spoke is ONE public domain and a Hub never appears in a public URL, so `/` has no Site segment
+ * from which to infer a Hub: there must be EXACTLY ONE default Site across ALL of a Spoke's Hubs.
+ * The default stays the Site domain's own flag (`ResolvedSite.isDefault`, `@/core/site`); only the
+ * uniqueness of the designation is decided here, and it is NEVER inferred from Hub order or Site
+ * order. The designation is Spoke-wide, and each Spoke has its own.
+ *
  * WHY "AT LEAST ONE" IS DECIDED HERE AND NOT ON DISK
  * --------------------------------------------------
  * The resolved domain model is `1..*` at every level: a Spoke Hub coordinates at least one Spoke, a
- * Spoke owns at least one Hub, and a Hub owns at least one Site (a later slice). An empty DIRECTORY
+ * Spoke owns at least one Hub, and a Hub owns at least one Site. An empty DIRECTORY
  * proves nothing — authored material may be incomplete and still valid — so emptiness is never a
  * filesystem error. It is a defect only in the RESOLVED model, which is exactly what these checks
  * describe.
@@ -78,6 +93,60 @@ function spokeIssues(spoke: Spoke): readonly string[] {
     seenHubs.add(hub.identity.id);
   }
 
+  // S2 — Sites. A Hub owns at least one Site, and a Site CODE occurs at most once across the WHOLE
+  // Spoke: a public URL is `/<site>/<locale>/<route>` with no Hub segment, so once the hostname has
+  // chosen the Spoke, the code alone must identify the Site. The uniqueness boundary is the SPOKE —
+  // the same code in two different Spokes is valid, because the hostname already separates them.
+  // (Site VALIDITY stays the Site domain's business: `@/core/site` refuses a bad code loudly when a
+  // deployment's sites are resolved, so it is deliberately not re-implemented here.)
+  const claimingHubsBySiteCode = new Map<string, string[]>();
+  for (const hub of spoke.hubs) {
+    if (hub.sites.length === 0) {
+      issues.push(`Spoke "${id}": Hub "${hub.identity.id}" owns no Site`);
+    }
+    for (const site of hub.sites) {
+      const claimants = claimingHubsBySiteCode.get(site.code) ?? [];
+      claimants.push(hub.identity.id);
+      claimingHubsBySiteCode.set(site.code, claimants);
+    }
+  }
+  for (const [code, hubIds] of claimingHubsBySiteCode) {
+    if (hubIds.length === 1) continue;
+    const distinct = [...new Set(hubIds)];
+    if (distinct.length === 1) {
+      issues.push(
+        `Spoke "${id}": Hub "${distinct[0]}" states the site code "${code}" more than once`,
+      );
+      continue;
+    }
+    issues.push(
+      `Spoke "${id}": site code "${code}" appears in more than one Hub (${distinct.join(", ")}): ` +
+        "a Site code must be unique across the whole Spoke, because a public URL has no Hub segment",
+    );
+  }
+
+  // S2A — the DEFAULT Site is a SPOKE-wide fact. A Spoke is one public domain and a Hub never appears
+  // in a public URL, so `/` has no Site segment from which to infer a Hub: exactly ONE Site across
+  // ALL of the Spoke's Hubs must be the domain's default. The flag itself belongs to the Site domain
+  // (`ResolvedSite.isDefault`); only its uniqueness is decided here — never inferred from Hub order
+  // or Site order.
+  const defaultSites = spoke.hubs.flatMap((hub) =>
+    hub.sites
+      .filter((site) => site.isDefault)
+      .map((site) => ({ hubId: hub.identity.id, code: site.code })),
+  );
+  if (defaultSites.length === 0) {
+    issues.push(
+      `Spoke "${id}" has no default Site: exactly one of its Hubs' Sites must be the domain's default`,
+    );
+  } else if (defaultSites.length > 1) {
+    const named = defaultSites.map((site) => `"${site.code}" in Hub "${site.hubId}"`).join(", ");
+    issues.push(
+      `Spoke "${id}" has ${defaultSites.length} default Sites (${named}): a Spoke is ONE public ` +
+        "domain, so exactly one default Site is allowed across all of its Hubs",
+    );
+  }
+
   return issues;
 }
 
@@ -86,7 +155,10 @@ function spokeIssues(spoke: Spoke): readonly string[] {
  *
  * The rules are: the Spoke Hub coordinates at least one Spoke; Spoke ids are unique; every Spoke
  * claims at least one hostname, its canonical host among them, and in the normalized spelling; every
- * Spoke owns at least one Hub with a unique id; and no hostname is claimed by more than one Spoke.
+ * Spoke owns at least one Hub with a unique id; no hostname is claimed by more than one Spoke; every
+ * Hub owns at least one Site; no Site code occurs twice within one Spoke (while the same code in
+ * two DIFFERENT Spokes is allowed); and exactly ONE of a Spoke's Sites is its default (the
+ * designation is Spoke-wide, and each Spoke has its own).
  */
 export function spokeHubIssues(spokeHub: SpokeHub): readonly string[] {
   const issues: string[] = [];
