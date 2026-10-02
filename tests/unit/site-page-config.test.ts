@@ -10,6 +10,7 @@ import { describe, expect, it } from "vitest";
 import { parseSiteConfig } from "@/config/loader";
 import { effectiveSitePageConfig, mergeSitePageConfig, type SiteConfig } from "@/config";
 import { resolveSites } from "@/core/site";
+import { partitionSitesIntoHubs } from "@/core/spoke";
 
 const SHARED_NAVIGATION = [
   { label: "Home", href: "/" },
@@ -36,6 +37,10 @@ function makeConfig(): SiteConfig {
     url: "https://example.com",
     sites,
     defaultSite,
+    // S3B: the Hub composition of these same Sites. This suite reads the page-facing merge rule
+    // only, so the faithful (implicit) composition is produced by the accepted pure partition
+    // rather than hand-written.
+    hubs: partitionSitesIntoHubs(sites),
     sitePageOverrides: { ca: { navigation: CANADA_NAVIGATION } },
     defaultLocale: "fr",
     locales: [{ code: "en", label: "English" }, { code: "fr", label: "Français" }],

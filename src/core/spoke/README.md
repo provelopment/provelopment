@@ -48,10 +48,14 @@ never be confused with the marker the compatibility path uses.
 
 ## What is deliberately NOT here
 
-This slice is vocabulary only, and it is **unwired** — nothing in the application imports it.
+The domain vocabulary itself stays pure: no request is dispatched through it and no root selects a
+Spoke. The ONE authorised consumer so far is CONFIGURATION (S3B) — `@/config/hub-membership` reads
+`hubMembershipIssues`/`partitionSitesIntoHubs`, so the authored `sites[].hub` leaves become
+`SiteConfig.hubs` — which keeps the direction `config → core`, never `core → config`.
 
 - no filesystem roots, no `node:*`, no Next.js, no provider concept (`tests/architecture/boundaries.test.ts`);
-- no configuration or schema change: `site.config.json` and `@/config` are untouched;
+- no filesystem or routing knowledge in the adapter: it maps authored leaves to `SiteHubAssignment[]`
+  and nothing else, and the configuration file itself gained only the optional `sites[].hub` leaf;
 - no request-boundary wiring: `src/proxy.ts` is untouched;
 - no asset, page, locale, navigation, business or theme concerns. A `Hub` carries an identity and the
   EXISTING Foundation Sites it owns (`ResolvedSite`, `@/core/site`) — and nothing else. Assets, Page

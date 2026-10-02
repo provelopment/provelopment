@@ -35,6 +35,8 @@ import {
   UI_DENSITIES,
 } from "@/core/ui";
 
+import { hubMembershipIssuesForAuthoredSites } from "./hub-membership";
+
 /**
  * Schema contract for `site.config.json`.
  *
@@ -1114,6 +1116,20 @@ const siteConfigEntrySchema = z
       .optional(),
     fallback: z.boolean().optional(),
     /**
+     * S3B — THE HUB THIS SITE BELONGS TO (optional).
+     *
+     * STRUCTURAL TYPING ONLY. This leaf says "a string may be authored here" and nothing more: every
+     * SEMANTIC rule about Hub identity — a blank or whitespace-only id, the reserved `implicit` id,
+     * and the all-or-none rule for explicit membership — belongs to the ONE authority, `@/core/spoke`
+     * (`hubMembershipIssues`), and is applied below through the ONE config-layer seam
+     * (`./hub-membership`). No such rule is restated here, so the schema and the pure domain cannot
+     * drift apart.
+     *
+     * An authored ownership relationship only: a Hub has no URL segment, no hostname, no filesystem
+     * path and no asset namespace, so this leaf is an opaque identity and never a location.
+     */
+    hub: z.string().optional(),
+    /**
      * S1E2 — THIS SITE'S PAGE-FACING OVERRIDES.
      *
      * A site owns an independent page tree, so the concerns that point INTO that tree may differ
@@ -1208,6 +1224,15 @@ export const siteConfigFileSchema = z
     }
 
     if (sites === null) return;
+
+    // S3B — Hub membership. The authored `sites[].hub` leaves are read through the ONE config-layer
+    // seam (`./hub-membership`), which also feeds the loader, so validation and normalization cannot
+    // disagree. Every rule is the accepted pure mechanism's: no hub anywhere → one implicit Hub (so
+    // an existing configuration is untouched); ANY hub → EVERY Site must declare one; a blank id and
+    // the reserved `implicit` id are refused.
+    for (const issue of hubMembershipIssuesForAuthoredSites(sites.sites, file.sites)) {
+      ctx.addIssue({ code: "custom", path: ["sites"], message: issue });
+    }
 
     // Regional bindings (locations) belong to ONE site's page tree: a binding must name a
     // declared site that actually serves the binding's locale, so a regional page can never

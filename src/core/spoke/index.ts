@@ -5,9 +5,10 @@
  * Barrel for the pure Spoke Hub / Spoke / Hub vocabulary and the `hostname → Spoke` decision. Import
  * from `@/core/spoke`; the inner modules are not a consumer surface.
  *
- * NOTHING IS WIRED: this module is referenced by its own tests and nothing else. Configuration,
- * filesystem roots, assets, pages and the request boundary are all LATER slices, and this one
- * deliberately holds no opinion about any of them.
+ * WIRING: the pure membership partition is read by the CONFIGURATION layer alone (S3B,
+ * `@/config/hub-membership`), so the direction is `config → core` and never the reverse. Filesystem
+ * roots, assets, pages and the request boundary are all LATER slices, and this one deliberately holds
+ * no opinion about any of them.
  */
 export { normalizeHostname } from "./hostname";
 export type { Hostname } from "./hostname";
