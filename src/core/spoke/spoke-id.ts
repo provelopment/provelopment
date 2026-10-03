@@ -17,4 +17,3 @@ export { IMPLICIT_SPOKE_ID, spokeCollectionIssues } from "./spoke-id.mjs";
 
 /** Re-exported so the id type stays the one this module always published. */
 export type { SpokeId };
-
