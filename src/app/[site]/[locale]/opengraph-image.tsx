@@ -1,13 +1,17 @@
 import { ImageResponse } from "next/og";
 
 import { currentBuildRuntimeContext } from "@/config/installation-runtime";
-import { openGraphImageModelForContext } from "./opengraph-model";
+import { hostRoutingForBuild } from "@/config/spoke-routing";
 
-export const size = {
-  width: 1200,
-  height: 630,
-};
-export const contentType = "image/png";
+import { openGraphImageModelForContext } from "./opengraph-model";
+import {
+  OPEN_GRAPH_IMAGE_CONTENT_TYPE,
+  OPEN_GRAPH_IMAGE_SIZE,
+  openGraphImageElement,
+} from "./opengraph-image-view";
+
+export const size = OPEN_GRAPH_IMAGE_SIZE;
+export const contentType = OPEN_GRAPH_IMAGE_CONTENT_TYPE;
 
 interface OpengraphImageProps {
   readonly params: Promise<{ readonly site: string; readonly locale: string }>;
@@ -32,50 +36,19 @@ interface OpengraphImageProps {
  */
 export default async function OpengraphImage({ params }: OpengraphImageProps) {
   const { site: siteCode, locale } = await params;
+
+  // M16 — this PUBLIC compatibility boundary serves the ONE-Spoke runtime. A multi-Spoke Installation has no
+  // single Spoke, so it refuses here rather than guessing: its images are rendered inside each Spoke's own
+  // namespace (the internal route), where the request's host selected the context.
+  if (hostRoutingForBuild().mode === "multi") {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M16: this Installation declares SEVERAL Spokes, so no single Spoke owns the " +
+        "public OpenGraph image. The image is rendered per host inside the hostname-selected Spoke's own " +
+        "namespace; there is no default Spoke.",
+    );
+  }
+
   const model = openGraphImageModelForContext(currentBuildRuntimeContext(), siteCode, locale);
 
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          background: "linear-gradient(135deg, #0a0a0a 0%, #1e3a8a 100%)",
-          padding: "80px",
-          color: "#ededed",
-          fontFamily: "sans-serif",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            fontSize: 28,
-            letterSpacing: 8,
-            textTransform: "uppercase",
-            color: "#60a5fa",
-          }}
-        >
-          {model.siteName}
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            fontSize: 64,
-            fontWeight: 700,
-            lineHeight: 1.15,
-            maxWidth: 940,
-          }}
-        >
-          {model.tagline}
-        </div>
-
-        <div style={{ display: "flex", fontSize: 26, color: "#a3a3a3" }}>{model.imageUrl}</div>
-      </div>
-    ),
-    size,
-  );
+  return new ImageResponse(openGraphImageElement(model), size);
 }

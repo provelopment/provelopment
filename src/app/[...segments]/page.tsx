@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
 import { currentBuildRuntimeContext } from "@/config/installation-runtime";
+import { hostRoutingForBuild } from "@/config/spoke-routing";
 
 import {
   pageForContext,
@@ -48,10 +50,15 @@ interface PageRouteProps {
  * runtime segment is later milestone work.
  */
 export async function generateStaticParams(): Promise<{ segments: string[] }[]> {
+  // M16 — a MULTI-Spoke Installation has no single public context: its pages are rendered per host inside the
+  // selected Spoke's own namespace (`/~spoke/<segment>/…`), so this compatibility route generates NOTHING and
+  // refuses below rather than choosing a Spoke.
+  if (hostRoutingForBuild().mode === "multi") return [];
   return staticParamsForContext(spokeServerComposition(currentBuildRuntimeContext()));
 }
 
 export async function generateMetadata({ params }: PageRouteProps): Promise<Metadata> {
+  if (hostRoutingForBuild().mode === "multi") notFound();
   return pageMetadataForContext(
     spokeServerComposition(currentBuildRuntimeContext()),
     (await params).segments,
@@ -59,6 +66,7 @@ export async function generateMetadata({ params }: PageRouteProps): Promise<Meta
 }
 
 export default async function PageRoute({ params }: PageRouteProps) {
+  if (hostRoutingForBuild().mode === "multi") notFound();
   return pageForContext(
     spokeServerComposition(currentBuildRuntimeContext()),
     (await params).segments,

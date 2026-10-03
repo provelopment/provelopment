@@ -65,12 +65,15 @@ import { INSTALLATION_OPERATIONAL_STATE_FILE_NAME } from "@/core/foundation-inst
 // The import is a PURE dependency (`./spoke-runtime-segment.mjs` has no `node:fs` and no `process.cwd()`),
 // so this authority stays CLIENT-SAFE (see the module note above).
 import { spokeRuntimeAssetUrlBase, spokeRuntimeAssetNamespacePath } from "./spoke-runtime-segment.mjs";
+// M16 — the declared Spoke runtime segments a MULTI-Spoke build resolves artwork from. Pure (`./spoke-routing`
+// reads the build's inlined routing description), so this authority stays CLIENT-SAFE.
+import { hostRoutingForBuild } from "./spoke-routing";
 
 /** Which layout the deployment root resolved to. */
 export type DeploymentLayout = "capsule" | "repository" | "override";
 
 /** How the INSTALLATION is authored: a legacy implicit Spoke, or an explicit declared collection. */
-export type InstallationAuthoringMode = "legacy" | "explicit";
+export type InstallationAuthoringMode = "legacy" | "explicit" | "multi";
 
 /**
  * ONE generated runtime asset namespace (FOUNDATION-MULTISITE-S3E1C).
@@ -192,7 +195,9 @@ export function deploymentLayout(): DeploymentLayout {
  * Spoke) live in the build authority (`./deployment-build.mjs`), never here.
  */
 export function deploymentMode(): InstallationAuthoringMode {
-  return process.env[MODE_ENV] === "explicit" ? "explicit" : "legacy";
+  const mode = process.env[MODE_ENV];
+  if (mode === "explicit" || mode === "multi") return mode;
+  return "legacy";
 }
 
 /**
@@ -204,6 +209,18 @@ export function deploymentMode(): InstallationAuthoringMode {
  * The value is validated ONCE by `parseSiteConfig` in `./loader`.
  */
 export function readDeploymentConfig(): unknown {
+  // M16 — a MULTI-Spoke Installation has NO single configuration: the build inlines none, because
+  // selecting one Spoke's configuration would be exactly the "default Spoke" this runtime refuses to
+  // have. Every consumer must select a Spoke CONTEXT instead (`./spoke-request`,
+  // `./installation-runtime`), so the compatibility answer fails LOUDLY rather than guessing.
+  if (deploymentMode() === "multi") {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M16: this Installation declares SEVERAL Spokes, so there is no single " +
+        "deployment configuration to read. Select a Spoke context (hostname dispatch or the internal " +
+        "Spoke route) and read ITS configuration — there is no default Spoke and none is guessed.",
+    );
+  }
+
   const inlined = process.env[CONFIG_ENV];
   if (inlined === undefined || inlined === "") {
     throw new Error(
@@ -249,11 +266,25 @@ export function deploymentPaths(): DeploymentRoot {
         "sole Spoke's root; nothing is guessed here.",
     );
   }
-  const resourceRoot = mode === "explicit" ? `${root}/${spokeRelativeRoot}` : root;
+  const resourceRoot = mode === "multi" ? null : mode === "explicit" ? `${root}/${spokeRelativeRoot}` : root;
 
-  // …and the RUNTIME NAMESPACES those resources' artwork is INSTALLED into (S3E1C). The platform
-  // namespace is always present and always `/assets/**`; an explicit Installation adds the sole Spoke's
-  // own namespace, derived from the runtime SEGMENT the build resolved — never from a directory name.
+  // M16 — an API whose meaning requires "the selected Spoke" cannot answer in a multi-Spoke Installation.
+  // The single-Spoke-only locations below are therefore GETTERS that fail loudly when read, naming what is
+  // absent, rather than silently answering with one of several Spokes.
+  const selectedSpokeOnly = (what: string): string => {
+    throw new Error(
+      `FOUNDATION-MULTISITE-M16: this Installation declares SEVERAL Spokes, so there is no ${what}. ` +
+        "Select a Spoke context (`./spoke-request`, `./installation-runtime`) and read ITS own resources; " +
+        "no installation-wide answer exists and none is guessed.",
+    );
+  };
+  const selectedResourceRoot = (): string =>
+    resourceRoot ?? selectedSpokeOnly("Installation-wide resource root");
+
+  // …and the RUNTIME NAMESPACES artwork is INSTALLED into (S3E1C). The platform namespace is always
+  // present and always `/assets/**`; an explicit Installation adds EACH declared Spoke's own namespace,
+  // derived from its runtime SEGMENT — never from a directory name — so a multi-Spoke Installation
+  // resolves artwork from one namespace per Spoke while platform files stay non-shadowable.
   const segment = process.env[SPOKE_SEGMENT_ENV]?.trim() ?? "";
   if (mode === "explicit" && segment === "") {
     throw new Error(
@@ -263,30 +294,53 @@ export function deploymentPaths(): DeploymentRoot {
     );
   }
   const publicAssetsDirectory = `${repositoryRoot}/public/assets`;
-  const runtimeAssetNamespaces: readonly RuntimeAssetNamespace[] =
-    mode === "explicit"
+  const declaredSegments =
+    mode === "multi" ? hostRoutingForBuild().spokes.map((spoke) => spoke.runtimeSegment) : [];
+  const runtimeAssetNamespaces: readonly RuntimeAssetNamespace[] = [
+    // Platform first: a Spoke may not shadow a platform-owned asset (A2).
+    { directory: publicAssetsDirectory, urlBase: "/assets" },
+    ...(mode === "explicit"
       ? [
-          // Platform first: a Spoke may not shadow a platform-owned asset (A2).
-          { directory: publicAssetsDirectory, urlBase: "/assets" },
           {
             directory: `${repositoryRoot}/public/${spokeRuntimeAssetNamespacePath(segment)}`,
             urlBase: spokeRuntimeAssetUrlBase(segment),
           },
         ]
-      : [{ directory: publicAssetsDirectory, urlBase: "/assets" }];
+      : []),
+    ...declaredSegments.map((declared) => ({
+      directory: `${repositoryRoot}/public/${spokeRuntimeAssetNamespacePath(declared)}`,
+      urlBase: spokeRuntimeAssetUrlBase(declared),
+    })),
+  ];
 
   cachedPaths = {
     layout,
     mode,
     root,
-    resourceRoot,
-    contentRoot: `${resourceRoot}/content`,
-    siteConfigFile: `${resourceRoot}/${DEPLOYMENT_CONFIG_FILE_NAME}`,
-    dictionaryDirectory: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.dictionary}`,
-    dictionaryOverrideDirectory: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.dictionaryOverrides}`,
-    markdownPagesRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`,
-    jsonPagesRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`,
-    assetSourceRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`,
+    get resourceRoot(): string {
+      return selectedResourceRoot();
+    },
+    get contentRoot(): string {
+      return `${selectedResourceRoot()}/content`;
+    },
+    get siteConfigFile(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_CONFIG_FILE_NAME}`;
+    },
+    get dictionaryDirectory(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_RESOURCE_PATHS.dictionary}`;
+    },
+    get dictionaryOverrideDirectory(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_RESOURCE_PATHS.dictionaryOverrides}`;
+    },
+    get markdownPagesRoot(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`;
+    },
+    get jsonPagesRoot(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`;
+    },
+    get assetSourceRoot(): string {
+      return `${selectedResourceRoot()}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`;
+    },
     // The INSTALLATION's own operational record (FOUNDATION-B4A / B4A-A2). Its NAME is the lifecycle
     // contract's (`@/core/foundation-installation`); this authority owns only WHERE it lives — which is
     // the INSTALLATION root in every mode, so moving website material into a Spoke never moves a record.

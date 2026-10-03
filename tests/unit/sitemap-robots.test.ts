@@ -14,8 +14,8 @@ import { regionsForLocale, bindingsForSite } from "@/core/regional-pages";
 import { sitePath } from "@/core/site";
 
 describe("Phase S — sitemap & robots contract (deterministic, config/content-derived)", () => {
-  it("robots references the configured absolute sitemap URL", () => {
-    expect(robots().sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
+  it("robots references the configured absolute sitemap URL", async () => {
+    expect((await robots()).sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
   });
 
   it("sitemap leads with the root entry and covers every configured locale", async () => {
@@ -138,7 +138,7 @@ describe("Phase T — trust/publishing sitemap contract (derived inventory)", ()
   });
 
   it("keeps every pre-existing sitemap invariant (robots + locale coverage)", async () => {
-    expect(robots().sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
+    expect((await robots()).sitemap).toBe(`${siteConfig.url}/sitemap.xml`);
     const urls = (await sitemap()).map((entry) => entry.url);
     for (const site of siteConfig.sites) {
       for (const { path } of site.locales) {

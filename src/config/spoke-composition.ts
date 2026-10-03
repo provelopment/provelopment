@@ -27,7 +27,7 @@
  * one is later work (per-Spoke runtime isolation), and hostname-aware edge selection is later still.
  */
 import {
-  normalizeHostname,
+  hostnameFromOrigin,
   spokeHubIssues,
   type Hostname,
   type Spoke,
@@ -42,22 +42,13 @@ import type { InstallationSpokeRoots, SpokeRootDescriptor } from "./spoke-roots"
  * The ONE canonical hostname of a Spoke, derived from that Spoke's own authored origin.
  *
  * There is no second place a canonical hostname may be authored: `site.url` is the deployment's canonical
- * origin (`./schema` guarantees an absolute URL without a trailing slash), `normalizeHostname` is the ONE
- * pure normalizer (lowercase, no port, no trailing dot — `https://Example.COM:8443` and
- * `https://example.com.` both become `example.com`), and this function only puts the two together.
+ * origin (`./schema` guarantees an absolute URL without a trailing slash), the pure domain's
+ * `hostnameFromOrigin` is the ONE `origin → normalized hostname` step (`@/core/spoke`), and this function
+ * only turns a domain-level `null` into the loud failure an authored configuration defect deserves.
  */
 export function canonicalHostnameForSpoke(config: SiteConfig, where: string): Hostname {
-  let host: string;
-  try {
-    host = new URL(config.url).host;
-  } catch {
-    throw new Error(
-      `${where}: the configuration's url "${config.url}" is not an absolute origin, so no canonical ` +
-        "hostname can be derived.",
-    );
-  }
+  const canonicalHostname = hostnameFromOrigin(config.url);
 
-  const canonicalHostname = normalizeHostname(host);
   if (canonicalHostname === null) {
     throw new Error(
       `${where}: the configuration's url "${config.url}" yields no usable hostname — an internal/` +

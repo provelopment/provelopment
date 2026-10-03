@@ -1,4 +1,4 @@
-import { getDictionary } from "@/config/i18n";
+import type { Dictionary } from "@/config/i18n/dictionary";
 import type { DirectionLinkResolver, DirectionsAction } from "@/application/direction-link";
 import type { DayOfWeek, OperationalRegion } from "@/core/region";
 import { DAYS_OF_WEEK, regionToLocation } from "@/core/region";
@@ -51,8 +51,16 @@ interface RegionBlockProps {
  * config's timezone. A regional page's address/phone/email/timezone/hours/
  * holidays/status all come from THIS region only.
  */
-export function RegionBlock({ region, locale, direction, siteId }: RegionBlockProps) {
-  const dictionary = getDictionary(locale, siteId);
+export function RegionBlock({
+  region,
+  locale,
+  direction,
+  siteId,
+  dictionary,
+}: RegionBlockProps & { readonly dictionary: Dictionary }) {
+  // M16 — the dictionary arrives from the CALLER's context-bound access (`composition.dictionaries`), so this
+  // block reads no module-global binding: in a multi-Spoke runtime, "the" dictionary does not exist and the
+  // Spoke that answers the request supplies its own.
   const dayNames = localizeWeekdays(locale);
   const addressText = formatAddress(region.address);
   const internationalText =
@@ -177,7 +185,16 @@ export function ResolvedRegionBlock({
   locale,
   siteId,
   directionLinkResolver,
-}: ResolvedRegionBlockProps) {
+  dictionary,
+}: ResolvedRegionBlockProps & { readonly dictionary: Dictionary }) {
   const direction = directionLinkResolver.resolve(regionToLocation(region));
-  return <RegionBlock region={region} locale={locale} direction={direction} siteId={siteId} />;
+  return (
+    <RegionBlock
+      region={region}
+      locale={locale}
+      direction={direction}
+      siteId={siteId}
+      dictionary={dictionary}
+    />
+  );
 }

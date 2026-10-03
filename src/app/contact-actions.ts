@@ -2,7 +2,7 @@
 
 import { createContactInquirySender } from "@/adapters/contact-inquiry";
 import { handleContactSubmission, type ContactSubmissionState } from "@/application/contact-inquiry-service";
-import { siteConfig } from "@/config";
+import { runtimeContextForRequest } from "@/config/spoke-request";
 import type { ContactInquiryEnv } from "@/core/contact-inquiry";
 
 export type { ContactSubmissionState } from "@/application/contact-inquiry-service";
@@ -41,9 +41,20 @@ export async function submitContactInquiry(
     website: formData.get("website"),
   };
 
+  // M16 — the CONTACT destination belongs to the Spoke that answers this request's host: the action asks the
+  // request seam for that context (hostname dispatch), and a host no Spoke answers has NO destination — a
+  // loud failure rather than another Spoke's contact configuration.
+  const context = await runtimeContextForRequest();
+  if (context === null) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M16: no Spoke answers this request's host, so there is no contact " +
+        "destination to submit to.",
+    );
+  }
+
   return handleContactSubmission({
     values,
-    createSender: () => createContactInquirySender(siteConfig.contactFeature, env),
+    createSender: () => createContactInquirySender(context.siteConfig.contactFeature, env),
     log: (message) => console.error(message),
   });
 }

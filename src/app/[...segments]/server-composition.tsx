@@ -503,6 +503,7 @@ export async function pageForContext(
             locale={locale}
             siteId={site.code}
             directionLinkResolver={composition.directionLinks}
+            dictionary={composition.dictionaries.get(locale, site.code)}
           />
           <RegionStructuredData
             region={regionContext.region}

@@ -653,7 +653,13 @@ describe("Phase D — design-system boundaries", () => {
     ];
     const exempt = new Set([
       path.join(APP_DIRECTORY, "[site]", "[locale]", "opengraph-image.tsx"),
+      // M16 — the SAME brand artwork, extracted so the public boundary and the per-host internal boundary
+      // (the hostname-selected Spoke's own OpenGraph route) render ONE view.
+      path.join(APP_DIRECTORY, "[site]", "[locale]", "opengraph-image-view.tsx"),
       path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
+      // M16 — the INTERNAL Spoke layout carries the same kind of static platform facts (the mobile chrome
+      // theme colors) as the public layout above; it composes its Spoke from an explicit context.
+      path.join(APP_DIRECTORY, "~spoke", "[segment]", "layout.tsx"),
     ]);
 
     for (const directory of [path.join(srcDirectory, "components"), APP_DIRECTORY]) {

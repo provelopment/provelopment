@@ -6,8 +6,31 @@ import { describe, expect, it } from "vitest";
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { NextRequest } from "next/server";
 
+import { completePublicPath } from "@/app/~spoke/[segment]/spoke-navigation";
 import { siteConfig } from "@/config";
 import { proxy } from "@/proxy";
+
+/** The path a request is COMPLETED to inside its Spoke, or `null` when it is already complete. */
+function completionFor(path: string, headers: Record<string, string> = {}): string | null {
+  const segments = path.split("/").filter(Boolean);
+  const completion = completePublicPath(siteConfig, segments, {
+    cookieLocale: headers["cookie"]?.split("=")[1],
+    acceptLanguage: headers["accept-language"],
+  });
+  return "redirectPath" in completion ? completion.redirectPath : null;
+}
+
+/** The internal path the boundary rewrites a public path to, or `null` when it does not rewrite. */
+function dispatchFor(path: string, host = "foundation-template.provelopment.com"): string | null {
+  const response = proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+  const rewritten = response.headers.get("x-middleware-rewrite");
+  return rewritten === null ? null : new URL(rewritten).pathname;
+}
+
+/** The status the boundary answers when it refuses. */
+function statusFor(path: string, host = "foundation-template.provelopment.com"): number {
+  return proxy(new NextRequest(`https://${host}${path}`, { headers: { host } })).status;
+}
 
 /**
  * FOUNDATION-R1B — A LINK'S LANGUAGE SURVIVES THE REDIRECT THAT COMPLETES IT
@@ -27,11 +50,14 @@ const REFERENCE = siteConfig.defaultSite.code;
 /** R1C — the reference deployment's second site (Germany), whose code is also a locale name. */
 const GERMANY = siteConfig.sites.find((candidate) => candidate.code !== REFERENCE)?.code as string;
 
-/** The `Location` a request is redirected to, or `null` when it is served as-is. */
+/**
+ * The `Location` a request is COMPLETED to inside its Spoke, or `null` when the path is already complete.
+ *
+ * M16 — completion moved from the request boundary into the Spoke the host selected, because it is a decision
+ * about ONE Spoke's Sites and locales. The RULES are unchanged, and so is the resulting public path.
+ */
 function redirectFor(path: string, headers: Record<string, string> = {}): string | null {
-  const response = proxy(new NextRequest(`https://foundation-template.provelopment.com${path}`, { headers }));
-  const location = response.headers.get("location");
-  return location === null ? null : new URL(location).pathname;
+  return completionFor(path, headers);
 }
 
 describe("an explicit locale in the path is authoritative", () => {
@@ -39,7 +65,7 @@ describe("an explicit locale in the path is authoritative", () => {
     // `en` is a locale, not a site code, so `/en/about` is the site-less locale form of the
     // DEFAULT site — and the URL's language wins over the stored preference.
     expect(
-      redirectFor("/en/about", { cookie: "NEXT_LOCALE=de", "accept-language": "de-DE,de" }),
+      completionFor("/en/about", { cookie: "NEXT_LOCALE=de", "accept-language": "de-DE,de" }),
     ).toBe(`/${REFERENCE}/en/about`);
   });
 
@@ -80,5 +106,26 @@ describe("the site-scoped form is never redirected", () => {
     expect(redirectFor("/ww/en")).toBeNull();
     expect(redirectFor("/ww/de")).toBeNull();
     expect(redirectFor("/ww/de/about", { cookie: "NEXT_LOCALE=en" })).toBeNull();
+  });
+});
+
+describe("the boundary dispatches the host to the Spoke's own namespace (M16)", () => {
+  const segment = "foundation";
+
+  it("rewrites a public path into the internal namespace of the Spoke the host claims", () => {
+    expect(dispatchFor("/ww/en")).toBe(`/~spoke/${segment}/ww/en`);
+    expect(dispatchFor("/ww/en/about")).toBe(`/~spoke/${segment}/ww/en/about`);
+    expect(dispatchFor("/")).toBe(`/~spoke/${segment}`);
+    expect(dispatchFor("/about")).toBe(`/~spoke/${segment}/about`);
+  });
+
+  it("never answers a DIRECT internal request: only the framework's own rewrite may reach it", () => {
+    expect(statusFor(`/~spoke/${segment}/ww/en`)).toBe(404);
+    expect(statusFor("/~spoke")).toBe(404);
+  });
+
+  it("binds a Spoke's own asset namespace to the host that owns it", () => {
+    expect(statusFor(`/spokes/${segment}/assets/sidebar-open.svg`)).toBe(200);
+    expect(statusFor("/spokes/other/assets/sidebar-open.svg")).toBe(404);
   });
 });

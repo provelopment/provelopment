@@ -418,10 +418,10 @@ describe("architecture guards: the new capability is additive and has no mutable
     expect(manifest.spokes[0].id).toBe("foundation");
   });
 
-  it("adds no internal route tree and no hostname dispatch yet", () => {
-    expect(existsSync(path.join(process.cwd(), "src", "app", "~spoke"))).toBe(false);
-    // `src/proxy.ts` is behaviourally untouched: it still negotiates from the single inlined config.
-    expect(read("src/proxy.ts")).toContain("negotiateWithin");
+  it("now HAS the internal Spoke route and hostname dispatch (M16)", () => {
+    expect(existsSync(path.join(process.cwd(), "src", "app", "~spoke"))).toBe(true);
+    // `src/proxy.ts` dispatches by HOSTNAME through the build routing table, holding no configuration.
+    expect(read("src/proxy.ts")).toContain("spokeSelectionForHost");
   });
 });
 
