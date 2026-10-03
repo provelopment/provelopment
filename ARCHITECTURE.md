@@ -1843,4 +1843,3 @@ COMPLETE, verified, ACTIVATED installation — `live` names the exact candidate 
 Foundation state — and leaves health unevaluated (`offline`, `healthEvaluatedAt: null`), because no health
 check ran. Promotion is not health, and only `recordInstallationHealth` — a real evaluation of the live
 installation — can make it `online`.
-
