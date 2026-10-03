@@ -4,10 +4,11 @@
 // ONE disposable Installation declaring TWO Spokes (`tests/support/multihost-installation.mjs`) is served by
 // its OWN dev server, and every request below travels the REAL public path:
 //
-//   HTTP request → src/proxy.ts → exact hostname dispatch → internal rewrite /~spoke/<segment>/… →
-//   the runtime segment selects ONE explicit SpokeRuntimeContext → the existing M13/M14 renderer
+//   HTTP request -> src/proxy.ts -> exact hostname claim -> private upstream selection header
+  //   (x-foundation-spoke-segment) -> the public catch-all route -> ONE explicit SpokeRuntimeContext ->
+  //   the existing M13/M14 renderer
 //
-// Nothing is bypassed: no request calls the composition directly, no request sets an internal header, and the
+// Nothing is bypassed: no request calls the composition directly, no request sets the PRIVATE SELECTION header itself, and the
 // public pathname is never the internal one. The two Spokes deliberately expose the SAME logical coordinates
 // (`/ww/en/about`) with DIFFERENT facts, so "same URL, different content" is proved rather than assumed.
 //
