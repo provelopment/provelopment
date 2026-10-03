@@ -142,7 +142,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
   it("keeps every page route on ONE decision point, and off any other store", () => {
     // S1 — ONE catch-all route serves every page (home, flat, nested, regional): the route that
     // resolves a page is the ONE place a page source may be created.
-    const route = "app/[...segments]/server-composition.tsx";
+    const route = "app/[[...segments]]/server-composition.tsx";
     const source = read(route);
     expect(source, route).toContain("createPageSources");
     // A route that read a second store itself would own a competing precedence rule.
@@ -155,7 +155,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
 
     // The dedicated page CHROME (home / connect / contact) lives beside that route and receives
     // its already-resolved page: it composes no source of its own and uses the SAME safe renderer.
-    const dedicated = read("app/[...segments]/dedicated-pages.tsx");
+    const dedicated = read("app/[[...segments]]/dedicated-pages.tsx");
     expect(dedicated).not.toContain("createPageSources");
     expect(dedicated).not.toContain("createFileSystemPageContentRepository");
     expect(dedicated).not.toContain("config/pages");
@@ -168,7 +168,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     // features, never for a kind of content: S1 folded home, `connect` and `contact` INTO the ONE
     // catch-all route — their chrome is composed by `dedicated-pages.tsx` for the SAME resolved
     // page — and every other page (flat, nested or regional) is served by that route.
-    const routeFiles = readdirSync(path.join(srcDirectory, "app/[...segments]"))
+    const routeFiles = readdirSync(path.join(srcDirectory, "app/[[...segments]]"))
       .filter((entry) => entry.endsWith(".tsx"))
       .sort();
     expect(routeFiles).toEqual([
@@ -182,7 +182,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
     ]);
     // …and no nested route directory survives: a page URL is `/<site>/<locale>/<route>`, so there
     // is nothing for a `[locale]`-style tree (or a per-page route folder) to express.
-    const directories = readdirSync(path.join(srcDirectory, "app/[...segments]"), { withFileTypes: true })
+    const directories = readdirSync(path.join(srcDirectory, "app/[[...segments]]"), { withFileTypes: true })
       .filter((entry) => entry.isDirectory())
       .map((entry) => entry.name)
       .sort();
@@ -190,9 +190,9 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
 
     // The generated social image is the ONE metadata route a page URL carries, and it CANNOT live
     // under the catch-all: Next.js requires a catch-all segment to be the last segment that
-    // modifies the path, so a static metadata segment below `[...segments]` refuses to build. It
+    // modifies the path, so a static metadata segment below `[[...segments]]` refuses to build. It
     // therefore sits in the SAME two dynamic segments a page URL carries (`/<site>/<locale>`).
-    expect(existsSync(path.join(srcDirectory, "app/[...segments]/opengraph-image.tsx"))).toBe(false);
+    expect(existsSync(path.join(srcDirectory, "app/[[...segments]]/opengraph-image.tsx"))).toBe(false);
     expect(existsSync(path.join(srcDirectory, "app/[site]/[locale]/opengraph-image.tsx"))).toBe(true);
   });
 
@@ -344,8 +344,8 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     // S1 — the pages that render a document are the ONE catch-all route and the dedicated chrome
     // module beside it (home / connect / contact); both hand the document to the SAME composer.
     for (const route of [
-      "app/[...segments]/server-composition.tsx",
-      "app/[...segments]/dedicated-pages.tsx",
+      "app/[[...segments]]/server-composition.tsx",
+      "app/[[...segments]]/dedicated-pages.tsx",
     ]) {
       const source = read(route);
       expect(source, route).toContain("PageDocumentContent");
@@ -367,8 +367,8 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
       .map(relative)
       .sort();
     expect(composers).toEqual([
-      "app/[...segments]/dedicated-pages.tsx",
-      "app/[...segments]/server-composition.tsx",
+      "app/[[...segments]]/dedicated-pages.tsx",
+      "app/[[...segments]]/server-composition.tsx",
     ]);
 
     // The composer is site-neutral and configuration-independent: it may compose the

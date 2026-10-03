@@ -40,7 +40,7 @@ vi.mock("next/navigation", () => ({
 const disposable = selectDisposableDeploymentCopy();
 vi.resetModules();
 
-const page = await import("@/app/[...segments]/page");
+const page = await import("@/app/[[...segments]]/page");
 const PageRoute = page.default;
 const { generateMetadata } = page;
 // M17 — the discovered PUBLIC route inventory is a DOMAIN capability now, not an App Router static identity:
@@ -48,7 +48,7 @@ const { generateMetadata } = page;
 // publishes is composed from the request-selected Spoke's own configuration.
 const publicRouteInventory = async (): Promise<{ segments: string[] }[]> => {
   const { staticParamsForContext, spokeServerComposition } = await import(
-    '@/app/[...segments]/server-composition'
+    '@/app/[[...segments]]/server-composition'
   );
   const { currentBuildRuntimeContext } = await import('@/config/installation-runtime');
   return staticParamsForContext(spokeServerComposition(currentBuildRuntimeContext()));

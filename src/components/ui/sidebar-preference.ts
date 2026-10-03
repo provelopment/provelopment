@@ -16,7 +16,7 @@
  *   · a RELOAD re-creates the document, so a component-memory state is re-initialized — a rail the
  *     visitor had CLOSED came back OPEN;
  *   · a CLIENT-SIDE NAVIGATION re-creates the rail too, because the shell is composed inside the
- *     `[...segments]` layout, whose params change when the route changes: the rail is remounted, so
+ *     `[[...segments]]` layout, whose params change when the route changes: the rail is remounted, so
  *     navigating away from a closed sidebar arrived at a page whose sidebar was open again.
  *
  * Neither defect involved any code that opened the sidebar: there was simply nowhere for the

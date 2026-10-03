@@ -484,7 +484,7 @@ Rules:
   in the deployment's `config/i18n/<locale>.json` (the capsule's
   `deployment/config/i18n/` in this repository) and must validate against the Zod
   dictionary schema.
-- New routes must be added under `src/app/[...segments]` (the ONE catch-all route); a
+- New routes must be added under `src/app/[[...segments]]` (the ONE catch-all route); a
   static metadata segment may NOT sit under a catch-all (Next.js requires the catch-all to be
   last), which is why the generated social image lives at `src/app/[site]/[locale]/`.
 - Markdown content belongs under the deployment's

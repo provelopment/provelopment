@@ -143,7 +143,7 @@ describe("a MULTI-Spoke Installation", () => {
   it("isolates the static inventory by runtime segment while the public pathname is identical", async () => {
     const { runtimeContextForSegment } = await import("@/config/spoke-request");
     const { spokeServerComposition, staticParamsForContext } = await import(
-      "@/app/[...segments]/server-composition"
+      "@/app/[[...segments]]/server-composition"
     );
 
     const inventories = [];

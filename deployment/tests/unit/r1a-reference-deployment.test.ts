@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { deploymentPaths } from "@/config/deployment-root";
 
-import PageRoute from "@/app/[...segments]/page";
+import PageRoute from "@/app/[[...segments]]/page";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";

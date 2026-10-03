@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { renderToStaticMarkup } from "react-dom/server";
 
-import PageRoute, { generateMetadata } from "@/app/[...segments]/page";
+import PageRoute, { generateMetadata } from "@/app/[[...segments]]/page";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
 import { getDictionary } from "@/config/i18n";

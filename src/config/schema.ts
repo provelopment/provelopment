@@ -69,7 +69,7 @@ export const localeConfigSchema = z.object({
    *
    * It exists because `site.description` is ONE string while a deployment may
    * speak several languages: the locale root's metadata description is the
-   * site's by contract (see `[...segments]/page.tsx`), so a translated locale
+   * site's by contract (see `[[...segments]]/page.tsx`), so a translated locale
    * root would otherwise advertise `site.description` in another language.
    * Absent → `site.description` (the documented single-language behaviour, and
    * why adding this leaf changes no existing deployment).

@@ -96,7 +96,7 @@ describe("M14 — client routing projection guard", () => {
       code(file).includes("ClientRoutingProvider"),
     );
     expect(providerFiles.map(relative).sort()).toEqual([
-      "src/app/[...segments]/server-composition.tsx",
+      "src/app/[[...segments]]/server-composition.tsx",
       "src/components/site/client-routing-context.tsx",
       "src/components/site/site-footer.tsx",
       "src/components/site/site-header.tsx",

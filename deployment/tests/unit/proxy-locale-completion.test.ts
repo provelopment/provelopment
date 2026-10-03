@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { NextRequest } from "next/server";
 
-import { completePublicPath } from "@/app/[...segments]/spoke-navigation";
+import { completePublicPath } from "@/app/[[...segments]]/spoke-navigation";
 import { SPOKE_SELECTION_HEADER } from "@/config/spoke-selection";
 import { siteConfig } from "@/config";
 import { proxy } from "@/proxy";

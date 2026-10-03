@@ -1199,7 +1199,7 @@ the single source.
 ### Typography
 
 - The brand heading/body family is **Plus Jakarta Sans** (`next/font/google`),
-  loaded in `src/app/[...segments]/layout.tsx`; monospace stays
+  loaded in `src/app/[[...segments]]/layout.tsx`; monospace stays
   **Geist Mono**. `--font-sans` / `--font-mono` live in the `@theme inline`
   block of `globals.css`.
 - **To change the brand font:** swap the `next/font/*` call in `layout.tsx`
@@ -1310,7 +1310,7 @@ per-page SEO configuration to fill in:
   screened for local file existence: `site.assets.ogImage` is an absolute URL that may
   legitimately point at a CDN, so it is emitted verbatim and no build failure or
   fallback guards a typo — keep the URL reachable on the live origin. The generated
-  route's palette lives in `src/app/[...segments]/opengraph-image.tsx`; edit that file only
+  route's palette lives in `src/app/[[...segments]]/opengraph-image.tsx`; edit that file only
   if you want the *fallback* preview to match your palette.
 - **Sitemap & robots** — `sitemap.xml` covers every configured locale, content
   page, offering, legal document, and regional page (only genuinely configured
@@ -1575,15 +1575,15 @@ Status (P6-2D/P6-3B/P6-3C — brand presentation composed; header mark + scaled 
   (2026-09 owner ruling).
 - **`status-graphic` (P12-SG)** — **capability composed; no Foundation artwork activated**:
   `site.assets.statusGraphic` is ONE optional **global** decorative status graphic
-  shared by **both** status surfaces (`[...segments]/error.tsx` and
-  `[...segments]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
+  shared by **both** status surfaces (`[[...segments]]/error.tsx` and
+  `[[...segments]]/not-found.tsx`). It is deliberately **ONE** role, not two: both surfaces
   render the *same* status frame (`<Section className="py-24 text-center">` with an
   `h1` / `p` / action rhythm), so one replaceable graphic serves both truthfully and
   no per-route artwork or per-route config exists. It is **not** an error icon, **not**
   semantic status communication and **not** a replacement for the status heading — the
   heading, the message and the retry/navigation controls remain the complete
   expression of the state, and **the page must be fully understandable and operable
-  with no graphic at all**. The `[...segments]` layout (server-side) resolves the role
+  with no graphic at all**. The `[[...segments]]` layout (server-side) resolves the role
   through `availableStatusGraphicPath` (the **same** generic availability rule as the
   banner/background/footer-graphic/header-graphic roles) to a same-origin path only
   when the file exists in a DECLARED runtime namespace (§ BRAND_ASSETS.md §1.1), reads its intrinsic size, and hands

@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  * Comments are stripped before every assertion: prose may name these modules (it must, to be maintained).
  */
 
-const SEGMENT_DIRECTORY = path.join(process.cwd(), "src", "app", "[...segments]");
+const SEGMENT_DIRECTORY = path.join(process.cwd(), "src", "app", "[[...segments]]");
 const COMPOSITION = path.join(SEGMENT_DIRECTORY, "server-composition.tsx");
 const PAGE = path.join(SEGMENT_DIRECTORY, "page.tsx");
 const LAYOUT = path.join(SEGMENT_DIRECTORY, "layout.tsx");
@@ -111,7 +111,7 @@ describe("M13 — shared server composition guard", () => {
       code(file).includes("createPageSources("),
     );
     // The shared composition owns page-source creation for the server graph; the boundary files do not.
-    expect(callers.map(relative)).toEqual(["src/app/[...segments]/server-composition.tsx"]);
+    expect(callers.map(relative)).toEqual(["src/app/[[...segments]]/server-composition.tsx"]);
     expect(code(PAGE)).not.toContain("createPageSources");
     expect(code(LAYOUT)).not.toContain("createPageSources");
   });

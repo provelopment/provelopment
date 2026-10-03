@@ -35,7 +35,7 @@ describe("FS-5 — background color presentation (configuration-first)", () => {
 
   it("layout renders the configured value through the existing --background token", () => {
     const layout = readFileSync(
-      path.join(process.cwd(), "src", "app", "[...segments]", "server-composition.tsx"),
+      path.join(process.cwd(), "src", "app", "[[...segments]]", "server-composition.tsx"),
       "utf8",
     );
     // The configured value is emitted as the CSS custom property on the root

@@ -24,7 +24,7 @@ import { sidebarPreferenceBootScript } from "./sidebar-contract";
  *   · a missing, invalid or unreadable preference does nothing at all, which is the canonical CLOSED
  *     presentation, so blocked storage cannot break rendering or page execution.
  *
- * It is rendered only where the composition actually produces a navigation rail (see the `[...segments]`
+ * It is rendered only where the composition actually produces a navigation rail (see the `[[...segments]]`
  * layout), so a deployment whose shell has no rail ships no bridge, no marker and — deliberately — no
  * hydration-suppression surface either.
  */

@@ -42,7 +42,7 @@ import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 const root = process.cwd();
 const globals = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
 const siteHeader = readFileSync(path.join(root, "src", "components", "site", "site-header.tsx"), "utf8");
-const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "server-composition.tsx"), "utf8");
+const layout = readFileSync(path.join(root, "src", "app", "[[...segments]]", "server-composition.tsx"), "utf8");
 const siteFooter = readFileSync(path.join(root, "src", "components", "site", "site-footer.tsx"), "utf8");
 const assets = readFileSync(path.join(root, "src", "config", "assets.ts"), "utf8");
 const component = readFileSync(path.join(root, "src", "components", "site", "header-graphic.ts"), "utf8");

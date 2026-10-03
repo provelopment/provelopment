@@ -79,7 +79,7 @@ describe("FS-4 — canonical asset contract", () => {
 
   it("the layout metadata consumes the configured assets (source contract)", () => {
     const layout = readFileSync(
-      path.join(process.cwd(), "src", "app", "[...segments]", "server-composition.tsx"),
+      path.join(process.cwd(), "src", "app", "[[...segments]]", "server-composition.tsx"),
       "utf8",
     );
     expect(layout).toContain("siteConfig.assets?.ogImage");

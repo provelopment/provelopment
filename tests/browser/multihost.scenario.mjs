@@ -315,6 +315,38 @@ async function runHostnameProof(harness, rows, port, installation) {
     `location=${unknown.headers.location ?? "(none)"}`,
   );
 
+  // ── THE BARE ROOT completes INSIDE the Spoke the host selected (M17 §5) ──────────────────────────────
+  // `/` names NO segments, so it is the OPTIONAL catch-all's own case: the same request-context and
+  // Site/locale completion flow as every other public path — resolved inside the Spoke THIS host selected,
+  // and answered with a PUBLIC redirect. It must never be a 404, and it must never leave this Spoke.
+  const hostFor = (spoke) => `${spoke.hostname}:${port}`;
+  const alphaRoot = await get(hostFor(alpha), "/");
+  const betaRoot = await get(hostFor(beta), `/`);
+  const alphaRootLocation = alphaRoot.headers.location ?? "";
+  const betaRootLocation = betaRoot.headers.location ?? "";
+
+  harness.check(rows, "Alpha's ROOT completes with a public redirect, never a 404", alphaRoot.status === 307 || alphaRoot.status === 302, `status=${alphaRoot.status}`);
+  harness.check(rows, "Beta's ROOT completes with a public redirect, never a 404", betaRoot.status === 307 || betaRoot.status === 302, `status=${betaRoot.status}`);
+  harness.check(rows, "Alpha's ROOT completes to a PUBLIC path (no internal prefix)", alphaRootLocation.startsWith("/") && !alphaRootLocation.includes("~spoke"), `location=${alphaRootLocation}`);
+  harness.check(rows, "Beta's ROOT completes to a PUBLIC path (no internal prefix)", betaRootLocation.startsWith("/") && !betaRootLocation.includes("~spoke"), `location=${betaRootLocation}`);
+  // The SAME public pathname on two hosts — the completion is per host, not a shared answer.
+  harness.check(rows, "both ROOTS complete to the same PUBLIC pathname on their own host", alphaRootLocation === betaRootLocation, `alpha=${alphaRootLocation} beta=${betaRootLocation}`);
+
+  const alphaHome = await get(hostFor(alpha), alphaRootLocation);
+  const betaHome = await get(hostFor(beta), betaRootLocation);
+  harness.check(
+    rows,
+    "Alpha's completed ROOT renders ALPHA's own chrome (its own dictionary wording)",
+    alphaHome.status === 200 && alphaHome.body.includes(MULTIHOST_SPOKES[0].navigationLabels["/"]),
+    `status=${alphaHome.status}`,
+  );
+  harness.check(
+    rows,
+    "Beta's completed ROOT renders BETA's own chrome (its own dictionary wording)",
+    betaHome.status === 200 && betaHome.body.includes(MULTIHOST_SPOKES[1].navigationLabels["/"]),
+    `status=${betaHome.status}`,
+  );
+
   const unknownRoot = await get("unknown.localhost", "/");
   harness.check(rows, "even an unclaimed host's ROOT is refused (no default Spoke)", unknownRoot.status === 404, `status=${unknownRoot.status}`);
 }

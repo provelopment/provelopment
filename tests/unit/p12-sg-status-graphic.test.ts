@@ -18,7 +18,7 @@ import { runtimeAssetFile, runtimeAssetUrl, shippedRoleSource } from "../support
  *
  * Locks in the contract: ONE optional global `site.assets.statusGraphic` role
  * (the `status-graphic` role) shared by BOTH status surfaces —
- * `[...segments]/error.tsx` and `[...segments]/not-found.tsx` — because the audit proved
+ * `[[...segments]]/error.tsx` and `[[...segments]]/not-found.tsx` — because the audit proved
  * they render the SAME status frame (`<Section className="py-24 text-center">`
  * with an `h1` / `p` / action rhythm). It renders in ONE deterministic in-flow
  * box ABOVE the status heading, is purely decorative, and never replaces the
@@ -40,9 +40,9 @@ const read = (...segments: string[]) => readFileSync(path.join(root, ...segments
 const globals = read("src", "app", "globals.css");
 const component = read("src", "components", "site", "status-graphic.tsx");
 const context = read("src", "components", "site", "status-graphic-context.tsx");
-const layout = read("src", "app", "[...segments]", "server-composition.tsx");
-const errorPage = read("src", "app", "[...segments]", "error.tsx");
-const notFoundPage = read("src", "app", "[...segments]", "not-found.tsx");
+const layout = read("src", "app", "[[...segments]]", "server-composition.tsx");
+const errorPage = read("src", "app", "[[...segments]]", "error.tsx");
+const notFoundPage = read("src", "app", "[[...segments]]", "not-found.tsx");
 const assets = read("src", "config", "assets.ts");
 const schema = read("src", "config", "schema.ts");
 const siteConfigSource = read("src", "config", "site-config.ts");
@@ -80,7 +80,7 @@ const LIVE = runtimeAssetUrl("icon-phone.svg") as string;
 
 /**
  * Renders the status surface exactly as the status pages do: the resolved asset
- * arrives through the provider (the same transport the `[...segments]` layout uses),
+ * arrives through the provider (the same transport the `[[...segments]]` layout uses),
  * so `undefined` proves the unconfigured/absent path end to end.
  *
  * `createElement`'s props overload requires EVERY prop the component declares —

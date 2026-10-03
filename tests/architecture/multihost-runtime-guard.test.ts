@@ -29,9 +29,9 @@ const PROXY = "src/proxy.ts";
 const ROUTING = "src/config/spoke-routing.ts";
 const REQUEST = "src/config/spoke-request.ts";
 const SELECTION = "src/config/spoke-selection.ts";
-const COMPOSITION = "src/app/[...segments]/server-composition.tsx";
-const PAGE = "src/app/[...segments]/page.tsx";
-const LAYOUT = "src/app/[...segments]/layout.tsx";
+const COMPOSITION = "src/app/[[...segments]]/server-composition.tsx";
+const PAGE = "src/app/[[...segments]]/page.tsx";
+const LAYOUT = "src/app/[[...segments]]/layout.tsx";
 const INTERNAL_IMAGE = "src/app/[site]/[locale]/opengraph-image.tsx";
 
 describe("M16/M17 — the render path", () => {
