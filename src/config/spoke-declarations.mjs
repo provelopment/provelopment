@@ -41,7 +41,6 @@
  */
 import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
-import { z } from "zod";
 
 import { IMPLICIT_SPOKE_ID, spokeCollectionIssues } from "../core/spoke/spoke-id.mjs";
 
@@ -63,18 +62,67 @@ export const SPOKE_ROOTS_DIRECTORY_NAME = "spokes";
 export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
 
 /**
- * ONE authored Spoke declaration. STRICT, and exactly these two leaves: membership and location.
+ * THE MANIFEST'S STRUCTURAL CONTRACT — STRICT, and exactly the two leaves a declaration may author.
  *
  * Identity semantics (non-blank, the reserved id, uniqueness) are NOT restated here — they belong to the
  * pure domain (`../core/spoke/spoke-id.mjs`), so configuration and the domain cannot drift apart. This
- * schema does STRUCTURAL typing only.
+ * validator does STRUCTURAL typing only, exactly as the zod schema it replaces did.
+ *
+ * WHY IT IS HAND-ROLLED, NOT ZOD: this seam is loaded by the platform's own Node tooling, and a
+ * RELEASE must run that tooling in an installation with NO third-party packages at all
+ * (`tests/integration/foundation-installation-bootstrap.test.ts` proves the self-containment). The
+ * platform's runtime `zod` dependency is therefore not available to it, so the seam keeps the same
+ * STRICT shape and the same message vocabulary in a few explicit checks — one implementation, no
+ * package. The `{ success, data, error: { issues } }` surface is the minimal one its callers use (this
+ * module's own resolver and the S3C1 acceptance suite), with `issues` shaped like a zod issue list.
+ *
+ * @type {{ safeParse: (raw: unknown) => { success: true, data: { spokes: { id: string, root: string }[] } } |
+ *   { success: false, error: { issues: { path: (string|number)[], message: string }[] } } }}
  */
-export const spokeDeclarationSchema = z.object({ id: z.string(), root: z.string() }).strict();
+export const installationSpokeCollectionSchema = {
+  safeParse(raw) {
+    /** @type {{ path: (string|number)[], message: string }[]} */
+    const issues = [];
+    const unrecognized = (value, allowed, at) => {
+      for (const key of Object.keys(value)) {
+        if (!allowed.includes(key)) issues.push({ path: at, message: `Unrecognized key: "${key}"` });
+      }
+    };
 
-/** The manifest's structural contract: a strict object holding a Spokes array. */
-export const installationSpokeCollectionSchema = z
-  .object({ spokes: z.array(spokeDeclarationSchema) })
-  .strict();
+    if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+      return {
+        success: false,
+        error: { issues: [{ path: [], message: "Invalid input: expected object" }] },
+      };
+    }
+
+    unrecognized(raw, ["spokes"], []);
+    if (!Array.isArray(raw.spokes)) {
+      issues.push({ path: ["spokes"], message: "Invalid input: expected array" });
+      return { success: false, error: { issues } };
+    }
+
+    /** @type {{ id: string, root: string }[]} */
+    const declared = [];
+    raw.spokes.forEach((entry, index) => {
+      const at = ["spokes", index];
+      if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+        issues.push({ path: at, message: "Invalid input: expected object" });
+        return;
+      }
+      unrecognized(entry, ["id", "root"], at);
+      const idIsString = typeof entry.id === "string";
+      const rootIsString = typeof entry.root === "string";
+      if (!idIsString) issues.push({ path: [...at, "id"], message: "Invalid input: expected string" });
+      if (!rootIsString) issues.push({ path: [...at, "root"], message: "Invalid input: expected string" });
+      if (idIsString && rootIsString) declared.push({ id: entry.id, root: entry.root });
+    });
+
+    return issues.length > 0
+      ? { success: false, error: { issues } }
+      : { success: true, data: { spokes: declared } };
+  },
+};
 
 function renderIssues(issues) {
   return issues.map((issue) => `  - ${issue}`).join("\n");

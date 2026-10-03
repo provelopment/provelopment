@@ -63,8 +63,6 @@
  * path is never the identity, so the two differ freely (`spokes/foundation-web` may hold the Spoke
  * `foundation`) — while the LOCATOR must still live in the dedicated `spokes/` namespace.
  */
-import type { infer as ZodInfer } from "zod";
-
 import type { SpokeId } from "@/core/spoke";
 
 import { installationSpokeCollectionSchema, resolveSpokeDeclarations } from "./spoke-declarations.mjs";
@@ -73,7 +71,16 @@ export { SPOKE_ROOTS_DIRECTORY_NAME } from "./spoke-declarations.mjs";
 export { INSTALLATION_SPOKE_COLLECTION_FILE_NAME } from "./spoke-declarations.mjs";
 export { installationSpokeCollectionSchema };
 
-export type InstallationSpokeCollectionFile = ZodInfer<typeof installationSpokeCollectionSchema>;
+/**
+ * The manifest's structural shape, typed for the platform's consumers.
+ *
+ * The ACCEPTANCE rules live in `./spoke-declarations.mjs` (one implementation, shared with the build
+ * selection seam); this is the typed view of the same shape, so a caller can hold a parsed collection
+ * without a second definition of what is acceptable.
+ */
+export interface InstallationSpokeCollectionFile {
+  readonly spokes: readonly { readonly id: string; readonly root: string }[];
+}
 
 /**
  * ONE resolved Spoke root: the authored identity and the ABSOLUTE directory it is authored in.

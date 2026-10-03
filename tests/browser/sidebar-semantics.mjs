@@ -58,6 +58,14 @@ export function sidebarSemanticsReader({ marker, openNameAttribute }) {
   const collapsed = rail.getAttribute('data-collapsed');
   const openNameHook = ${openNameAttribute === null ? "null" : `'${openNameAttribute}'`};
   const declaredOpen = openNameHook ? toggle.getAttribute(openNameHook) : null;
+  // S3E1C/S3F1B — the variant a control PRESENTS is its artwork OR its label: an installation that does
+  // not ship the replaceable control artwork (the generic synthetic LEGACY installation) still presents a
+  // state through the label variant, and this reader must judge such a document by what it actually ships.
+  // An installation that ships the artwork behaves exactly as it always did (its icon variant decides).
+  const shownVariant = (icon, label) =>
+    icon ? (variantOf(icon, 'open') ? 'open' : variantOf(icon, 'closed') ? 'closed' : 'unpaired')
+         : label ? (variantOf(label, 'open') ? 'open' : variantOf(label, 'closed') ? 'closed' : 'unpaired')
+         : 'none';
   return {
     visual: document.documentElement.getAttribute(${JSON.stringify(marker)}) !== null ? 'open' : collapsed === 'true' ? 'closed' : 'open',
     collapsed,
@@ -66,7 +74,7 @@ export function sidebarSemanticsReader({ marker, openNameAttribute }) {
     ariaLabel,
     name: nameSource === 'aria-label' ? ariaLabel : text(shownLabel),
     nameSource,
-    presented: shownIcon ? (variantOf(shownIcon, 'open') ? 'open' : variantOf(shownIcon, 'closed') ? 'closed' : 'unpaired') : 'none',
+    presented: shownVariant(shownIcon, shownLabel),
     presentedLabel: shownLabel ? text(shownLabel) : null,
     openName: declaredOpen !== null ? declaredOpen : text(labels.open),
     closedName: text(labels.closed) !== '' ? text(labels.closed) : ariaLabel !== null ? ariaLabel : '',

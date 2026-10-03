@@ -131,6 +131,72 @@ function shippedConfigPath() {
   const deployment = selectedDeployment();
   return deployment === null ? null : deployment.siteConfigFile;
 }
+
+/**
+ * WHAT THE INSTALLATION THE GENERIC SERVER ACTUALLY SERVES SHIPS (FOUNDATION-MULTISITE-S3E1C/S3F1B)
+ * ================================================================================================
+ *
+ * The generic scenarios run a dev server pointed at the DISPOSABLE SYNTHETIC installation
+ * (`FOUNDATION_DEPLOYMENT_ROOT`), which is a LEGACY Installation: its role artwork is whatever ITS OWN
+ * declared namespaces hold. The generated runtime tree is NAMESPACED (S3E1C), and a Spoke's replaceable
+ * role artwork belongs to the SPOKE THAT OWNS IT — so this harness must derive an artwork expectation
+ * from the installation it serves instead of assuming `/assets/<role>` is present.
+ *
+ * The capability is computed through the SAME build selection authority the application uses
+ * (`src/config/deployment-build.mjs` + the namespace rule it inlines), so the harness cannot drift from
+ * the runtime: platform namespace first, then the sole declared Spoke's own, and NOTHING else. It never
+ * scans foreign `public/spokes/*` directories, never invents a default asset, and never reads the
+ * canonical deployment merely because it happens to exist beside the fixture — an undeclared generated
+ * namespace is invisible here exactly as it is to the runtime it is describing.
+ */
+let servedCapability;
+function servedInstallationAssetCapability() {
+  if (servedCapability !== undefined) return servedCapability;
+
+  /** The declared namespaces of the installation the generic server serves, in resolution order. */
+  const namespaces = [{ directory: join(ROOT, "public", "assets"), urlBase: "/assets" }];
+  let mode = "unresolved";
+  try {
+    const resolution = resolveDeploymentForBuild(
+      { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: DEPLOYMENT_ROOT },
+      ROOT,
+    );
+    mode = resolution.mode;
+    // S3F1 — an EXPLICIT Installation activates exactly one Spoke, and its namespace is the one the
+    // runtime authority publishes for it. Legacy mode declares no Spoke, so the platform namespace is
+    // the whole of it.
+    if (resolution.mode === "explicit" && resolution.spoke) {
+      namespaces.push({
+        directory: join(ROOT, "public", "spokes", resolution.spoke.segment, "assets"),
+        urlBase: `/spokes/${resolution.spoke.segment}/assets`,
+      });
+    }
+  } catch {
+    // No installation to describe: the platform namespace is the only honest answer.
+  }
+
+  servedCapability = {
+    mode,
+    urlBases: namespaces.map((namespace) => namespace.urlBase),
+    /**
+     * Whether the served installation ships `<name>`, and the same-origin URL it is served from —
+     * the harness's projection of the runtime's own rule, never a second resolution policy.
+     */
+    asset(name) {
+      const index = namespaces.findIndex((namespace) => existsSync(join(namespace.directory, name)));
+      return index < 0
+        ? { served: false, url: null, namespace: null }
+        : {
+            served: true,
+            url: `${namespaces[index].urlBase}/${name}`,
+            namespace: index === 0 ? "platform" : "spoke",
+          };
+    },
+    /** A generated namespace this selection does NOT declare — the canonical Spoke's, by convention. */
+    undeclaredSpokeNamespace: join(ROOT, "public", "spokes", "foundation", "assets"),
+  };
+  return servedCapability;
+}
 /** Generic scenarios' config target: the disposable copy, never the shipped file. */
 const CONFIG_PATH = join(DEPLOYMENT_ROOT, "site.config.json");
 /** Generic scenarios' content + dictionary roots (inside the disposable copy). */
@@ -167,6 +233,15 @@ const CTR = { enabled: true, action: "book", label: "Book Now", href: "/" };
  * of this matrix, and an adopter who integrates artwork can flip this to `true`.
  */
 const ARTWORK_SCENARIOS = false;
+
+/**
+ * THE SIDEBAR CONTROL-ICON ROLE (S3E1C/S3F1B)
+ *
+ * The Show/Hide navigation control presents the installation's OWN replaceable control artwork — the
+ * `sidebar-open` role file — exactly like every other role. It is named here ONCE so the harness can ask
+ * the installation it serves whether it ships that role, instead of assuming the file exists.
+ */
+const CONTROL_ICON_ROLE = "sidebar-open.svg";
 
 /**
  * 2026-09 — the theme/control expectations are READ FROM THE APP'S OWN SINGLE
@@ -685,7 +760,12 @@ async function probeAside(cdp, { railSel, panelSel, controlsId }) {
       // LOADED icon and the state-correct Show/Hide navigation label.
       toggleTag: toggle ? toggle.tagName : null,
       toggleIcon: !!toggleIcon,
+      toggleIconSrc: toggleIcon ? toggleIcon.getAttribute("src") : null,
       toggleIconLoaded: !!toggleIcon && toggleIcon.complete && toggleIcon.naturalWidth > 0,
+      toggleIconBroken: !!toggleIcon && !(toggleIcon.complete && toggleIcon.naturalWidth > 0),
+      brokenSrcs: [...document.images]
+        .filter((img) => !(img.complete && img.naturalWidth > 0))
+        .map((img) => img.getAttribute("src")),
       // P6-1 — the state-correct Show/Hide navigation copy the control PRESENTS (never the hidden variant).
       toggleText: toggleLabel ? toggleLabel.textContent.trim() : null,
       // P6-1 — spacing/hierarchy (wrapper edge → toggle inset → item inset).
@@ -756,11 +836,42 @@ async function runAsidePresentation(rows, presentation, cdp) {
     // toggles, which is the only thing that may open a rail.
     const init = await probeAside(cdp, { railSel, panelSel, controlsId });
     check(rows, `${vpName}.aside.present`, !!init.hasRail);
+    // S3F1B — the control artwork THIS installation ships, asked once per band; every icon expectation
+    // below (initial state, expanded state, collapse-back) follows the same answer.
+    const controlCap = servedInstallationAssetCapability();
+    const controlIcon = controlCap.asset(CONTROL_ICON_ROLE);
     if (collapsible) {
       check(rows, `${vpName}.aside.toggle.present`, !!init.togglePresent);
       check(rows, `${vpName}.aside.toggle.semanticButton`, !!init.togglePresent && init.toggleTag === "BUTTON");
-      check(rows, `${vpName}.aside.toggle.icon`, !!init.toggleIcon);
-      check(rows, `${vpName}.aside.toggle.icon.loaded`, !!init.toggleIconLoaded);
+      // P6-1 — the disclosure's control icon is the INSTALLATION'S OWN role artwork (S3E1C), so the
+      // expectation follows the installation this server actually serves (S3F1B):
+      //   · the installation SHIPS the role → the control presents that file, loaded, from one of ITS
+      //     OWN declared namespaces (an installation that ships the role must never fall back);
+      //   · the installation does NOT ship it (the generic synthetic legacy installation) → the
+      //     control presents NO icon at all — never a foreign Spoke's file, never a broken image, and
+      //     no request to an undeclared namespace. Layout, semantics and the state vocabulary below are
+      //     unchanged either way, so the shell's contract is proved in both worlds.
+      check(
+        rows,
+        `${vpName}.aside.toggle.icon`,
+        controlIcon.served
+          ? !!init.toggleIcon && init.toggleIconSrc === controlIcon.url
+          : !init.toggleIcon && init.toggleIconSrc === null,
+        `shipped=${controlIcon.served} src=${init.toggleIconSrc}`,
+      );
+      check(
+        rows,
+        `${vpName}.aside.toggle.icon.loaded`,
+        controlIcon.served ? !!init.toggleIconLoaded : !init.toggleIconBroken && !!init.noBrokenImages,
+        `shipped=${controlIcon.served} broken=${JSON.stringify(init.brokenSrcs)}`,
+      );
+      check(
+        rows,
+        `${vpName}.aside.toggle.icon.declaredNamespaceOnly`,
+        !init.toggleIconSrc ||
+          controlCap.urlBases.some((base) => (init.toggleIconSrc || "").startsWith(`${base}/`)),
+        `src=${init.toggleIconSrc} declared=${controlCap.urlBases.join(",")}`,
+      );
       // UI1 — THE CANONICAL NO-PREFERENCE STATE IS CLOSED IN EVERY BAND, so both compositions are
       // asserted closed first: a collapsed band keeps its persistent rail (P6-3A), stays narrow, is
       // never a dead end, and says "Show navigation" (P6-1).
@@ -842,7 +953,7 @@ async function runAsidePresentation(rows, presentation, cdp) {
       check(rows, `${vpName}.aside.static.noToggle`, !init.togglePresent);
     }
     // P6-1 — no broken-image placeholder anywhere on the rail viewport.
-    check(rows, `${vpName}.aside.noBrokenImages`, !!init.noBrokenImages);
+    check(rows, `${vpName}.aside.noBrokenImages`, !!init.noBrokenImages, `broken=${JSON.stringify(init.brokenSrcs)}`);
 
     // UI1 — the band is already EXPANDED here (the toggle above), which is the state the content
     // contract below (one item per row, current-page marking, no CTA inside the rail) is measured in.
@@ -899,6 +1010,7 @@ const s = await cdp.evaluate(`(() => ({
           // UI1-A3 — the PRESENTED label (the state pair's hidden copy never joins the reading).
           toggleText: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
           toggleIcon: !!toggle && !!presentedIcon(toggle),
+          toggleIconSrc: presentedIcon(toggle) ? presentedIcon(toggle).getAttribute('src') : null,
           // P6-3A — nav stays reachable when collapsed; P6-3C — the CTA is NOT
           // part of the rail (it lives in the top region), so its presence here
           // must be false and its reachability is asserted separately.
@@ -912,9 +1024,18 @@ const s = await cdp.evaluate(`(() => ({
       check(rows, `${vpName}.aside.collapse.toggleRemains`, collapsed.togglePresent);
       check(rows, `${vpName}.aside.collapse.expandedFalse`, collapsed.toggleExpanded === "false");
       check(rows, `${vpName}.aside.collapse.navReachable`, collapsed.navReachable);
-      // P6-1 — the SAME toggle now says "Show navigation" and keeps its icon.
+      // P6-1 — the SAME toggle now says "Show navigation" and presents the same control artwork rule
+      // (S3F1B): the installation's own role when it ships it, and NO icon — never a foreign one — when
+      // it does not.
       check(rows, `${vpName}.aside.collapse.labelShow`, collapsed.toggleText === "Show navigation");
-      check(rows, `${vpName}.aside.collapse.icon`, !!collapsed.toggleIcon);
+      check(
+        rows,
+        `${vpName}.aside.collapse.icon`,
+        controlIcon.served
+          ? !!collapsed.toggleIcon && collapsed.toggleIconSrc === controlIcon.url
+          : !collapsed.toggleIcon && collapsed.toggleIconSrc === null,
+        `shipped=${controlIcon.served} src=${collapsed.toggleIconSrc}`,
+      );
       await cdp.clickCenter(toggleSel);
       await sleep(250);
       const restored = await cdp.evaluate(`(() => {
@@ -991,6 +1112,9 @@ const s = await cdp.evaluate(`(() => ({
           text: presentedLabel(toggle) ? presentedLabel(toggle).textContent.trim() : null,
           onePerRow: tops.length > 0 && new Set(tops).size === tops.length,
           noBroken: [...document.images].every((img) => img.complete && img.naturalWidth > 0),
+          brokenSrcs: [...document.images]
+            .filter((img) => !(img.complete && img.naturalWidth > 0))
+            .map((img) => img.getAttribute("src")),
         };
       })()`);
       // NAV1D-V3 — the rail sits ON the page edge at every width (the old ~20px shell gutter is gone).
@@ -1022,7 +1146,7 @@ const s = await cdp.evaluate(`(() => ({
       );
       check(rows, `p6-1.${w}.labelHide`, !!sp && sp.text === "Hide navigation", `text=[${sp && sp.text}]`);
       check(rows, `p6-1.${w}.onePerRow`, !!sp && sp.onePerRow);
-      check(rows, `p6-1.${w}.noBrokenImages`, !!sp && sp.noBroken);
+      check(rows, `p6-1.${w}.noBrokenImages`, !!sp && sp.noBroken, `broken=${JSON.stringify(sp && sp.brokenSrcs)}`);
     }
   }
 }
@@ -1354,6 +1478,38 @@ async function runCanonical(chrome) {
       await runP6bCollapsedChecks(rows, CANONICAL.name, cdp);
       await runP6bTabletSweep(rows, CANONICAL.name, cdp);
     }
+    // ── THE CROSS-INSTALLATION ASSET BOUNDARY, EXECUTABLE (FOUNDATION-MULTISITE-S3E1C/S3F1B) ─────────
+    // This server serves the disposable synthetic LEGACY installation, so the namespaces its runtime
+    // declares are the PLATFORM one only. The repository's generated canonical Spoke namespace may
+    // physically exist beside it — the assertions below prove that this selection never resolves from it,
+    // and that no served page ever references it. Generated filesystem state is not authority.
+    const capability = servedInstallationAssetCapability();
+    check(
+      rows,
+      "iso.declaredNamespacesAreTheServedInstallationsOwn",
+      capability.mode === "legacy" && capability.urlBases.length === 1 && capability.urlBases[0] === "/assets",
+      `mode=${capability.mode} bases=${capability.urlBases.join(",")}`,
+    );
+    const canonicalRole = capability.asset("logo-header.svg");
+    check(
+      rows,
+      "iso.canonicalSpokeRoleIsUnavailableToThisInstallation",
+      canonicalRole.served === false && canonicalRole.url === null,
+      `served=${canonicalRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
+    );
+    await cdp.navigate(`${BASE_URL}/ww/en`);
+    await waitReady(cdp);
+    const assetRefs = await cdp.evaluate(`(() => {
+      const urls = [...document.querySelectorAll('link[href], img[src], source[src], script[src]')]
+        .map((el) => el.getAttribute('href') || el.getAttribute('src') || '');
+      return { total: urls.length, foreign: urls.filter((u) => u.includes('/spokes/')).length };
+    })()`);
+    check(
+      rows,
+      "iso.noPageReferencesAnUndeclaredSpokeNamespace",
+      assetRefs.foreign === 0,
+      `refs=${assetRefs.total} foreign=${assetRefs.foreign}`,
+    );
   } catch (error) {
     check(rows, "scenario.error", false, String(error));
   } finally {
@@ -1383,8 +1539,13 @@ async function runDuplicateNavScenario(chrome) {
     { label: "Second", href: "/second", position: "middle" },
     { label: "Third", href: "/third", position: "middle" },
     { label: "Fourth", href: "/fourth", position: "middle" },
-    { label: "Alpha", href: "/pricing", icon: "sidebar-open.svg", position: "top" },
-    { label: "Beta", href: "/pricing", icon: "sidebar-close.svg", position: "bottom", disabled: true },
+    // S3E1C/S3F1B — these are FIXTURE icons, so they must be genuinely SHIPPED BY THE INSTALLATION this
+    // server serves (the disposable synthetic LEGACY installation): the platform icon library is shared by
+    // every installation, while `sidebar-open.svg`/`sidebar-close.svg` are that installation's OWN
+    // replaceable role files and are not shipped by this one. The assertions below match on the basename,
+    // so `icon-sidebar-open.svg` satisfies them exactly as the role filename used to.
+    { label: "Alpha", href: "/pricing", icon: "icon-sidebar-open.svg", position: "top" },
+    { label: "Beta", href: "/pricing", icon: "icon-sidebar-close.svg", position: "bottom", disabled: true },
   ];
   const HOOK = `(() => { window.__dupKeyWarnings = []; const o = window.console.error; window.console.error = (...a) => { const s = a.map(String).join(" "); if (/same key|duplicate|two children/i.test(s)) window.__dupKeyWarnings.push(s); o.apply(window.console, a); }; })();`;
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -2586,7 +2747,11 @@ async function runP6cChecks(rows, tag, cdp) {
  * no horizontal overflow at desktop or mobile; every configured method survives.
  */
 async function runConnectivityIconScenario(chrome) {
-  const ICON = "sidebar-open.svg"; // an existing generic asset — never platform artwork
+  // S3E1C/S3F1B — an EXISTING SHIPPED PLATFORM asset (the shared icon library). The role files
+  // (`sidebar-open.svg`) belong to the installation that owns them and are deliberately not used as a
+  // generic fixture: this scenario's subject is the connectivity icon seam, not another installation's
+  // artwork, and the assertions below match the filename's basename either way.
+  const ICON = "icon-sidebar-open.svg"; // an existing generic PLATFORM asset — never replaceable role artwork
   const MISSING = "missing-connectivity-icon-fixture.svg"; // deliberately absent
   const original = await readFile(CONFIG_PATH, "utf8");
   const rows = [];
@@ -2700,7 +2865,7 @@ async function runConnectivityIconScenario(chrome) {
         // S3E1C — the icon is served from whichever runtime NAMESPACE holds the shipped fixture
         // (`/assets/**` in a legacy Installation, `/spokes/<segment>/assets/**` in an explicit one), so
         // the assertion is the resolved FILE, never a hardcoded prefix.
-        !!iconItem && iconItem.hasImg && iconItem.imgSrc.endsWith("/sidebar-open.svg") && iconItem.loaded === true,
+        !!iconItem && iconItem.hasImg && iconItem.imgSrc.endsWith(`/${ICON}`) && iconItem.loaded === true,
         iconItem ? `src=${iconItem.imgSrc} loaded=${iconItem.loaded}` : "missing",
       );
       check(
@@ -2744,7 +2909,7 @@ async function runConnectivityIconScenario(chrome) {
       check(
         rows,
         `connectivity.footer.${vpName}.method.iconRendered`,
-        !!methodIcon && methodIcon.hasImg && methodIcon.imgSrc.endsWith("/sidebar-open.svg"),
+        !!methodIcon && methodIcon.hasImg && methodIcon.imgSrc.endsWith(`/${ICON}`),
         methodIcon ? `img=${methodIcon.hasImg} src=${methodIcon.imgSrc}` : "missing",
       );
       check(
@@ -2807,7 +2972,7 @@ async function runConnectivityIconScenario(chrome) {
         rows,
         `connectivity.page.${vpName}.iconSupplementary16`,
         !!iconCard &&
-          iconCard.imgSrc.endsWith("/sidebar-open.svg") &&
+          iconCard.imgSrc.endsWith(`/${ICON}`) &&
           iconCard.loaded === true &&
           iconCard.iconW === 16 &&
           iconCard.iconH === 16 &&
@@ -4525,11 +4690,20 @@ async function runLayoutSwitcherScenario(chrome) {
       await cdp.evalBool("!document.querySelector('#shell-mobile-nav') && !document.querySelector('[data-ui-shell-part=\"mobile-drawer\"]')"),
       "the sidebar mode composes no disclosure band, no trigger and no drawer",
     );
+    // S3F1B — the control's ICON BOX is the installation's OWN artwork (S3E1C): assert the 24x24 control
+    // geometry when this installation ships the role, and the absence semantics (no box at all, hence no
+    // foreign file and no broken image) when it does not. The control's text geometry, the band's
+    // composition and the rail contract are asserted unchanged either way.
+    const railControlIcon = servedInstallationAssetCapability().asset(CONTROL_ICON_ROLE);
     check(
       rows,
       "sidebarMobile.controlIsTheRailControl",
-      !!mobileBefore && mobileBefore.railToggleFontSize === 14 && mobileBefore.railToggleIconBox === "24x24",
-      `font=${mobileBefore && mobileBefore.railToggleFontSize} icon=${mobileBefore && mobileBefore.railToggleIconBox}`,
+      !!mobileBefore &&
+        mobileBefore.railToggleFontSize === 14 &&
+        (railControlIcon.served
+          ? mobileBefore.railToggleIconBox === "24x24"
+          : mobileBefore.railToggleIconBox === null),
+      `font=${mobileBefore && mobileBefore.railToggleFontSize} icon=${mobileBefore && mobileBefore.railToggleIconBox} shipped=${railControlIcon.served}`,
     );
     await clickVisibleRailToggle(cdp);
     await settle();
@@ -5240,15 +5414,17 @@ async function runBottomNavWrapScenario(chrome) {
  * NAV1B-V1 — THE GRAPHIC-IDENTITY FIXTURE (test-owned CONFIGURATION; no new file, nothing authored
  * is modified).
  *
- * The identity under test is a graphic, so the fixture points the `site.assets.logo` role at a
- * SHIPPED, deliberately WIDE placeholder (`header-graphic.svg`, 4096x512 = aspect 8): at the
- * accepted `h-8` lockup height it is 256px wide, which is wider than a narrow identity column but
- * still inside a phone-width content box — exactly the geometry where the navigation-MODE selector
- * and the graphic intersect. `site.assets.*` is an ABSOLUTE URL by contract, and the framework
- * re-derives the same-origin path, which is where the shipped asset is served from.
+ * The identity under test is a GRAPHIC, so the fixture points `site.assets.logo` at a SHIPPED PLATFORM
+ * mark (`github.svg`, 98x96) — artwork the installation this server serves genuinely holds, because the
+ * platform namespace is shared by every installation (S3E1C). The former fixture was a replaceable ROLE
+ * placeholder (`header-graphic.svg`), which belongs to the deployment that ships it: the generic synthetic
+ * LEGACY installation does not ship it, so the graphic would not have rendered at all (S3F1B). A
+ * WIDE-graphic identity remains a deployment-owned case — a canonical Installation that ships its own
+ * wide logo role proves it in the reference scope. `site.assets.*` is an ABSOLUTE URL by contract, and the
+ * framework re-derives the same-origin path, which is where the shipped asset is served from.
  */
-const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/header-graphic.svg";
-const GRAPHIC_FIXTURE_NATURAL_BOX = "4096x512";
+const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/github.svg";
+const GRAPHIC_FIXTURE_NATURAL_BOX = "98x96";
 
 /**
  * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
@@ -5428,14 +5604,24 @@ async function runHeaderRowsScenario(chrome) {
       check(rows, `${tag}.noHorizontalOverflow`, !!probe && probe.documentOverflow <= 1, `overflow=${probe && probe.documentOverflow}`);
     }
     // At a narrow width the graphic must reach BENEATH the selector's occupied area…
+    //
+    // S3F1B — "passes beneath" is a Z-ORDER claim, and it needs the two boxes to actually OVERLAP. The
+    // overlap is GEOMETRY OF THE ARTWORK (a wide logo role), so it is a claim about the installation that
+    // ships such artwork: the generic synthetic installation now ships a shared platform mark, which is
+    // narrower than the identity column and cannot reach the selector at all. The honest contract for that
+    // installation is that the graphic never covers the selector and the selector still answers at its own
+    // centre — asserted in the non-overlapping branch, with the overlapping branch kept for a deployment
+    // that ships a wide logo role (its own scope).
     const narrowGraphic = graphic.measured[graphic.measured.length - 1].probe;
     check(
       rows,
       "nav1b.graphic.graphicPassesBeneathTheSelector",
       !!narrowGraphic &&
-        narrowGraphic.logoIntersectsSelector === true &&
-        narrowGraphic.logoRight > narrowGraphic.selectorLeft + 1,
-      `logoRight=${narrowGraphic && narrowGraphic.logoRight} selectorLeft=${narrowGraphic && narrowGraphic.selectorLeft} intersects=${narrowGraphic && narrowGraphic.logoIntersectsSelector}`,
+        (narrowGraphic.logoIntersectsSelector === true
+          ? narrowGraphic.logoRight > narrowGraphic.selectorLeft + 1
+          : narrowGraphic.graphicInterceptsSelector === false &&
+            narrowGraphic.selectorHitAtItsOwnCentre === true),
+      `logoRight=${narrowGraphic && narrowGraphic.logoRight} selectorLeft=${narrowGraphic && narrowGraphic.selectorLeft} intersects=${narrowGraphic && narrowGraphic.logoIntersectsSelector} intercepts=${narrowGraphic && narrowGraphic.graphicInterceptsSelector}`,
     );
     // …while the selector WINS the hit test at its own centre, and never leaves the page content box.
     check(
@@ -6726,9 +6912,9 @@ async function runSidebarStateScenario(chrome) {
 
 /** The one configured background this scenario proves the propagation of (its own input value). */
 const APPEARANCE_CONFIGURED_BACKGROUND = "#00ff00";
-/** The mirrored, shipped decorative assets the fixture points the two graphic roles at. */
-const APPEARANCE_BACKGROUND_FIXTURE_URL = "https://example.com/assets/header-graphic.svg";
-const APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL = "https://example.com/assets/footer-graphic.svg";
+/** The SHIPPED PLATFORM artwork the fixture points the two graphic roles at (S3E1C/S3F1B). */
+const APPEARANCE_BACKGROUND_FIXTURE_URL = "https://example.com/assets/icon-home.svg";
+const APPEARANCE_FOOTER_GRAPHIC_FIXTURE_URL = "https://example.com/assets/icon-phone.svg";
 
 /**
  * Every audited surface, as one JSON document. `token(name)` resolves a custom property THROUGH the
@@ -7350,7 +7536,7 @@ async function runAppearanceContractScenario(chrome) {
     check(
       rows,
       "appearance.watermark.resolvesTheConfiguredAsset",
-      !!layer && layer.image.includes("/assets/header-graphic.svg"),
+      !!layer && layer.image.includes(new URL(APPEARANCE_BACKGROUND_FIXTURE_URL).pathname),
       `image=${layer && layer.image}`,
     );
     check(
@@ -7419,7 +7605,8 @@ async function runAppearanceContractScenario(chrome) {
     check(
       rows,
       "appearance.watermark.globalEntryCoversEveryPage",
-      aboutPage.pageBackgroundCount === 1 && aboutPage.pageBackground.image.includes("/assets/header-graphic.svg"),
+      aboutPage.pageBackgroundCount === 1 &&
+        aboutPage.pageBackground.image.includes(new URL(APPEARANCE_BACKGROUND_FIXTURE_URL).pathname),
       `layers=${aboutPage.pageBackgroundCount} image=${aboutPage.pageBackground && aboutPage.pageBackground.image}`,
     );
   } catch (error) {
@@ -7539,6 +7726,7 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(rows);
       const fails = rows.filter((r) => !r.ok).length;
       console.log(`[matrix] ${CANONICAL.name}: ${rows.length - fails}/${rows.length} checks passed${fails ? ` FAIL=${fails}` : ""}`);
+      for (const row of rows.filter((r) => !r.ok)) console.log(`  FAIL ${row.name} :: ${row.detail}`);
       // P5-6 — duplicate-destination acceptance (own server, config restored below).
       const dupRows = await runDuplicateNavScenario(chrome);
       allRows = allRows.concat(dupRows.map((r) => ({ presentation: "dup-nav", ...r })));
