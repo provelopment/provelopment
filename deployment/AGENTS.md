@@ -83,7 +83,8 @@ another deployment
    question about *this* deployment: its own sites, languages, locations, routes, copy, assets,
    structured data and acceptance.
    **A test may READ this capsule; it may never use it as writable fixture space.** The authored state
-   (`site.config.json`, `config/**`, `content/pages/**`, `content/assets/**`) is the owner's content, and
+   (`spokes.json`, and the sole Spoke's `spokes/<spoke>/site.config.json`, `config/**`, `content/pages/**`
+   and `content/assets/**`) is the owner's content, and
    a test that mutated it would be editing the website — cleanup is best-effort and residue is damage
    (ISO-C1). A test that needs writable deployment state — planting a page, adding a dictionary, editing
    configuration — takes a DISPOSABLE COPY of the selected deployment

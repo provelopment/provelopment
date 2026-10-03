@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { siteConfig } from "@/config";
-import { assetPathFromUrl, availableFooterGraphicPath } from "@/config/assets";
+import { runtimeAssetUrl, availableFooterGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import type { DirectionLinkResolver } from "@/application/direction-link";
@@ -274,8 +274,10 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
                     copyright text already carries the accessible site name, so
                     the mark is purely supplementary, never a substitute for
                     text. Absent config → no element (never a broken image).
-                    `assetPathFromUrl` re-derives a same-origin path so the
-                    rendered <img> always resolves (see title-bar.tsx). */}
+                    `runtimeAssetUrl` re-derives a same-origin URL — pointing at the
+                    runtime NAMESPACE that holds the file (S3F1), so a Spoke's own
+                    footer mark is served from that Spoke's namespace — and the
+                    rendered <img> therefore always resolves. */}
                 <p className="flex items-center gap-2 self-end text-sm text-muted-foreground sm:justify-end lg:col-span-4 lg:pt-2 lg:justify-start">
                     {siteConfig.assets?.logoFooter ? (
                         // Owner ruling (2026-09) — the footer mark is the SAME
@@ -284,7 +286,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
                         // (`.ui-site-footer-logo`), never a second hardcoded size.
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                            src={assetPathFromUrl(siteConfig.assets.logoFooter)}
+                            src={runtimeAssetUrl(siteConfig.assets.logoFooter)}
                             alt=""
                             aria-hidden="true"
                             className="ui-site-footer-logo"

@@ -16,6 +16,8 @@ import { siteConfig } from "@/config";
 import { assertConfiguredIconAssetsExist, availableIconName } from "@/config/assets";
 import { parseSiteConfig } from "@/config/loader";
 
+import { runtimeAssetUrl } from "../support/runtime-assets";
+
 /**
  * CONNECTIVITY ICON SEAM — the owner product decision that connectivity (social
  * + communication destinations) is a CORE Foundation capability, expressed as a
@@ -267,7 +269,7 @@ describe("connectivity icon seam — text remains authoritative", () => {
         { platform: "github", label: "GitHub", href: "https://github.com/example", icon: AVAILABLE_ICON },
       ]),
     );
-    expect(html).toContain(`<img src="/assets/${AVAILABLE_ICON}"`);
+    expect(html).toContain(`<img src="${runtimeAssetUrl(AVAILABLE_ICON)}"`);
     expect(html).toContain("GitHub");
     expect(html).toContain('href="https://github.com/example"');
     // Deterministic placement: the icon precedes the label (`[icon] Label`).
@@ -317,13 +319,15 @@ describe("connectivity icon seam — accessibility", () => {
   });
 
   it("renders the decorative icon through the one shared asset node for both families", () => {
-    const markup = renderToStaticMarkup(
-      AssetIcon({ asset: AVAILABLE_ICON, className: "ui-nav-item-icon" }),
-    );
+    // S3E1C — the node renders a RESOLVED same-origin path verbatim (the framework layer resolves a
+    // configured filename against the generated namespaces), so the shipped role's own namespace URL is
+    // what arrives here.
+    const shipped = runtimeAssetUrl(AVAILABLE_ICON) as string;
+    const markup = renderToStaticMarkup(AssetIcon({ asset: shipped, className: "ui-nav-item-icon" }));
     // The node itself is exactly the shared decorative contract (React may also
     // emit an image preload hint alongside it).
     expect(markup).toContain(
-      `<img src="/assets/${AVAILABLE_ICON}" alt="" aria-hidden="true" class="ui-nav-item-icon"/>`,
+      `<img src="${shipped}" alt="" aria-hidden="true" class="ui-nav-item-icon"/>`,
     );
     // Absent/unavailable → no element at all.
     expect(renderToStaticMarkup(AssetIcon({ asset: "" }))).toBe("");

@@ -11,6 +11,8 @@ import { siteConfig } from "@/config";
 import { siteAssetsSchema } from "@/config/schema";
 import { FooterGraphic } from "@/components/site/footer-graphic";
 import { PageBackground } from "@/components/site/page-background";
+
+import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
 import { PageBanner } from "@/components/site/page-banner";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { headerGraphicBandProps } from "@/components/site/header-graphic";
@@ -39,7 +41,15 @@ import { headerGraphicBandProps } from "@/components/site/header-graphic";
 
 const ROOT = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(ROOT, ...segments), "utf8");
-const runtimeAsset = (file: string) => path.join(ROOT, "public", "assets", file);
+/**
+ * The generated runtime path of `file`: whichever NAMESPACE holds it (S3E1C — the platform tree, or the
+ * sole Spoke's own), falling back to the historical platform path so a "must not ship" assertion still
+ * reads as an ordinary missing-file check.
+ */
+const runtimeAsset = (file: string) =>
+  runtimeAssetFile(file) ?? path.join(ROOT, "public", "assets", file);
+/** The generated runtime file's own TEXT, from whichever namespace holds it (S3E1C). */
+const readRuntime = (file: string) => readFileSync(runtimeAsset(file), "utf8");
 const pathnameOf = (url: string | undefined) => (url ? new URL(url).pathname : "");
 
 /** `BRAND_ASSETS.md` is the ONE authoritative swap contract. */
@@ -124,11 +134,13 @@ describe("swap contract — the configured role inventory", () => {
     for (const role of CONFIGURED_ROLES) {
       expect(role.file, `${role.key} must name a canonical role file`).toMatch(/^[a-z0-9-]+\.(svg|png)$/);
       if (role.url === undefined) continue;
-      // A role that IS configured must be an absolute URL naming that role file.
+      // A role that IS configured must be an absolute URL naming that role file, and the RUNTIME must
+      // serve the file that role names (S3E1C: from the namespace that holds it).
       expect(role.url.startsWith("https://"), `${role.key} must be an absolute URL`).toBe(true);
       expect(pathnameOf(role.url), `${role.key} must name its role file`).toBe(
         `/assets/${role.file}`,
       );
+      expect(runtimeAssetFile(role.file), `${role.key} must be served`).not.toBeUndefined();
     }
   });
 
@@ -171,12 +183,12 @@ describe("swap contract — filename-only resolution", () => {
     // on ANY origin can be screened…
     expect(
       availableHeaderGraphicPath("https://cdn.elsewhere.example/header-graphic.svg"),
-    ).toBe("/header-graphic.svg");
-    // …and the rendered src is the configured URL's PATHNAME (the browser then
-    // fetches it from the CURRENT origin), which is why the canonical practice is
-    // to keep the path `/assets/<filename>`.
+    ).toBe(runtimeAssetUrl("header-graphic.svg"));
+    // …and the rendered src is the URL of the RUNTIME NAMESPACE that holds the file, so the browser
+    // always fetches a same-origin file that actually exists (S3E1C; `assetPathFromUrl` itself remains
+    // the pure pathname projection it always was).
     expect(availableHeaderGraphicPath("https://www.example.com/assets/header-graphic.svg")).toBe(
-      "/assets/header-graphic.svg",
+      runtimeAssetUrl("header-graphic.svg"),
     );
     expect(assetPathFromUrl("https://www.example.com/assets/header-graphic.svg")).toBe(
       "/assets/header-graphic.svg",
@@ -316,10 +328,10 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
     expect(PLACEHOLDER.endsWith("/header-graphic.svg")).toBe(true);
     // The shipped role file exists and is the BLANK placeholder artwork — the
     // neutral TEST fixture is still separate from it and never resolved by code.
-    expect(existsSync(path.join(ROOT, "public", "assets", "header-graphic.svg"))).toBe(true);
-    expect(existsSync(path.join(ROOT, "public", "assets", "header-graphic-placeholder.svg"))).toBe(
-      false,
-    );
+    expect(existsSync(runtimeAsset("header-graphic.svg"))).toBe(true);
+    expect(
+      existsSync(runtimeAssetFile("header-graphic-placeholder.svg") ?? runtimeAsset("header-graphic-placeholder.svg")),
+    ).toBe(false);
     expect(JSON.stringify(siteConfig.assets)).not.toMatch(/placeholder/i);
   });
 
@@ -331,7 +343,7 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
     // (`deployment/tests/**`): the mirror is generated FROM the selected deployment, so it can only be
     // checked where that deployment is the subject. What stays here is the platform-independent part.
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
-      const shipped = read("public", "assets", role);
+      const shipped = readRuntime(role);
       expect(shipped, `${role} must draw nothing`).not.toMatch(
         /<(path|rect|circle|ellipse|polygon|line|image|text)\b/i,
       );
@@ -414,14 +426,14 @@ describe("swap contract — the icon colour seam is documented as MEASURED", () 
 
   it("every shipped generic icon's declared colour model matches the contract", () => {
     for (const icon of GENERIC_ICON_FILES) {
-      const file = read("public", "assets", icon);
+      const file = readRuntime(icon);
       // Asserted on the FILE's declaration, never on a rendered pixel.
       expect(file, `${icon} declares currentColor`).toContain('stroke="currentColor"');
       expect(file, `${icon} carries no internal style block`).not.toMatch(/<style/i);
       expect(file, `${icon} carries no literal colour`).not.toMatch(/(?:fill|stroke)="#/i);
     }
     // The counter-example the contract cites for an ENCODED colour.
-    expect(read("public", "assets", "sidebar-default-icon-open.svg")).toContain('fill="#6b7280"');
+    expect(readRuntime("sidebar-default-icon-open.svg")).toContain('fill="#6b7280"');
   });
 });
 

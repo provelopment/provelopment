@@ -145,6 +145,14 @@ only, so it is GENERATED build output — ignored by Git and installed by `pnpm 
 (postinstall), `pnpm dev` and `pnpm build` (`pnpm assets:sync` / `pnpm assets:check`,
 byte-verified by the deployment's own asset suites).
 
+The generated tree is NAMESPACED (S3E1C): `public/assets/**` is the SHARED platform
+namespace (the icon library, the platform marks, and — in a legacy Installation — the
+replaceable role artwork), and each declared Spoke owns a separate namespace at
+`public/spokes/<runtime-segment>/assets/**` for its OWN replaceable artwork. The segment
+is derived from the Spoke's `SpokeId`, so two Spokes may ship the same filename without
+either being able to overwrite the other, and no Spoke namespace ever appears beneath
+`public/assets/**`.
+
 ### `content`
 
 Human-authored content such as:
@@ -199,10 +207,11 @@ hoc, so discovery, routing and the sitemap cannot disagree about what exists.
 **Pages** are authored in exactly two ways — safe Markdown and declarative JSON — see
 [Page authoring](#page-authoring--two-first-class-modes) below.
 
-**Assets** are authored under the deployment's `content/assets/**` and mirrored byte-for-byte into
-`public/assets/**` by `scripts/sync-runtime-assets.mjs` (`pnpm assets:sync` /
-`assets:check`). `content/assets/**` is the source of truth a human edits;
-`public/assets/**` is a GENERATED derivative that is never edited by hand, is NOT
+**Assets** are authored under the deployment's `content/assets/**` and mirrored byte-for-byte into the
+generated runtime namespaces by `scripts/sync-runtime-assets.mjs` (`pnpm assets:sync` /
+`assets:check`). `content/assets/**` is the source of truth a human edits; the generated namespaces
+(`public/assets/**` for platform-owned artwork, `public/spokes/<segment>/assets/**` for a Spoke's own)
+are DERIVATIVES that are never edited by hand, are NOT
 version-controlled (installed by the package lifecycle instead), and a test
 asserts that no second user-editable asset authority exists at the repository root.
 
@@ -396,10 +405,11 @@ fragment id is derived from its WORDS, not its level, so section links
 
 ### `public`
 
-Static files served directly by the web application. `public/assets/**` is a
-GENERATED mirror of the user-editable source tree `content/assets/**` (written by
-`scripts/sync-runtime-assets.mjs`); it is never edited by hand, and `assets:check`
-fails on any drift between the two.
+Static files served directly by the web application. The generated namespaces —
+`public/assets/**` (shared platform artwork) and `public/spokes/<segment>/assets/**` (one
+Spoke's own replaceable artwork) — are GENERATED mirrors of the user-editable source tree
+`content/assets/**` (written by `scripts/sync-runtime-assets.mjs`); they are never edited by
+hand, and `assets:check` fails on any drift between source and derivative.
 
 ### `tests`
 
@@ -414,7 +424,7 @@ durable writers, each with the ONE target it derives from the deployment authori
 
 | Writer | The only domain it may write |
 | --- | --- |
-| `scripts/sync-runtime-assets.mjs` | `<repo>/public/assets/**` — the generated runtime mirror (B3C1) |
+| `scripts/sync-runtime-assets.mjs` | `<repo>/public/assets/**` and `<repo>/public/spokes/**` — the generated runtime namespaces (B3C1 / S3E1C) |
 | `scripts/generate-country-code-reference.mjs` | `<selected deployment>/content/COUNTRY-CODES.md` (B3A) |
 | `scripts/ci/change-scope.mjs` | `$GITHUB_OUTPUT` — the CI runner's own file, never repository state |
 

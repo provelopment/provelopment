@@ -1,5 +1,5 @@
 import type { SocialLink } from "@/config";
-import { availableIconName } from "@/config/assets";
+import { availableIconUrl } from "@/config/assets";
 
 import type { ContextNavLink } from "./context-nav-links";
 
@@ -35,7 +35,7 @@ import type { ContextNavLink } from "./context-nav-links";
  * the footer and the Connect page, never by a client component.
  */
 export function connectivityIcon(icon: string | undefined): string | undefined {
-  return icon === undefined ? undefined : availableIconName(icon);
+  return icon === undefined ? undefined : availableIconUrl(icon);
 }
 
 /**

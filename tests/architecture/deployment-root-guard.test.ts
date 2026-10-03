@@ -206,6 +206,10 @@ describe("deployment-owned paths are spelled in ONE place", () => {
       "tests/support/installation-establishment-fixture.ts",
       "tests/support/synthetic-deployment-root.ts",
       "tests/unit/foundation-installation-establishment.test.ts",
+      // FOUNDATION-MULTISITE-S3F1 — the explicit one-Spoke SELECTION rules are proved against the seam
+      // itself (legacy vs explicit, the exactly-one rule, the refusals) and against the runtime authority
+      // it inlines, so this suite is another sanctioned consumer of the build harness.
+      "tests/unit/spoke-installation-selection.test.ts",
     ];
     // FOUNDATION-B4B adds three of these, and for the same reason the list already had entries: they must
     // know WHERE an installation's authored material lives, and asking the authority is the only sanctioned

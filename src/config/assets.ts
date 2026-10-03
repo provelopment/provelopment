@@ -1,7 +1,12 @@
-import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { deploymentPaths } from "./deployment-root";
+import {
+  SPOKE_RUNTIME_CONTAINER,
+  spokeRuntimeAssetNamespacePath,
+  spokeRuntimeAssetUrlBase,
+} from "./spoke-runtime-segment.mjs";
 
 /**
  * P6-1 — configured icon-asset availability (framework layer).
@@ -36,34 +41,148 @@ import { deploymentPaths } from "./deployment-root";
  * imports siteConfig via `@/config`) must never pull `node:fs` into a browser
  * chunk — the loud check therefore lives in the server layout, not the loader.
  */
-// The path comes from the ONE deployment-root authority. It is the PLATFORM's static-file root
-// (Next.js serves from `public/` only) and therefore generated build output — not a deployment
-// location: the deployment's own artwork sources live under `deploymentPaths().assetSourceRoot` and
-// reach here through `pnpm assets:sync` (see the module note in `./deployment-root`).
-const publicAssetsDirectory = deploymentPaths().publicAssetsDirectory;
+// The paths below come from the ONE deployment-root authority. The generated runtime namespaces are the
+// PLATFORM's static-file roots (Next.js serves from `public/` only) and therefore build output — not
+// deployment locations: the deployment's own artwork sources live under `deploymentPaths().assetSourceRoot`
+// and reach here through `pnpm assets:sync` (see the module note in `./deployment-root`).
+/**
+ * S3E1C — THE GENERATED RUNTIME NAMESPACES, IN RESOLUTION ORDER (platform first, then the sole Spoke's).
+ *
+ * A configured asset is a FILENAME or a ROLE URL; where it is actually SERVED depends on which namespace
+ * the mirror installed it into. Legacy Installations have exactly one namespace, so every answer below is
+ * exactly what it always was; an explicit Installation adds the Spoke's own namespace, so its replaceable
+ * artwork is found (and served) there instead of from a platform path that no longer holds it.
+ *
+ * PLATFORM FIRST is deliberate: a Spoke may never shadow a platform-owned asset (A2).
+ */
+const runtimeNamespaces = deploymentPaths().runtimeAssetNamespaces;
 
-const availabilityCache = new Map<string, boolean>();
+/** The PLATFORM namespace: FIRST in the resolution order, and the ONE whose URL base is `/assets`. */
+const platformNamespace = runtimeNamespaces[0];
 
-/** True when `<name>` exists as a real file under `public/assets/` (cached). */
+/**
+ * The same-origin URL a configured ASSET resolves to, given its configured pathname and basename.
+ *
+ * The PLATFORM namespace keeps the configured pathname: its URL base IS the historical `/assets` prefix,
+ * so a legacy Installation's answer is byte-for-byte what it was, and an adopter's own pathname spelling
+ * (`/brand/runtime/assets/logo.svg`) is respected exactly as before. A SPOKE-owned file is different — the
+ * platform namespace does NOT hold it — so it is served from the Spoke namespace that does, which is the
+ * ONLY URL that resolves. A file no namespace holds keeps the configured pathname (never a 404 invented
+ * here).
+ */
+function runtimeUrlFor(pathname: string, name: string): string {
+  const owner = owningNamespace(name);
+  if (owner === null || owner.urlBase === platformNamespace.urlBase) return pathname;
+  return `${owner.urlBase}/${name}`;
+}
+
+/** The namespace that HOLDS `name`, or `null`. Cached: the generated tree is fixed for one process. */
+const ownerCache = new Map<string, (typeof runtimeNamespaces)[number] | null>();
+
+/**
+ * The generated runtime BASE — the directory every namespace lives in — taken from the authority's own
+ * answer (the platform namespace's parent), never spelled here.
+ */
+const runtimeBaseDirectory = path.dirname(deploymentPaths().publicAssetsDirectory);
+
+/**
+ * The namespace that HOLDS `name`, in the ONE documented order:
+ *
+ *   1. the DECLARED namespaces the build resolved — the platform namespace first (a Spoke may never
+ *      shadow a platform-owned asset, A2), then the sole Spoke's own when the Installation is explicit;
+ *   2. as a LAST RESORT, a Spoke namespace that EXISTS in the generated tree.
+ *
+ * Step 2 is deliberately narrow and exists for one honest reason: the GENERATED TREE is what a browser can
+ * actually fetch, and a runtime may be served beside output another build of the same repository produced
+ * (the generic test project runs a synthetic deployment against this repository's generated mirror). It
+ * never overrides a declared answer (1 always wins), it only ever reads the `spokes/` container, and in a
+ * real legacy Installation that container does not exist — the installer removes it — so nothing about a
+ * legacy deployment's own runtime changes.
+ */
+function owningNamespace(name: string): (typeof runtimeNamespaces)[number] | null {
+  const cached = ownerCache.get(name);
+  if (cached !== undefined) return cached;
+
+  let owner = runtimeNamespaces.find((namespace) => existsSync(path.join(namespace.directory, name)));
+
+  if (owner === undefined) {
+    const container = path.join(runtimeBaseDirectory, SPOKE_RUNTIME_CONTAINER);
+    if (existsSync(container)) {
+      for (const segment of readdirSync(container).sort()) {
+        const directory = path.join(runtimeBaseDirectory, spokeRuntimeAssetNamespacePath(segment));
+        if (existsSync(path.join(directory, name))) {
+          owner = { directory, urlBase: spokeRuntimeAssetUrlBase(segment) };
+          break;
+        }
+      }
+    }
+  }
+
+  const answer = owner ?? null;
+  ownerCache.set(name, answer);
+  return answer;
+}
+
+/** True when `<name>` exists as a real file in ANY generated runtime namespace (cached). */
 export function iconAssetAvailable(name: string | undefined): boolean {
   if (!name || name === "") return false;
-  const cached = availabilityCache.get(name);
-  if (cached !== undefined) return cached;
-  const available = existsSync(path.join(publicAssetsDirectory, name));
-  availabilityCache.set(name, available);
-  return available;
+  return owningNamespace(name) !== null;
 }
 
 /**
- * The icon filename to render: the name when it is backed by a real asset;
- * `""` when a CONFIGURED name has no backing file (safely: no icon, never a
- * broken image — the P5-5 deliberate-absence value); `undefined`/`""` pass
- * through so the P5-5A contract is preserved verbatim (missing → the caller's
- * shipped-asset fallback applies; `""` → deliberately no icon).
+ * The ABSOLUTE path of the generated runtime file `<name>`, or `undefined` when no namespace holds it.
+ *
+ * The companion of `availableIconUrl` for a consumer that needs the file itself (reading its header,
+ * asserting it ships) rather than the URL it is served from — and the ONE answer to "which namespace owns
+ * this basename", so no consumer re-implements the resolution order.
+ */
+export function runtimeAssetPath(name: string | undefined): string | undefined {
+  if (!name || name === "") return undefined;
+  const owner = owningNamespace(name);
+  return owner === null ? undefined : path.join(owner.directory, name);
+}
+
+/**
+ * The icon filename to render: the name when it is backed by a real asset in one of the generated
+ * runtime namespaces; `""` when a CONFIGURED name has no backing file (safely: no icon, never a
+ * broken image — the P5-5 deliberate-absence value); `undefined`/`""` pass through so the P5-5A
+ * contract is preserved verbatim (missing → the caller's shipped-asset fallback applies; `""` →
+ * deliberately no icon).
  */
 export function availableIconName(name: string | undefined): string | undefined {
   if (name === undefined || name === "") return name;
   return iconAssetAvailable(name) ? name : "";
+}
+
+/**
+ * S3F1 — the same-origin URL a configured icon FILENAME resolves to: the RUNTIME NAMESPACE that
+ * actually holds it, or `""` when no namespace does (the P5-5 deliberate-absence value, so a configured
+ * but unavailable icon renders no element rather than a broken image).
+ *
+ * This is the companion of `availableIconName` for a consumer that needs the URL rather than the
+ * filename. It exists because the answer is not always `/assets/<name>`: in an explicit Installation a
+ * Spoke's own artwork is served from that Spoke's namespace, and a hardcoded `/assets/` prefix would
+ * point at a platform path that does not hold it. `undefined`/`""` pass through verbatim, exactly as the
+ * filename projection does.
+ */
+export function availableIconUrl(name: string | undefined): string | undefined {
+  if (name === undefined || name === "") return name;
+  const owner = owningNamespace(name);
+  return owner === null ? "" : `${owner.urlBase}/${name}`;
+}
+
+/**
+ * S3F1 — the runtime URL of ONE icon CONTROL leaf, with the SHIPPED DEFAULT resolved the same way.
+ *
+ * The P5-5 three-state contract is preserved exactly: `""` stays a deliberate absence (no icon), an
+ * absent leaf falls back to the shipped default ROLE, and any named leaf resolves to the namespace that
+ * holds it. Resolving the default HERE — at the boundary that can see the generated tree — is what keeps
+ * a shipped role icon (the sidebar disclosure assets) served from the Spoke's own namespace in an
+ * explicit Installation instead of from a `/assets/` path that no longer holds it.
+ */
+export function resolveIconControlUrl(configured: string | undefined, shippedDefault: string): string {
+  if (configured === "") return "";
+  return availableIconUrl(configured ?? shippedDefault) ?? "";
 }
 
 /**
@@ -96,17 +215,36 @@ export function assetPathFromUrl(absoluteUrl: string | undefined): string | unde
 /**
  * The shared "configured asset is real" rule behind the page-role graphic roles
  * (`availableBannerPath` / `availableBackgroundPath`): an FS-4 ABSOLUTE URL
- * resolves to its same-origin pathname ONLY when the URL's basename is backed
- * by a real file under `public/assets/`; otherwise `undefined`. The basename is
- * checked through the same asset-availability cache the plain-filename icon
- * contract uses, so a CONFIGURED-but-missing role is always indistinguishable
- * from an ABSENT one — never a placeholder and never a broken image/404.
+ * resolves to the same-origin URL of the RUNTIME NAMESPACE that holds a file with that basename, and
+ * ONLY when one does — otherwise `undefined`. The basename is checked through the same
+ * asset-availability rule the plain-filename icon contract uses (`./deployment-root` publishes the
+ * namespaces; a legacy Installation has exactly one, so this is the platform path it always was), so a
+ * CONFIGURED-but-missing role is always indistinguishable from an ABSENT one — never a placeholder and
+ * never a broken image/404.
  */
 function availableRoleAssetPath(absoluteUrl: string | undefined): string | undefined {
   const pathname = assetPathFromUrl(absoluteUrl);
   if (!pathname) return undefined;
   const name = pathname.split("/").pop() ?? "";
-  return iconAssetAvailable(name) ? pathname : undefined;
+  if (name === "" || owningNamespace(name) === null) return undefined;
+  return runtimeUrlFor(pathname, name);
+}
+
+/**
+ * S3F1 — the same-origin URL a configured asset ROLE resolves to, WITHOUT requiring the file to be
+ * mirrored: the namespace URL when the basename IS installed by the runtime mirror (which installs by
+ * basename, so that is the ONE place generated artwork actually lives), and the configured pathname
+ * verbatim otherwise.
+ *
+ * The fallback matters: an adopter may serve artwork from `public/` directly (outside the mirror plan),
+ * and such a value must keep working exactly as `assetPathFromUrl` resolved it before. A legacy
+ * Installation therefore sees no change at all — its platform namespace URL base IS `/assets`, which is
+ * the path its configured role URLs already name.
+ */
+export function runtimeAssetUrl(absoluteUrl: string | undefined): string | undefined {
+  const pathname = assetPathFromUrl(absoluteUrl);
+  if (pathname === undefined) return undefined;
+  return runtimeUrlFor(pathname, pathname.split("/").pop() ?? "");
 }
 
 /**
@@ -336,23 +474,28 @@ export function readImageDimensions(sameOriginPath: string | undefined): ImageDi
   if (!name) return undefined;
   if (dimensionsCache.has(name)) return dimensionsCache.get(name);
 
+  // S3E1C — the header is read from the namespace that HOLDS the file (a Spoke's own artwork lives in
+  // the Spoke's namespace, not the platform one), so the reported size is the size the browser gets.
+  const owner = owningNamespace(name);
   let dimensions: ImageDimensions | undefined;
-  const filePath = path.join(publicAssetsDirectory, name);
-  try {
-    const fileSize = statSync(filePath).size;
-    const length = Math.min(fileSize, MAX_HEADER_BYTES);
-    if (length > 0) {
-      const descriptor = openSync(filePath, "r");
-      try {
-        const head = Buffer.alloc(length);
-        const read = readSync(descriptor, head, 0, length, 0);
-        dimensions = dimensionsFromBytes(head.subarray(0, read));
-      } finally {
-        closeSync(descriptor);
+  if (owner !== null) {
+    const filePath = path.join(owner.directory, name);
+    try {
+      const fileSize = statSync(filePath).size;
+      const length = Math.min(fileSize, MAX_HEADER_BYTES);
+      if (length > 0) {
+        const descriptor = openSync(filePath, "r");
+        try {
+          const head = Buffer.alloc(length);
+          const read = readSync(descriptor, head, 0, length, 0);
+          dimensions = dimensionsFromBytes(head.subarray(0, read));
+        } finally {
+          closeSync(descriptor);
+        }
       }
+    } catch {
+      dimensions = undefined;
     }
-  } catch {
-    dimensions = undefined;
   }
   dimensionsCache.set(name, dimensions);
   return dimensions;

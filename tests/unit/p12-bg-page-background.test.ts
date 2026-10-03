@@ -18,6 +18,8 @@ import {
   resolveBackgroundPath,
 } from "@/components/site/page-background";
 
+import { runtimeAssetUrl } from "../support/runtime-assets";
+
 const root = process.cwd();
 const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "layout.tsx"), "utf8");
 const globals = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
@@ -46,8 +48,12 @@ const REAL_BANNER = "favicon.svg";
 
 /** An FS-4-style absolute URL (the `site.assets.*` value shape). */
 const realUrl = (name: string) => `https://www.example.com/assets/${name}`;
-/** The same-origin path the resolver produces for a real asset. */
-const livePath = (name: string) => `/assets/${name}`;
+/**
+ * The same-origin URL the runtime resolves a real asset to. S3E1C — the generated tree is namespaced, so
+ * a role file the Spoke owns is served from THAT namespace rather than from `/assets/`; asked of the
+ * authority so these fixtures follow the model.
+ */
+const livePath = (name: string) => runtimeAssetUrl(name) as string;
 
 const renderBackground = (backgrounds: Record<string, string>, regionIds: readonly string[] = []) =>
   renderToStaticMarkup(PageBackground({ backgrounds, regionIds }));

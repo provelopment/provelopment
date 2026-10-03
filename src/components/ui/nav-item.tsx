@@ -3,12 +3,13 @@ import Link from "next/link";
 import { NavBadge } from "./nav-badge";
 
 /**
- * P5-5 — plain icon-asset filename → public URL. Deliberately inlined (the UI
- * primitives boundary forbids `@/core` imports in shared UI primitives): this
- * is the same projection the core `iconAssetUrl` helper provides for shell/
- * content-layer consumers, so behavior is identical everywhere.
+ * P5-5 — plain icon-asset filename → public URL, and (S3F1) a same-origin asset path passed straight
+ * through. Deliberately inlined (the UI primitives boundary forbids `@/core` imports in shared UI
+ * primitives), and deliberately the SAME rule `AssetIcon` applies: the framework layer resolves a
+ * configured filename to the runtime namespace that holds it, so a resolved path arrives here ready to
+ * render while an unresolved filename keeps the historical `/assets/<name>` projection.
  */
-const toAssetUrl = (name: string): string => `/assets/${name}`;
+const toAssetUrl = (name: string): string => (name.startsWith("/") ? name : `/assets/${name}`);
 
 /** Icon placement within a control. */
 type IconPosition = "start" | "end";

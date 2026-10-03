@@ -51,7 +51,11 @@ const COLUMNS = 3;
 /**
  * The generated document inside a SELECTED deployment.
  *
- * @param {string} deploymentRoot the root the authority resolved
+ * S3F1 — the document is DEPLOYMENT-authored material, so it belongs to the deployment's RESOURCE ROOT
+ * (`deployment-build.mjs` publishes it: the Installation root in legacy mode, the sole Spoke's root in
+ * explicit mode) rather than to the Installation root, whose own locations are lifecycle records.
+ *
+ * @param {string} deploymentRoot the RESOURCE root the authority resolved
  * @returns {string} the document's absolute path
  */
 export function countryCodeDocumentFile(deploymentRoot) {
@@ -101,7 +105,7 @@ export function countryCodeSection(codes = countryCodes()) {
  */
 export function checkCountryCodeReference(environment = process.env, repositoryRoot = ROOT) {
   const deployment = resolveDeploymentForBuild(environment, repositoryRoot);
-  const document = countryCodeDocumentFile(deployment.root);
+  const document = countryCodeDocumentFile(deployment.resourceRoot);
   const text = readFileSync(document, "utf8");
   const codes = countryCodes();
   const from = text.indexOf(START);
@@ -119,7 +123,8 @@ export function checkCountryCodeReference(environment = process.env, repositoryR
   const expected = countryCodeSection(codes).split("\n").join(eol);
   return {
     layout: deployment.layout,
-    deploymentRoot: deployment.root,
+    // The RESOURCE root the document lives in (identical to the Installation root in legacy mode).
+    deploymentRoot: deployment.resourceRoot,
     document,
     codes,
     current,

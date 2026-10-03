@@ -18,7 +18,7 @@ import { COUNTRY_SITE_CODES, WORLDWIDE_SITE_CODE, isSiteCode } from "@/core/site
  * The reserved Worldwide value is checked SEPARATELY: `ww` is Foundation-defined, not an ISO country,
  * and it must not appear in the country list.
  */
-const referencePath = path.join(deploymentPaths().root, "content", "COUNTRY-CODES.md");
+const referencePath = path.join(deploymentPaths().contentRoot, "COUNTRY-CODES.md");
 const document = readFileSync(referencePath, "utf8");
 
 const START = "<!-- CODES:START -->";
@@ -81,15 +81,16 @@ describe("the country-code reference matches the runtime authority", () => {
 
 describe("the reference is published where an author looks", () => {
   it("is linked from the content map", () => {
-    const map = readFileSync(path.join(deploymentPaths().root, "content", "README.md"), "utf8");
+    const map = readFileSync(path.join(deploymentPaths().contentRoot, "README.md"), "utf8");
     expect(map).toContain("COUNTRY-CODES.md");
   });
 
   it("is linked from both authoring roots", () => {
-    for (const root of ["content/pages/markdown/README.md", "content/pages/json/README.md"]) {
-      expect(readFileSync(path.join(deploymentPaths().root, root), "utf8"), root).toContain(
-        "COUNTRY-CODES.md",
-      );
+    for (const root of ["pages/markdown/README.md", "pages/json/README.md"]) {
+      expect(
+        readFileSync(path.join(deploymentPaths().contentRoot, ...root.split("/")), "utf8"),
+        root,
+      ).toContain("COUNTRY-CODES.md");
     }
   });
 });

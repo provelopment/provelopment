@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { MIRRORED, MIRRORED_DIRECTORIES, RUNTIME_ONLY, buildPlan, checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
+import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
 
 /**
  * ASSET LIBRARY TAXONOMY + RUNTIME MIRROR (owner-directed, 2026-09).
@@ -34,7 +35,7 @@ const names = (...segments: string[]) =>
     .map((entry) => entry.name)
     .sort();
 const readSource = (...segments: string[]) => readFileSync(dir(...segments), "utf8");
-const readRuntime = (file: string) => readFileSync(path.join(ROOT, "public", "assets", file), "utf8");
+const readRuntime = (file: string) => readFileSync(runtimeAssetFile(file) as string, "utf8");
 /** The platform-MARK graphic files (the category also carries its registers). */
 const marks = () =>
   names("platform-marks").filter((name) => /\.(svg|png|jpe?g|webp|gif|avif)$/i.test(name));
@@ -166,9 +167,13 @@ describe("runtime mirror — one deterministic source → derivative relationshi
     const planned = new Map(buildPlan().map((row) => [row.to, row.from]));
     // FS1 — every runtime file the template still serves is mirrored from one.
     for (const role of ["favicon.svg", "logo-header.svg", "logo-footer.svg"]) {
-      expect(planned.get(role), `${role} must be mirrored from a source`).toBe(
-        `content/assets/placeholders/${role === "logo-footer.svg" ? "logo-header.svg" : role}`,
-      );
+      // S3E1C — the plan's SOURCE is deployment-relative, and in an explicit Installation the authored
+      // tree lives beneath the Spoke's root, so the placeholder tail is what identifies the source (the
+      // prefix is where the Installation is authored, never part of the asset contract).
+      const source = planned.get(role);
+      const file = role === "logo-footer.svg" ? "logo-header.svg" : role;
+      expect(source, `${role} must be mirrored from a source`).toBeDefined();
+      expect(source?.endsWith(`content/assets/placeholders/${file}`), String(source)).toBe(true);
     }
   });
 

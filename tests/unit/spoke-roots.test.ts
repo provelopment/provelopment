@@ -503,12 +503,27 @@ describe("S3C1 is UNWIRED — today's build and runtime are untouched", () => {
     );
   });
 
-  it("the build-selection seam knows NOTHING about Spoke collections", () => {
-    // S3C1 must not change WHICH deployment a build selects: the selection seam still keys on ONE
-    // root-level site.config.json and never consults spokes.json — making an explicit Installation
-    // selectable is S3D's act, and this pin is what makes the boundary visible until then. The
-    // capsule probe's own behaviour is proved, unchanged, by `deployment-root-guard.test.ts`.
-    for (const file of ["src/config/deployment-build.mjs", "next.config.ts", "vitest.config.mts"]) {
+  it("the build-selection seam RESOLVES declared Spoke roots, and the build configs stay ignorant of them", () => {
+    // S3F1 SUPERSEDES the S3C1 pin that the selection seam knew nothing about Spoke collections: making an
+    // explicit Installation runnable is exactly that slice's act, so the seam now reads the manifest and
+    // resolves the Declared Root of each Spoke. What must still hold is the BOUNDARY the pin existed for:
+    // the seam RESOLVES ROOTS (selection) and reads the SOLE Spoke's configuration so the build can inline
+    // it — while `./spoke-roots`, `./spoke-config` and `./spoke-composition` remain the only authority that
+    // COMPOSES Spokes and Hubs, and neither build config (`next.config.ts`, `vitest.config.mts`) knows a
+    // Spoke exists: they consume the seam's answer.
+    const seam = readFileSync(path.join(process.cwd(), "src", "config", "deployment-build.mjs"), "utf8");
+    expect(seam).toMatch(/INSTALLATION_SPOKE_COLLECTION_FILE_NAME/);
+    expect(seam).toMatch(/installationSpokes/);
+    // The COMPOSITION authority is never reached from the seam (it is TypeScript, and composition is not
+    // selection): resolving a root must not quietly become composing a Spoke. Comments may NAME the
+    // boundary — only executable lines are checked.
+    const seamCode = seam
+      .split(/\r?\n/)
+      .filter((line) => !/^\s*(\*|\/\/|\/\*)/.test(line))
+      .join("\n");
+    expect(seamCode).not.toMatch(/spoke-composition|spoke-config|readSpokeSiteConfig/);
+
+    for (const file of ["next.config.ts", "vitest.config.mts"]) {
       const source = readFileSync(path.join(process.cwd(), ...file.split("/")), "utf8");
       expect(source, file).not.toMatch(/spokes/i);
     }

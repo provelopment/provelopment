@@ -13,17 +13,19 @@ import { siteConfig } from "@/config";
 import { siteDescriptionForLocale } from "@/config/site-metadata";
 import {
   assertConfiguredIconAssetsExist,
-  assetPathFromUrl,
   availableBackgroundMap,
   availableBannerPath,
-  availableIconName,
   availableStatusGraphicPath,
   readImageDimensions,
+  resolveIconControlUrl,
+  runtimeAssetUrl,
 } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import { buildLanguageAlternates } from "@/core/locale";
 import {
+  DEFAULT_SIDEBAR_CLOSE_ICON,
+  DEFAULT_SIDEBAR_OPEN_ICON,
   bottomBarCompositions,
   layoutDataAttributes,
   mobileDisclosureCompositions,
@@ -136,11 +138,14 @@ export async function generateMetadata({ params }: LocaleLayoutProps): Promise<M
       ...(siteConfig.assets?.ogImage ? { images: [siteConfig.assets.ogImage] } : {}),
     },
     icons: {
-      // P6-3B — SINGLE authoritative favicon declaration. `assetPathFromUrl`
-      // re-derives the same-origin path, so the tab icon always fetches from the
-      // current origin (an absolute `site.url` placeholder/mismatch can never
-      // 404 the icon). There is no competing file-based icon route.
-      icon: assetPathFromUrl(siteConfig.assets?.favicon),
+      // P6-3B — SINGLE authoritative favicon declaration. `runtimeAssetUrl`
+      // re-derives the same-origin URL of the RUNTIME NAMESPACE that holds the
+      // file, so the tab icon always fetches from the current origin (an
+      // absolute `site.url` placeholder/mismatch can never 404 the icon) AND a
+      // Spoke's own replaceable favicon is served from that Spoke's namespace
+      // (S3F1) instead of a platform path that no longer holds it. There is no
+      // competing file-based icon route.
+      icon: runtimeAssetUrl(siteConfig.assets?.favicon),
     },
     alternates: {
       // S1 — alternates cover THIS site's locales, under the site's own public prefix, so an
@@ -312,8 +317,12 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
         // contract (open | compact | closed) as the top/sidebar menus.
         mode: resolvedUi.navigation.bottom.mode,
         sidebarClose: {
-          // P6-1 — icon screened against public/assets (never a broken image).
-          icon: availableIconName(resolvedUi.navigation.sidebar.close.icon),
+          // P6-1 — icon resolved to the runtime namespace that holds it, or to
+          // the shipped default role (never a broken image).
+          icon: resolveIconControlUrl(
+            resolvedUi.navigation.sidebar.close.icon,
+            DEFAULT_SIDEBAR_CLOSE_ICON,
+          ),
           text: resolvedUi.navigation.sidebar.close.text,
         },
       }
@@ -410,11 +419,17 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
             hide: dictionary.navigation.hideSidebar,
           }}
           sidebarOpen={{
-            icon: availableIconName(resolvedUi.navigation.sidebar.open.icon),
+            icon: resolveIconControlUrl(
+              resolvedUi.navigation.sidebar.open.icon,
+              DEFAULT_SIDEBAR_OPEN_ICON,
+            ),
             text: resolvedUi.navigation.sidebar.open.text,
           }}
           sidebarClose={{
-            icon: availableIconName(resolvedUi.navigation.sidebar.close.icon),
+            icon: resolveIconControlUrl(
+              resolvedUi.navigation.sidebar.close.icon,
+              DEFAULT_SIDEBAR_CLOSE_ICON,
+            ),
             text: resolvedUi.navigation.sidebar.close.text,
           }}
           asideContent={sidebarNavContent}

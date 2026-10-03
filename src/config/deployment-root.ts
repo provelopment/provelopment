@@ -60,13 +60,49 @@
 // client chunk.
 import { INSTALLATION_OPERATIONAL_STATE_FILE_NAME } from "@/core/foundation-installation/model";
 
+// S3E1C — the Spoke runtime NAMESPACE is spelled ONCE, by the module that owns the runtime segment, so
+// the URL base the browser fetches and the generated directory the mirror installs into cannot drift.
+// The import is a PURE dependency (`./spoke-runtime-segment.mjs` has no `node:fs` and no `process.cwd()`),
+// so this authority stays CLIENT-SAFE (see the module note above).
+import { spokeRuntimeAssetUrlBase, spokeRuntimeAssetNamespacePath } from "./spoke-runtime-segment.mjs";
+
 /** Which layout the deployment root resolved to. */
 export type DeploymentLayout = "capsule" | "repository" | "override";
 
+/** How the INSTALLATION is authored: a legacy implicit Spoke, or an explicit declared collection. */
+export type InstallationAuthoringMode = "legacy" | "explicit";
+
+/**
+ * ONE generated runtime asset namespace (FOUNDATION-MULTISITE-S3E1C).
+ *
+ * The runtime ownership model, frozen: Foundation/platform assets are served from `/assets/**`, and a
+ * Spoke's OWN (replaceable) artwork from `/spokes/<runtime-segment>/assets/**`. Both are GENERATED
+ * output under `public/`, never deployment source, and they are never nested inside one another — which
+ * is what makes one Spoke's artwork unable to collide with another's, or with a platform asset.
+ */
+export interface RuntimeAssetNamespace {
+  /** The absolute GENERATED directory the namespace's files live in. */
+  readonly directory: string;
+  /** The same-origin URL base those files are served from (`/assets`, `/spokes/<segment>/assets`). */
+  readonly urlBase: string;
+}
+
 export interface DeploymentRoot {
   readonly layout: DeploymentLayout;
+  /** How the Installation is authored (`legacy` | `explicit`) — S3F1's one-Spoke activation. */
+  readonly mode: InstallationAuthoringMode;
   /** The absolute directory a deployment owns (its capsule, the repository root, or the override). */
   readonly root: string;
+  /**
+   * The directory that owns the deployment's RESOURCES (dictionaries, authored pages, artwork sources).
+   *
+   * In legacy mode this IS `root`. In explicit mode it is the SOLE declared Spoke's root, because the
+   * Installation's authored website material lives in that Spoke — while the Installation's own
+   * lifecycle records (`operationalStateFile`) stay at `root`.
+   */
+  readonly resourceRoot: string;
+  /** `<resourceRoot>/content` — the ONE spelling of the authored content tree (B3 narrows its owner). */
+  readonly contentRoot: string;
   readonly siteConfigFile: string;
   readonly dictionaryDirectory: string;
   /** The OPTIONAL `sites/<site>/<locale>.json` dictionary overlays (`@/config/i18n/registry`). */
@@ -79,17 +115,28 @@ export interface DeploymentRoot {
    * The INSTALLATION's OWN durable operational record (FOUNDATION-B4A / B4A-A2): what is live, how healthy
    * it is, and how it got here. It is installation-owned state rather than authored content — see
    * `@/core/foundation-installation`, which owns its name, schema and semantics, while this authority owns
-   * the only place it may live.
+   * the only place it may live. It stays at `root` in EVERY mode, so moving a Spoke never moves a record.
    */
   readonly operationalStateFile: string;
   /** Next.js' static-file root — GENERATED output, never deployment source (see the module note). */
   readonly publicAssetsDirectory: string;
+  /**
+   * The GENERATED runtime namespaces, in RESOLUTION ORDER: the platform namespace first, then (in
+   * explicit mode) the sole Spoke's own. A name that exists in more than one namespace therefore
+   * resolves to the PLATFORM file — a Spoke may not shadow a platform asset (A2) — while a Spoke's own
+   * replaceable artwork is found in its own namespace and nowhere else.
+   */
+  readonly runtimeAssetNamespaces: readonly RuntimeAssetNamespace[];
 }
 
 /** The build-time names the build resolves and inlines (`next.config.ts`). */
 const LAYOUT_ENV = "FOUNDATION_DEPLOYMENT_LAYOUT";
 const CONFIG_ENV = "FOUNDATION_DEPLOYMENT_CONFIG";
 const ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
+/** S3F1 — the authoring mode, the sole Spoke's root (relative) and its runtime segment. */
+const MODE_ENV = "FOUNDATION_DEPLOYMENT_MODE";
+const SPOKE_ROOT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_ROOT";
+const SPOKE_SEGMENT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_SEGMENT";
 
 /**
  * The authored configuration FILE NAME a deployment root carries (FOUNDATION-MULTISITE-S3C1).
@@ -136,6 +183,19 @@ export function deploymentLayout(): DeploymentLayout {
 }
 
 /**
+ * How the SELECTED Installation is authored, as the BUILD resolved it.
+ *
+ * Pure and client-safe (the value is inlined by the build), and deliberately NOT a discovery: an
+ * unset value means the legacy form — the behaviour of every deployment that exists today — while
+ * `explicit` states that the Installation declares its Spokes and the runtime must read the sole
+ * Spoke's resources. The RULES that make an Installation runnable (exactly one Spoke, no default
+ * Spoke) live in the build authority (`./deployment-build.mjs`), never here.
+ */
+export function deploymentMode(): InstallationAuthoringMode {
+  return process.env[MODE_ENV] === "explicit" ? "explicit" : "legacy";
+}
+
+/**
  * The raw deployment configuration. Pure and client-safe: the build selected ONE deployment and
  * INLINED its configuration (`next.config.ts` → Next's `env`; `vitest.config.mts` → `test.env`), so
  * this reads an already-selected value and never a file. A missing value means the build seam did not
@@ -167,6 +227,7 @@ export function deploymentPaths(): DeploymentRoot {
 
   const repositoryRoot = process.cwd();
   const layout = deploymentLayout();
+  const mode = deploymentMode();
   const override = process.env[ROOT_ENV]?.trim();
   const root =
     layout === "override" && override !== undefined && override !== ""
@@ -175,23 +236,67 @@ export function deploymentPaths(): DeploymentRoot {
         ? `${repositoryRoot}/deployment`
         : repositoryRoot;
 
+  // S3F1 — WHERE THIS INSTALLATION'S RESOURCES ARE. In legacy mode the Installation root IS the
+  // resource root. In explicit mode the build resolved the SOLE declared Spoke, so its root (published
+  // RELATIVE to the Installation root, like every other deployment-owned location) owns the
+  // configuration, dictionaries, authored pages and artwork sources — while the Installation keeps its
+  // own lifecycle records below.
+  const spokeRelativeRoot = process.env[SPOKE_ROOT_ENV]?.trim() ?? "";
+  if (mode === "explicit" && spokeRelativeRoot === "") {
+    throw new Error(
+      "FOUNDATION-MULTISITE-S3F1: this build selected an EXPLICIT Installation, but no Spoke root was " +
+        "resolved into it. The build authority (`src/config/deployment-build.mjs`) must publish the " +
+        "sole Spoke's root; nothing is guessed here.",
+    );
+  }
+  const resourceRoot = mode === "explicit" ? `${root}/${spokeRelativeRoot}` : root;
+
+  // …and the RUNTIME NAMESPACES those resources' artwork is INSTALLED into (S3E1C). The platform
+  // namespace is always present and always `/assets/**`; an explicit Installation adds the sole Spoke's
+  // own namespace, derived from the runtime SEGMENT the build resolved — never from a directory name.
+  const segment = process.env[SPOKE_SEGMENT_ENV]?.trim() ?? "";
+  if (mode === "explicit" && segment === "") {
+    throw new Error(
+      "FOUNDATION-MULTISITE-S3F1: this build selected an EXPLICIT Installation, but no runtime segment " +
+        "was resolved for its Spoke. The build authority publishes it (`runtimeSegmentForSpokeId`); " +
+        "nothing is derived from a directory name here.",
+    );
+  }
+  const publicAssetsDirectory = `${repositoryRoot}/public/assets`;
+  const runtimeAssetNamespaces: readonly RuntimeAssetNamespace[] =
+    mode === "explicit"
+      ? [
+          // Platform first: a Spoke may not shadow a platform-owned asset (A2).
+          { directory: publicAssetsDirectory, urlBase: "/assets" },
+          {
+            directory: `${repositoryRoot}/public/${spokeRuntimeAssetNamespacePath(segment)}`,
+            urlBase: spokeRuntimeAssetUrlBase(segment),
+          },
+        ]
+      : [{ directory: publicAssetsDirectory, urlBase: "/assets" }];
+
   cachedPaths = {
     layout,
+    mode,
     root,
-    siteConfigFile: `${root}/${DEPLOYMENT_CONFIG_FILE_NAME}`,
-    dictionaryDirectory: `${root}/${DEPLOYMENT_RESOURCE_PATHS.dictionary}`,
-    dictionaryOverrideDirectory: `${root}/${DEPLOYMENT_RESOURCE_PATHS.dictionaryOverrides}`,
-    markdownPagesRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`,
-    jsonPagesRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`,
-    assetSourceRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`,
+    resourceRoot,
+    contentRoot: `${resourceRoot}/content`,
+    siteConfigFile: `${resourceRoot}/${DEPLOYMENT_CONFIG_FILE_NAME}`,
+    dictionaryDirectory: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.dictionary}`,
+    dictionaryOverrideDirectory: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.dictionaryOverrides}`,
+    markdownPagesRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`,
+    jsonPagesRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`,
+    assetSourceRoot: `${resourceRoot}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`,
     // The INSTALLATION's own operational record (FOUNDATION-B4A / B4A-A2). Its NAME is the lifecycle
-    // contract's (`@/core/foundation-installation`); this authority owns only WHERE it lives. The inner
-    // model module is imported rather than the barrel because this file is CLIENT-SAFE (see the module
-    // note): the barrel would pull the release contract and the transitions into a client chunk, while the
+    // contract's (`@/core/foundation-installation`); this authority owns only WHERE it lives — which is
+    // the INSTALLATION root in every mode, so moving website material into a Spoke never moves a record.
+    // The inner model module is imported rather than the barrel because this file is CLIENT-SAFE (see the
+    // module note): the barrel would pull the release contract and the transitions into a client chunk, while the
     // model module's imports are type-only.
     operationalStateFile: `${root}/${INSTALLATION_OPERATIONAL_STATE_FILE_NAME}`,
     // Platform path: Next.js serves static files from `public/` only (see the module note).
-    publicAssetsDirectory: `${repositoryRoot}/public/assets`,
+    publicAssetsDirectory,
+    runtimeAssetNamespaces,
   };
   return cachedPaths;
 }

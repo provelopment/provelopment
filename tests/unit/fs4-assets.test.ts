@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import { runtimeAssetUrl as resolvedRoleUrl } from "@/config/assets";
 import { siteConfig } from "@/config";
+
+import { runtimeAssetFile } from "../support/runtime-assets";
 
 /**
  * FS-4 — canonical asset contract. Every asset configured (or defaulted) by the
@@ -10,27 +13,27 @@ import { siteConfig } from "@/config";
  * the consumers must read from the resolved configuration (never hard-coded
  * paths). An adopter replaces an asset in place at `public/assets/<name>` or
  * points `site.assets.<key>` at their own URL — both without touching components.
+ *
+ * S3E1C — the generated tree is NAMESPACED (the shared platform one plus the sole Spoke's), so "the
+ * file exists" is asked of the authority (`tests/support/runtime-assets`) rather than assumed to be
+ * `/assets/<name>`: the identity roles are REPLACEABLE artwork and therefore ship in the Spoke's own
+ * namespace.
  */
 describe("FS-4 — canonical asset contract", () => {
-  it("the shipped identity roles are real files under public/assets (no configuration required)", () => {
-    const root = process.cwd();
+  it("the shipped identity roles are real runtime files (no configuration required)", () => {
     // FS1 — the generic template configures NO asset URLs: every identity role
     // resolves to the shipped placeholder file, so a fresh clone renders a
     // complete, un-branded site without editing `site.assets` at all. This is the
     // contract that makes "clone → install → run" work on its own.
     for (const role of ["logo-header.svg", "logo-footer.svg", "favicon.svg"]) {
-      expect(
-        existsSync(path.join(root, "public", "assets", role)),
-        `${role} must ship under public/assets/`,
-      ).toBe(true);
+      expect(runtimeAssetFile(role), `${role} must ship in a runtime namespace`).not.toBeUndefined();
     }
     // …and the optional keys are genuinely optional: absent, never broken.
     expect(siteConfig.assets?.ogImage).toBeUndefined();
     expect(siteConfig.assets?.banners).toBeUndefined();
   });
 
-  it("every asset URL the configuration DOES provide is absolute and exists on disk", () => {
-    const root = process.cwd();
+  it("every asset URL the configuration DOES provide resolves to a served runtime file", () => {
     const configured: Array<[string, string]> = [];
     if (siteConfig.assets?.logo) configured.push(["logo", siteConfig.assets.logo]);
     if (siteConfig.assets?.logoFooter) configured.push(["logoFooter", siteConfig.assets.logoFooter]);
@@ -38,14 +41,16 @@ describe("FS-4 — canonical asset contract", () => {
     if (siteConfig.assets?.ogImage) configured.push(["ogImage", siteConfig.assets.ogImage]);
     for (const [key, url] of configured) {
       expect(url.startsWith("https://"), `${key} URL must be absolute`).toBe(true);
-      const relative = new URL(url).pathname.replace(/^\//, "");
-      expect(existsSync(path.join(root, "public", relative)), `${key} must exist on disk`).toBe(true);
+      // The SAME resolution the app renders with (S3F1), and the file it names must exist.
+      const resolved = resolvedRoleUrl(url);
+      expect(resolved, `${key} must resolve same-origin`).toBeDefined();
+      const name = (resolved as string).split("/").pop() as string;
+      expect(runtimeAssetFile(name), `${key} must be served by the runtime`).not.toBeUndefined();
     }
   });
 
   it("the footer logo role ships, and the optional banner role is unconfigured by default", () => {
-    const root = process.cwd();
-    expect(existsSync(path.join(root, "public", "assets", "logo-footer.svg"))).toBe(true);
+    expect(runtimeAssetFile("logo-footer.svg")).not.toBeUndefined();
     // Banners are a per-page opt-in: the template configures none, so no banner
     // artwork ships and nothing renders — the capability stays available without
     // shipping example artwork.

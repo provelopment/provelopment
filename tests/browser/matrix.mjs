@@ -109,8 +109,15 @@ let installedDeployment;
 function selectedDeployment() {
   if (installedDeployment === undefined) {
     try {
-      const { layout, root } = resolveDeploymentForBuild(process.env, ROOT);
-      installedDeployment = { layout, root };
+      const resolved = resolveDeploymentForBuild(process.env, ROOT);
+      installedDeployment = {
+        layout: resolved.layout,
+        root: resolved.root,
+        // S3F1 — the configuration file the CONFIGURED deployment actually carries: the Installation
+        // root's own in legacy mode, the sole Spoke's in explicit mode. Asked of the authority rather
+        // than composed here, so the harness follows the authoring form.
+        siteConfigFile: resolved.siteConfigFile,
+      };
     } catch {
       // The authority's own message is the diagnostic a BUILD needs; here it only means "this
       // repository has no deployment-owned browser surface to discover".
@@ -122,7 +129,7 @@ function selectedDeployment() {
 /** The installed deployment's config — READ ONLY, for the deployment's own scenarios. */
 function shippedConfigPath() {
   const deployment = selectedDeployment();
-  return deployment === null ? null : join(deployment.root, "site.config.json");
+  return deployment === null ? null : deployment.siteConfigFile;
 }
 /** Generic scenarios' config target: the disposable copy, never the shipped file. */
 const CONFIG_PATH = join(DEPLOYMENT_ROOT, "site.config.json");
@@ -2690,7 +2697,10 @@ async function runConnectivityIconScenario(chrome) {
       check(
         rows,
         `connectivity.footer.${vpName}.social.iconRendered`,
-        !!iconItem && iconItem.hasImg && iconItem.imgSrc === "/assets/sidebar-open.svg" && iconItem.loaded === true,
+        // S3E1C — the icon is served from whichever runtime NAMESPACE holds the shipped fixture
+        // (`/assets/**` in a legacy Installation, `/spokes/<segment>/assets/**` in an explicit one), so
+        // the assertion is the resolved FILE, never a hardcoded prefix.
+        !!iconItem && iconItem.hasImg && iconItem.imgSrc.endsWith("/sidebar-open.svg") && iconItem.loaded === true,
         iconItem ? `src=${iconItem.imgSrc} loaded=${iconItem.loaded}` : "missing",
       );
       check(
@@ -2734,7 +2744,7 @@ async function runConnectivityIconScenario(chrome) {
       check(
         rows,
         `connectivity.footer.${vpName}.method.iconRendered`,
-        !!methodIcon && methodIcon.hasImg && methodIcon.imgSrc === "/assets/sidebar-open.svg",
+        !!methodIcon && methodIcon.hasImg && methodIcon.imgSrc.endsWith("/sidebar-open.svg"),
         methodIcon ? `img=${methodIcon.hasImg} src=${methodIcon.imgSrc}` : "missing",
       );
       check(
@@ -2797,7 +2807,7 @@ async function runConnectivityIconScenario(chrome) {
         rows,
         `connectivity.page.${vpName}.iconSupplementary16`,
         !!iconCard &&
-          iconCard.imgSrc === "/assets/sidebar-open.svg" &&
+          iconCard.imgSrc.endsWith("/sidebar-open.svg") &&
           iconCard.loaded === true &&
           iconCard.iconW === 16 &&
           iconCard.iconH === 16 &&

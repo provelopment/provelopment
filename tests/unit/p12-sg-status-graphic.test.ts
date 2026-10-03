@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement, type ComponentType } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -9,10 +9,9 @@ import { availableStatusGraphicPath } from "@/config/assets";
 import { siteConfigFileSchema, siteAssetsSchema } from "@/config/schema";
 import { siteConfig } from "@/config";
 import { StatusGraphic } from "@/components/site/status-graphic";
-import {
-  StatusGraphicProvider,
-  type StatusGraphicAsset,
-} from "@/components/site/status-graphic-context";
+import { StatusGraphicProvider, type StatusGraphicAsset } from "@/components/site/status-graphic-context";
+
+import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
 
 /**
  * P12-SG — the optional DECORATIVE error / not-found status graphic capability.
@@ -71,6 +70,9 @@ const imageBlock = /\.ui-status-graphic-image\s*\{([^}]*)\}/.exec(globals)?.[1] 
 const AVAILABLE = "https://www.example.com/assets/logo-header.svg";
 /** An FS-4 absolute URL whose basename has NO backing file. */
 const MISSING = "https://www.example.com/assets/status-graphic-does-not-exist.svg";
+
+/** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
+const LIVE = runtimeAssetUrl("logo-header.svg") as string;
 
 /**
  * Renders the status surface exactly as the status pages do: the resolved asset
@@ -151,14 +153,12 @@ describe("P12-SG — availability + rendering contract", () => {
     // The resolver returns `undefined`, which is exactly what the renderer
     // receives — so the honest end-to-end result is no graphic.
     expect(render(missing ? { src: missing } : undefined)).toBe("");
-    expect(
-      existsSync(path.join(root, "public", "assets", "status-graphic-does-not-exist.svg")),
-    ).toBe(false);
+    expect(runtimeAssetFile("status-graphic-does-not-exist.svg")).toBeUndefined();
   });
 
   it("4. a valid available role renders the ONE decorative box", () => {
     const src = availableStatusGraphicPath(AVAILABLE);
-    expect(src).toBe("/assets/logo-header.svg");
+    expect(src).toBe(LIVE);
     const html = render({ src: src as string });
     // React 19 emits a generic `<link rel="preload" as="image">` hint for any
     // server-rendered <img> (the established behaviour `ui-cta.test.ts` already
@@ -166,7 +166,7 @@ describe("P12-SG — availability + rendering contract", () => {
     // preload subsystem added by this seam — so only the decorative box and its
     // image are asserted here.
     expect(html).toMatch(/<div class="ui-status-graphic" aria-hidden="true">/);
-    expect(html).toContain('src="/assets/logo-header.svg"');
+    expect(html).toContain(`src="${LIVE}"`);
     expect(html).toContain('alt=""');
     expect(html).toContain('class="ui-status-graphic-image"');
     // Exactly one decorative element and one image — no placeholder, no caption.
@@ -363,12 +363,14 @@ describe("P12-SG — separation, reusability and role independence", () => {
   it("23. the sibling header/footer graphics remain OPTIONAL and never touch this seam", () => {
     // FS1 — neither sibling decorative role is configured by the generic
     // template, so nothing renders for them; both still ship their blank
-    // placeholder runtime files, and the status seam stays strictly independent:
-    // the status component and layout never name or read them.
+    // placeholder runtime files (S3E1C: in the namespace that owns them), and the
+    // status seam stays strictly independent: the status component and layout
+    // never name or read them.
     expect(siteConfig.assets?.footerGraphic).toBeUndefined();
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
-    const runtimeAssets = readdirSync(path.join(root, "public", "assets"));
-    expect(runtimeAssets.some((name) => /^(footer|header)-graphic\./i.test(name))).toBe(true);
+    for (const sibling of ["footer-graphic.svg", "header-graphic.svg"]) {
+      expect(runtimeAssetFile(sibling), `${sibling} must ship`).not.toBeUndefined();
+    }
     // Neither sibling role is reused as a status-graphic fixture.
     expect(componentCode).not.toMatch(/footer-graphic|header-graphic/);
     expect(layout).not.toMatch(/footerGraphic|headerGraphic/);
@@ -397,9 +399,10 @@ describe("P12-SG — separation, reusability and role independence", () => {
     expect(componentCode).not.toMatch(/\.(svg|png|webp|jpg|jpeg|avif|gif)["'`]/);
     expect(componentCode).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     expect(`${boxBlock}${imageBlock}`).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
-    // The role is generic: it renders whatever `src` the config resolver produced.
+    // The role is generic: it renders whatever `src` the config resolver produced, and the runtime
+    // serves that file from the namespace that holds it (S3E1C).
     expect(component).toContain("export function StatusGraphic()");
-    expect(availableStatusGraphicPath(AVAILABLE)?.startsWith("/assets/")).toBe(true);
+    expect(availableStatusGraphicPath(AVAILABLE)).toBe(LIVE);
   });
 });
 

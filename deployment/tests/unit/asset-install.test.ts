@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { deploymentPaths } from "@/config/deployment-root";
 
 import { checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
+import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
 
 /**
  * THE INSTALLED DEPLOYMENT'S ASSET INSTALL (FOUNDATION-DEPLOYMENT-ISO-H2)
@@ -29,9 +30,16 @@ import { checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
  * country-code document versus the platform's authority) for the same reason.
  */
 const deployment = deploymentPaths();
-const runtime = (file: string) => path.join(deployment.publicAssetsDirectory, file);
+/**
+ * A deployed file's generated path: whichever runtime NAMESPACE holds it (S3E1C — the platform tree at
+ * `public/assets`, or the Spoke's own at `public/spokes/<segment>/assets`). The platform path is the
+ * fallback, so an assertion about a file NO namespace ships still reads as an ordinary missing-file check
+ * rather than as a crash.
+ */
+const runtime = (file: string) =>
+  runtimeAssetFile(file) ?? path.join(deployment.publicAssetsDirectory, file);
 const source = (...segments: string[]) => path.join(deployment.assetSourceRoot, ...segments);
-const contentRoot = path.join(deployment.root, "content");
+const contentRoot = deployment.contentRoot;
 
 /** The canonical page → icon-library mapping (semantic intent) the reference site relies on. */
 const CANONICAL_PAGE_ICONS = [

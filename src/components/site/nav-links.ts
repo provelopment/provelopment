@@ -1,5 +1,5 @@
 import { siteConfig } from "@/config";
-import { availableIconName } from "@/config/assets";
+import { availableIconUrl } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 
@@ -58,16 +58,18 @@ export function getSiteNavLinks(locale: string, siteId?: string): readonly Conte
     label: dictionary.navigation.items[item.href] ?? item.label,
     // P5-5 — icon/region/disabled flow straight through the shared link path
     // (Configuration → validated schema → NavItem renderer; no component fork).
-    // P6-1 — the icon is screened against public/assets here (the framework
-    // boundary), so a missing/unavailable icon never reaches the renderer as a
-    // broken-image <img>: unavailable → "" (no icon), absent → undefined.
-    icon: item.icon === undefined ? undefined : availableIconName(item.icon),
-    // P6-3B — the per-state sidebar icons (screened against public/assets like
-    // every other configurable icon). Not defaulted here: the SIDEBAR surface
+    // P6-1 — the icon is resolved against the generated runtime namespaces here
+    // (the framework boundary), so a missing/unavailable icon never reaches the
+    // renderer as a broken-image <img>: unavailable → "" (no icon), absent →
+    // undefined. S3F1 — the answer is the URL of the namespace that HOLDS the
+    // file, so a Spoke's own artwork is served from that Spoke's namespace.
+    icon: item.icon === undefined ? undefined : availableIconUrl(item.icon),
+    // P6-3B — the per-state sidebar icons (resolved against the same namespaces
+    // as every other configurable icon). Not defaulted here: the SIDEBAR surface
     // opts into the shipped defaults (`withSidebarNavIcons`), so the header
     // top-nav / bottom bar stay byte-identical (no icons unless configured).
-    openIcon: item.iconOpen === undefined ? undefined : availableIconName(item.iconOpen),
-    closedIcon: item.iconClosed === undefined ? undefined : availableIconName(item.iconClosed),
+    openIcon: item.iconOpen === undefined ? undefined : availableIconUrl(item.iconOpen),
+    closedIcon: item.iconClosed === undefined ? undefined : availableIconUrl(item.iconClosed),
     position: item.position,
     disabled: item.disabled,
   }));
@@ -87,7 +89,10 @@ export function getSiteNavLinks(locale: string, siteId?: string): readonly Conte
 export function withSidebarNavIcons(links: readonly ContextNavLink[]): readonly ContextNavLink[] {
   return links.map((link) => ({
     ...link,
-    openIcon: link.openIcon ?? link.icon ?? DEFAULT_SIDEBAR_ITEM_ICON_OPEN,
-    closedIcon: link.closedIcon ?? link.icon ?? DEFAULT_SIDEBAR_ITEM_ICON_CLOSED,
+    // S3F1 — the shipped DEFAULT roles resolve to the namespace that holds them (a Spoke's own
+    // namespace in an explicit Installation), so a defaulted icon is never a broken image; `""` (not
+    // available in any namespace) keeps the P5-5 no-icon contract.
+    openIcon: link.openIcon ?? link.icon ?? availableIconUrl(DEFAULT_SIDEBAR_ITEM_ICON_OPEN),
+    closedIcon: link.closedIcon ?? link.icon ?? availableIconUrl(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED),
   }));
 }

@@ -428,12 +428,8 @@ describe("the one page model, through the real application", () => {
     expect(urls.some((url) => /\/readme$/i.test(url))).toBe(false);
 
     // The three documentation files really are present and really are not pages.
-    for (const readme of [
-      "content/README.md",
-      "content/pages/markdown/README.md",
-      "content/pages/json/README.md",
-    ]) {
-      expect(existsSync(path.join(deploymentPaths().root, readme)), readme).toBe(true);
+    for (const readme of ["README.md", "pages/markdown/README.md", "pages/json/README.md"]) {
+      expect(existsSync(path.join(copyPaths.contentRoot, ...readme.split("/"))), readme).toBe(true);
     }
 
     // An unknown path, a traversal attempt and the reserved home segment are all 404s.

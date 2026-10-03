@@ -78,25 +78,35 @@ content/assets/branding/          your own deployment artwork (nothing is shippe
 
         ↓  scripts/sync-runtime-assets.mjs  (byte-identical mirror)
 
-public/assets/            GENERATED — the ONLY directory the running site fetches
+public/assets/            GENERATED — the SHARED platform runtime namespace: the icon library,
+                          the platform marks, and (in a legacy Installation) the role artwork.
+public/spokes/<segment>/  GENERATED — ONE Spoke's OWN replaceable artwork (its role files and its
+  assets/                 `branding/`), served at `/spokes/<segment>/assets/**`. The segment is
+                          derived from the Spoke's ID, so two Spokes may ship the same filename
+                          without either overwriting the other.
 ```
 
 The source tree lives **inside the one human-facing content area**
 (`content/`, beside `pages/` and the other content collections), because it is
 authored content: artwork a site owner replaces. Those paths are relative to the
-**deployment root** — this repository's deployment is the capsule, so its asset authority is
-`deployment/content/assets/**` and its runtime mirror is `public/assets/**`. The short guide
+**deployment's RESOURCE root** — the root that owns the website material: the
+installation root in a *legacy* Installation, or the declared Spoke's root in an
+*explicit* one. In this repository the deployment is explicit, so its asset
+authority is `deployment/spokes/foundation/content/assets/**`; the mirror installs
+the REPLACEABLE role artwork into `public/spokes/foundation/assets/**` and the
+shared platform artwork into `public/assets/**`. The short guide
 for someone asking
 "where do I change my logo?" is
-[`content/assets/README.md`](deployment/content/assets/README.md).
+[`content/assets/README.md`](deployment/spokes/foundation/content/assets/README.md).
 
 | Rule | Detail |
 | --- | --- |
-| One authority | A file is **edited in `content/assets/**`** and mirrored. `public/assets/**` is a byte-identical **derivative**, never a second place to maintain artwork |
+| One authority | A file is **edited in `content/assets/**`** and mirrored. The generated namespaces are byte-identical **derivatives**, never a second place to maintain artwork |
 | One editable place | There is **no** root-level `assets/` tree: `content/assets/` is the only user-editable asset authority, and a test asserts it |
-| Never hand-edit the mirror | `public/assets/**` is GENERATED. An edit there is overwritten by the next `pnpm assets:sync` and fails `pnpm assets:check` until then — change the source file instead |
-| Not version-controlled | `public/assets/**` is **generated output**: ignored by Git and installed by `pnpm install` (postinstall), `pnpm dev` and `pnpm build`, so a fresh clone needs no committed copy — and derived bytes can never disagree with their source in version control |
-| Deterministic | `pnpm assets:sync` writes the mirror (and REMOVES output the plan does not declare); `pnpm assets:check` fails on any drift, on a missing declared source, on an absent mirror, and on any **undeclared** file or directory appearing under `public/assets/` |
+| Collision-safe namespaces | Platform-owned artwork (the icon library, the platform marks) is shared and always served from `/assets/**`; a Spoke's OWN replaceable artwork is served from `/spokes/<runtime-segment>/assets/**`, derived from that Spoke's identity. One Spoke can never overwrite — or shadow — another's output, or a platform file |
+| Never hand-edit the mirror | Both generated namespaces are GENERATED. An edit there is overwritten by the next `pnpm assets:sync` and fails `pnpm assets:check` until then — change the source file instead |
+| Not version-controlled | The generated namespaces are **generated output**: ignored by Git and installed by `pnpm install` (postinstall), `pnpm dev` and `pnpm build`, so a fresh clone needs no committed copy — and derived bytes can never disagree with their source in version control |
+| Deterministic | `pnpm assets:sync` writes the namespaces (and REMOVES output the plan does not declare, including a Spoke namespace the manifest no longer declares); `pnpm assets:check` fails on any drift, on a missing declared source, on an absent mirror, on any **undeclared** file in a declared namespace, and on a plan that would install one target twice |
 | Build-safe | `pnpm build` runs the mirror first, so a deployment can never ship a stale or half-applied asset move |
 | No permanent exceptions | every **persistent** runtime visual asset has an authoritative source beneath `content/assets/**`. `RUNTIME_ONLY` (the explicit, reasoned allowlist in the mirror manifest) is **empty by design**; a generated, source-less asset would still have to be declared there with a reason |
 | No junk drawer | `content/assets/placeholders/` holds blank/generic defaults only — never business branding, never general-purpose icons |

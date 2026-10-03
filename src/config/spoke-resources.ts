@@ -48,7 +48,9 @@
  * legacy/active runtime keeps using `deploymentPaths()` unchanged.
  */
 import { DEPLOYMENT_RESOURCE_PATHS } from "./deployment-root";
+import { runtimeSegmentForSpokeId, spokeRuntimeAssetUrlBase } from "./spoke-runtime-segment.mjs";
 import type { SpokeRootDescriptor } from "./spoke-roots";
+import type { SpokeId } from "@/core/spoke";
 
 /**
  * The authored resource trees ONE Spoke owns. AUTHORED ownership only — an entry names where material is
@@ -87,5 +89,57 @@ export function spokeResourcePaths(descriptor: SpokeRootDescriptor): SpokeResour
     markdownPagesRoot: `${spokeRoot}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`,
     jsonPagesRoot: `${spokeRoot}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`,
     assetSourceRoot: `${spokeRoot}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`,
+  };
+}
+
+/**
+ * THE SMALLEST RESOURCE RECORD A RUNTIME NEEDS FOR ONE SPOKE (FOUNDATION-MULTISITE-S3E1C)
+ * =======================================================================================
+ *
+ *     SpokeRootDescriptor  ->  SpokeResourceIndex {
+ *                                spokeId,
+ *                                runtimeSegment,      runtimeSegmentForSpokeId(spokeId)
+ *                                assetBasePath,       /spokes/<segment>/assets
+ *                                resources,           the authored trees (above)
+ *                              }
+ *
+ * THE ONLY NEW FACTS ARE THE RUNTIME ONES: which IDENTITY this is, which namespace its own artwork is
+ * served from, and where its authored trees live. Everything else a Spoke has — its `SiteConfig`, its
+ * dictionaries' CONTENTS, its pages, its Hubs, a request — is deliberately ABSENT: a record that carried
+ * a configuration would be a second place configuration lives, and one that carried a request would only
+ * be meaningful for one of them.
+ *
+ * The SEGMENT comes from the identity ALONE (`./spoke-runtime-segment`), never from the directory the
+ * Spoke happens to be authored in: `spokes/foundation-web` holding the Spoke `foundation` yields
+ * `foundation` and `/spokes/foundation/assets/**`, and two Spokes with the same asset basename get two
+ * namespaces that cannot collide. The `assetBasePath` is the SAME function the runtime path authority
+ * consumes, so a URL this record names is the URL the runtime serves.
+ *
+ * Pure: no filesystem, no environment, no discovery. An unauthored or empty Spoke resource tree yields
+ * this record exactly as a fully authored one does.
+ */
+export interface SpokeResourceIndex {
+  /** The Spoke this record describes. */
+  readonly spokeId: SpokeId;
+  /** The runtime segment its own asset namespace is derived from (injective, filesystem/URL-safe). */
+  readonly runtimeSegment: string;
+  /** The same-origin URL base the Spoke's own artwork is served from. */
+  readonly assetBasePath: string;
+  /** The authored resource trees of the SAME Spoke. */
+  readonly resources: SpokeResourcePaths;
+}
+
+/**
+ * The resource record of ONE resolved Spoke. Root is an INPUT (S3C1 resolved it); the identity is the
+ * only other input, and it is what the runtime segment is derived from.
+ */
+export function spokeResourceIndexFor(descriptor: SpokeRootDescriptor): SpokeResourceIndex {
+  const runtimeSegment = runtimeSegmentForSpokeId(descriptor.id);
+
+  return {
+    spokeId: descriptor.id,
+    runtimeSegment,
+    assetBasePath: spokeRuntimeAssetUrlBase(runtimeSegment),
+    resources: spokeResourcePaths(descriptor),
   };
 }

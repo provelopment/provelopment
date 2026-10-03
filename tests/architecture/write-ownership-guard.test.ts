@@ -37,7 +37,8 @@ import {
  *
  *   Foundation application code (`src/**`)                       NOTHING — no writer exists there at all
  *   deployment generator `scripts/generate-country-code-…mjs`    `<selected>/content/COUNTRY-CODES.md` only
- *   runtime asset installer `scripts/sync-runtime-assets.mjs`     `<repo>/public/assets/**` only
+ *   runtime asset installer `scripts/sync-runtime-assets.mjs`     `<repo>/public/assets/**` and
+ *                                                                 `<repo>/public/spokes/**` only
  *   CI classifier `scripts/ci/change-scope.mjs`                  `$GITHUB_OUTPUT` (the runner's file)
  *   generic tests + the browser harness                          OS temp, the synthetic deployment, `.report/`
  *   a deployment's writable authoring test                       a disposable COPY of the selected deployment
@@ -102,7 +103,7 @@ function mutationLines(file: string): string[] {
  */
 const SANCTIONED_DOMAIN_WRITERS: Record<string, string> = {
   "scripts/sync-runtime-assets.mjs":
-    "<repo>/public/assets/** — the generated runtime mirror, installed from the deployment's asset sources (ISO-B3C1)",
+    "<repo>/public/assets/** and <repo>/public/spokes/** — the generated runtime NAMESPACES: the shared platform tree, plus one collision-safe namespace per declared Spoke (ISO-B3C1 / S3E1C)",
   "scripts/generate-country-code-reference.mjs":
     "<selected deployment>/content/COUNTRY-CODES.md — the ONE generated deployment document (ISO-B3A)",
   "scripts/ci/change-scope.mjs": "$GITHUB_OUTPUT — the CI runner's own file, never repository state (ISO-B3B)",
@@ -373,9 +374,14 @@ describe("each sanctioned writer stays inside the ONE domain it owns", () => {
     const script = "scripts/sync-runtime-assets.mjs";
     const sanctionedShapes = [
       /^mkdirSync\(runtimeRoot,/,
+      // S3E1C — a namespace directory is created before its files are written (the platform namespace is
+      // bootstrapped above; a Spoke's own namespace is created on demand).
+      /^mkdirSync\(path\.dirname\(target\), { recursive: true }\);$/,
       /^copyFileSync\(source, target\);$/,
       /^rmSync\(inside\(relative\),/,
       /^rmdirSync\(full\);$/,
+      // …and a generated REGION that no longer holds a namespace is unlinked the same way (its container).
+      /^rmdirSync\(directory\);$/,
     ];
     const lines = mutationLines(script);
     expect(lines.length).toBeGreaterThan(0);
@@ -392,6 +398,12 @@ describe("each sanctioned writer stays inside the ONE domain it owns", () => {
     expect(readFileSync(path.join(ROOT, script), "utf8")).toContain(
       'const RUNTIME_DIR = "public/assets";',
     );
+    // S3E1C — the write boundary is the generated runtime BASE (`public/`), so a Spoke's namespace is
+    // inside it while no deployment source ever is, and the namespace model comes from the ONE module that
+    // owns the runtime segment (a second spelling would let the installer and the runtime disagree).
+    const sourceText = readFileSync(path.join(ROOT, script), "utf8");
+    expect(sourceText).toContain("const base = path.resolve(path.dirname(runtimeRoot));");
+    expect(sourceText).toContain("spoke-runtime-segment.mjs");
   });
 
   it("the country-code generator writes ONE deployment document, and resolves it through the authority", () => {
