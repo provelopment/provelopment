@@ -65,6 +65,25 @@ describe("runtime asset ownership resolver guard", () => {
     expect(source).toContain("${owner.urlBase}/${name}");
   });
 
+  it("answers every page-role graphic through ONE resolver-local availability rule", () => {
+    // The availability rule exists ONCE and is called by each of the six page-role methods.
+    expect(source.split("const roleUrl =").length - 1).toBe(1);
+    expect(source.split("roleUrl(").length - 1).toBe(6);
+    for (const role of [
+      "availableBannerPath",
+      "availableBackgroundPath",
+      "availableBackgroundMap",
+      "availableFooterGraphicPath",
+      "availableHeaderGraphicPath",
+      "availableStatusGraphicPath",
+    ]) {
+      expect(source).toContain(role);
+    }
+    // A role is available only through THIS resolver's ownership: an unowned basename is `undefined` — never
+    // the configured pathname (that preservation belongs to `runtimeAssetUrl` alone).
+    expect(source).toContain("ownerOf(name) === null) return undefined");
+  });
+
   it("is additive and unwired: the live asset module does not reference it", () => {
     expect(readFileSync(LIVE_ASSET_MODULE, "utf8")).not.toContain("runtime-asset-resolver");
   });
