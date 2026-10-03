@@ -1,4 +1,4 @@
-import { createElement, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { ClientRoutingProvider } from "@/components/site/client-routing-context";
@@ -17,7 +17,7 @@ import { siteSetOf } from "@/core/site";
  * projects, so every existing expectation stays meaningful while the boundary stays explicit.
  *
  * A test that IS about context isolation builds the projection from an explicit `SpokeRuntimeContext` instead
- * (see `tests/unit/server-composition-context.test.ts` and `tests/unit/client-routing-projection.test.ts`).
+ * (see `tests/unit/context-metadata-isolation.test.ts`).
  */
 export const compatibilityClientRouting = buildClientRoutingContext(
   siteConfig,
@@ -26,10 +26,9 @@ export const compatibilityClientRouting = buildClientRoutingContext(
 
 /** Wrap a node in the ONE client transport, using the compatibility projection. */
 export function withClientRouting(node: ReactNode): ReactNode {
-  return createElement(ClientRoutingProvider, {
-    routing: compatibilityClientRouting,
-    children: node,
-  });
+  return (
+    <ClientRoutingProvider routing={compatibilityClientRouting}>{node}</ClientRoutingProvider>
+  );
 }
 
 /** `renderToStaticMarkup`, for a control that resolves its own destinations. */
