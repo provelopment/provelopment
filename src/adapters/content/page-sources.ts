@@ -33,6 +33,16 @@
  * policy — its supported locales, its default locale and its fallback switch — decides what
  * may answer, and a locale outside the site is not a page request at all.
  *
+ * ONE AUTHORED TREE PER CALL (FOUNDATION-MULTISITE-S3E1B)
+ * -----------------------------------------------------
+ * The same holds one level up. `sites` says WHOSE pages may be served; `roots` says WHICH
+ * authored tree is read. When `roots` is absent it is the ACTIVE deployment's tree — today's
+ * behaviour, byte for byte. When a caller supplies a Spoke's roots (S3E1A `SpokeResourcePaths`),
+ * every question below is asked of THAT tree alone, so two Spokes may hold the same site code,
+ * the same locale and the same route without colliding, and neither can answer for the other.
+ * This composition still serves ONE tree per call; choosing the Spoke is S3F's job, not this
+ * adapter's.
+ *
  * There is no third source and no compatibility fallback: a page comes from one of those
  * two roots, or it does not exist. `content/` holds THIS platform's pages and assets — no
  * file outside the two roots can be consulted for a page.
@@ -42,12 +52,18 @@
  * produce a route, a sitemap entry or a served page — a directory's existence is not
  * publication.
  */
-import { authoringPageRoutesFor, readAuthoringPageFile } from "./authoring-source-discovery";
+import {
+  authoringPageRoutesFor,
+  authoringSourceDiscoveryFor,
+  readAuthoringPageFile,
+  type PageAuthoringRoots,
+} from "./authoring-source-discovery";
 import { parseAuthoringPageFile } from "./authoring-page";
 import { parseJsonPageFile } from "./json-page";
 import { resolvePageSource } from "@/application/page-source-resolution";
 import type { PageDocument } from "@/core/page-document";
 import type { Locale } from "@/core/locale";
+import type { PageAuthoringMode } from "@/core/page-source";
 import type { SiteCode } from "@/core/site-code";
 import { siteSupportsLocalePath, type ResolvedSite } from "@/core/site";
 
@@ -91,6 +107,15 @@ export type ResolvedPage = ResolvedMarkdownPage | ResolvedJsonPage;
 export interface PageSourcesOptions {
   /** The deployment's resolved sites. Only a declared site can publish anything. */
   readonly sites: readonly ResolvedSite[];
+  /**
+   * THE AUTHORED PAGE ROOTS THIS COMPOSITION READS (FOUNDATION-MULTISITE-S3E1B).
+   *
+   * Absent → the ACTIVE deployment's roots: exactly what every current runtime and build consumer
+   * gets, and the only binding today's runtime resolves. Present → the caller has already CHOSEN a
+   * Spoke and supplies that Spoke's `SpokeResourcePaths` (S3E1A), so this composition reads that
+   * Spoke's tree alone. Both entry points behave identically either way; only the tree differs.
+   */
+  readonly roots?: PageAuthoringRoots | undefined;
 }
 
 export interface PageSources {
@@ -108,7 +133,35 @@ export interface PageSources {
 }
 
 export function createPageSources(options: PageSourcesOptions): PageSources {
-  const { sites } = options;
+  const { sites, roots } = options;
+
+  /**
+   * WHICH AUTHORED TREE this composition reads (S3E1B): `null` → the ACTIVE deployment's, through
+   * the legacy entry points exactly as today; otherwise the capability bound to the supplied roots.
+   * Everything else below is shared, so a rule can never be true for one tree and false for another.
+   */
+  const discovery = roots === undefined ? null : authoringSourceDiscoveryFor(roots);
+
+  /** One mode's route paths for this site + locale, read from THIS tree. */
+  const pageRoutesOf = (
+    mode: PageAuthoringMode,
+    siteCode: SiteCode,
+    localePath: Locale,
+  ): Promise<readonly string[]> =>
+    discovery === null
+      ? authoringPageRoutesFor(mode, siteCode, localePath)
+      : discovery.pageRoutesFor(mode, siteCode, localePath);
+
+  /** One candidate locale's raw source for this route, read from THIS tree. */
+  const sourceTextOf = (
+    mode: PageAuthoringMode,
+    siteCode: SiteCode,
+    localePath: Locale,
+    routePath: string,
+  ): Promise<string | null> =>
+    discovery === null
+      ? readAuthoringPageFile(mode, siteCode, localePath, routePath)
+      : discovery.readPageFile(mode, siteCode, localePath, routePath);
 
   /** The declared site with this code, or null — an undeclared site serves nothing. */
   const siteOf = (siteCode: SiteCode): ResolvedSite | null =>
@@ -141,8 +194,8 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
           // Availability only — each provider answers "this locale contributes a source"
           // with the RAW source, and interpretation happens below. The providers are bound
           // to THIS site's code, which is what a cross-site answer would have to bypass.
-          json: (candidate) => readAuthoringPageFile("json", site.code, candidate, routePath),
-          markdown: (candidate) => readAuthoringPageFile("markdown", site.code, candidate, routePath),
+          json: (candidate) => sourceTextOf("json", site.code, candidate, routePath),
+          markdown: (candidate) => sourceTextOf("markdown", site.code, candidate, routePath),
         },
       );
       if (resolved === null) return null;
@@ -179,8 +232,8 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
       if (site === null || !isPublished(site, localePath)) return [];
 
       const [markdown, json] = await Promise.all([
-        authoringPageRoutesFor("markdown", site.code, localePath),
-        authoringPageRoutesFor("json", site.code, localePath),
+        pageRoutesOf("markdown", site.code, localePath),
+        pageRoutesOf("json", site.code, localePath),
       ]);
 
       return [...new Set([...markdown, ...json])].sort();

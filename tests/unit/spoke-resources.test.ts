@@ -179,11 +179,30 @@ describe("S3E1A discovers nothing and is UNWIRED", () => {
     expect(code).toMatch(/DEPLOYMENT_RESOURCE_PATHS/);
   });
 
-  it("no module imports the seam, and the client-facing barrel does not publish it", () => {
+  it("is named only as a TYPE, and never by the runtime or the client-facing barrel", () => {
+    // S3E1B SHARPENS this pin rather than removing it. What must remain impossible is a RUNTIME
+    // consumer: no module that serves a request, chooses a Spoke, builds a page or resolves a
+    // deployment may reach the Spoke resource model — so every importer must be a TYPE-ONLY one, and
+    // every one of those must stay in the configuration/composition layer that S3's capabilities own.
+    // Naming the model's SHAPE is not reaching it: `import type` is erased at build, which is why the
+    // per-Spoke capability (S3E1B) may consume a Spoke's roots without wiring the model into anything.
     const importers = sourceFiles(path.join(process.cwd(), "src"))
-      .filter((file) => /from\s+["'][^"']*spoke-resources["']/.test(readFileSync(file, "utf8")))
-      .map(relative);
-    expect(importers).toEqual([]);
+      .map((file) => ({ file, source: readFileSync(file, "utf8") }))
+      .filter(({ source }) => /from\s+["'][^"']*spoke-resources["']/.test(source))
+      .map(({ file, source }) => ({
+        path: relative(file),
+        typeOnly: /import\s+type\s+\{[^}]*\}\s+from\s+["'][^"']*spoke-resources["']/.test(source),
+      }));
+
+    for (const importer of importers) {
+      expect(importer.typeOnly, `${importer.path} must name the model's SHAPE only`).toBe(true);
+      expect(importer.path, `${importer.path} must stay in the composition layer`).toMatch(
+        /^src\/config\//,
+      );
+    }
+
+    // The exact set, so a new importer is a decision rather than an accident.
+    expect(importers.map((importer) => importer.path)).toEqual(["src/config/spoke-dictionaries.ts"]);
 
     expect(
       readFileSync(path.join(process.cwd(), "src", "config", "index.ts"), "utf8"),
