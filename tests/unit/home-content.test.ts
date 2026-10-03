@@ -12,9 +12,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import PageRoute from "@/app/[...segments]/page";
 import { StarterHome } from "@/app/[...segments]/dedicated-pages";
 import { createPageSources } from "@/adapters/content/page-sources";
+import { createBookingActionResolver } from "@/adapters/booking";
 import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
+
+import { compatibilityChrome } from "../support/compatibility-chrome";
 
 /**
  * The OPTIONAL content-authored home page.
@@ -37,7 +40,7 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 const root = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
 
-const homeRouteSource = read("src", "app", "[...segments]", "page.tsx");
+const homeRouteSource = read("src", "app", "[...segments]", "server-composition.tsx");
 const pageRouteSource = homeRouteSource;
 const sitemapSource = read("src", "app", "sitemap.ts");
 
@@ -145,7 +148,12 @@ describe("an authored home page wins; a site without one keeps the starter homep
     // presentation the fallback renders, which the shipped deployment's authored
     // page would otherwise hide from an end-to-end assertion.
     const html = renderToStaticMarkup(
-      createElement(StarterHome, { locale: siteConfig.defaultLocale, siteId: siteConfig.defaultSite.code }),
+      createElement(StarterHome, {
+        ...compatibilityChrome(),
+        locale: siteConfig.defaultLocale,
+        siteId: siteConfig.defaultSite.code,
+        bookingActions: createBookingActionResolver(siteConfig.bookingFeature),
+      }),
     );
     expect(html).toContain("home-hero");
     expect(html).toContain("home-hero-copy");

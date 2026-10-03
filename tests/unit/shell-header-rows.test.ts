@@ -38,6 +38,8 @@ vi.mock("next/navigation", () => ({
 import { SiteHeader } from "@/components/site/site-header";
 import { resolveUiConfig, type UiConfigInput } from "@/core/ui";
 
+import { compatibilityChrome } from "../support/compatibility-chrome";
+
 /** The stylesheet, for the graphic-identity contract's scoping guard. */
 const GLOBALS_SOURCE = readFileSync(path.join(process.cwd(), "src", "app", "globals.css"), "utf8");
 
@@ -48,7 +50,9 @@ const HEADER_SOURCE = readFileSync(
 );
 
 const headerHtml = (ui: UiConfigInput) =>
-  renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolveUiConfig(ui) }));
+  renderToStaticMarkup(
+    SiteHeader({ ...compatibilityChrome(), locale: "en", resolved: resolveUiConfig(ui) }),
+  );
 
 /** The switcher enabled → the visitor has MORE than one effective presentation to choose from. */
 const switcherOn = headerHtml({ layoutSwitcher: { enabled: true } });

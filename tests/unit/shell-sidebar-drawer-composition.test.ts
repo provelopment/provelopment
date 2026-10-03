@@ -48,6 +48,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SiteHeader } from "@/components/site/site-header";
+
+import { compatibilityChrome } from "../support/compatibility-chrome";
 import { ShellEngine } from "@/components/shell";
 import { getDictionary } from "@/config/i18n";
 import { resolveShellPattern, resolveUiConfig, type UiConfigInput } from "@/core/ui";
@@ -407,7 +409,9 @@ describe("ShellEngine — Sidebar-drawer mobile drawer (navigation only; P6-3C: 
 describe("SiteHeader — Sidebar-drawer (drawer, not bottom-bar) never emits the bottom-bar-only i18n value", () => {
   it("moreMenu dictionary value is absent from the Sidebar-drawer header assembly", () => {
     const dictionary = getDictionary("en");
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: workspace }));
+    const html = renderToStaticMarkup(
+      SiteHeader({ ...compatibilityChrome(), locale: "en", resolved: workspace }),
+    );
     expect(html).not.toContain(dictionary.navigation.moreMenu);
   });
 });

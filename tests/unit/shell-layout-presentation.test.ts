@@ -41,6 +41,8 @@ import { ShellEngine } from "@/components/shell";
 import { SiteHeader } from "@/components/site/site-header";
 import { resolveUiConfig } from "@/core/ui";
 
+import { compatibilityChrome } from "../support/compatibility-chrome";
+
 const globals = readFileSync(path.join(process.cwd(), "src", "app", "globals.css"), "utf8");
 
 /** The switcher enabled with the documented default; the canonical single composition. */
@@ -80,7 +82,7 @@ function engineHtml(resolved: typeof enabled): string {
 }
 
 function headerHtml(resolved: typeof enabled): string {
-  return renderToStaticMarkup(SiteHeader({ locale: "en", resolved }));
+  return renderToStaticMarkup(SiteHeader({ ...compatibilityChrome(), locale: "en", resolved }));
 }
 
 /**

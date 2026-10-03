@@ -1,7 +1,14 @@
-import type { SocialLink } from "@/config";
-import { availableIconUrl } from "@/config/assets";
+import type { SocialLink } from "@/config/site-config";
 
 import type { ContextNavLink } from "./context-nav-links";
+
+/**
+ * M13 — the CONNECTIVITY ICON PROJECTION is an argument, not a module-global: the icon answers belong to
+ * the rendering context's own asset resolver (`availableIconUrl` of
+ * `createRuntimeAssetOwnershipResolver(context.runtimeAssetNamespaces)`), so a context can only ever show
+ * artwork it may actually serve.
+ */
+export type ConnectivityIconProjection = (name: string | undefined) => string | undefined;
 
 /**
  * CONNECTIVITY ICON SEAM — the ONE projection from validated connectivity
@@ -34,8 +41,11 @@ import type { ContextNavLink } from "./context-nav-links";
  * Server-side only (imports the framework filesystem screening layer): used by
  * the footer and the Connect page, never by a client component.
  */
-export function connectivityIcon(icon: string | undefined): string | undefined {
-  return icon === undefined ? undefined : availableIconUrl(icon);
+export function connectivityIcon(
+  icon: string | undefined,
+  iconUrl: ConnectivityIconProjection,
+): string | undefined {
+  return icon === undefined ? undefined : iconUrl(icon);
 }
 
 /**
@@ -49,11 +59,12 @@ export function connectivityIcon(icon: string | undefined): string | undefined {
  */
 export function socialConnectivityLinks(
   socialLinks: readonly SocialLink[],
+  iconUrl: ConnectivityIconProjection,
 ): readonly ContextNavLink[] {
   return socialLinks.map((socialLink, index) => ({
     href: socialLink.href,
     label: socialLink.label,
     key: `social:${index}`,
-    icon: connectivityIcon(socialLink.icon),
+    icon: connectivityIcon(socialLink.icon, iconUrl),
   }));
 }

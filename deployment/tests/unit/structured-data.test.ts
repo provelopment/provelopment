@@ -22,7 +22,7 @@ function jsonLd(html: string): Record<string, unknown> {
 
 describe("StructuredData — global organization/local-business JSON-LD (Phase S)", () => {
   it("emits the canonical identity, url and contactPoint", () => {
-    const html = renderToStaticMarkup(StructuredData({ locale: "en" }));
+    const html = renderToStaticMarkup(StructuredData({ locale: "en", siteConfig }));
     const node = jsonLd(html);
 
     expect(node["@type"]).toBe(siteConfig.business.type ?? "Organization");
@@ -32,7 +32,7 @@ describe("StructuredData — global organization/local-business JSON-LD (Phase S
   });
 
   it("location @ids and sameAs track the configured inventory (both branches)", () => {
-    const node = jsonLd(renderToStaticMarkup(StructuredData({ locale: "en" })));
+    const node = jsonLd(renderToStaticMarkup(StructuredData({ locale: "en", siteConfig })));
 
     // Present branch: every configured location gets a stable fragment @id.
     if (siteConfig.business.locations.length > 0) {
@@ -55,7 +55,7 @@ describe("StructuredData — global organization/local-business JSON-LD (Phase S
   });
 
   it("emits the canonical asset logo (FS-4: configured via site.assets.logo)", () => {
-    const node = jsonLd(renderToStaticMarkup(StructuredData({ locale: "en" })));
+    const node = jsonLd(renderToStaticMarkup(StructuredData({ locale: "en", siteConfig })));
     // The canonical reference config defines `site.assets.logo`, so the
     // structured-data JSON-LD logo is present and points at the canonical asset.
     if (siteConfig.assets?.logo || siteConfig.logo) {
@@ -94,7 +94,11 @@ describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () =>
 
     it("emits @id/url from the regional canonical URL plus sameAs (both branches)", () => {
       const html = renderToStaticMarkup(
-        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/de/de/berlin` }),
+        RegionStructuredData({
+          region: configured,
+          canonicalUrl: `${siteConfig.url}/de/de/berlin`,
+          socialLinks: siteConfig.socialLinks,
+        }),
       );
       const node = jsonLd(html);
 
@@ -110,7 +114,11 @@ describe("RegionStructuredData — regional JSON-LD (Phase S enrichment)", () =>
 
     it("keeps the pre-existing operational fields intact", () => {
       const html = renderToStaticMarkup(
-        RegionStructuredData({ region: configured, canonicalUrl: `${siteConfig.url}/de/de/berlin` }),
+        RegionStructuredData({
+          region: configured,
+          canonicalUrl: `${siteConfig.url}/de/de/berlin`,
+          socialLinks: siteConfig.socialLinks,
+        }),
       );
       expect(html).toContain(configured.address.street);
       expect(html).toContain('"@type":"LocalBusiness"');

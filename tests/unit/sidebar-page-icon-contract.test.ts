@@ -15,6 +15,7 @@ import {
 import { NavItem } from "@/components/ui/nav-item";
 
 import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
+import { compatibilityAssets, compatibilityDictionaries } from "../support/compatibility-chrome";
 
 /**
  * SIDEBAR PAGE-ICON CONTRACT (owner ruling, 2026-09).
@@ -97,7 +98,10 @@ describe("sidebar page icons — the configured source is the icon LIBRARY", () 
     // S3F1 — the model carries the RESOLVED runtime URL (the framework layer resolves a configured
     // filename against the generated namespaces, because a Spoke's own artwork is not served from
     // `/assets/**`), so the fallback arrives as that URL rather than as a bare filename.
-    const links = withSidebarNavIcons([{ href: "/custom-page", label: "Custom", key: "nav:0" }]);
+    const links = withSidebarNavIcons(
+      [{ href: "/custom-page", label: "Custom", key: "nav:0" }],
+      compatibilityAssets.availableIconUrl,
+    );
     // The model carries the RESOLVED runtime URL of the placeholder pair (S3F1). An installation that does
     // not ship the placeholder resolves it to `""` — the P5-5 no-icon contract — which is exactly the
     // installation-relative answer this generic run must give; the deployment acceptance suite proves the
@@ -242,7 +246,15 @@ describe("sidebar open/close CONTROL — 24x24 on desktop AND tablet, distinct f
 });
 
 describe("sidebar page icons — expanded vs collapsed behaviour", () => {
-  const links = withSidebarNavIcons(getSiteNavLinks("en"));
+  const links = withSidebarNavIcons(
+    getSiteNavLinks({
+      locale: "en",
+      siteConfig,
+      dictionary: compatibilityDictionaries,
+      iconUrl: compatibilityAssets.availableIconUrl,
+    }),
+    compatibilityAssets.availableIconUrl,
+  );
   const rendered = links.map((link) => renderToStaticMarkup(createElement(NavItem, { item: link })));
 
   it("every sidebar item renders its 16x16 page icon pair plus the page name", () => {
@@ -297,8 +309,8 @@ describe("sidebar page icons — expanded vs collapsed behaviour", () => {
     // that use `getSiteNavLinks` directly (header top-nav, bottom bar, mobile)
     // stay icon-free: `withSidebarNavIcons` is applied ONLY to the aside slot.
     for (const item of siteConfig.navigation) expect(item.icon).toBeUndefined();
-    const layout = read("src", "app", "[...segments]", "layout.tsx");
-    expect(layout).toContain("links={withSidebarNavIcons(navLinks)}");
+    const layout = read("src", "app", "[...segments]", "server-composition.tsx");
+    expect(layout).toContain("links={withSidebarNavIcons(navLinks, assets.availableIconUrl)}");
     expect((layout.match(/withSidebarNavIcons\(/g) ?? []).length).toBe(1);
     // Mobile navigation renders its own control icons and never the page pair.
     const mobileNav = read("src", "components", "shell", "shell-mobile-nav.tsx");

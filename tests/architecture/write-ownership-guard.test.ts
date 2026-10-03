@@ -159,6 +159,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic Installation trees under OS temp — the two-Spoke runtime-context proofs' own throwaway " +
     "Installations (alpha/beta plus legacy and one-Spoke variants: manifests, configurations, dictionaries, " +
     "pages and role artwork), removed by exact ownership. The canonical deployment is only ever READ (S3F2A)",
+  "tests/unit/server-composition-context.test.ts":
+    "synthetic one-Spoke Installation trees under OS temp — the M13 server-composition isolation proofs' own " +
+    "throwaway Installations (alpha/beta: a manifest, configuration, dictionaries and one authored page), " +
+    "removed by exact ownership. The running deployment is only ever READ (M13)",
   "tests/unit/runtime-asset-ownership-resolver.test.ts":
     "disposable namespace directories under OS temp — the ownership resolver's own throwaway trees " +
     "(a platform namespace plus two contexts' own, with the same basename deliberately in two of them), " +

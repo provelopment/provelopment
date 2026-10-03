@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { siteConfig } from "@/config";
-import { runtimeAssetUrl, availableHeaderGraphicPath } from "@/config/assets";
-import { getDictionary } from "@/config/i18n";
+import type { SiteConfig } from "@/config/site-config";
+import type { Dictionary } from "@/config/i18n/dictionary";
+import type { RuntimeDictionaryAccess } from "@/config/runtime-dictionaries";
 import { regionDisplayName } from "@/core/display-labels";
 import { regionsForSite } from "@/core/regional-pages";
 import {
@@ -12,6 +12,7 @@ import {
     resolveShellPattern,
     type ResolvedUiConfig,
 } from "@/core/ui";
+import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { Stack } from "@/components/ui/stack";
 import { LanguageSwitcher } from "./language-switcher";
@@ -37,6 +38,16 @@ interface SiteHeaderProps {
      * header is byte-identical to before.
      */
     readonly siteSwitch?: readonly SiteSelectorOption[];
+    /**
+     * M13 — THE RENDERING CONTEXT'S CONFIGURATION. This server component holds no Spoke authority of
+     * its own: the configuration, the dictionary answers and the asset answers below all belong to the
+     * context the composition was built for, so two contexts cannot share a header decision.
+     */
+    readonly siteConfig: SiteConfig;
+    /** M13 — that same context's dictionary answers (the header reads ITS site's dictionary). */
+    readonly dictionaryAccess: RuntimeDictionaryAccess;
+    /** M13 — that same context's asset resolver (server-only; never handed to a client component). */
+    readonly assets: RuntimeAssetOwnershipResolver;
 }
 
 /**
@@ -74,8 +85,19 @@ export const TOUCH_TARGET_BOX_CLASS = "inline-flex min-h-11 min-w-11 items-cente
  */
 export const HEADER_NAV_LINK_CLASS = `${TOUCH_TARGET_BOX_CLASS} text-sm text-muted-foreground transition-colors hover:text-foreground`;
 
-export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderProps) {
-    const dictionary = getDictionary(locale, siteId);
+export function SiteHeader({
+    locale,
+    resolved,
+    siteId,
+    siteSwitch,
+    siteConfig,
+    dictionaryAccess,
+    assets,
+}: SiteHeaderProps) {
+    const dictionary: Dictionary = dictionaryAccess.get(
+        locale,
+        siteId ?? siteConfig.defaultSite.code,
+    );
     const decision = resolveShellPattern(resolved);
     const desktopSlot = decision.desktop.slot;
     const tabletSlot = decision.tablet.slot;
@@ -129,7 +151,13 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
         ]),
     );
 
-    const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale, siteId);
+    const navLinks: readonly ContextNavLink[] = getSiteNavLinks({
+        locale,
+        siteId,
+        siteConfig,
+        dictionary: dictionaryAccess,
+        iconUrl: assets.availableIconUrl,
+    });
     // P6-3B — the header's left brand slot renders the configured header logo
     // (the `site.assets.logo` role), replacing the former text label.
     // `runtimeAssetUrl` keeps it same-origin AND points it at the RUNTIME
@@ -137,7 +165,7 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     // that Spoke's namespace; intrinsic aspect ratio is
     // preserved (`h-8 w-auto`, responsive); accessible name = the site name.
     // Absent config → the previous text brand link (graceful, never broken).
-    const headerLogoSrc = runtimeAssetUrl(siteConfig.assets?.logo);
+    const headerLogoSrc = assets.runtimeAssetUrl(siteConfig.assets?.logo);
     // P12-HG — the optional decorative header band (`site.assets.headerGraphic`,
     // the `header-graphic` role). Resolved on the SERVER through the shared
     // availability rule, so a configured-but-missing file resolves to
@@ -145,7 +173,7 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     // It is painted as the header's OWN background (`headerGraphicBandProps`),
     // so it needs no extra DOM and cannot disturb the header's layout, the
     // page banner, the identity logo or the navigation.
-    const headerGraphic = availableHeaderGraphicPath(siteConfig.assets?.headerGraphic);
+    const headerGraphic = assets.availableHeaderGraphicPath(siteConfig.assets?.headerGraphic);
 
     // The ≥md header navigation list — composed only for a CUSTOM composition that presents
     // one (NAV1B: neither shipped layout does; a Menu-bar composition presents its navigation
@@ -176,7 +204,7 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     // has ONE authoritative home (the shell's top region, below the header), so
     // the disclosure carries navigation only: opening the drawer can never
     // expose a second Book Now alongside the always-visible top one.
-    
+
     // P12-HG — the optional decorative header band is the header's OWN
     // background layer, so it needs no extra DOM, no stacking context and no
     // `z-index`: a background always paints behind the header's in-flow content

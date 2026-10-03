@@ -42,7 +42,7 @@ import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 const root = process.cwd();
 const globals = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
 const siteHeader = readFileSync(path.join(root, "src", "components", "site", "site-header.tsx"), "utf8");
-const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "layout.tsx"), "utf8");
+const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "server-composition.tsx"), "utf8");
 const siteFooter = readFileSync(path.join(root, "src", "components", "site", "site-footer.tsx"), "utf8");
 const assets = readFileSync(path.join(root, "src", "config", "assets.ts"), "utf8");
 const component = readFileSync(path.join(root, "src", "components", "site", "header-graphic.ts"), "utf8");
@@ -320,7 +320,7 @@ describe("P12-HG — separation + reusability contract", () => {
 
   it("7. the header NAVIGATION remains independent and interactive", () => {
     // Navigation still flows through its own seam and its own resolver.
-    expect(siteHeader).toContain("getSiteNavLinks(locale, siteId)");
+    expect(siteHeader).toContain("getSiteNavLinks({");
     expect(siteHeader).toContain("<ContextNavLinks");
     expect(siteHeader).toContain("aria-label={dictionary.navigation.primaryLabel}");
     // The band contributes no element that could sit over the links, and the

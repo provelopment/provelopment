@@ -22,7 +22,9 @@ import { createPageSources } from "@/adapters/content/page-sources";
 import { siteSwitchOptions } from "@/application/site-switch";
 import { SiteHeader } from "@/components/site/site-header";
 import { siteConfig } from "@/config";
+import { deploymentPaths } from "@/config/deployment-root";
 import { getDictionary } from "@/config/i18n";
+import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import {
   bindingsForSite,
@@ -93,7 +95,17 @@ async function headerHtml(options: {
       : undefined;
 
   return renderToStaticMarkup(
-    SiteHeader({ locale: options.localePath, resolved: ui, siteId: site.code, siteSwitch }),
+    SiteHeader({
+      /* M13 — the chrome's Spoke facts travel as explicit inputs; the compatibility bindings are the
+         SAME ones this deployment's single-Spoke build selects. */
+      siteConfig,
+      dictionaryAccess: { get: (locale, siteCode) => getDictionary(locale, siteCode) },
+      assets: createRuntimeAssetOwnershipResolver(deploymentPaths().runtimeAssetNamespaces),
+      locale: options.localePath,
+      resolved: ui,
+      siteId: site.code,
+      siteSwitch,
+    }),
   );
 }
 

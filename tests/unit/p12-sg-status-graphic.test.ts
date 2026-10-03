@@ -40,7 +40,7 @@ const read = (...segments: string[]) => readFileSync(path.join(root, ...segments
 const globals = read("src", "app", "globals.css");
 const component = read("src", "components", "site", "status-graphic.tsx");
 const context = read("src", "components", "site", "status-graphic-context.tsx");
-const layout = read("src", "app", "[...segments]", "layout.tsx");
+const layout = read("src", "app", "[...segments]", "server-composition.tsx");
 const errorPage = read("src", "app", "[...segments]", "error.tsx");
 const notFoundPage = read("src", "app", "[...segments]", "not-found.tsx");
 const assets = read("src", "config", "assets.ts");
@@ -361,7 +361,7 @@ describe("P12-SG — separation, reusability and role independence", () => {
     expect(errorPage).not.toMatch(/headerGraphic|footerGraphic|statusGraphic/);
     expect(notFoundPage).not.toMatch(/headerGraphic|footerGraphic|statusGraphic/);
     // Navigation still flows through its own seam.
-    expect(layout).toContain("getSiteNavLinks(locale, site.code)");
+    expect(layout).toContain("getSiteNavLinks({");
   });
 
   it("23. the sibling header/footer graphics remain OPTIONAL and never touch this seam", () => {

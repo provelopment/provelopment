@@ -109,6 +109,6 @@ describe("runtime asset ownership resolver guard", () => {
     for (const word of AMBIENT_SELECTION) expect(live).not.toContain(word);
 
     // …while every public projection still comes from the resolver: the delegations ARE the module.
-    expect(live.split("compatibilityResolver.").length - 1).toBe(15);
+    expect(live.split("compatibilityResolver.").length - 1).toBe(14);
   });
 });

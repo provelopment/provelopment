@@ -48,6 +48,8 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { SiteHeader } from "@/components/site/site-header";
+
+import { compatibilityChrome } from "../support/compatibility-chrome";
 import { ShellEngine } from "@/components/shell";
 import { getDictionary } from "@/config/i18n";
 import { resolveShellPattern, resolveUiConfig, type UiConfigInput } from "@/core/ui";
@@ -408,7 +410,9 @@ describe("SiteHeader — Floating-overlay mobile overlay (navigation only; P6-3C
     // Floating-overlay's desktop/tablet slots are aside and its mobile layer is the
     // overlay: `SiteHeader` therefore composes NO CTA in any state (P6-3C — the
     // single Book Now is engine-composed in the shell's top region).
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolvedCta }));
+    const html = renderToStaticMarkup(
+      SiteHeader({ ...compatibilityChrome(), locale: "en", resolved: resolvedCta }),
+    );
     expect(html).not.toContain("ui-shell-header-row");
     // In the CLOSED header there is no CTA anywhere:
     expect(html).not.toContain("nav-item-cta");
@@ -439,7 +443,9 @@ describe("ShellEngine — the disclosure consumer is CTA-free for every mobile p
 describe("SiteHeader — Floating-overlay (overlay, not bottom-bar) never emits the bottom-bar-only i18n value", () => {
   it("moreMenu dictionary value is absent from the Floating-overlay header assembly", () => {
     const dictionary = getDictionary("en");
-    const html = renderToStaticMarkup(SiteHeader({ locale: "en", resolved: immersive }));
+    const html = renderToStaticMarkup(
+      SiteHeader({ ...compatibilityChrome(), locale: "en", resolved: immersive }),
+    );
     expect(html).not.toContain(dictionary.navigation.moreMenu);
   });
 });

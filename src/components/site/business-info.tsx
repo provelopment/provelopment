@@ -1,5 +1,6 @@
-import { siteConfig } from "@/config";
-import { getDictionary } from "@/config/i18n";
+import type { Dictionary } from "@/config/i18n/dictionary";
+import type { RuntimeDictionaryAccess } from "@/config/runtime-dictionaries";
+import type { SiteConfig } from "@/config/site-config";
 import type { DirectionLinkResolver, DirectionsAction } from "@/application/direction-link";
 import type { BusinessLocation, ExceptionalHours, Weekday } from "@/core/business";
 import { formatAddress, resolveBusinessForLocale } from "@/core/business";
@@ -50,13 +51,14 @@ function describeExceptional(exception: ExceptionalHours, closedLabel: string): 
 interface LocationBlockProps {
   readonly location: BusinessLocation;
   readonly locale: string;
-  readonly siteId?: string;
   /** The provider-resolved directions action for this (already localized) location. */
   readonly direction: DirectionsAction;
+  /** M13 — the rendering context's configuration and ITS resolved dictionary. */
+  readonly siteConfig: SiteConfig;
+  readonly dictionary: Dictionary;
 }
 
-function LocationBlock({ location, locale, direction, siteId }: LocationBlockProps) {
-  const dictionary = getDictionary(locale, siteId);
+function LocationBlock({ location, locale, direction, siteConfig, dictionary }: LocationBlockProps) {
   const addressText = formatAddress(location.address);
   const internationalText =
     location.addressMode === "local-international" && location.addressInternational
@@ -152,10 +154,19 @@ interface BusinessInfoProps {
   readonly siteId?: string;
   /** A provider-resolved direction link resolver (composed at the app boundary). */
   readonly directionLinkResolver: DirectionLinkResolver;
+  /** M13 — the rendering context's configuration, and ITS dictionary answers. */
+  readonly siteConfig: SiteConfig;
+  readonly dictionaryAccess: RuntimeDictionaryAccess;
 }
 
-export function BusinessInfo({ locale, siteId, directionLinkResolver }: BusinessInfoProps) {
-  const dictionary = getDictionary(locale, siteId);
+export function BusinessInfo({
+  locale,
+  siteId,
+  directionLinkResolver,
+  siteConfig,
+  dictionaryAccess,
+}: BusinessInfoProps) {
+  const dictionary = dictionaryAccess.get(locale, siteId ?? siteConfig.defaultSite.code);
   // Resolve the business profile (customer-facing contact + every location) for
   // this locale so the visible footer shows locale-appropriate contact and
   // address data, never a silently global fixed number/address.
@@ -192,6 +203,8 @@ export function BusinessInfo({ locale, siteId, directionLinkResolver }: Business
           location={location}
           locale={locale}
           direction={directionLinkResolver.resolve(location)}
+          siteConfig={siteConfig}
+          dictionary={dictionary}
         />
       ))}
     </div>

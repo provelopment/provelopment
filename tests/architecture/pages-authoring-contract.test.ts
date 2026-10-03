@@ -142,7 +142,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
   it("keeps every page route on ONE decision point, and off any other store", () => {
     // S1 — ONE catch-all route serves every page (home, flat, nested, regional): the route that
     // resolves a page is the ONE place a page source may be created.
-    const route = "app/[...segments]/page.tsx";
+    const route = "app/[...segments]/server-composition.tsx";
     const source = read(route);
     expect(source, route).toContain("createPageSources");
     // A route that read a second store itself would own a competing precedence rule.
@@ -178,6 +178,7 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
       "layout.tsx",
       "not-found.tsx",
       "page.tsx",
+      "server-composition.tsx",
     ]);
     // …and no nested route directory survives: a page URL is `/<site>/<locale>/<route>`, so there
     // is nothing for a `[locale]`-style tree (or a per-page route folder) to express.
@@ -342,7 +343,7 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
     // S1 — the pages that render a document are the ONE catch-all route and the dedicated chrome
     // module beside it (home / connect / contact); both hand the document to the SAME composer.
     for (const route of [
-      "app/[...segments]/page.tsx",
+      "app/[...segments]/server-composition.tsx",
       "app/[...segments]/dedicated-pages.tsx",
     ]) {
       const source = read(route);
@@ -366,7 +367,7 @@ describe("pages-authoring contract — the safe Markdown boundary", () => {
       .sort();
     expect(composers).toEqual([
       "app/[...segments]/dedicated-pages.tsx",
-      "app/[...segments]/page.tsx",
+      "app/[...segments]/server-composition.tsx",
     ]);
 
     // The composer is site-neutral and configuration-independent: it may compose the
