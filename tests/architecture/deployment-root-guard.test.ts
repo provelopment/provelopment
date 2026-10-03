@@ -108,16 +108,34 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     expect(offenders.map((file) => path.relative(ROOT, file))).toEqual([]);
   });
 
-  it("every consumer resolves its deployment-owned location through the authority", () => {
+  it("every DIRECT consumer resolves its deployment-owned location through the authority", () => {
     for (const consumer of [
       ["src", "config", "loader.ts"],
-      ["src", "config", "i18n", "index.ts"],
       ["src", "adapters", "content", "authoring-source-discovery.ts"],
       ["src", "config", "assets.ts"],
     ] as const) {
       const source = readFileSync(path.join(ROOT, ...consumer), "utf8");
       expect(source, consumer.join("/")).toMatch(/deployment-root/);
       expect(source, consumer.join("/")).toMatch(/deploymentPaths\(\)|readDeploymentConfig\(\)/);
+    }
+  });
+
+  it("keeps the dictionary binding INDIRECT: i18n/index.ts resolves through the runtime context (S3F2A2-D2)", () => {
+    // S3F2A2-D2 cut the production dictionary binding over to the context-capable runtime access, so
+    // `@/config/i18n` no longer names the authority at all: it is handed ONE explicit context
+    // (`./installation-runtime`, itself a direct consumer of the authority) and binds that context's
+    // dictionaries. The deployment-owned location is still resolved in ONE place — reached one step
+    // earlier — and this pin makes the new step explicit rather than implicit.
+    const configDirectory = path.join(ROOT, "src", "config");
+    const dictionaryBindingFile = path.join(configDirectory, "i18n", "index.ts");
+    const source = readFileSync(dictionaryBindingFile, "utf8");
+    expect(source).toMatch(/from "\.\.\/installation-runtime"/);
+    expect(source).toMatch(/currentBuildRuntimeContext\(\)/);
+    expect(source).toMatch(/dictionaryAccessForRuntimeContext\(/);
+    for (const stripped of codeLines(dictionaryBindingFile)) {
+      expect(stripped, "must not spell a deployment-owned location itself").not.toMatch(
+        /deployment-root|deploymentPaths\(\)|readDeploymentConfig\(\)/,
+      );
     }
   });
 
