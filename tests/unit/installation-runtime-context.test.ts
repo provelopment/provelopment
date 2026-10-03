@@ -8,11 +8,17 @@ import { IMPLICIT_SPOKE_ID } from "@/core/spoke";
 
 import { namespaceOwning } from "@/config/assets";
 import { deploymentPaths } from "@/config/deployment-root";
+import { getDictionary } from "@/config/i18n";
 import {
   currentBuildRuntimeContext,
   installationRuntimeIndex,
   runtimeContextForSpoke,
+  type SpokeRuntimeContext,
 } from "@/config/installation-runtime";
+import {
+  dictionaryAccessForRuntimeContext,
+  type RuntimeDictionaryAccess,
+} from "@/config/runtime-dictionaries";
 import { loadSpokeDictionaryRegistry } from "@/config/spoke-dictionaries";
 
 /**
@@ -118,6 +124,13 @@ function authorSpoke(root: string, locator: string, options: { readonly name: st
   // the fixture valid without weakening the registry's validation.
   const german = readFileSync(path.join(FIXTURES, "config", "i18n", "de.json"), "utf8");
   write(path.join(spokeRoot, "config", "i18n", "de.json"), german);
+
+  // The OPTIONAL site+locale override (S1E2), authored by this Spoke as well: one REAL key, this Spoke's
+  // own wording — so a site-scoped read and a shared read are both observable in the D1 proofs below.
+  write(
+    path.join(spokeRoot, "config", "i18n", "sites", "ww", "en.json"),
+    `${JSON.stringify({ home: { tagline: `${options.marker} override` } }, null, 2)}\n`,
+  );
 
   write(path.join(spokeRoot, "content", "pages", "markdown", "ww", "en", "about.md"), `# About ${options.marker}\n`);
   write(path.join(spokeRoot, "content", "assets", "placeholders", "logo-header.svg"), `<svg>${options.marker}-logo</svg>`);
@@ -409,5 +422,167 @@ describe("architecture guards: the new capability is additive and has no mutable
     expect(existsSync(path.join(process.cwd(), "src", "app", "~spoke"))).toBe(false);
     // `src/proxy.ts` is behaviourally untouched: it still negotiates from the single inlined config.
     expect(read("src/proxy.ts")).toContain("negotiateWithin");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────────────────────────────────
+// S3F2A2-D1 — DICTIONARY ACCESS BOUND TO ONE EXPLICIT CONTEXT (additive, unwired)
+// ────────────────────────────────────────────────────────────────────────────────────────────────
+
+/** The accepted fixture configuration with this Spoke's OWN declared locale set. */
+function spokeConfigDeclaring(options: {
+  readonly name: string;
+  readonly url: string;
+  readonly tagline: string;
+  readonly locales: readonly string[];
+}): string {
+  const config = JSON.parse(spokeConfig(options));
+  config.i18n = {
+    ...config.i18n,
+    locales: options.locales.map((code) => ({ code, label: code })),
+  };
+  return `${JSON.stringify(config, null, 2)}\n`;
+}
+
+/**
+ * A disposable one-Spoke Installation whose Spoke ALSO declares a REGIONAL locale (`en-gb`), ships no
+ * dictionary file for it (its language base must cover it), and authors a site+locale override.
+ */
+function localeVariantInstallation(): string {
+  const root = tempTree("foundation-s3f2a2-d1-locales-");
+  authorSpoke(root, "", { name: "Variant Site", url: "https://variant.example", marker: "VARIANT" });
+  write(
+    path.join(root, "site.config.json"),
+    spokeConfigDeclaring({
+      name: "Variant Site",
+      url: "https://variant.example",
+      tagline: "VARIANT tagline",
+      locales: ["en", "de", "en-gb"],
+    }),
+  );
+  write(
+    path.join(root, "config", "i18n", "sites", "ww", "en.json"),
+    `${JSON.stringify({ home: { tagline: "VARIANT override" } }, null, 2)}\n`,
+  );
+  return root;
+}
+
+/**
+ * A disposable one-Spoke Installation with booking ENABLED (or explicitly disabled) and ONE label choice:
+ * the shared English dictionary keeps a real `booking.book` label, carries a whitespace-only one, or has
+ * the whole OPTIONAL section removed (which the dictionary SCHEMA allows — the lock is the invariant's job).
+ */
+function bookingInstallation(options: {
+  readonly provider: "external-url" | "none";
+  readonly label: string | undefined;
+}): string {
+  const root = tempTree("foundation-s3f2a2-d1-booking-");
+  authorSpoke(root, "", { name: "Booking Site", url: "https://booking.example", marker: "BOOKING" });
+
+  const config = JSON.parse(readFileSync(path.join(root, "site.config.json"), "utf8"));
+  config.features = { ...config.features, booking: { provider: options.provider } };
+  if (options.provider === "external-url") config.features.booking.url = "https://booking.example/book";
+  write(path.join(root, "site.config.json"), `${JSON.stringify(config, null, 2)}\n`);
+
+  const dictionary = JSON.parse(readFileSync(path.join(FIXTURES, "config", "i18n", "en.json"), "utf8"));
+  markFirstString(dictionary, "BOOKING");
+  if (options.label === undefined) delete dictionary.booking;
+  else dictionary.booking = { book: options.label };
+  write(path.join(root, "config", "i18n", "en.json"), `${JSON.stringify(dictionary, null, 2)}\n`);
+  return root;
+}
+
+/** The implicit Spoke's runtime context of a disposable Installation (the accepted authority). */
+function implicitContextFor(root: string): SpokeRuntimeContext {
+  const context = runtimeContextForSpoke(installationRuntimeIndex(root), IMPLICIT_SPOKE_ID);
+  if (context === null) throw new Error("fixture context missing");
+  return context;
+}
+
+describe("D1 — dictionary access bound to ONE explicit context", () => {
+  const index = installationRuntimeIndex(twoSpokeInstallation());
+  const alphaContext = runtimeContextForSpoke(index, "alpha");
+  const betaContext = runtimeContextForSpoke(index, "beta");
+  if (alphaContext === null || betaContext === null) throw new Error("fixture context missing");
+
+  const alphaAccess = dictionaryAccessForRuntimeContext(alphaContext);
+  const betaAccess = dictionaryAccessForRuntimeContext(betaContext);
+
+  /** What one access object answers for the coordinates both Spokes deliberately share. */
+  const read = (access: RuntimeDictionaryAccess) => ({
+    shared: access.get("en"),
+    site: access.get("en", "ww"),
+    marker: firstStringLeaf(access.get("en")) ?? "",
+  });
+
+  it("proves Alpha/Beta A/B/A/B isolation through the access object", () => {
+    const RUN = [read(alphaAccess), read(betaAccess), read(alphaAccess), read(betaAccess)];
+
+    // Each Spoke answers IDENTICALLY on both visits — nothing was cached or leaked between them.
+    expect(RUN[0]).toEqual(RUN[2]);
+    expect(RUN[1]).toEqual(RUN[3]);
+    // …and the two Spokes genuinely differ, because each registry was composed from its OWN roots.
+    expect(RUN[0].marker.startsWith("ALPHA ")).toBe(true);
+    expect(RUN[1].marker.startsWith("BETA ")).toBe(true);
+    expect(RUN[0].marker).not.toBe(RUN[1].marker);
+    expect(RUN[0].shared).not.toEqual(RUN[1].shared);
+  });
+
+  it("keeps each Spoke's site+locale override inside its own access object", () => {
+    expect(alphaAccess.get("en", "ww").home.tagline).toBe("ALPHA override");
+    expect(betaAccess.get("en", "ww").home.tagline).toBe("BETA override");
+
+    // Neither context sees the other's authored wording — shared dictionary OR override.
+    expect(JSON.stringify(alphaAccess.get("en", "ww"))).not.toContain("BETA");
+    expect(JSON.stringify(betaAccess.get("en", "ww"))).not.toContain("ALPHA");
+    expect(JSON.stringify(alphaAccess.get("en"))).not.toContain("BETA");
+    expect(JSON.stringify(betaAccess.get("en"))).not.toContain("ALPHA");
+  });
+
+  it("delegates every documented fallback to the accepted registry", () => {
+    const access = dictionaryAccessForRuntimeContext(implicitContextFor(localeVariantInstallation()));
+
+    // A configured locale answers its own dictionary…
+    expect(firstStringLeaf(access.get("en"))).toContain("VARIANT");
+    // …a REGIONAL locale with no dictionary of its own falls back to its LANGUAGE BASE…
+    expect(access.get("en-gb")).toEqual(access.get("en"));
+    // …a locale nobody configured falls back to the DEFAULT locale…
+    expect(access.get("zz")).toEqual(access.get("en"));
+    // …a site+locale override applies for the site that has one…
+    expect(access.get("en", "ww").home.tagline).toBe("VARIANT override");
+    // …and a site WITHOUT an override gets exactly the shared dictionary.
+    expect(access.get("en", "ca")).toEqual(access.get("en"));
+  });
+
+  it("enforces the SHARED booking-label invariant when the access is created", () => {
+    const build = (root: string) => () => dictionaryAccessForRuntimeContext(implicitContextFor(root));
+
+    // Enabled booking with the OPTIONAL section absent → the invariant's OWN diagnostic.
+    expect(
+      build(bookingInstallation({ provider: "external-url", label: undefined })),
+    ).toThrow(/booking\.book/);
+    expect(build(bookingInstallation({ provider: "external-url", label: undefined }))).toThrow(/ww\/en/);
+    // A whitespace-only label is missing too (the accepted trim rule).
+    expect(build(bookingInstallation({ provider: "external-url", label: "   " }))).toThrow(/booking\.book/);
+    // A non-empty label satisfies the lock, and the access object is usable.
+    const satisfied = dictionaryAccessForRuntimeContext(
+      implicitContextFor(bookingInstallation({ provider: "external-url", label: "Book now" })),
+    );
+    expect(satisfied.get("en").booking?.book).toBe("Book now");
+    // Disabled booking needs no label at all (an absent section is a valid state).
+    expect(build(bookingInstallation({ provider: "none", label: undefined }))).not.toThrow();
+  });
+
+  it("agrees with the production compatibility binding for the ACTIVE deployment", () => {
+    // The new access is handed THAT deployment's own context; the production binding stays untouched,
+    // so the one-Spoke build must answer identically through both.
+    const buildContext = currentBuildRuntimeContext();
+    const access = dictionaryAccessForRuntimeContext(buildContext);
+    const locale = buildContext.siteConfig.defaultLocale;
+
+    expect(access.get(locale)).toEqual(getDictionary(locale));
+    for (const site of buildContext.siteConfig.sites) {
+      expect(access.get(locale, site.code)).toEqual(getDictionary(locale, site.code));
+    }
   });
 });

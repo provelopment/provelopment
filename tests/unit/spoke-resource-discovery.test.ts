@@ -429,10 +429,13 @@ describe("still unwired — the per-Spoke capability has no runtime or build con
 
     // `page-sources` is the ONE consumer, and only on the branch where a caller SUPPLIES roots: with no
     // `roots` — which is what every current runtime and build call site does — the legacy entry points
-    // answer exactly as before. `src/app/**` and `src/proxy.ts` reach neither new entry point.
+    // answer exactly as before. `runtime-dictionaries` (S3F2A2-D1) is the ONE sanctioned runtime consumer
+    // of the per-Spoke loader, and it binds ONE explicit context rather than selecting one. `src/app/**`
+    // and `src/proxy.ts` reach neither new entry point.
     expect(mentioning).toEqual([
       "src/adapters/content/authoring-source-discovery.ts",
       "src/adapters/content/page-sources.ts",
+      "src/config/runtime-dictionaries.ts",
       "src/config/spoke-dictionaries.ts",
     ]);
   });

@@ -683,8 +683,10 @@ inference exists anywhere in `src/`.
   pre-existing `adapters/content/**` content repository is explicitly excluded.
 - **Booking label invariant (F1).** When `features.booking.provider =
   "external-url"`, every configured locale must provide a non-empty
-  `dictionary.booking.book`. `assertBookingLabelPresent` (in
-  `src/config/i18n/index.ts`, run at build time) throws a descriptive error
+  `dictionary.booking.book`. `assertBookingLabelPresent` (defined in
+  `src/config/i18n/invariants.ts`, re-exported by `src/config/i18n/index.ts` and run at build time;
+  the SpokeRuntimeContext-bound runtime dictionary access applies the SAME rule when it is created)
+  throws a descriptive error
   naming the offending locales instead of silently hiding an enabled CTA.
   Disabled/absent booking requires no label.
 

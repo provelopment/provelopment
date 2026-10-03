@@ -25,9 +25,15 @@
  * is why two Spokes may both hold `config/i18n/en.json` and `config/i18n/sites/ww/en.json` without
  * colliding, and why a value authored in one can never appear in the other.
  *
- * UNWIRED (S3E1B). `@/config/i18n` remains the running application's ACTIVE binding, and nothing in
- * `src/app/**`, `src/proxy.ts` or the current build imports this module: choosing which Spoke a
- * request or a build reads is S3F's work. This helper only answers for a Spoke already chosen.
+ * UNWIRED IN PRODUCTION; ONE SANCTIONED RUNTIME CONSUMER (S3E1B, updated by S3F2A2-D1).
+ * `@/config/i18n` remains the running application's ACTIVE binding, and nothing in `src/app/**`,
+ * `src/app/sitemap.ts`, `src/app/robots.ts` or `src/proxy.ts` imports this module: choosing which Spoke
+ * a request or a build reads is S3F2B's work. This helper only answers for a Spoke already chosen.
+ *
+ * Its ONE runtime consumer is the immutable, SpokeRuntimeContext-bound capability
+ * `./runtime-dictionaries` (`dictionaryAccessForRuntimeContext`), which binds exactly one explicit
+ * context to one registry of this kind. That consumer inherits this module's restrictions unchanged —
+ * it resolves no context and discovers no root of its own — and no further consumer is sanctioned.
  */
 import { loadDictionaryRegistry, type DictionaryRegistry } from "./i18n/registry";
 import type { SiteConfig } from "./site-config";
