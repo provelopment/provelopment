@@ -2,10 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { siteConfig } from "@/config";
 import { displayNameWithEnglish } from "@/core/display-labels";
 import { bindingsForSite, regionalPath, resolveLocaleDestination } from "@/core/regional-pages";
-import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSetOf, siteSupportsLocalePath } from "@/core/site";
+import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSupportsLocalePath } from "@/core/site";
+import { useClientRouting } from "./client-routing-context";
 
 interface LanguageSwitcherProps {
   /**
@@ -48,16 +48,19 @@ function writeLocaleCookie(nextLocale: string): void {
 export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
+  // M14 — the routing facts arrive from the SERVER's projection for the CURRENT Spoke: this site, this
+  // site's locales, this site's bindings. No configuration is read here and no Spoke can be selected.
+  const routing = useClientRouting();
 
   const context = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
-    siteConfig.pageBindings,
+    routing.siteSet,
+    routing.pageBindings,
     pathname ?? "/",
     locale,
   );
   const site = context.site;
   const sitePrefix = sitePrefixPath(site);
-  const entries = bindingsForSite(siteConfig.pageBindings, site.code);
+  const entries = bindingsForSite(routing.pageBindings, site.code);
   const current = context.localePath;
 
   function handleChange(nextLocale: string) {
@@ -89,11 +92,13 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   }
 
   const defaultLocale = site.defaultLocale;
-  /** The deployment's display label for a locale PATH KEY (`en`, `fr-ca`). */
-  const registryLabel = (localePath: string): string => {
-    const entry = siteConfig.locales.find((candidate) => candidate.code === localePath);
-    return displayNameWithEnglish(entry?.label ?? localePath, entry?.englishLabel);
-  };
+  /**
+   * The CONTEXT's display label for a locale PATH KEY (`en`, `fr-ca`): projected by the server through the
+   * ONE display-name rule (S1/M14), with the path key itself as the last resort — the same fallback this
+   * selector always had for a key the registry does not name.
+   */
+  const registryLabel = (localePath: string): string =>
+    routing.localeLabels[localePath] ?? localePath;
   const sortedLocales = [...site.locales].sort((a, b) => {
     if (a.path === defaultLocale) return -1;
     if (b.path === defaultLocale) return 1;

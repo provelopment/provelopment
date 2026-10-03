@@ -2,11 +2,11 @@
 
 import { usePathname } from "next/navigation";
 
-import { siteConfig } from "@/config";
 import { isInternalHref, bindingsForSite, resolveNavHref } from "@/core/regional-pages";
-import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
+import { pathContextOr, sitePrefixPath } from "@/core/site";
 import { regionOrder, type NavRegion } from "@/core/ui";
 import { NavItem } from "@/components/ui/nav-item";
+import { useClientRouting } from "./client-routing-context";
 
 export interface ContextNavLink {
   readonly href: string;
@@ -80,9 +80,12 @@ export function ContextNavLinks({
   sortByRegion = false,
 }: ContextNavLinksProps) {
   const pathname = usePathname();
+  // M14 — the routing facts arrive from the SERVER's projection for the CURRENT Spoke (the ONE client
+  // transport below the server composition): this component holds no configuration and can select nothing.
+  const routing = useClientRouting();
   const parsed = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
-    siteConfig.pageBindings,
+    routing.siteSet,
+    routing.pageBindings,
     pathname ?? `/${locale}`,
     locale,
   );
@@ -91,7 +94,7 @@ export function ContextNavLinks({
   const sitePrefix = sitePrefixPath(parsed.site);
   // S1E2 — the bindings are THIS site's own: a region bound to another site must not make a nav
   // item appear (or disappear) here, so the client resolver receives one site's inventory.
-  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.code);
+  const entries = bindingsForSite(routing.pageBindings, parsed.site.code);
 
   const resolved = links.flatMap((link) => {
     const href = resolveNavHref(entries, locale, parsed.region, link.href, sitePrefix);

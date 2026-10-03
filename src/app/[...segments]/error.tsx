@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { siteConfig } from "@/config";
-import { pathContextOr, sitePath, siteSetOf } from "@/core/site";
+import { pathContextOr, sitePath } from "@/core/site";
 
 import { useErrorMessages } from "@/components/site/error-messages-context";
+import { useClientRouting } from "@/components/site/client-routing-context";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
@@ -35,11 +35,15 @@ export default function Error({
   // goes to the CURRENT site's home rather than negotiating from the deployment root.
   const params = useParams<{ segments?: string[] }>();
   const messages = useErrorMessages();
+  // M14 — the routing facts arrive from the SERVER's projection for the CURRENT Spoke (the ONE client
+  // transport, provided by the document composition this boundary renders inside): this boundary holds no
+  // configuration module and can select nothing.
+  const routing = useClientRouting();
   const request = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
-    siteConfig.pageBindings,
+    routing.siteSet,
+    routing.pageBindings,
     `/${(params?.segments ?? []).join("/")}`,
-    siteConfig.defaultSite.defaultLocale,
+    routing.siteSet.defaultSite.defaultLocale,
   );
 
   return (

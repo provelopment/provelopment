@@ -163,6 +163,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic one-Spoke Installation trees under OS temp — the M13 server-composition isolation proofs' own " +
     "throwaway Installations (alpha/beta: a manifest, configuration, dictionaries and one authored page), " +
     "removed by exact ownership. The running deployment is only ever READ (M13)",
+  "tests/unit/context-metadata-isolation.test.ts":
+    "synthetic one-Spoke Installation trees under OS temp — the M14 client-projection / OpenGraph / sitemap / " +
+    "robots isolation proofs' own throwaway Installations (alpha/beta: a manifest, configuration, " +
+    "dictionaries and authored pages), removed by exact ownership. The running deployment is only ever READ (M14)",
   "tests/unit/runtime-asset-ownership-resolver.test.ts":
     "disposable namespace directories under OS temp — the ownership resolver's own throwaway trees " +
     "(a platform namespace plus two contexts' own, with the same basename deliberately in two of them), " +

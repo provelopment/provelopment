@@ -141,7 +141,10 @@ describe("M13 — shared server composition guard", () => {
     }
   });
 
-  it("records the REMAINING client compatibility consumers (Milestone 14's list, exactly)", () => {
+  it("records zero remaining client compatibility consumers (Milestone 14 removed all four)", () => {
+    // M13 pinned the exact four client consumers of the global configuration; M14 removed them (the four
+    // controls now read the server's routing projection), so the list must stay EMPTY — a fifth consumer
+    // must never appear as a replacement.
     const clientConsumers = sourceFiles(path.join(process.cwd(), "src", "components"))
       .filter((file) => readFileSync(file, "utf8").includes('"use client"'))
       .filter((file) =>
@@ -152,11 +155,6 @@ describe("M13 — shared server composition guard", () => {
       .map(relative)
       .sort();
 
-    expect(clientConsumers).toEqual([
-      "src/components/site/context-connect-heading.tsx",
-      "src/components/site/context-nav-links.tsx",
-      "src/components/site/language-switcher.tsx",
-      "src/components/site/location-switcher.tsx",
-    ]);
+    expect(clientConsumers).toEqual([]);
   });
 });

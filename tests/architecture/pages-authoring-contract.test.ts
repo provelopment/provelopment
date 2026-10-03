@@ -197,7 +197,8 @@ describe("pages-authoring contract — exactly two first-class modes", () => {
   });
 
   it("gives the sitemap the same inventory the routes use", () => {
-    const sitemap = read("app/sitemap.ts");
+    const sitemap = `${read("app/sitemap.ts")}
+${read("app/sitemap-context.ts")}`;
     expect(sitemap).toContain("createPageSources");
     // S1 — the inventory is asked PER SITE: `listRoutes(site.code, localePath)`.
     expect(sitemap).toContain("routes.listRoutes");

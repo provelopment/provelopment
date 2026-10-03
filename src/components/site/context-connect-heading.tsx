@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { siteConfig } from "@/config";
-import { resolveNavHref } from "@/core/regional-pages";
-import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
+import { resolveNavHref, bindingsForSite } from "@/core/regional-pages";
+import { pathContextOr, sitePrefixPath } from "@/core/site";
 import { FOOTER_TARGET_CLASS } from "./footer-link-class";
+import { useClientRouting } from "./client-routing-context";
 
 interface ContextConnectHeadingProps {
   readonly locale: string;
@@ -30,14 +30,19 @@ interface ContextConnectHeadingProps {
  */
 export function ContextConnectHeading({ locale, label }: ContextConnectHeadingProps) {
   const pathname = usePathname();
+  // M14 — the routing facts arrive from the SERVER's projection for the CURRENT Spoke.
+  const routing = useClientRouting();
   const parsed = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
-    siteConfig.pageBindings,
+    routing.siteSet,
+    routing.pageBindings,
     pathname ?? `/${locale}`,
     locale,
   );
+  // S1/M14 — the heading resolves INSIDE the current site's own bindings (a binding declared for another
+  // site can never answer here), so the generic context reaches the generic Connect page, a regional
+  // context with a regional Connect reaches it, and a regional context WITHOUT one renders no link at all.
   const href = resolveNavHref(
-    siteConfig.pageBindings,
+    bindingsForSite(routing.pageBindings, parsed.site.code),
     locale,
     parsed.region,
     "/connect",

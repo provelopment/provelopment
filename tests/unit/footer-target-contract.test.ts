@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+
+import { renderWithRouting } from "../support/client-routing";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/en" }));
@@ -52,8 +54,8 @@ const LINKS: readonly ContextNavLink[] = [
 
 /** The footer's own list rendering: the shared component plus the footer's link class. */
 const renderFooterList = () =>
-  renderToStaticMarkup(
-    ContextNavLinks({ locale: "en", links: LINKS, linkClassName: FOOTER_LINK_CLASS }),
+  renderWithRouting(
+    createElement(ContextNavLinks, { locale: "en", links: LINKS, linkClassName: FOOTER_LINK_CLASS }),
   );
 
 describe("VIS2S — the shared footer link target contract", () => {

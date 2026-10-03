@@ -58,6 +58,8 @@ import { ShellEngine } from "@/components/shell";
 import { SidebarPreferenceBoot } from "@/components/ui/sidebar-preference-boot";
 import { PageBanner } from "@/components/site/page-banner";
 import { PageBackground } from "@/components/site/page-background";
+import { ClientRoutingProvider } from "@/components/site/client-routing-context";
+import { buildClientRoutingContext, type ClientRoutingContext } from "@/components/site/client-routing";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
 import { PageDocumentContent } from "@/components/site/page-document-content";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
@@ -118,6 +120,8 @@ export interface SpokeServerComposition {
   readonly directionLinks: DirectionLinkResolver;
   readonly bookingActions: BookingActionResolver;
   readonly resolvedUi: ResolvedUiConfig;
+  /** M14 — the CLIENT-safe routing projection of THIS Spoke, for the controls that resolve destinations. */
+  readonly clientRouting: ClientRoutingContext;
 }
 
 /**
@@ -159,6 +163,9 @@ export function spokeServerComposition(context: SpokeRuntimeContext): SpokeServe
     directionLinks: createDirectionLinkResolver(siteConfig.mapsFeature),
     bookingActions: createBookingActionResolver(siteConfig.bookingFeature),
     resolvedUi: resolveUiConfig(siteConfig.ui ?? {}),
+    // M14 — ONE client-safe projection per composition: the four routing controls read it through the ONE
+    // transport, so no client can reach a configuration module and no placement can use a different source.
+    clientRouting: buildClientRoutingContext(siteConfig, siteSet),
   };
 }
 
@@ -801,6 +808,9 @@ export async function layoutForContext(
       {...htmlPresentationAttrs}
     >
       <body className="min-h-full flex flex-col">
+        {/* M14 — the ONE client transport for this Spoke's routing projection: every routing control below
+            (header, footer, sidebar, switchers, the error/404 surfaces) reads THIS document's context. */}
+        <ClientRoutingProvider routing={composition.clientRouting}>
         {sidebarPreferenceBridge ? <SidebarPreferenceBoot /> : null}
         <a
           href="#main"
@@ -874,6 +884,7 @@ export async function layoutForContext(
         />
         {hasRegions ? null : <StructuredData locale={locale} siteConfig={siteConfig} />}
         {analytics}
+        </ClientRoutingProvider>
       </body>
     </html>
   );
