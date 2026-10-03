@@ -125,7 +125,7 @@ describe("M14 — metadata surfaces guard", () => {
     expect(route).not.toContain('from "@/config"');
     expect(route).not.toContain("getDictionary(");
     expect(route).not.toContain("siteConfig");
-    expect(route).toContain("currentBuildRuntimeContext()");
+    expect(route).toContain("runtimeContextForCurrentRequest");
     expect(route).toContain("openGraphImageModelForContext");
 
     const model = code(OG_MODEL);
@@ -142,7 +142,7 @@ describe("M14 — metadata surfaces guard", () => {
       const source = code(route);
       expect(source, relative(route)).not.toContain('from "@/config"');
       expect(source, relative(route)).not.toContain("siteConfig");
-      expect(source, relative(route)).toContain("currentBuildRuntimeContext()");
+      expect(source, relative(route)).toContain("runtimeContextForRequest()");
       expect(source, relative(route)).toContain(delegate);
 
       const composition = code(contextFile);

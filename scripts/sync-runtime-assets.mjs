@@ -374,6 +374,39 @@ export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
   const rows = [];
   const push = (from, to, note, namespace) => rows.push({ from, to, note, namespace });
 
+  /**
+   * M17 — A PLATFORM TARGET IS AUTHORED ONCE, SHARED BY EVERY SPOKE.
+   *
+   * The platform namespace is ONE generated tree, while a multi-Spoke Installation is authored as N complete
+   * Spoke roots — each of which legitimately authors the platform-owned artwork. Two Spokes shipping the SAME
+   * bytes for the same platform basename is therefore not a conflict: it is the same shared asset, and the
+   * namespace gets ONE row for it. Genuinely DIFFERENT bytes for one platform target remain REFUSED (the
+   * caller's own uniqueness check reports both sources), because the platform namespace cannot hold two
+   * versions of an asset and "which Spoke's copy wins" is exactly the precedence this installer refuses.
+   *
+   * @param {string} from the candidate source, relative to the Installation root
+   * @param {string} to the runtime target basename
+   * @param {string} note why the file is mirrored
+   * @returns {boolean} whether the row was added
+   */
+  const pushPlatform = (from, to, note) => {
+    const existing = rows.find((row) => row.namespace === PLATFORM_NAMESPACE_KEY && row.to === to);
+    if (existing === undefined) {
+      push(from, to, note, PLATFORM_NAMESPACE_KEY);
+      return true;
+    }
+
+    const same =
+      sha256(readFileSync(path.join(deploymentRoot, existing.from))) ===
+      sha256(readFileSync(path.join(deploymentRoot, from)));
+    if (same) return true;
+
+    // DIFFERENT bytes for one shared platform target: BOTH rows stay, so the uniqueness rule refuses the plan
+    // and names the two sources. Silently dropping one would be exactly the precedence this installer refuses.
+    push(from, to, note, PLATFORM_NAMESPACE_KEY);
+    return false;
+  };
+
   if (authoring.mode === "legacy") {
     for (const { from, to, note } of MIRRORED) push(from, to, note, PLATFORM_NAMESPACE_KEY);
     for (const { from, note } of MIRRORED_DIRECTORIES) {
@@ -382,6 +415,15 @@ export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
       }
     }
     return assertUniqueTargets(rows);
+  }
+
+  // INSTALLATION-LEVEL platform artwork (M17): the one location that is not any Spoke's, and therefore the
+  // installation's own shared artwork — installed FIRST, so no Spoke can shadow it.
+  for (const { from, note } of MIRRORED_DIRECTORIES) {
+    if (!existsSync(path.join(deploymentRoot, from))) continue;
+    for (const name of directoryFiles(deploymentRoot, from)) {
+      pushPlatform(`${from}/${name}`, name, note);
+    }
   }
 
   for (const spoke of authoring.spokes) {
@@ -401,13 +443,13 @@ export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
       }
     }
 
-    // Platform-owned artwork stays SHARED: read from the Spoke's authored tree, installed into the ONE
-    // platform namespace.
+    // Platform-owned artwork stays SHARED: read from the Spoke's authored tree, installed ONCE into the ONE
+    // platform namespace — identical copies from two Spokes are the same asset, different ones are refused.
     for (const { from, note } of MIRRORED_DIRECTORIES) {
       const directory = `${spoke.relativeRoot}/${from}`;
       if (!existsSync(path.join(deploymentRoot, directory))) continue;
       for (const name of directoryFiles(deploymentRoot, directory)) {
-        push(`${directory}/${name}`, name, note, PLATFORM_NAMESPACE_KEY);
+        pushPlatform(`${directory}/${name}`, name, note);
       }
     }
   }

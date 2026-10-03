@@ -494,12 +494,14 @@ async function closeVisibleRail(cdp) {
   })()`);
 }
 
-function startDevServer(port, { synthetic = true } = {}) {
+function startDevServer(port, { synthetic = true, deploymentRoot = null } = {}) {
   const proc = spawn(process.execPath, [NEXT_BIN, "dev", "--port", String(port)], {
     cwd: ROOT,
-    env: synthetic
-      ? { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: DEPLOYMENT_ROOT }
-      : { ...process.env },
+    env: deploymentRoot !== null
+      ? { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: deploymentRoot }
+      : synthetic
+        ? { ...process.env, FOUNDATION_DEPLOYMENT_ROOT: DEPLOYMENT_ROOT }
+        : { ...process.env },
     stdio: ["ignore", "pipe", "pipe"],
     windowsHide: true,
   });
@@ -641,6 +643,55 @@ async function runDeploymentScenarios(chrome, directory, names) {
     );
   }
   return rows;
+}
+
+/**
+ * The FOUNDATION-owned scenarios: the SAME `*.scenario.mjs` convention the deployment family uses, in the
+ * harness's own directory.
+ *
+ * A platform contract that needs its OWN Installation — M16's multi-Spoke runtime, dispatched by hostname —
+ * belongs to the Foundation and not to whichever deployment happens to be installed, so it lives in a file of
+ * its own instead of growing this runner. Discovery is FILENAME-DRIVEN, exactly like the deployment family's:
+ * adding a scenario never edits a list.
+ */
+async function discoverFoundationScenarios() {
+  return deploymentScenarioFiles(await readdir(HERE));
+}
+
+/** Runs every Foundation-owned scenario, labelled and summarised exactly like a scenario in this file. */
+async function runFoundationScenarios(chrome, names) {
+  const rows = [];
+  for (const file of names) {
+    const loaded = await import(pathToFileURL(join(HERE, file)).href);
+    const scenario = loaded.default ?? loaded;
+    const label = scenario.id ?? file.slice(0, -SCENARIO_SUFFIX.length);
+    const scenarioRows = await scenario.run(chrome, foundationHarness());
+    rows.push(...scenarioRows.map((row) => ({ presentation: label, ...row })));
+    const failures = scenarioRows.filter((row) => !row.ok).length;
+    console.log(
+      `[matrix] ${label}: ${scenarioRows.length - failures}/${scenarioRows.length} checks passed${failures ? ` FAIL=${failures}` : ""}`,
+    );
+  }
+  return rows;
+}
+
+/**
+ * The harness a FOUNDATION-owned scenario receives: the same mechanics the deployment family gets, plus the
+ * two facts a platform contract may need — the repository it runs in, and the GUARDED writers that are this
+ * harness's own write domain (`./scratch.mjs`), so a scenario that must materialise GENERATED Spoke output
+ * cannot bypass the guard that owns that domain.
+ */
+function foundationHarness() {
+  return {
+    ...deploymentHarness(),
+    repositoryRoot: ROOT,
+    configFile: CONFIG_PATH,
+    writeFile,
+    mkdir,
+    rm,
+    rmSync,
+    cpSync,
+  };
 }
 
 async function writeReport(rows, totalFails) {
@@ -7705,6 +7756,8 @@ const multisiteChoose = (name, value) => `(() => {
   if (scopePlan.deployment && discovery.names.length === 0) {
     throw new Error(deploymentScopeFailure(discovery));
   }
+  // Foundation-owned scenarios are discovered the same way (M16), and only when this scope runs them.
+  const foundationScenarios = scopePlan.foundation ? await discoverFoundationScenarios() : [];
 
   let allRows = [];
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -7804,6 +7857,13 @@ const multisiteChoose = (name, value) => `(() => {
       allRows = allRows.concat(appearanceRows.map((r) => ({ presentation: "appearance-contract", ...r })));
       const appearanceFails = appearanceRows.filter((r) => !r.ok).length;
       console.log(`[matrix] appearance-contract: ${appearanceRows.length - appearanceFails}/${appearanceRows.length} checks passed${appearanceFails ? ` FAIL=${appearanceFails}` : ""}`);
+      // FOUNDATION-MULTISITE-M16/M17 — MULTI-HOST SPOKE RUNTIME: a disposable TWO-SPOKE Installation, served
+      // by its own dev server and dispatched by EXACT HOSTNAME through the running application (own server +
+      // its own Installation; the generated Spoke namespaces it materialises are removed again).
+      if (foundationScenarios.length > 0) {
+        const multihostRows = await runFoundationScenarios(chrome, foundationScenarios);
+        allRows = allRows.concat(multihostRows);
+      }
     }
   } finally {
     await writeFile(CONFIG_PATH, original, "utf8");

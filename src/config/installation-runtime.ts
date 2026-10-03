@@ -50,7 +50,6 @@ import { composeInstallationSpokeHub, configureSpoke } from "./spoke-composition
 import { spokeResourceIndexFor, type SpokeResourcePaths } from "./spoke-resources";
 import { resolveInstallationSpokeRoots } from "./spoke-roots";
 import {
-  runtimeSegmentForSpokeId,
   spokeRuntimeAssetNamespacePath,
   spokeRuntimeAssetUrlBase,
 } from "./spoke-runtime-segment.mjs";

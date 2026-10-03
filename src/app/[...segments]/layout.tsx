@@ -1,27 +1,31 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 
-import { currentBuildRuntimeContext } from "@/config/installation-runtime";
-
 import { layoutForContext, layoutMetadataForContext, spokeServerComposition } from "./server-composition";
+import { requestPublicDestination } from "./request-context";
 import "../globals.css";
 
 /**
- * THE ROOT LAYOUT — the COMPATIBILITY CALLER of the shared document composition (FOUNDATION-MULTISITE-M13)
- * ==========================================================================================================
+ * THE PUBLIC DOCUMENT BOUNDARY — the ROOT layout of the site-scoped URL space (FOUNDATION-MULTISITE-M16/M17)
+ * =========================================================================================================
  *
  * S1 — the ROOT layout of a SITE-SCOPED URL space: `/{site}/{locale}/...`. The document's `lang`, the
  * dictionary, the navigation, the footer and every internal URL belong to ONE site; that site and locale are
- * resolved by the SAME ONE resolver the page uses, inside `./server-composition`.
+ * resolved by the SAME request-selected context the page uses, inside `./request-context`.
+ *
+ * WHICH SPOKE (M17). It is NOT decided here and NOT decided by this file's callers: the request boundary
+ * matched the exact hostname claim and declared its Spoke on a private upstream header, and
+ * `./request-context` turns that declaration into an explicit `SpokeRuntimeContext` — or refuses. This file
+ * reads no hostname, holds no global configuration, and never falls back to a first or default Spoke.
  *
  * WHAT STAYS HERE is the STATIC PLATFORM: the brand typography, the stylesheet import, the mobile-browser
- * chrome colors and the static-parameter policy. Those are facts about this deployment's platform — not about a
- * request — so they are module-level and are never turned into request state.
+ * chrome colors. Those are facts about this deployment's platform — not about a request — so they are
+ * module-level and are never turned into request state.
  *
- * WHAT MOVED is every Spoke-specific derived value (the site set, the resolved UI configuration, the
- * configured-icon assertion, the analytics provider, the direction-link resolver, the context-bound
- * dictionary access, the context-bound asset answers and the Site-switch destinations): they are derived
- * from the explicit context the route hands to the composition, so two contexts cannot share chrome.
+ * REQUEST-TIME RENDERING (M17). The selected Spoke is known only from the request, so this route
+ * deliberately generates no static parameters and claims no static pathname: the SAME public pathname is
+ * rendered per host, from that host's own context. Site/locale completion still redirects incomplete public
+ * paths (a bare Site, an unknown locale) to their completed public URL.
  */
 
 // P6-2D — brand typography (content/assets/branding/branding-schema.md): the brand's primary
@@ -43,12 +47,6 @@ const geistMono = Geist_Mono({
 const HTML_CLASS_NAME = `${brandSans.variable} ${geistMono.variable} h-full antialiased`;
 
 /**
- * Unknown SITES and LOCALES are not rendered on demand: only the (site, locale) combinations the
- * configuration declares are generated, which is what `dynamicParams = false` enforces.
- */
-export const dynamicParams = false;
-
-/**
  * Mobile-browser chrome theme colors, mirroring the semantic `--background`
  * token for each scheme (Phase D). Keep in step with the token section of
  * globals.css when re-theming.
@@ -66,15 +64,21 @@ interface LocaleLayoutProps {
 }
 
 export async function generateMetadata({ params }: LocaleLayoutProps): Promise<Metadata> {
+  const { context, destination } = await requestPublicDestination((await params).segments ?? []);
   return layoutMetadataForContext(
-    spokeServerComposition(currentBuildRuntimeContext()),
-    (await params).segments,
+    spokeServerComposition(context),
+    destination.segments as string[],
   );
 }
 
 export default async function LocaleLayout({ children, params }: LocaleLayoutProps) {
-  // The context is chosen ONCE, here at the boundary — the accepted one-Spoke compatibility seam — and the
-  // shared composition derives the whole document from it.
-  const composition = spokeServerComposition(currentBuildRuntimeContext());
-  return layoutForContext(composition, (await params).segments, children, HTML_CLASS_NAME);
+  // The context is the one the REQUEST selected (the boundary's exact hostname claim), and the shared
+  // composition derives the whole document from it.
+  const { context, destination } = await requestPublicDestination((await params).segments ?? []);
+  return layoutForContext(
+    spokeServerComposition(context),
+    destination.segments as string[],
+    children,
+    HTML_CLASS_NAME,
+  );
 }

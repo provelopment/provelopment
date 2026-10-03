@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { segments } from "next/root-params";
 
-import { currentBuildRuntimeContext } from "@/config/installation-runtime";
+import { runtimeContextForCurrentRequest } from "@/config/spoke-request";
 import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
 import { pathContextOr, sitePath, siteSetOf } from "@/core/site";
 import { StatusGraphic } from "@/components/site/status-graphic";
@@ -16,14 +16,21 @@ import { Section } from "@/components/ui/section";
  * An unknown path resolves deterministically to the default site — never a guess about which
  * site the visitor meant.
  *
- * M14 — THE BOUNDARY RULE APPLIES HERE TOO. Next hands this route no props, so it selects the current
- * build's ONE Spoke context (`currentBuildRuntimeContext`, the accepted one-Spoke compatibility seam, the
- * same one the page route uses) and takes the configuration, the path context and the dictionary from THAT
- * context. No module-global Spoke authority is involved, and no other Spoke can answer.
+ * M17 — THE BOUNDARY RULE APPLIES HERE TOO. Next hands this route no props, so it takes the Spoke the
+ * REQUEST selected (the boundary's exact hostname claim, carried on a private upstream header) and reads the
+ * configuration, the path context and the dictionary from THAT context. No module-global Spoke authority is
+ * involved, and no other Spoke can answer.
  */
 export default async function NotFound() {
   const path = await segments();
-  const context = currentBuildRuntimeContext();
+  // A not-found surface is reached from inside the public route tree, so a selection exists — and if it does
+  // not, failing loudly is the only honest answer: never another Spoke's dictionary.
+  const context = await runtimeContextForCurrentRequest();
+  if (context === null) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M17: no Spoke answers this request, so no not-found surface can be composed.",
+    );
+  }
   const siteConfig = context.siteConfig;
   const request = pathContextOr(
     siteSetOf(siteConfig.sites, siteConfig.defaultSite),

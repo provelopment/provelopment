@@ -1799,6 +1799,56 @@ shared language base (e.g. config/i18n/fr.json answering fr, fr-ca and fr-fr)
 
 An unknown key in an override is refused; another site's override is never read.
 
+## Multi-host Spoke runtime (FOUNDATION-MULTISITE-M16/M17 — CLOSED)
+
+An Installation may declare **1..\* Spokes**, and the runtime below renders whichever one a request's host
+names. The build selects the INSTALLATION (its root, its routing description); it never selects a Spoke.
+
+```text
+Host  →  src/proxy.ts  →  exact hostname claim  →  PRIVATE upstream header  →  public catch-all  →  M13/M14 renderer
+```
+
+* **Proxy is the sole `Host` → Spoke authority.** It normalizes the raw host with the domain's own rule
+  (`@/core/spoke`) and matches **exact** claims: a differently-cased or ported host resolves, and every
+  unclaimed host — a subdomain, a suffix lookalike or an absent `Host` — is **refused (404)**. There is no
+  wildcard rule, no default Spoke and no "first" Spoke.
+* **The selected runtime segment travels privately upstream.** The boundary passes the request through with
+  `x-foundation-spoke-segment` set on the *request* (`NextResponse.next({ request: { headers } })`) and never
+  adds it to a response. The header is **overwritten** on every handled request, so a client cannot select a
+  Spoke by sending it, and an unclaimed host stays refused whatever it claims. One spelling authority lives in
+  `src/config/spoke-selection.ts`.
+* **The public App Router pathname remains the route identity.** `src/app/[...segments]/{layout,page}.tsx` is
+  the ONLY normal page identity; the boundary performs **no page rewrite**, and the retired `/~spoke/<segment>`
+  page tree does not exist (a direct request to `/~spoke/**` is refused). This is what makes client-side
+  navigation ordinary App Router **soft navigation**: a `<Link>` click commits on the public pathname, with the
+  rendered document proving it (a browser sentinel survives the transition; a reload would destroy it).
+* **Page rendering resolves an explicit `SpokeRuntimeContext` from the trusted selection**
+  (`runtimeContextForCurrentRequest()` → `requestPublicDestination()` → `spokeServerComposition(context)`). The
+  route files resolve no hostname and hold no global configuration: they choose a context and hand it to the
+  one shared composition (`pageForContext`, `pageMetadataForContext`, `layoutForContext`,
+  `layoutMetadataForContext`).
+* **The same public pathname may render different Spokes on different hostnames**, so public pages are
+  **request-time selected** rather than duplicated static artifacts for one pathname: the public route
+  generates no static parameters and claims no static pathname. The discovered per-context inventory remains a
+  domain capability (`staticParamsForContext`) used by the sitemap, validation and tooling.
+* **Spoke asset namespaces remain runtime-segment based and host-bound**: `/spokes/<segment>/assets/**` is
+  served only on a host that Spoke answers for (any other host is refused, dotted paths included), while the
+  **platform namespace `/assets/**` stays shared**.
+* **`sitemap.xml`, `robots.txt` and `/[site]/[locale]/opengraph-image` are request-isolated**: each is composed
+  from the Spoke the request resolves to, so Alpha publishes Alpha's origin and inventory and Beta publishes
+  Beta's. There is no union sitemap and no cross-host URL.
+* **`currentBuildRuntimeContext()` remains legacy / exactly-one-Spoke compatibility only.** It answers for a
+  legacy or single-Spoke Installation, still **refuses** an Installation declaring two or more, and is no
+  longer the public page authority.
+* Site/locale completion is unchanged in its rules and now runs at the public boundary: an incomplete public
+  path (a bare Site, an unknown second segment, no Site at all) is completed with a **public** redirect inside
+  the selected Spoke only.
+
+**Recorded for Milestone 18 (nothing created).** The owner-provisioned hostname for the future Germany Spoke is
+`foundation-template-germany.provelopment.com`. No Germany Spoke exists, no Germany content moved, the hostname
+is not activated, and the current production topology is unchanged.
+
+
 ## Establishment: making ONE complete installation (FOUNDATION-B4B)
 
 The domain model of an installation is `src/core/foundation-installation/**`; the act of creating one is
@@ -1843,4 +1893,3 @@ COMPLETE, verified, ACTIVATED installation — `live` names the exact candidate 
 Foundation state — and leaves health unevaluated (`offline`, `healthEvaluatedAt: null`), because no health
 check ran. Promotion is not health, and only `recordInstallationHealth` — a real evaluation of the live
 installation — can make it `online`.
-
