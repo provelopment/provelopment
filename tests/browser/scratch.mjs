@@ -42,19 +42,11 @@ const REPORT_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), ".re
 
 /**
  * The domains this harness may write into: the OS temporary directory (where the disposable synthetic
- * deployment, the browser profile and the machine-readable report live), this harness's ignored `.report/`,
- * and — M16 — the GENERATED Spoke runtime namespaces (`<repo>/public/spokes/**`).
- *
- * WHY THE GENERATED NAMESPACES ARE A HARNESS DOMAIN. `public/assets/**` and `public/spokes/**` are GENERATED
- * output, not deployment state (`scripts/sync-runtime-assets.mjs` produces them from authored sources, and
- * both are git-ignored). A multi-Spoke proof must materialise the SECOND Spoke's own namespace, because
- * "Alpha's artwork is served on Alpha's host and REFUSED on Beta's" is only observable if Beta's host has a
- * different directory to be refused from. Only `public/spokes/**` is added — never the shared platform
- * namespace — and the scenario removes exactly the segments it created.
+ * deployment, the browser profile and the machine-readable report live) and the ignored `.report/`.
  */
 export function harnessWriteRoots() {
   return {
-    allowed: [os.tmpdir(), REPORT_ROOT, path.join(ROOT, "public", "spokes")],
+    allowed: [os.tmpdir(), REPORT_ROOT],
     protected: protectedRoots(),
   };
 }

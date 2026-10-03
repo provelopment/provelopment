@@ -12,7 +12,7 @@
  * assets, pages and the request boundary are all LATER slices, and this one deliberately holds no
  * opinion about any of them.
  */
-export { normalizeHostname, hostnameFromOrigin } from "./hostname";
+export { normalizeHostname } from "./hostname";
 export type { Hostname } from "./hostname";
 
 export type { Hub, HubId, HubIdentity, Spoke, SpokeHub, SpokeId, SpokeIdentity } from "./model";

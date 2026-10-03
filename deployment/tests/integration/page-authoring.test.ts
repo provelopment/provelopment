@@ -42,17 +42,7 @@ vi.resetModules();
 
 const page = await import("@/app/[...segments]/page");
 const PageRoute = page.default;
-const { generateMetadata } = page;
-// M17 — the discovered PUBLIC route inventory is a DOMAIN capability now, not an App Router static identity:
-// the page route generates nothing (the same pathname is rendered per host), and the inventory the sitemap
-// publishes is composed from the request-selected Spoke's own configuration.
-const publicRouteInventory = async (): Promise<{ segments: string[] }[]> => {
-  const { staticParamsForContext, spokeServerComposition } = await import(
-    '@/app/[...segments]/server-composition'
-  );
-  const { currentBuildRuntimeContext } = await import('@/config/installation-runtime');
-  return staticParamsForContext(spokeServerComposition(currentBuildRuntimeContext()));
-};
+const { generateMetadata, generateStaticParams } = page;
 const sitemap = (await import("@/app/sitemap")).default;
 const { createPageSources } = await import("@/adapters/content/page-sources");
 const { siteConfig } = await import("@/config");
@@ -346,7 +336,7 @@ describe("the one page model, through the real application", () => {
 });
 
   it("generates a real static route for a flat AND a nested page", async () => {
-    const generated = await publicRouteInventory();
+    const generated = await generateStaticParams();
     const paths = generated
       .filter((route) => route.segments[0] === SITE && route.segments[1] === "en")
       .map((route) => route.segments.slice(2).join("/"));
@@ -430,7 +420,7 @@ describe("the one page model, through the real application", () => {
   });
 
   it("never publishes a README, in any shape, and never serves an unknown path", async () => {
-    const generated = await publicRouteInventory();
+    const generated = await generateStaticParams();
     for (const readme of ["README", "readme"]) {
       expect(generated.some((route) => route.segments.slice(2).join("/") === readme), readme).toBe(false);
     }
@@ -454,7 +444,7 @@ describe("the one page model, through the real application", () => {
 
   it("publishes no phantom page from an empty or unconfigured locale directory", async () => {
     expect(existsSync(EMPTY_LOCALE_DIRECTORY)).toBe(true);
-    const generated = await publicRouteInventory();
+    const generated = await generateStaticParams();
 
     for (const route of generated) {
       expect(route.segments[1], JSON.stringify(route)).not.toBe(EMPTY_LOCALE_NAME);
@@ -488,7 +478,7 @@ describe("the one page model, through the real application", () => {
     // A section only the DECLARATIVE vocabulary can produce (the starter has none).
     expect(html).toContain("Two ways to create a page");
     // …and the reserved home slug never becomes its own URL.
-    const paths = (await publicRouteInventory()).map((route) => route.segments.join("/"));
+    const paths = (await generateStaticParams()).map((route) => route.segments.join("/"));
     expect(paths).not.toContain(`${SITE}/en/${HOME_CONTENT_SLUG}`);
   });
 

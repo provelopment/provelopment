@@ -1,7 +1,4 @@
-export { parseSiteConfig } from "./loader";
-// M16 — the ONE-SPOKE compatibility binding: eagerly read, and refusing LOUDLY when the Installation declares
-// several Spokes (see `./active-site-config`). `parseSiteConfig` itself is importable with no side effect.
-export { siteConfig } from "./active-site-config";
+export { parseSiteConfig, siteConfig } from "./loader";
 export { effectiveSitePageConfig, mergeSitePageConfig } from "./site-page-config";
 export { siteDescriptionForLocale } from "./site-metadata";
 export type { PageFacingConfig, SitePageConfig } from "./site-page-config";
