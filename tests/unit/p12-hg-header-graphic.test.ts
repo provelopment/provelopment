@@ -175,8 +175,10 @@ describe("P12-HG — availability + rendering contract", () => {
   });
 
   it("reuses the SAME generic availability rule as every other runtime role (no second loader)", () => {
+    // S3F2A2-R4 — the ONE shared rule now lives in the proven runtime resolver, and the live module
+    // delegates to it: still no second loader anywhere.
     expect(assets).toMatch(
-      /export function availableHeaderGraphicPath[\s\S]{0,200}availableRoleAssetPath\(absoluteUrl\)/,
+      /export function availableHeaderGraphicPath[\s\S]{0,200}compatibilityResolver\.availableHeaderGraphicPath\(absoluteUrl\)/,
     );
     // No dedicated filesystem subsystem / client fetcher for this role.
     expect(componentCode).not.toMatch(/node:fs|existsSync|fetch\(/);
@@ -343,7 +345,9 @@ describe("P12-HG — separation + reusability contract", () => {
     expect(siteHeader).not.toContain("footerGraphic");
     expect(siteFooter).not.toContain("headerGraphic");
     expect(availableFooterGraphicPath(AVAILABLE)).toBe(LIVE);
-    expect(assets).toMatch(/export function availableFooterGraphicPath[\s\S]{0,200}availableRoleAssetPath/);
+    expect(assets).toMatch(
+      /export function availableFooterGraphicPath[\s\S]{0,200}compatibilityResolver\.availableFooterGraphicPath/,
+    );
   });
 
   it("15. the page-background role (P12-BG) remains independent", () => {

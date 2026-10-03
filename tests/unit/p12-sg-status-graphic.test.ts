@@ -381,8 +381,10 @@ describe("P12-SG — separation, reusability and role independence", () => {
   });
 
   it("§8. the SHARED generic availability machinery is reused — no new loader", () => {
+    // S3F2A2-R4 — the ONE shared rule now lives in the proven runtime resolver, and the live module
+    // delegates to it: still no new loader anywhere.
     expect(assets).toMatch(
-      /export function availableStatusGraphicPath[\s\S]{0,200}availableRoleAssetPath\(absoluteUrl\)/,
+      /export function availableStatusGraphicPath[\s\S]{0,200}compatibilityResolver\.availableStatusGraphicPath\(absoluteUrl\)/,
     );
     // No separate file loader, no client-side fetch, no remote artwork system.
     expect(componentCode).not.toMatch(/fetch\(|XMLHttpRequest|readFileSync|node:fs/);
