@@ -17,6 +17,11 @@ import type { RuntimeAssetNamespace } from "./deployment-root";
  * platform namespace and an unowned path both keep the configured pathname; a Spoke namespace answers with
  * its own URL base) and the icon availability/name/URL/control-default projections.
  *
+ * S3F2A2-R3B adds the PAGE-ROLE surface on top: the banner, background (with its map), footer, header and
+ * status graphic roles, every one of them answering through ONE shared availability rule — pathname →
+ * basename → this resolver's ownership. A role is available only when a supplied namespace actually holds
+ * the file, which is the deliberate, load-bearing distinction from `runtimeAssetUrl`.
+ *
  * This module is ADDITIVE and UNWIRED (S3F2A2-R1): `./assets` still backs every production asset export
  * exactly as it does today, so no rendering behaviour changes here. It is proved independently first; the
  * later cutover slice points the production exports at it, keeping every public signature.
@@ -69,6 +74,26 @@ export interface RuntimeAssetOwnershipResolver {
 
   /** The same-origin URL a configured asset URL resolves to (the accepted runtime-asset projection). */
   runtimeAssetUrl(absoluteUrl: string | undefined): string | undefined;
+
+  /** The banner role's runtime URL, or `undefined` unless a supplied namespace owns the basename. */
+  availableBannerPath(absoluteUrl: string | undefined): string | undefined;
+
+  /** The background role's runtime URL, or `undefined` unless a supplied namespace owns the basename. */
+  availableBackgroundPath(absoluteUrl: string | undefined): string | undefined;
+
+  /** The background map with every unavailable entry DROPPED (never an `undefined` value, no placeholder). */
+  availableBackgroundMap(
+    configured: Readonly<Record<string, string>> | undefined,
+  ): Record<string, string>;
+
+  /** The footer graphic role's runtime URL, or `undefined` unless a namespace owns the basename. */
+  availableFooterGraphicPath(absoluteUrl: string | undefined): string | undefined;
+
+  /** The header graphic role's runtime URL, or `undefined` unless a namespace owns the basename. */
+  availableHeaderGraphicPath(absoluteUrl: string | undefined): string | undefined;
+
+  /** The status graphic role's runtime URL, or `undefined` unless a namespace owns the basename. */
+  availableStatusGraphicPath(absoluteUrl: string | undefined): string | undefined;
 }
 
 /** An intrinsic pixel size read from an asset header (deliberately the accepted shape from `./assets`). */
@@ -315,6 +340,25 @@ export function createRuntimeAssetOwnershipResolver(
     return owner === null ? "" : `${owner.urlBase}/${name}`;
   };
 
+  /**
+   * THE SHARED AVAILABILITY RULE behind every page-role graphic — banner, background (and its map), footer,
+   * header and status all answer through here, so the rule exists ONCE: pathname → basename → THIS resolver's
+   * own ownership, then the already-proven URL projection.
+   *
+   * The distinction from `runtimeAssetUrl` is deliberate and load-bearing: that method preserves an UNOWNED
+   * configured pathname, because a generic configured asset may be directly served outside the mirror, while
+   * a configured page-role graphic is AVAILABLE only when a declared runtime namespace actually holds its
+   * basename — otherwise `undefined`, so no placeholder, no reserved space, no broken image and no 404 is
+   * ever invented.
+   */
+  const roleUrl = (absoluteUrl: string | undefined): string | undefined => {
+    const pathname = pathnameOf(absoluteUrl);
+    if (!pathname) return undefined;
+    const name = pathname.split("/").pop() ?? "";
+    if (name === "" || ownerOf(name) === null) return undefined;
+    return runtimeUrlFor(pathname, name);
+  };
+
   return Object.freeze({
     namespaces: snapshot,
     namespaceOwning: (name: string): RuntimeAssetNamespace | null => ownerOf(name),
@@ -349,5 +393,23 @@ export function createRuntimeAssetOwnershipResolver(
       if (pathname === undefined) return undefined;
       return runtimeUrlFor(pathname, pathname.split("/").pop() ?? "");
     },
+    availableBannerPath: (absoluteUrl: string | undefined): string | undefined => roleUrl(absoluteUrl),
+    availableBackgroundPath: (absoluteUrl: string | undefined): string | undefined =>
+      roleUrl(absoluteUrl),
+    availableBackgroundMap: (
+      configured: Readonly<Record<string, string>> | undefined,
+    ): Record<string, string> =>
+      Object.fromEntries(
+        Object.entries(configured ?? {}).flatMap(([role, url]) => {
+          const path = roleUrl(url);
+          return path ? [[role, path]] : [];
+        }),
+      ),
+    availableFooterGraphicPath: (absoluteUrl: string | undefined): string | undefined =>
+      roleUrl(absoluteUrl),
+    availableHeaderGraphicPath: (absoluteUrl: string | undefined): string | undefined =>
+      roleUrl(absoluteUrl),
+    availableStatusGraphicPath: (absoluteUrl: string | undefined): string | undefined =>
+      roleUrl(absoluteUrl),
   });
 }

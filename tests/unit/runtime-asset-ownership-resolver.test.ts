@@ -488,3 +488,118 @@ describe("runtime asset urls", () => {
     expect(alpha.runtimeAssetUrl("")).toBe("");
   });
 });
+
+/**
+ * S3F2A2-R3B — RESOLVER-LOCAL PAGE-ROLE AVAILABILITY
+ * ==================================================
+ *
+ * Every role graphic answers through ONE shared rule (`pathname → basename → this resolver's ownership`), so
+ * the same disposable namespaces — whose URL bases deliberately differ (`/assets`, `/alpha/assets`,
+ * `/beta/assets`) — prove both isolation between contexts and the distinction from `runtimeAssetUrl` for a
+ * CONFIGURED-but-unowned path.
+ */
+
+describe("runtime asset roles", () => {
+  const banner = "https://foundation.example/assets/banner-home.svg";
+
+  it("keeps two contexts' role URLs for one basename independent across A/B/A/B lookups", () => {
+    const probe = fixture();
+    write(path.join(probe.alphaDirectory, "banner-home.svg"), svg(40, 20));
+    write(path.join(probe.betaDirectory, "banner-home.svg"), svg(40, 20));
+
+    const alpha = alphaResolver(probe);
+    const beta = betaResolver(probe);
+    const sequence: ReadonlyArray<readonly [RuntimeAssetOwnershipResolver, string]> = [
+      [alpha, "/alpha/assets/banner-home.svg"],
+      [beta, "/beta/assets/banner-home.svg"],
+      [alpha, "/alpha/assets/banner-home.svg"],
+      [beta, "/beta/assets/banner-home.svg"],
+    ];
+
+    for (const [resolver, url] of sequence) {
+      expect(resolver.availableBannerPath(banner)).toBe(url);
+      expect(resolver.availableBackgroundPath(banner)).toBe(url);
+      expect(resolver.availableFooterGraphicPath(banner)).toBe(url);
+      expect(resolver.availableHeaderGraphicPath(banner)).toBe(url);
+      expect(resolver.availableStatusGraphicPath(banner)).toBe(url);
+    }
+  });
+
+  it("resolves a platform-owned role with the configured pathname, not the context's own base", () => {
+    const probe = fixture();
+    write(path.join(probe.platformDirectory, "shared-role.svg"), svg(30, 10));
+    write(path.join(probe.alphaDirectory, "shared-role.svg"), svg(30, 10));
+
+    const alpha = alphaResolver(probe);
+    const url = "https://example.test/assets/shared-role.svg";
+    for (const expected of ["/assets/shared-role.svg", "/assets/shared-role.svg"]) {
+      expect(alpha.availableBannerPath(url)).toBe(expected);
+      expect(alpha.availableBackgroundPath(url)).toBe(expected);
+    }
+  });
+
+  it("reports an undeclared namespace's role as unavailable in every role projection", () => {
+    const probe = fixture();
+    write(path.join(probe.betaDirectory, "foreign-banner.svg"), svg(10, 10));
+
+    const alpha = alphaResolver(probe);
+    const url = "https://x.test/assets/foreign-banner.svg";
+    expect(alpha.availableBannerPath(url)).toBeUndefined();
+    expect(alpha.availableBackgroundPath(url)).toBeUndefined();
+    expect(alpha.availableFooterGraphicPath(url)).toBeUndefined();
+    expect(alpha.availableHeaderGraphicPath(url)).toBeUndefined();
+    expect(alpha.availableStatusGraphicPath(url)).toBeUndefined();
+    expect(alpha.availableBackgroundMap({ all: url })).toEqual({});
+    expect(betaResolver(probe).availableBannerPath(url)).toBe("/beta/assets/foreign-banner.svg");
+  });
+
+  it("distinguishes an unowned configured path from an unavailable role", () => {
+    const probe = fixture();
+    const alpha = alphaResolver(probe);
+    const url = "https://example.test/custom/banner.svg";
+
+    expect(alpha.runtimeAssetUrl(url)).toBe("/custom/banner.svg");
+    expect(alpha.availableBannerPath(url)).toBeUndefined();
+    expect(alpha.availableBackgroundPath(url)).toBeUndefined();
+    expect(alpha.availableBackgroundMap({ all: url })).toEqual({});
+  });
+
+  it("answers unavailable for empty and absent role values through every role method", () => {
+    const probe = fixture();
+    const alpha = alphaResolver(probe);
+    for (const configured of [undefined, ""]) {
+      expect(alpha.availableBannerPath(configured)).toBeUndefined();
+      expect(alpha.availableBackgroundPath(configured)).toBeUndefined();
+      expect(alpha.availableFooterGraphicPath(configured)).toBeUndefined();
+      expect(alpha.availableHeaderGraphicPath(configured)).toBeUndefined();
+      expect(alpha.availableStatusGraphicPath(configured)).toBeUndefined();
+    }
+    expect(alpha.availableBackgroundMap(undefined)).toEqual({});
+    expect(alpha.availableBackgroundMap({})).toEqual({});
+    expect(alpha.availableBackgroundMap({ all: "" })).toEqual({});
+  });
+
+  it("keeps two contexts' background maps independent and drops unavailable entries", () => {
+    const probe = fixture();
+    write(path.join(probe.alphaDirectory, "bg-shared.svg"), svg(8, 8));
+    write(path.join(probe.betaDirectory, "bg-shared.svg"), svg(8, 8));
+    write(path.join(probe.platformDirectory, "bg-platform.svg"), svg(8, 8));
+
+    const configured = {
+      all: "https://example.test/assets/bg-shared.svg",
+      about: "https://example.test/assets/missing.svg",
+      platform: "https://example.test/assets/bg-platform.svg",
+    };
+    const alpha = alphaResolver(probe);
+    const beta = betaResolver(probe);
+    const expected = { all: "/alpha/assets/bg-shared.svg", platform: "/assets/bg-platform.svg" };
+
+    expect(alpha.availableBackgroundMap(configured)).toEqual(expected);
+    expect(beta.availableBackgroundMap(configured)).toEqual({
+      all: "/beta/assets/bg-shared.svg",
+      platform: "/assets/bg-platform.svg",
+    });
+    expect(alpha.availableBackgroundMap(configured)).toEqual(expected);
+    expect(Object.keys(alpha.availableBackgroundMap(configured))).toEqual(["all", "platform"]);
+  });
+});
