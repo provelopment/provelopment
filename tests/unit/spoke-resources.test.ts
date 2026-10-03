@@ -196,7 +196,14 @@ describe("S3E1A discovers nothing and is UNWIRED", () => {
         typeOnly: /import\s+type\s+\{[^}]*\}\s+from\s+["'][^"']*spoke-resources["']/.test(source),
       }));
 
+    // S3F2A — ONE sanctioned RUNTIME consumer: the immutable Installation/runtime-context composition
+    // boundary resolves a Spoke's resource record (`spokeResourceIndexFor`), because describing an
+    // Installation completely is exactly that boundary's responsibility. Every OTHER importer stays
+    // TYPE-ONLY and inside the configuration/composition layer, so the model is still never wired into a
+    // module that serves a request, chooses a Spoke or builds a page.
+    const sanctioned = "src/config/installation-runtime.ts";
     for (const importer of importers) {
+      if (importer.path === sanctioned) continue;
       expect(importer.typeOnly, `${importer.path} must name the model's SHAPE only`).toBe(true);
       expect(importer.path, `${importer.path} must stay in the composition layer`).toMatch(
         /^src\/config\//,
@@ -204,7 +211,10 @@ describe("S3E1A discovers nothing and is UNWIRED", () => {
     }
 
     // The exact set, so a new importer is a decision rather than an accident.
-    expect(importers.map((importer) => importer.path)).toEqual(["src/config/spoke-dictionaries.ts"]);
+    expect(importers.map((importer) => importer.path)).toEqual([
+      sanctioned,
+      "src/config/spoke-dictionaries.ts",
+    ]);
 
     expect(
       readFileSync(path.join(process.cwd(), "src", "config", "index.ts"), "utf8"),

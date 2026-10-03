@@ -491,6 +491,9 @@ describe("S3C1 is UNWIRED — today's build and runtime are untouched", () => {
       .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
       .sort();
     expect(importers).toEqual([
+      // S3F2A — the Whole-Installation runtime index consumes the SAME resolver the config layer uses,
+      // so it describes an Installation (1..* Spokes) without a second manifest authority.
+      "src/config/installation-runtime.ts",
       "src/config/spoke-composition.ts",
       "src/config/spoke-config.ts",
       "src/config/spoke-resources.ts",

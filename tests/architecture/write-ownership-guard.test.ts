@@ -155,6 +155,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic Installation roots under OS temp — the build/S3C1 declaration-parity proofs' own throwaway " +
     "trees (every accepted and refused declaration shape, including links), removed by exact ownership. " +
     "The canonical deployment is only ever READ (S3F1)",
+  "tests/unit/installation-runtime-context.test.ts":
+    "synthetic Installation trees under OS temp — the two-Spoke runtime-context proofs' own throwaway " +
+    "Installations (alpha/beta plus legacy and one-Spoke variants: manifests, configurations, dictionaries, " +
+    "pages and role artwork), removed by exact ownership. The canonical deployment is only ever READ (S3F2A)",
   "tests/integration/json-page-rendering.test.ts": "the synthetic deployment's JSON page tree (ISO-H2)",
   "tests/support/synthetic-deployment-root.ts": "the synthetic deployment's disposable copy in OS temp (ISO-H2)",
   "tests/support/disposable-deployment.ts": "a byte-identical COPY of the selected deployment in OS temp (ISO-B3C2B)",
