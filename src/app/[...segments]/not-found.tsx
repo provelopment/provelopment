@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { segments } from "next/root-params";
-import { siteConfig } from "@/config";
-import { getDictionary } from "@/config/i18n";
+
+import { currentBuildRuntimeContext } from "@/config/installation-runtime";
+import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
 import { pathContextOr, sitePath, siteSetOf } from "@/core/site";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { Section } from "@/components/ui/section";
@@ -14,16 +15,26 @@ import { Section } from "@/components/ui/section";
  * site's home (a bare `/` would negotiate from scratch and could land on another site's URLs).
  * An unknown path resolves deterministically to the default site — never a guess about which
  * site the visitor meant.
+ *
+ * M14 — THE BOUNDARY RULE APPLIES HERE TOO. Next hands this route no props, so it selects the current
+ * build's ONE Spoke context (`currentBuildRuntimeContext`, the accepted one-Spoke compatibility seam, the
+ * same one the page route uses) and takes the configuration, the path context and the dictionary from THAT
+ * context. No module-global Spoke authority is involved, and no other Spoke can answer.
  */
 export default async function NotFound() {
   const path = await segments();
+  const context = currentBuildRuntimeContext();
+  const siteConfig = context.siteConfig;
   const request = pathContextOr(
     siteSetOf(siteConfig.sites, siteConfig.defaultSite),
     siteConfig.pageBindings,
     `/${(path ?? []).join("/")}`,
     siteConfig.defaultSite.defaultLocale,
   );
-  const dictionary = getDictionary(request.localePath, request.site.code);
+  const dictionary = dictionaryAccessForRuntimeContext(context).get(
+    request.localePath,
+    request.site.code,
+  );
 
   return (
     <Section className="py-24 text-center">

@@ -1,7 +1,9 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+
+import { renderWithRouting } from "../support/client-routing";
 import { describe, expect, it, vi } from "vitest";
 
 let mockPath = "/ww/en";
@@ -59,7 +61,7 @@ const MISSING_ICON = "definitely-missing-connectivity-icon.svg";
 
 function renderLinks(links: readonly ContextNavLink[]): string {
   mockPath = "/ww/en";
-  return renderToStaticMarkup(ContextNavLinks({ locale: "en", links }));
+  return renderWithRouting(createElement(ContextNavLinks, { locale: "en", links }));
 }
 
 /** The footer's method projection, mirrored exactly (same screening helper). */
@@ -280,7 +282,7 @@ describe("connectivity icon seam — text remains authoritative", () => {
 
 describe("connectivity icon seam — accessibility", () => {
   it("renders the icon decoratively (empty alt + aria-hidden) and never focusable", () => {
-    const html = renderToStaticMarkup(
+    const html = renderWithRouting(
       NavItem({
         item: {
           label: "GitHub",
@@ -324,15 +326,15 @@ describe("connectivity icon seam — accessibility", () => {
     // configured filename against the generated namespaces), so the shipped role's own namespace URL is
     // what arrives here.
     const shipped = runtimeAssetUrl(AVAILABLE_ICON) as string;
-    const markup = renderToStaticMarkup(AssetIcon({ asset: shipped, className: "ui-nav-item-icon" }));
+    const markup = renderWithRouting(AssetIcon({ asset: shipped, className: "ui-nav-item-icon" }));
     // The node itself is exactly the shared decorative contract (React may also
     // emit an image preload hint alongside it).
     expect(markup).toContain(
       `<img src="${shipped}" alt="" aria-hidden="true" class="ui-nav-item-icon"/>`,
     );
     // Absent/unavailable → no element at all.
-    expect(renderToStaticMarkup(AssetIcon({ asset: "" }))).toBe("");
-    expect(renderToStaticMarkup(AssetIcon({ asset: undefined }))).toBe("");
+    expect(renderWithRouting(AssetIcon({ asset: "" }))).toBe("");
+    expect(renderWithRouting(AssetIcon({ asset: undefined }))).toBe("");
   });
 });
 

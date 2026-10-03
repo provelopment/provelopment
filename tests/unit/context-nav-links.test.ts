@@ -1,4 +1,6 @@
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+
+import { renderWithRouting } from "../support/client-routing";
 import { describe, expect, it, vi } from "vitest";
 
 let mockPath = "/ww/en";
@@ -13,7 +15,7 @@ const links: readonly ContextNavLink[] = [
 ];
 
 function render() {
-    return renderToStaticMarkup(ContextNavLinks({ locale: "en", links }));
+    return renderWithRouting(createElement(ContextNavLinks, { locale: "en", links }));
 }
 
 /**
@@ -72,8 +74,8 @@ describe("ContextNavLinks — active navigation semantics (UI-10 B2)", () => {
 describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabled / region)", () => {
     it("renders a configured item icon as the replaceable /assets asset", () => {
         mockPath = "/ww/en";
-        const html = renderToStaticMarkup(
-            ContextNavLinks({
+        const html = renderWithRouting(
+            createElement(ContextNavLinks, {
                 locale: "en",
                 links: [{ href: "/about", label: "About", icon: "about.svg" }],
             }),
@@ -86,8 +88,8 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
 
     it("renders a disabled item as aria-disabled, NOT navigable, but still in the DOM", () => {
         mockPath = "/ww/en";
-        const html = renderToStaticMarkup(
-            ContextNavLinks({
+        const html = renderWithRouting(
+            createElement(ContextNavLinks, {
                 locale: "en",
                 links: [{ href: "/legacy", label: "Legacy", disabled: true }],
             }),
@@ -107,7 +109,7 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
             { href: "/mid2", label: "M2", position: "middle" },
             { href: "/top1", label: "T1", position: "top" },
         ];
-        const html = renderToStaticMarkup(ContextNavLinks({ locale: "en", links: shuffled, sortByRegion: true }));
+        const html = renderWithRouting(createElement(ContextNavLinks, { locale: "en", links: shuffled, sortByRegion: true }));
         // Contract: groups are ordered top → middle → bottom, STABLE within each
         // group (configured relative order preserved — the shuffle put top2
         // before top1, so the top group renders T2 then T1).
@@ -119,7 +121,7 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
             lastIndex = at;
         }
         // Without sortByRegion the configuration order is untouched.
-        const unsorted = renderToStaticMarkup(ContextNavLinks({ locale: "en", links: shuffled }));
+        const unsorted = renderWithRouting(createElement(ContextNavLinks, { locale: "en", links: shuffled }));
         const first = unsorted.indexOf(">B1</span>");
         expect(first).toBeGreaterThan(-1);
     });
@@ -128,8 +130,8 @@ describe("ContextNavLinks — P5-5A configurable navigation items (icon / disabl
 describe("ContextNavLinks — P0-5 shared link path", () => {
     it("renders the demo badge through the shared nav-item-badge chip (not a second badge implementation)", () => {
         mockPath = "/ww/en";
-        const html = renderToStaticMarkup(
-            ContextNavLinks({
+        const html = renderWithRouting(
+            createElement(ContextNavLinks, {
                 locale: "en",
                 links: [{ href: "/contact", label: "Message Us", demoOnly: true }],
                 demoBadgeLabel: "Demo",
@@ -168,8 +170,8 @@ describe("ContextNavLinks — P0-5 shared link path", () => {
 describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
   it("renders every same-href entry with its own label", () => {
     mockPath = "/ww/en";
-    const html = renderToStaticMarkup(
-      ContextNavLinks({
+    const html = renderWithRouting(
+      createElement(ContextNavLinks, {
         locale: "en",
         links: [
           { href: "/pricing", label: "Alpha", key: "nav:0" },
@@ -184,8 +186,8 @@ describe("ContextNavLinks — P5-6 duplicate-href identity", () => {
 
   it("keeps each same-href entry's own icon, disabled state and region under sort", () => {
     mockPath = "/ww/en";
-    const html = renderToStaticMarkup(
-      ContextNavLinks({
+    const html = renderWithRouting(
+      createElement(ContextNavLinks, {
         locale: "en",
         links: [
           { href: "/pricing", label: "Alpha", icon: "alpha.svg", position: "top", key: "nav:0" },

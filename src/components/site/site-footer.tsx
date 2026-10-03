@@ -7,12 +7,14 @@ import type { SiteConfig } from "@/config/site-config";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { configuredLegalDocs, legalLabel, legalPageRoutePath } from "@/core/legal";
-import { siteHref } from "@/core/site";
+import { siteHref, siteSetOf } from "@/core/site";
 import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
 import { socialConnectivityLinks } from "./connectivity-links";
 import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
+import { ClientRoutingProvider } from "./client-routing-context";
+import { buildClientRoutingContext } from "./client-routing";
 import { FooterGraphic } from "./footer-graphic";
 import { FOOTER_LINK_CLASS } from "./footer-link-class";
 import { navItemKey } from "./nav-links";
@@ -54,6 +56,13 @@ export async function SiteFooter({
     // override can never be half-applied.
     const pageConfig = effectiveSitePageConfig(siteConfig, siteId);
     const dictionary: Dictionary = dictionaryAccess.get(locale, pageConfig.site.code);
+    // M14 — this chrome composes ROUTING CONTROLS (the footer lists and the Connect heading), so it
+    // provides the CURRENT context's routing projection to them: the ONE client transport, built from the
+    // same configuration the footer renders with.
+    const clientRouting = buildClientRoutingContext(
+        siteConfig,
+        siteSetOf(siteConfig.sites, siteConfig.defaultSite),
+    );
     // Phase K: the legacy global footer NAP is suppressed when operating
     // regions are configured — regional pages expose their own region's
     // identity, and the global block must never leak into them.
@@ -160,6 +169,7 @@ export async function SiteFooter({
     const footerGraphic = assets.availableFooterGraphicPath(siteConfig.assets?.footerGraphic);
 
     return (
+        <ClientRoutingProvider routing={clientRouting}>
         <footer className="relative isolate mt-16 border-t border-border">
             {/* P12-FG — the optional decorative footer graphic / watermark. See
                 `footer-graphic.tsx` for the full decorative-only contract. Nothing
@@ -320,5 +330,6 @@ export async function SiteFooter({
                 </p>
             </div>
         </footer>
+        </ClientRoutingProvider>
     );
 }

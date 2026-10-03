@@ -2,16 +2,15 @@
 
 import { usePathname, useRouter } from "next/navigation";
 
-import { siteConfig } from "@/config";
 import {
   bindingsForSite,
-  regionDefaultLocale,
   regionalPath,
   regionsForSite,
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
-import { pathContextOr, sitePrefixPath, siteSetOf } from "@/core/site";
+import { pathContextOr, sitePrefixPath } from "@/core/site";
+import { useClientRouting } from "./client-routing-context";
 
 interface LocationSwitcherProps {
   readonly locale: string;
@@ -52,10 +51,13 @@ export function LocationSwitcher({
 }: LocationSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
+  // M14 — the routing facts arrive from the SERVER's projection for the CURRENT Spoke: this site, this
+  // site's bindings, this site's locations and each location's precomputed default locale.
+  const routing = useClientRouting();
 
   const parsed = pathContextOr(
-    siteSetOf(siteConfig.sites, siteConfig.defaultSite),
-    siteConfig.pageBindings,
+    routing.siteSet,
+    routing.pageBindings,
     pathname ?? `/${locale}`,
     locale,
   );
@@ -64,16 +66,16 @@ export function LocationSwitcher({
   // destinations come from THIS site's bindings (a binding declared for another site can
   // never answer here, even when the two sites share a locale).
   const sitePrefix = sitePrefixPath(parsed.site);
-  const entries = bindingsForSite(siteConfig.pageBindings, parsed.site.code);
+  const entries = bindingsForSite(routing.pageBindings, parsed.site.code);
   // R1C — the inventory is THIS SITE's own locations (never another site's, and never the
   // deployment's full region list), exactly as this component's contract already stated: the
   // selector picks a place whose pages are shared with THIS site's tree, so a Location can never
-  // be offered where it has no destination. Displayed order stays alphabetical by label.
-  const availableRegions = [...regionsForSite(siteConfig.pageBindings, parsed.site.code)].sort((a, b) => {
-    const labelA = siteConfig.regions[a]?.label ?? siteConfig.regions[a]?.name ?? a;
-    const labelB = siteConfig.regions[b]?.label ?? siteConfig.regions[b]?.name ?? b;
-    return labelA.localeCompare(labelB, "en", { sensitivity: "base" });
-  });
+  // be offered where it has no destination. Displayed order stays alphabetical by label, using the
+  // projection's plain sort label (`label ?? name ?? id`) — the same one the server used.
+  const regionLabelOf = (regionId: string): string => routing.regionSortLabels[regionId] ?? regionId;
+  const availableRegions = [...regionsForSite(routing.pageBindings, parsed.site.code)].sort((a, b) =>
+    regionLabelOf(a).localeCompare(regionLabelOf(b), "en", { sensitivity: "base" }),
+  );
   const activeRegion = parsed.region ?? "";
 
   function handleChange(nextRegion: string) {
@@ -91,7 +93,9 @@ export function LocationSwitcher({
       locale,
       targetRegion: nextRegion,
       currentSlug: parsed.routePath === "" ? null : parsed.routePath,
-      defaultLocale: regionDefaultLocale(siteConfig.regions, entries, nextRegion),
+      // The region's deterministic default locale was computed SERVER-side by the ONE core rule
+      // (`regionDefaultLocale`), so the client re-derives nothing.
+      defaultLocale: routing.regionDefaultLocales[nextRegion] ?? null,
     });
     if (destination) {
       router.push(regionalPath(destination.locale, destination.region, destination.slug, sitePrefix));

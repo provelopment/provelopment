@@ -14,6 +14,9 @@ import {
 } from "@/core/ui";
 import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
+import { ClientRoutingProvider } from "./client-routing-context";
+import { buildClientRoutingContext } from "./client-routing";
+import { siteSetOf } from "@/core/site";
 import { Stack } from "@/components/ui/stack";
 import { LanguageSwitcher } from "./language-switcher";
 import { LayoutSwitcher } from "./layout-switcher";
@@ -97,6 +100,13 @@ export function SiteHeader({
     const dictionary: Dictionary = dictionaryAccess.get(
         locale,
         siteId ?? siteConfig.defaultSite.code,
+    );
+    // M14 — this chrome composes ROUTING CONTROLS (navigation links and the Site/language/location
+    // selectors), so it provides the CURRENT context's routing projection to them: the ONE client
+    // transport, built from the same configuration the header renders with.
+    const clientRouting = buildClientRoutingContext(
+        siteConfig,
+        siteSetOf(siteConfig.sites, siteConfig.defaultSite),
     );
     const decision = resolveShellPattern(resolved);
     const desktopSlot = decision.desktop.slot;
@@ -212,6 +222,7 @@ export function SiteHeader({
     // background colour. Unconfigured → no attribute and no inline style, so
     // the header renders exactly as it did before P12-HG.
     return (
+        <ClientRoutingProvider routing={clientRouting}>
         <header className="ui-site-header border-b border-border" {...headerGraphicBandProps(headerGraphic)}>
             <div className="mx-auto max-w-page px-4 py-4">
                 {/* ── TOP SEMANTIC ROW — IDENTITY + THE NAVIGATION-MODE SELECTOR ────────
@@ -345,5 +356,6 @@ export function SiteHeader({
                 ) : null}
             </div>
         </header>
+        </ClientRoutingProvider>
     );
 }
