@@ -482,14 +482,19 @@ describe("S3C1 is UNWIRED — today's build and runtime are untouched", () => {
   }
 
   it("is consumed by the CONFIG layer only — never by the app, the build or the request path", () => {
-    // S3C1's pin, re-stated by S3D1A: the per-Spoke reader and the composition seam are the ONLY consumers,
-    // and S3D1A's own suite proves those two are themselves unwired from the running application. Nothing
-    // else in `src/**` may reach the Spoke-roots resolver, and no application module may read `spokes.json`.
+    // S3C1's pin, re-stated as the config layer grew: S3D1A added the per-Spoke reader and the composition
+    // seam, S3E1A the resource-path model — three config modules and nothing else. Every one of them is
+    // proved unwired by its own suite, so nothing in `src/app/**`, `src/components/**`, `src/proxy.ts`, the
+    // build or the barrel can reach the Spoke-roots resolver, and no application module reads `spokes.json`.
     const importers = sourceFiles(path.join(process.cwd(), "src"))
       .filter((file) => /from\s+["'][^"']*spoke-roots["']/.test(readFileSync(file, "utf8")))
       .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
       .sort();
-    expect(importers).toEqual(["src/config/spoke-composition.ts", "src/config/spoke-config.ts"]);
+    expect(importers).toEqual([
+      "src/config/spoke-composition.ts",
+      "src/config/spoke-config.ts",
+      "src/config/spoke-resources.ts",
+    ]);
   });
 
   it("the config barrel does not publish it", () => {

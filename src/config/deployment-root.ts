@@ -101,6 +101,31 @@ const ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
 export const DEPLOYMENT_CONFIG_FILE_NAME = "site.config.json";
 
 /**
+ * The AUTHORED resource trees a deployment root owns, RELATIVE to that root (FOUNDATION-MULTISITE-S3E1A).
+ *
+ * ONE spelling authority for every authored resource location: `deploymentPaths()` composes its own
+ * absolute locations from THIS map, and a Spoke-aware consumer composes the very same relative trees
+ * beneath a Spoke root it was HANDED (`./spoke-resources`). Neither restates a segment, so the legacy
+ * active deployment and a declared Spoke cannot drift apart.
+ *
+ * These are AUTHORED locations only: they carry no runtime URL meaning, no runtime emission decision and
+ * no publication decision — a directory's existence has never meant a page, a dictionary or an asset is
+ * published.
+ */
+export const DEPLOYMENT_RESOURCE_PATHS = Object.freeze({
+  /** The user-visible interface strings, one file per declared locale. */
+  dictionary: "config/i18n",
+  /** The OPTIONAL site+locale overrides BESIDE the shared dictionaries. */
+  dictionaryOverrides: "config/i18n/sites",
+  /** The Markdown authoring root. */
+  markdownPages: "content/pages/markdown",
+  /** The declarative JSON authoring root. */
+  jsonPages: "content/pages/json",
+  /** The authored artwork sources the runtime asset mirror is generated from. */
+  assetSources: "content/assets",
+});
+
+/**
  * The layout this BUILD resolved. Pure: the value is a build-time string, inlined by Next into both
  * bundles, so it is safe to read at module load from client code. An unset value means the
  * repository layout — the behaviour of every deployment today.
@@ -154,11 +179,11 @@ export function deploymentPaths(): DeploymentRoot {
     layout,
     root,
     siteConfigFile: `${root}/${DEPLOYMENT_CONFIG_FILE_NAME}`,
-    dictionaryDirectory: `${root}/config/i18n`,
-    dictionaryOverrideDirectory: `${root}/config/i18n/sites`,
-    markdownPagesRoot: `${root}/content/pages/markdown`,
-    jsonPagesRoot: `${root}/content/pages/json`,
-    assetSourceRoot: `${root}/content/assets`,
+    dictionaryDirectory: `${root}/${DEPLOYMENT_RESOURCE_PATHS.dictionary}`,
+    dictionaryOverrideDirectory: `${root}/${DEPLOYMENT_RESOURCE_PATHS.dictionaryOverrides}`,
+    markdownPagesRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.markdownPages}`,
+    jsonPagesRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.jsonPages}`,
+    assetSourceRoot: `${root}/${DEPLOYMENT_RESOURCE_PATHS.assetSources}`,
     // The INSTALLATION's own operational record (FOUNDATION-B4A / B4A-A2). Its NAME is the lifecycle
     // contract's (`@/core/foundation-installation`); this authority owns only WHERE it lives. The inner
     // model module is imported rather than the barrel because this file is CLIENT-SAFE (see the module
