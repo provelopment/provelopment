@@ -241,13 +241,45 @@ describe("EXPLICIT mode: every Spoke owns a namespace derived from its IDENTITY"
 
 
 describe("the plan is collision-safe by CONSTRUCTION", () => {
-  it("REFUSES two rows that would install the same target in one namespace", () => {
-    const installationRoot = tempTree("foundation-namespaces-duplicate-");
-    // Both Spokes ship the SAME platform icon, so both would install `assets/icon-home.svg`.
+  it("SHARES one platform target when two Spokes ship the SAME bytes (M17)", () => {
+    const installationRoot = tempTree("foundation-namespaces-shared-");
     plantExplicitInstallation(installationRoot, [
       { id: "alpha", root: "spokes/a" },
       { id: "beta", root: "spokes/b" },
     ]);
+    // The same SHARED asset, authored in two complete Spoke roots: byte for byte the same platform artwork.
+    for (const [from, to] of [
+      ["icon-library/icons/icon-home.svg", "icon-library/icons/icon-home.svg"],
+      ["platform-marks/github.svg", "platform-marks/github.svg"],
+    ]) {
+      write(
+        path.join(installationRoot, "spokes", "b", "content", "assets", ...to.split("/")),
+        bytes(path.join(installationRoot, "spokes", "a", "content", "assets", ...from.split("/"))).toString("utf8"),
+      );
+    }
+
+    const plan = buildPlan(installationRoot);
+    // The shared namespace gets ONE row for it…
+    const platform = plan.filter((row) => row.namespace === "platform");
+    expect(platform.filter((row) => row.to === "icon-home.svg")).toHaveLength(1);
+    // …while each Spoke still owns ITS OWN replaceable role artwork.
+    for (const namespace of ["spoke:alpha", "spoke:beta"]) {
+      expect(plan.filter((row) => row.namespace === namespace).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("REFUSES two DIFFERENT files for one platform target, naming both sources", () => {
+    const installationRoot = tempTree("foundation-namespaces-conflict-");
+    plantExplicitInstallation(installationRoot, [
+      { id: "alpha", root: "spokes/a" },
+      { id: "beta", root: "spokes/b" },
+    ]);
+    // The same platform basename with DIFFERENT bytes: the shared namespace cannot hold two versions, and
+    // "which Spoke's copy wins" is exactly the precedence this installer refuses to invent.
+    write(
+      path.join(installationRoot, "spokes", "b", "content", "assets", "icon-library", "icons", "icon-home.svg"),
+      "<svg>a different platform icon</svg>",
+    );
 
     expect(() => buildPlan(installationRoot)).toThrow(/TWICE into the "platform" namespace/);
     expect(() => buildPlan(installationRoot)).toThrow(/spokes\/a\/content\/assets/);

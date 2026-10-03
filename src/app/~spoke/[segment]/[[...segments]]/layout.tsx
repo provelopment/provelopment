@@ -3,8 +3,8 @@ import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 
 import { layoutForContext, layoutMetadataForContext, spokeServerComposition } from "@/app/[...segments]/server-composition";
 
-import { spokePublicDestination } from "./spoke-request-context";
-import "../../globals.css";
+import { spokePublicDestination } from "../spoke-request-context";
+import "../../../globals.css";
 
 /**
  * THE INTERNAL SPOKE ROUTE — the ONE renderer of a hostname-selected Spoke (FOUNDATION-MULTISITE-M16)

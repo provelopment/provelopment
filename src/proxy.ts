@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { hostRoutingForBuild, spokeSelectionForHost, type SpokeHostRoutingEntry } from "@/config/spoke-routing";
+import { INTERNAL_SPOKE_PREFIX, isInternalSpokePath } from "@/config/spoke-internal-namespace";
 
 /**
  * THE REQUEST BOUNDARY: HOSTNAME DISPATCH (FOUNDATION-MULTISITE-M16)
@@ -39,7 +40,7 @@ import { hostRoutingForBuild, spokeSelectionForHost, type SpokeHostRoutingEntry 
  *     matcher below therefore also matches static (dotted) Spoke paths, while `/_next/**` and the shared
  *     `/assets/**` platform namespace stay untouched.
  */
-const INTERNAL_PREFIX = "/~spoke";
+const INTERNAL_PREFIX = INTERNAL_SPOKE_PREFIX;
 const SPOKE_ASSET_PREFIX = "/spokes/";
 
 /** The marker the internal rewrite carries; the internal route refuses to render without it. */
@@ -92,7 +93,7 @@ export function proxy(request: NextRequest) {
   const query = searchParams.toString() === "" ? "" : `?${searchParams.toString()}`;
 
   // 1 — the internal namespace is reachable ONLY through the rewrite below.
-  if (pathname === INTERNAL_PREFIX || pathname.startsWith(`${INTERNAL_PREFIX}/`)) return refuse();
+  if (isInternalSpokePath(pathname)) return refuse();
 
   // 2 — a Spoke's own asset namespace is host-bound (static paths included — see the matcher).
   if (pathname.startsWith(SPOKE_ASSET_PREFIX)) return spokeAsset(request);

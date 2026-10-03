@@ -657,9 +657,11 @@ describe("Phase D — design-system boundaries", () => {
       // (the hostname-selected Spoke's own OpenGraph route) render ONE view.
       path.join(APP_DIRECTORY, "[site]", "[locale]", "opengraph-image-view.tsx"),
       path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
-      // M16 — the INTERNAL Spoke layout carries the same kind of static platform facts (the mobile chrome
-      // theme colors) as the public layout above; it composes its Spoke from an explicit context.
-      path.join(APP_DIRECTORY, "~spoke", "[segment]", "layout.tsx"),
+      // M16 — the INTERNAL Spoke route's document layout carries the same kind of static platform facts (the
+      // mobile chrome theme colors) as the public layout above; it composes its Spoke from an explicit context.
+      // It lives INSIDE the optional catch-all, because a layout receives only the params of the segments
+      // ABOVE it — and the public path this route carries is one of those segments.
+      path.join(APP_DIRECTORY, "~spoke", "[segment]", "[[...segments]]", "layout.tsx"),
     ]);
 
     for (const directory of [path.join(srcDirectory, "components"), APP_DIRECTORY]) {
