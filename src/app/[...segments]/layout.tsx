@@ -82,4 +82,3 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
     HTML_CLASS_NAME,
   );
 }
-

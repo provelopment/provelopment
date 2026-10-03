@@ -21,4 +21,3 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
 
   return robotsForContext(context);
 }
-

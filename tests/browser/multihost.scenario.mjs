@@ -494,6 +494,3 @@ export async function run(chrome, harness) {
 }
 
 export default { id, run };
-
-
-

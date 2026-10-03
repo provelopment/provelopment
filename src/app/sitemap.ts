@@ -22,4 +22,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (context === null) return [];
   return sitemapForContext(context);
 }
-

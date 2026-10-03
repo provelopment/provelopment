@@ -172,4 +172,3 @@ export function spokeSelectionForHost(
 
   return resolveSpokeFromHost(hub, host);
 }
-

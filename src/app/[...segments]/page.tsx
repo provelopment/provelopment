@@ -50,5 +50,3 @@ export default async function PageRoute({ params }: PageRouteProps) {
   const { context, destination } = await requestPublicDestination((await params).segments ?? []);
   return pageForContext(spokeServerComposition(context), destination.segments as string[]);
 }
-
-

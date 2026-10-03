@@ -51,4 +51,3 @@ export default async function OpengraphImage({ params }: OpengraphImageProps) {
 
   return new ImageResponse(openGraphImageElement(model), size);
 }
-
