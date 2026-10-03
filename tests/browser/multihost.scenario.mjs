@@ -390,6 +390,53 @@ async function runBrowserProof(harness, rows, chrome, port, installation) {
         "",
       );
     }
+  // ── SOFT NAVIGATION (M17 §11/§14): a Link click on a public path must be COMMITTED BY THE APP ROUTER, never
+  // answered by a full document reload. The sentinel lives on `window`, so a reload destroys it — which is
+  // exactly what makes it a proof. (The superseded rewrite served this click with a whole new document.)
+  const softHost = installation.spokes[0].hostname;
+  await cdp.navigate(`http://${softHost}:${port}/ww/en`);
+  await sleep(2500);
+  await cdp.evaluate("window.__foundationSoftNavSentinel = 'set-before-the-click'");
+  const aboutLink = `[...document.querySelectorAll('a')].find((a) => a.getAttribute('href') === '/ww/en/about')`;
+  const softHref = await cdp.evaluate(
+    `(() => { const link = ${aboutLink}; return link ? link.getAttribute('href') : null; })()`,
+  );
+  await cdp.evaluate(`(() => { const link = ${aboutLink}; if (link) link.click(); })()`);
+
+  let softObserved = null;
+  const softEnd = Date.now() + 60000;
+  while (Date.now() < softEnd) {
+    softObserved = await cdp.evaluate(
+      `(() => ({ path: location.pathname, sentinel: window.__foundationSoftNavSentinel ?? null, text: document.body ? document.body.textContent || "" : "" }))()`,
+    );
+    if (softObserved !== null && softObserved.path === "/ww/en/about") break;
+    await sleep(300);
+  }
+
+  harness.check(
+    rows,
+    "an internal Link is authored as a PUBLIC path (no internal prefix)",
+    softHref === "/ww/en/about",
+    `href=${softHref}`,
+  );
+  harness.check(
+    rows,
+    "a Link click is a SOFT client transition that COMMITS on the public pathname",
+    softObserved !== null && softObserved.path === "/ww/en/about",
+    `path=${softObserved !== null ? softObserved.path : "(no observation)"}`,
+  );
+  harness.check(
+    rows,
+    "the document sentinel SURVIVED: a transition, not a document reload",
+    softObserved !== null && softObserved.sentinel === "set-before-the-click",
+    `sentinel=${softObserved !== null ? softObserved.sentinel : "(destroyed)"}`,
+  );
+  harness.check(
+    rows,
+    "the committed transition rendered the target Spoke's own content",
+    softObserved !== null && softObserved.text.includes(MULTIHOST_SPOKES[0].aboutBody),
+    softObserved !== null ? softObserved.text.slice(0, 100) : "(no observation)",
+  );
   } finally {
     await cdp.close();
   }

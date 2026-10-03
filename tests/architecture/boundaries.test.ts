@@ -136,12 +136,14 @@ describe("error UX boundaries (Phase E)", () => {
     ].join("\n");
     expect(pageRoute).toMatch(/from\s+["']next\/navigation["']/);
     expect(pageRoute).toMatch(/\bnotFound\(\)\s*;/);
-    // S1 — the route is generated only for DISCOVERED paths: `generateStaticParams` lives on the
-    // catch-all page and `dynamicParams = false` on the segment's layout, so an unknown path is
-    // never rendered on demand.
-    expect(pageRoute).toContain("generateStaticParams");
+    // S1/M17 — the PUBLIC route is ONE request-time renderer for DISCOVERED paths: it generates no static
+    // parameters (the SAME pathname is rendered per host, from that host's own Spoke) and it claims no static
+    // pathname, so an unknown path is never rendered on demand — `pageForContext` refuses whatever the
+    // request-selected Spoke did not discover.
+    expect(pageRoute).toContain("pageForContext");
+    expect(pageRoute).not.toContain("generateStaticParams");
     const layout = readAppFile(path.join("[...segments]", "layout.tsx"));
-    expect(layout).toContain("export const dynamicParams = false");
+    expect(layout).not.toContain("dynamicParams");
 
     // not-found preserves the SITE and locale via the root-params contract rather than
     // hard-coding or falling back to an error page.
@@ -657,11 +659,8 @@ describe("Phase D — design-system boundaries", () => {
       // (the hostname-selected Spoke's own OpenGraph route) render ONE view.
       path.join(APP_DIRECTORY, "[site]", "[locale]", "opengraph-image-view.tsx"),
       path.join(APP_DIRECTORY, "[...segments]", "layout.tsx"),
-      // M16 — the INTERNAL Spoke route's document layout carries the same kind of static platform facts (the
-      // mobile chrome theme colors) as the public layout above; it composes its Spoke from an explicit context.
-      // It lives INSIDE the optional catch-all, because a layout receives only the params of the segments
-      // ABOVE it — and the public path this route carries is one of those segments.
-      path.join(APP_DIRECTORY, "~spoke", "[segment]", "[[...segments]]", "layout.tsx"),
+      // M17 — the retired internal page tree (`/~spoke/[segment]/...`) no longer exists: the public
+      // catch-all IS the page identity, and the Spoke reaches it on a private upstream header.
     ]);
 
     for (const directory of [path.join(srcDirectory, "components"), APP_DIRECTORY]) {

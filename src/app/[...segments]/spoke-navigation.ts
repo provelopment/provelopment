@@ -1,12 +1,16 @@
 /**
- * SITE/LOCALE COMPLETION INSIDE ONE SPOKE (FOUNDATION-MULTISITE-M16)
- * =================================================================
+ * SITE/LOCALE COMPLETION FOR ONE REQUEST-SELECTED SPOKE (FOUNDATION-MULTISITE-M16/M17)
+ * ===================================================================================
  *
  * The accepted public URL is `/<site>/<locale>/<route>`, and a request may name less than that: a bare site
  * (`/ca`), a site whose second segment is not one of ITS locale path keys, or no site at all (`/`, `/about`,
  * `/de/about`). Completing such a path is a decision about ONE Spoke's own Sites and locales — so it happens
- * HERE, inside the Spoke the hostname selected, using that Spoke's fully resolved configuration, and never
- * at the request boundary, which holds no configuration at all.
+ * at the route boundary, inside the Spoke this request selected, using that Spoke's fully resolved
+ * configuration, and never at the request boundary, which holds no configuration at all.
+ *
+ * WHERE IT MOVED FROM. It used to live inside the retired internal page route (`src/app/~spoke/[segment]`),
+ * which the request boundary reached through a pathname rewrite. M17 made the PUBLIC pathname the page
+ * identity, so the same rules now run at the public boundary — the functions themselves are unchanged.
  *
  * The rules are exactly the accepted ones (they moved; they did not change):
  *
@@ -19,7 +23,7 @@
  *   a stale cookie from another Site   → it simply does not match, so that Site's default is used
  *
  * A redirect produced here can NEVER change Spokes: every candidate Site belongs to this Spoke, the target
- * path is a PUBLIC path (the internal prefix is never part of it), and no other Spoke is consulted.
+ * path is a PUBLIC path, and no other Spoke is consulted.
  *
  * Pure: Sites, locales and the request's preference hints in; either a destination or a public redirect path
  * out. No request object, no configuration read, no rendering.
@@ -67,8 +71,8 @@ export function negotiatedLocaleFor(site: ResolvedSite, hints: LocaleHints): str
 /**
  * Complete the public segments of ONE Spoke's request.
  *
- * `segments` are the PUBLIC path segments the framework handed to the internal route (the internal prefix and
- * the runtime segment are NOT among them), so every value this function produces is a public one.
+ * `segments` are the PUBLIC path segments the framework handed to the public catch-all route, so every value
+ * this function produces is a public one.
  */
 export function completePublicPath(
   siteConfig: SiteConfig,

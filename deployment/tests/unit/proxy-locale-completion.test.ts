@@ -6,7 +6,8 @@ import { describe, expect, it } from "vitest";
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { NextRequest } from "next/server";
 
-import { completePublicPath } from "@/app/~spoke/[segment]/spoke-navigation";
+import { completePublicPath } from "@/app/[...segments]/spoke-navigation";
+import { SPOKE_SELECTION_HEADER } from "@/config/spoke-selection";
 import { siteConfig } from "@/config";
 import { proxy } from "@/proxy";
 
@@ -20,8 +21,19 @@ function completionFor(path: string, headers: Record<string, string> = {}): stri
   return "redirectPath" in completion ? completion.redirectPath : null;
 }
 
-/** The internal path the boundary rewrites a public path to, or `null` when it does not rewrite. */
-function dispatchFor(path: string, host = "foundation-template.provelopment.com"): string | null {
+/**
+ * The Spoke the boundary selected for a public path, as the App Router tree reads it.
+ *
+ * M17 — the boundary no longer encodes the Spoke into the pathname: it passes the request through with the
+ * selection on a private upstream header, so a client-side transition can commit against the public route.
+ */
+function selectionFor(path: string, host = "foundation-template.provelopment.com"): string | null {
+  const response = proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
+  return response.headers.get(`x-middleware-request-${SPOKE_SELECTION_HEADER}`);
+}
+
+/** The pathname the boundary rewrote the request to — which must now ALWAYS be `null` (M17). */
+function rewriteFor(path: string, host = "foundation-template.provelopment.com"): string | null {
   const response = proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
   const rewritten = response.headers.get("x-middleware-rewrite");
   return rewritten === null ? null : new URL(rewritten).pathname;
@@ -109,17 +121,17 @@ describe("the site-scoped form is never redirected", () => {
   });
 });
 
-describe("the boundary dispatches the host to the Spoke's own namespace (M16)", () => {
+describe("the boundary selects the host's Spoke without touching the pathname (M17)", () => {
   const segment = "foundation";
 
-  it("rewrites a public path into the internal namespace of the Spoke the host claims", () => {
-    expect(dispatchFor("/ww/en")).toBe(`/~spoke/${segment}/ww/en`);
-    expect(dispatchFor("/ww/en/about")).toBe(`/~spoke/${segment}/ww/en/about`);
-    expect(dispatchFor("/")).toBe(`/~spoke/${segment}`);
-    expect(dispatchFor("/about")).toBe(`/~spoke/${segment}/about`);
+  it("declares the claimed Spoke upstream and passes the PUBLIC path through unchanged", () => {
+    for (const path of ["/ww/en", "/ww/en/about", "/", "/about"]) {
+      expect(selectionFor(path), path).toBe(segment);
+      expect(rewriteFor(path), path).toBeNull();
+    }
   });
 
-  it("never answers a DIRECT internal request: only the framework's own rewrite may reach it", () => {
+  it("never answers a DIRECT internal request: the namespace is retired, not a route", () => {
     expect(statusFor(`/~spoke/${segment}/ww/en`)).toBe(404);
     expect(statusFor("/~spoke")).toBe(404);
   });

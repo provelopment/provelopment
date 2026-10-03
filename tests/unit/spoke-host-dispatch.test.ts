@@ -1,21 +1,28 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
 
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SPOKE_SELECTION_HEADER } from "@/config/spoke-selection";
 import { normalizeHostname } from "@/core/spoke";
 
 /**
- * HOSTNAME DISPATCH, PROVED AGAINST THE ACCEPTED AUTHORITIES (FOUNDATION-MULTISITE-M16)
- * =====================================================================================
+ * HOSTNAME DISPATCH, PROVED AGAINST THE ACCEPTED AUTHORITIES (FOUNDATION-MULTISITE-M16/M17)
+ * =======================================================================================
  *
  * The build inlines ONE routing description; the request boundary turns it into a decision. These tests drive
  * that description and the boundary itself with a SYNTHETIC two-Spoke table, so the semantics the milestone
  * requires are provable without a browser:
  *
- *   claimed host                      → that Spoke's runtime segment
- *   differently-cased / ported host    → the SAME claim (the domain's normalization, reused)
- *   unclaimed host                     → NOTHING (fail closed, no default, no redirect)
- *   subdomain of a claimed host        → NOTHING (exact claims only — no wildcard, no suffix rule)
- *   a Spoke with no canonical origin   → refused LOUDLY in a multi-Spoke Installation
+ *   claimed host                    → that Spoke's runtime segment, declared on a PRIVATE upstream header
+ *   differently-cased / ported host → the SAME claim (the domain's normalization, reused)
+ *   unclaimed host                  → NOTHING (fail closed, no default, no redirect)
+ *   subdomain of a claimed host     → NOTHING (exact claims only — no wildcard, no suffix rule)
+ *   a SPOOFED selection header      → OVERWRITTEN by the boundary's own decision (a client cannot choose)
+ *   a Spoke with no canonical origin → refused LOUDLY in a multi-Spoke Installation
+ *
+ * M17 — WHAT THE BOUNDARY MUST NOT DO. It no longer encodes the Spoke into the pathname: the public path IS
+ * the page identity, so a soft client navigation can commit. Every case below therefore asserts BOTH that the
+ * right Spoke was selected AND that the boundary produced no rewrite at all.
  *
  * The normalization itself is NEVER re-implemented here: the expectations are built with `normalizeHostname`
  * and the claim derivation is the domain's `hostnameFromOrigin`.
@@ -40,9 +47,17 @@ async function withTable(table: unknown) {
   return { ...routing, proxy: proxy.proxy };
 }
 
-const request = (pathname: string, host: string) =>
-  new NextRequest(`https://${host}${pathname}`, { headers: { host } });
+const request = (pathname: string, host: string, headers: Record<string, string> = {}) =>
+  new NextRequest(`https://${host}${pathname}`, { headers: { host, ...headers } });
 
+/**
+ * The Spoke the boundary selected, as the App Router tree sees it: Next carries request-header overrides as
+ * `x-middleware-request-<name>` next to the `x-middleware-override-headers` list.
+ */
+const selectedFor = (response: NextResponse): string | null =>
+  response.headers.get(`x-middleware-request-${SPOKE_SELECTION_HEADER}`);
+
+/** The pathname the boundary rewrote the request to — which must now ALWAYS be `null`. */
 const rewrittenTo = (response: NextResponse): string | null => {
   const target = response.headers.get("x-middleware-rewrite");
   return target === null ? null : new URL(target).pathname;
@@ -61,51 +76,47 @@ afterEach(() => {
 });
 
 describe("a claimed hostname selects exactly one Spoke", () => {
-  it("rewrites the public path into that Spoke's own runtime namespace", async () => {
+  it("declares that Spoke's runtime segment upstream, and rewrites nothing", async () => {
     const { proxy } = await withTable(TABLE);
 
     const alpha = proxy(request("/ww/en/about", "alpha.localhost"));
-    expect(rewrittenTo(alpha)).toBe("/~spoke/alpha/ww/en/about");
+    expect(selectedFor(alpha)).toBe("alpha");
+    expect(rewrittenTo(alpha)).toBeNull();
 
     const beta = proxy(request("/ww/en/about", "beta.example.com"));
-    expect(rewrittenTo(beta)).toBe("/~spoke/beta/ww/en/about");
-    // The SAME public pathname, a DIFFERENT Spoke: dispatch is the only difference.
-    expect(alpha.headers.get("x-middleware-rewrite")).not.toBe(beta.headers.get("x-middleware-rewrite"));
-    // …and the public URL is never redirected anywhere (a rewrite is invisible to a visitor).
+    expect(selectedFor(beta)).toBe("beta");
+    // The SAME public pathname, a DIFFERENT Spoke: the selection is the only difference.
+    expect(selectedFor(alpha)).not.toBe(selectedFor(beta));
+    // …and nothing is redirected either: the visitor keeps the URL they asked for.
     expect(alpha.headers.get("location")).toBeNull();
   });
 
   it("resolves the bare root of a claimed host too", async () => {
     const { proxy } = await withTable(TABLE);
-    expect(rewrittenTo(proxy(request("/", "beta.example.com")))).toBe("/~spoke/beta");
+    expect(selectedFor(proxy(request("/", "beta.example.com")))).toBe("beta");
   });
-});
 
-describe("the accepted normalization is reused, not restated", () => {
-  it("matches case-insensitively and ignores the port", async () => {
+  it("normalizes case and port through the DOMAIN's own rule, never a second one", async () => {
     const { proxy } = await withTable(TABLE);
-    for (const host of ["Alpha.LocalHost", "alpha.localhost:8443", "alpha.localhost.", "ALPHA.localhost.:3000"]) {
-      expect(rewrittenTo(proxy(request("/ww/en", host))), host).toBe("/~spoke/alpha/ww/en");
+    for (const host of ["Alpha.LocalHost", "alpha.localhost:3000", "ALPHA.LOCALHOST:8443"]) {
+      const response = proxy(request("/ww/en", host));
+      expect(selectedFor(response), host).toBe("alpha");
+      expect(response.status, host).toBe(200);
     }
-  });
-
-  it("reports the normalized hostname the decision was made from", async () => {
-    const { hostRoutingForBuild, spokeSelectionForHost } = await withTable(TABLE);
-    const selection = spokeSelectionForHost(hostRoutingForBuild(), "Alpha.LocalHost:8080");
-    if (selection === null) throw new Error("expected the claimed host to resolve");
-    expect(selection.hostname).toBe(normalizeHostname("Alpha.LocalHost:8080"));
-    expect(selection.spokeId).toBe("alpha");
-    expect(selection.reason).toBe("registered-hostname");
+    expect(normalizeHostname("ALPHA.LOCALHOST:8443")).toBe("alpha.localhost");
   });
 });
 
-describe("an unclaimed hostname answers NOTHING", () => {
-  it("refuses a host no Spoke claims, without redirecting anywhere", async () => {
+describe("an unclaimed hostname answers nothing at all", () => {
+  it("refuses rather than choosing a default or first Spoke", async () => {
     const { proxy } = await withTable(TABLE);
-    const response = proxy(request("/ww/en/about", "unknown.localhost"));
-    expect(response.status).toBe(404);
-    expect(response.headers.get("location")).toBeNull();
-    expect(rewrittenTo(response)).toBeNull();
+    for (const host of ["unknown.localhost", "localhost", "gamma.example.com", ""]) {
+      const response = proxy(request("/ww/en/about", host));
+      expect(response.status, host).toBe(404);
+      expect(response.headers.get("location"), host).toBeNull();
+      expect(selectedFor(response), host).toBeNull();
+      expect(rewrittenTo(response), host).toBeNull();
+    }
   });
 
   it("refuses a SUBDOMAIN of a claimed host (exact claims only, no wildcard)", async () => {
@@ -123,13 +134,39 @@ describe("an unclaimed hostname answers NOTHING", () => {
   });
 });
 
-describe("the internal namespace and Spoke assets belong to the boundary", () => {
+describe("a client can never select its own Spoke", () => {
+  it("OVERWRITES a spoofed selection header with the host's own answer", async () => {
+    const { proxy } = await withTable(TABLE);
+
+    // Alpha's host, but the request claims Beta.
+    const spoofedOnClaimedHost = proxy(
+      request("/ww/en/about", "alpha.localhost", { [SPOKE_SELECTION_HEADER]: "beta" }),
+    );
+    expect(selectedFor(spoofedOnClaimedHost)).toBe("alpha");
+
+    // An UNCLAIMED host stays refused NO MATTER what it claims: the header cannot create a claim.
+    const spoofedOnUnknownHost = proxy(
+      request("/ww/en/about", "unknown.localhost", { [SPOKE_SELECTION_HEADER]: "alpha" }),
+    );
+    expect(spoofedOnUnknownHost.status).toBe(404);
+    expect(selectedFor(spoofedOnUnknownHost)).toBeNull();
+  });
+
+  it("does not send the selection to the client", async () => {
+    const { proxy } = await withTable(TABLE);
+    const response = proxy(request("/ww/en", "alpha.localhost"));
+    expect(response.headers.get(SPOKE_SELECTION_HEADER)).toBeNull();
+  });
+});
+
+describe("the retired internal namespace and Spoke assets belong to the boundary", () => {
   it("refuses a DIRECT internal request on a valid host", async () => {
     const { proxy } = await withTable(TABLE);
     for (const pathname of ["/~spoke", "/~spoke/alpha", "/~spoke/alpha/ww/en/about", "/~spoke/beta/ww/en"]) {
       const response = proxy(request(pathname, "alpha.localhost"));
       expect(response.status, pathname).toBe(404);
       expect(rewrittenTo(response), pathname).toBeNull();
+      expect(selectedFor(response), pathname).toBeNull();
     }
   });
 
@@ -165,8 +202,10 @@ describe("the routing description itself is refused when it cannot route", () =>
       spokes: [{ id: "only", segment: "only", canonicalOrigin: "" }],
     });
     // ANY host answers, and the only entry is the Installation's sole Spoke — never a "first".
-    expect(proxy(request("/ww/en", "whatever.localhost")).status).toBe(200);
-    expect(rewrittenTo(proxy(request("/ww/en", "whatever.localhost")))).toBe("/~spoke/only/ww/en");
+    const response = proxy(request("/ww/en", "whatever.localhost"));
+    expect(response.status).toBe(200);
+    expect(selectedFor(response)).toBe("only");
+    expect(rewrittenTo(response)).toBeNull();
   });
 
   it("answers nothing when no routing description was inlined at all", async () => {

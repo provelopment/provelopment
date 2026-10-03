@@ -14,8 +14,10 @@ import { describe, expect, it } from "vitest";
  *   · hostname dispatch is the accepted exact-claim decision, never a wildcard or a suffix rule;
  *   · no "first"/"default" Spoke can be selected anywhere;
  *   · the multi-host public boundaries never select a Spoke through the one-Spoke compatibility seam;
- *   · the internal route selects a context BY RUNTIME SEGMENT and renders through the SHARED composition;
- *   · the internal namespace is reachable only through the framework rewrite;
+ *   · the PUBLIC route is the page identity, and it consumes the request-selected context and renders through
+ *     the SHARED composition;
+ *   · the Spoke reaches that route on a PRIVATE upstream header the boundary alone writes;
+ *   · the retired `/~spoke` page tree does not exist, and nothing renders under it;
  *   · a Spoke's own asset namespace is bound to the host that owns it;
  *   · sitemap, robots and OpenGraph read the REQUEST-selected context;
  *   · the runtime index composes every declared Spoke while the compatibility seam still refuses two.
@@ -26,44 +28,45 @@ const read = (relative: string) => readFileSync(path.join(ROOT, ...relative.spli
 const PROXY = "src/proxy.ts";
 const ROUTING = "src/config/spoke-routing.ts";
 const REQUEST = "src/config/spoke-request.ts";
+const SELECTION = "src/config/spoke-selection.ts";
 const COMPOSITION = "src/app/[...segments]/server-composition.tsx";
-const INTERNAL_LAYOUT = "src/app/~spoke/[segment]/[[...segments]]/layout.tsx";
-const INTERNAL_PAGE = "src/app/~spoke/[segment]/[[...segments]]/page.tsx";
-const INTERNAL_IMAGE = "src/app/~spoke/[segment]/[site]/[locale]/opengraph-image.tsx";
+const PAGE = "src/app/[...segments]/page.tsx";
+const LAYOUT = "src/app/[...segments]/layout.tsx";
+const INTERNAL_IMAGE = "src/app/[site]/[locale]/opengraph-image.tsx";
 
 describe("M16/M17 — the render path", () => {
-  it("the multi-host public boundaries never select a Spoke through the compatibility seam", () => {
-    for (const file of [
-      "src/app/sitemap.ts",
-      "src/app/robots.ts",
-      INTERNAL_LAYOUT,
-      INTERNAL_PAGE,
-      INTERNAL_IMAGE,
-      REQUEST,
-    ]) {
+  it("the multi-host public boundaries select the REQUEST's Spoke, never the compatibility seam", () => {
+    for (const file of ["src/app/sitemap.ts", "src/app/robots.ts", PAGE, LAYOUT, REQUEST]) {
       expect(read(file), file).not.toContain("currentBuildRuntimeContext");
     }
     expect(read("src/app/sitemap.ts")).toContain("runtimeContextForRequest");
     expect(read("src/app/robots.ts")).toContain("runtimeContextForRequest");
-    expect(read(INTERNAL_IMAGE)).toContain("spokeRequestContext");
+    expect(read(INTERNAL_IMAGE)).toContain("runtimeContextForCurrentRequest");
+    expect(read(REQUEST)).toContain("runtimeContextForCurrentRequest");
+    expect(read(REQUEST)).toContain("SPOKE_SELECTION_HEADER");
   });
 
-  it("the internal route selects a context BY RUNTIME SEGMENT and reuses the shared renderer", () => {
-    for (const file of [INTERNAL_LAYOUT, INTERNAL_PAGE]) {
+  it("the PUBLIC route consumes the request-selected context and reuses the shared renderer", () => {
+    for (const file of [PAGE, LAYOUT]) {
       const source = read(file);
-      expect(source, file).toContain("spokePublicDestination");
-      expect(source, file).toContain("@/app/[...segments]/server-composition");
+      expect(source, file).toContain("requestPublicDestination");
+      expect(source, file).toContain("./server-composition");
+      // No hostname resolution and no global configuration in the App Router code.
+      expect(source, file).not.toContain("hostRoutingForBuild");
+      expect(source, file).not.toContain("normalizeHostname");
+      expect(source, file).not.toContain("siteConfig");
     }
-    expect(read(REQUEST)).toContain("runtimeContextForSegment");
-    expect(read(REQUEST)).toContain("runtimeContextForSpoke");
-    expect(read(INTERNAL_PAGE)).toContain("staticParamsForContext");
     // ONE renderer: the shared composition is the only page/layout/metadata composition.
     expect(read(COMPOSITION)).toContain("export async function pageForContext");
     expect(read(COMPOSITION)).toContain("export async function layoutForContext");
+    // The internal page tree is RETIRED: no App Router page identity may live under `/~spoke`.
+    expect(() => read("src/app/~spoke/[segment]/[[...segments]]/page.tsx")).toThrow();
+    expect(() => read("src/app/~spoke/[segment]/[[...segments]]/layout.tsx")).toThrow();
   });
 
-  it("the internal namespace is spelled once and never composed into a public URL", () => {
-    expect(read("src/config/spoke-internal-namespace.ts")).toContain('"/~spoke"');
+  it("retires the internal namespace and keeps its spelling in ONE place", () => {
+    expect(read(SELECTION)).toContain('"/~spoke"');
+    expect(read(SELECTION)).toContain("SPOKE_SELECTION_HEADER");
     // The shared composition — and therefore every rendered document — never mentions it…
     expect(read(COMPOSITION)).not.toContain("~spoke");
     // …nor does the client-safe routing projection the visitor's controls resolve URLs from, nor the

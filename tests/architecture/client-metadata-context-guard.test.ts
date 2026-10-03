@@ -125,7 +125,7 @@ describe("M14 — metadata surfaces guard", () => {
     expect(route).not.toContain('from "@/config"');
     expect(route).not.toContain("getDictionary(");
     expect(route).not.toContain("siteConfig");
-    expect(route).toContain("currentBuildRuntimeContext()");
+    expect(route).toContain("runtimeContextForCurrentRequest");
     expect(route).toContain("openGraphImageModelForContext");
 
     const model = code(OG_MODEL);

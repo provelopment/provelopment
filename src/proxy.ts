@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { hostRoutingForBuild, spokeSelectionForHost, type SpokeHostRoutingEntry } from "@/config/spoke-routing";
-import { INTERNAL_SPOKE_PREFIX, isInternalSpokePath } from "@/config/spoke-internal-namespace";
+import { SPOKE_SELECTION_HEADER, isInternalSpokePath } from "@/config/spoke-selection";
 
 /**
- * THE REQUEST BOUNDARY: HOSTNAME DISPATCH (FOUNDATION-MULTISITE-M16)
- * =================================================================
+ * THE REQUEST BOUNDARY: HOSTNAME DISPATCH (FOUNDATION-MULTISITE-M16/M17)
+ * =====================================================================
  *
  * ONE decision order, and no global Spoke authority anywhere in it:
  *
@@ -13,15 +13,20 @@ import { INTERNAL_SPOKE_PREFIX, isInternalSpokePath } from "@/config/spoke-inter
  *         ↓ normalizeHostname + exact claim match   (`@/core/spoke`, via `@/config/spoke-routing`)
  *     ONE Spoke — or NOTHING
  *         ↓
- *     internal rewrite to its runtime segment:  /~spoke/<segment>/<public path unchanged>
+ *     the PUBLIC pathname, unchanged, plus a PRIVATE upstream header naming that Spoke's runtime segment
  *         ↓
- *     the existing context-bound server composition renders it
+ *     the public catch-all App Router route resolves that context and calls the shared composition
  *
- * WHAT THIS FILE NO LONGER DOES: it reads no `siteConfig`, holds no Site or locale inventory, and completes
- * no locale. Site/locale completion is decided INSIDE the selected Spoke — by the route that already holds
- * that Spoke's fully resolved configuration (`src/app/~spoke/[segment]`) — so the boundary never needs a
- * configuration to answer a routing question, and the browser-visible URL is never anything but the public
- * one.
+ * WHY THE PATH IS NOT REWRITTEN (M17 supersedes M16). The public path IS the page identity: the App Router
+ * can only commit a client-side transition for a path it knows, and a rewritten flight response for a
+ * DIFFERENT route tree cannot be applied to the requested public route. M16 measured both consequences — a
+ * stuck soft navigation while a public page tree still existed and a full document reload once it did not —
+ * so the Spoke now travels out of band on a private request header and the pathname is never touched.
+ *
+ * WHAT THIS FILE STILL DOES NOT DO: it reads no `siteConfig`, holds no Site or locale inventory, and completes
+ * no locale. Site/locale completion is decided inside the selected Spoke — by the route boundary that already
+ * holds that Spoke's fully resolved configuration — so the boundary never needs a configuration to answer a
+ * routing question, and the browser-visible URL is never anything but the public one.
  *
  * THE TWO INSTALLATION SHAPES
  * ---------------------------
@@ -33,18 +38,14 @@ import { INTERNAL_SPOKE_PREFIX, isInternalSpokePath } from "@/config/spoke-inter
  *
  * FAIL-CLOSED EXTRAS
  * ------------------
- *   · a DIRECT external request to the internal namespace (`/~spoke/**`) is refused: only the framework's
- *     own rewrite (performed right here) may reach it;
+ *   · a DIRECT external request to the retired internal namespace (`/~spoke/**`) is refused: no page renders
+ *     there, and a visitor never receives a surface that implies the namespace exists;
  *   · a Spoke's own asset namespace (`/spokes/<segment>/assets/**`) is HOST-BOUND: a host may fetch its own
  *     Spoke's artwork and never another's, even though both are generated in the same `public/` tree. The
  *     matcher below therefore also matches static (dotted) Spoke paths, while `/_next/**` and the shared
  *     `/assets/**` platform namespace stay untouched.
  */
-const INTERNAL_PREFIX = INTERNAL_SPOKE_PREFIX;
 const SPOKE_ASSET_PREFIX = "/spokes/";
-
-/** The marker the internal rewrite carries; the internal route refuses to render without it. */
-export const INTERNAL_SPOKE_HEADER = "x-foundation-internal-spoke";
 
 /** Nothing answers this request: no Spoke, never another Spoke's content. */
 function refuse(): NextResponse {
@@ -69,13 +70,18 @@ function selectedEntry(
   return routing.spokes.length === 1 ? routing.spokes[0] : null;
 }
 
-/** Internally rewrite a public path to the selected Spoke's runtime namespace. */
-function rewriteInto(request: NextRequest, entry: SpokeHostRoutingEntry): NextResponse {
-  const url = request.nextUrl.clone();
-  const suffix = url.pathname === "/" ? "" : url.pathname;
-  url.pathname = `${INTERNAL_PREFIX}/${entry.runtimeSegment}${suffix}`;
-  const rewriteHeaders = new Headers({ [INTERNAL_SPOKE_HEADER]: entry.runtimeSegment });
-  return NextResponse.rewrite(url, { request: { headers: rewriteHeaders } });
+/**
+ * Hand the request on with the selected Spoke declared on the PRIVATE upstream header — the pathname is
+ * passed through exactly as the visitor requested it (that is the whole point: it stays the page identity).
+ *
+ * §6 — SPOOF-PROOF: the header is SET, never merely forwarded. Whatever a client sent under that name is
+ * discarded and replaced by the boundary's own decision, so a request cannot choose its own Spoke. The
+ * header is written into the upstream REQUEST only; it is never added to a response.
+ */
+function continueWithSelectedSpoke(request: NextRequest, entry: SpokeHostRoutingEntry): NextResponse {
+  const headers = new Headers(request.headers);
+  headers.set(SPOKE_SELECTION_HEADER, entry.runtimeSegment);
+  return NextResponse.next({ request: { headers } });
 }
 
 /** A Spoke's own artwork is served ONLY on a host that Spoke answers for. */
@@ -89,10 +95,9 @@ function spokeAsset(request: NextRequest): NextResponse {
 }
 
 export function proxy(request: NextRequest) {
-  const { pathname, searchParams } = request.nextUrl;
-  const query = searchParams.toString() === "" ? "" : `?${searchParams.toString()}`;
+  const { pathname } = request.nextUrl;
 
-  // 1 — the internal namespace is reachable ONLY through the rewrite below.
+  // 1 — the retired internal namespace is not a page: nothing renders there.
   if (isInternalSpokePath(pathname)) return refuse();
 
   // 2 — a Spoke's own asset namespace is host-bound (static paths included — see the matcher).
@@ -103,10 +108,8 @@ export function proxy(request: NextRequest) {
   const entry = selectedEntry(routing, request.headers.get("host"));
   if (entry === null) return refuse();
 
-  // 4 — hand the PUBLIC path to that Spoke's internal route; the browser URL never changes.
-  const rewritten = rewriteInto(request, entry);
-  if (query !== "") rewritten.headers.set("x-foundation-query", query);
-  return rewritten;
+  // 4 — the PUBLIC request continues unchanged, carrying the boundary's selection privately upstream.
+  return continueWithSelectedSpoke(request, entry);
 }
 
 export const config = {

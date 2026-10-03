@@ -33,6 +33,7 @@ import {
   type InstallationRuntimeIndex,
   type SpokeRuntimeContext,
 } from "./installation-runtime";
+import { SPOKE_SELECTION_HEADER } from "./spoke-selection";
 import { hostRoutingForBuild, spokeSelectionForHost } from "./spoke-routing";
 
 let cachedIndex: InstallationRuntimeIndex | null = null;
@@ -101,4 +102,37 @@ async function requestHostname(): Promise<string | null> {
 /** The context of the CURRENT public request (its `Host` header), or `null`. */
 export async function runtimeContextForRequest(): Promise<SpokeRuntimeContext | null> {
   return runtimeContextForRequestHost(await requestHostname());
+}
+
+/**
+ * THE App Router tree's ONE selector (M17): the Spoke the REQUEST BOUNDARY selected, read from the private
+ * upstream header it wrote — or, when no selection can exist, the Installation's SOLE Spoke.
+ *
+ * WHY THIS IS NOT A SECOND SELECTION RULE. It performs no hostname resolution at all: the boundary already
+ * matched the exact claim, and this function only looks up the context that decision named. A value the
+ * boundary wrote is authoritative; a value a CLIENT wrote is impossible, because the boundary overwrites the
+ * header on every request it handles.
+ *
+ * WHAT EACH SHAPE ANSWERS (§7 — fail closed):
+ *
+ *   selection present + declared   → that Spoke's context
+ *   selection present + unknown    → `null` — an unknown segment may not be answered by anyone
+ *   no selection, MULTI            → `null` — no claimed host, so no Spoke: never a default or a first
+ *   no selection, SINGLE           → the sole declared Spoke (the accepted one-Spoke compatibility rule, for
+ *                                    build-time and test-time callers that have no request scope at all)
+ */
+export async function runtimeContextForCurrentRequest(): Promise<SpokeRuntimeContext | null> {
+  let selected: string | null = null;
+  try {
+    selected = (await headers()).get(SPOKE_SELECTION_HEADER);
+  } catch {
+    // No request scope (a build-time or test-time caller): the compatibility rule below decides.
+    selected = null;
+  }
+
+  if (selected !== null && selected !== "") {
+    return runtimeContextForSegment(selected);
+  }
+
+  return runtimeContextForRequestHost(null);
 }
