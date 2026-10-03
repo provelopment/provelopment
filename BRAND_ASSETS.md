@@ -1123,9 +1123,9 @@ A short map, for maintainers — not required reading for an artwork task.
 | Concern | Location |
 | --- | --- |
 | Schema for every `site.assets.*` role | `src/config/schema.ts` — `siteAssetsSchema` |
-| The shared availability rule (URL → pathname → basename → file exists) | `src/config/assets.ts` — `availableRoleAssetPath`, `assetPathFromUrl`, `iconAssetAvailable` |
-| Per-role resolvers | `src/config/assets.ts` — `availableBannerPath`, `availableBackgroundMap`, `availableHeaderGraphicPath`, `availableFooterGraphicPath`, `availableStatusGraphicPath`, `availableIconName` |
-| Intrinsic-size reader (SVG · PNG · JPEG · GIF · WebP) | `src/config/assets.ts` — `readImageDimensions` |
+| The shared availability rule (URL → pathname → basename → file exists) | `src/config/runtime-asset-resolver.ts` — the ONE `RuntimeAssetOwnershipResolver` (`roleUrl` · `runtimeUrlFor` · `ownerOf`) |
+| Per-role resolvers (public API — thin adapters over that resolver) | `src/config/assets.ts` — `availableBannerPath`, `availableBackgroundMap`, `availableHeaderGraphicPath`, `availableFooterGraphicPath`, `availableStatusGraphicPath`, `availableIconName` |
+| Intrinsic-size reader (SVG · PNG · JPEG · GIF · WebP) | `src/config/runtime-asset-resolver.ts` — `readImageDimensions` (re-exported by `src/config/assets.ts`) |
 | Loud missing-icon check (build time) | `src/config/assets.ts` — `assertConfiguredIconAssetsExist` (called from `src/app/[locale]/layout.tsx`) |
 | Banner rendering + page-slug derivation | `src/components/site/page-banner.tsx` |
 | Background layer | `src/components/site/page-background.tsx` |

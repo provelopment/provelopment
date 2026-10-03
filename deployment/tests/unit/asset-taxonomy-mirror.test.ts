@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { deploymentPaths } from "@/config/deployment-root";
+import { availableBannerPath, availableIconUrl, runtimeAssetUrl } from "@/config/assets";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -258,5 +259,41 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     expect(attributes, "a rule for the retired assets/ tree must be gone").not.toMatch(
       /^assets\/\*\* -text$/m,
     );
+  });
+});
+
+/**
+ * S3F2A2-R4 — THE NAMESPACE BOUNDARIES THE PRODUCTION ASSET API RESOLVES THROUGH
+ * =============================================================================
+ *
+ * The cutover points `@/config/assets` at the proved runtime resolver, built from the SELECTED deployment's
+ * namespaces. This is the suite where that deployment IS the selected one, so its real two-namespace
+ * boundary is asserted here on the PUBLIC API — exactly the URLs a rendered page fetches: platform artwork
+ * from `/assets`, the declared Spoke's replaceable artwork from that Spoke's own namespace (never from a
+ * `/assets/` path that does not hold it).
+ */
+describe("S3F2A2-R4 — the production asset API resolves through this deployment's namespaces", () => {
+  it("serves platform artwork from /assets and the declared Spoke's artwork from its own namespace", () => {
+    expect(deploymentPaths().runtimeAssetNamespaces.map((namespace) => namespace.urlBase)).toEqual([
+      "/assets",
+      "/spokes/foundation/assets",
+    ]);
+
+    expect(availableIconUrl("icon-home.svg")).toBe("/assets/icon-home.svg");
+    expect(availableIconUrl("icon-about.svg")).toBe("/assets/icon-about.svg");
+    expect(availableIconUrl("sidebar-open.svg")).toBe("/spokes/foundation/assets/sidebar-open.svg");
+    expect(availableIconUrl("sidebar-close.svg")).toBe("/spokes/foundation/assets/sidebar-close.svg");
+    expect(
+      runtimeAssetUrl("https://foundation-template.provelopment.com/assets/sidebar-open.svg"),
+    ).toBe("/spokes/foundation/assets/sidebar-open.svg");
+  });
+
+  it("never invents an unavailable answer: an unowned path keeps its pathname, the role does not resolve", () => {
+    expect(
+      runtimeAssetUrl("https://foundation-template.provelopment.com/assets/absent-role.svg"),
+    ).toBe("/assets/absent-role.svg");
+    expect(
+      availableBannerPath("https://foundation-template.provelopment.com/assets/absent-role.svg"),
+    ).toBeUndefined();
   });
 });

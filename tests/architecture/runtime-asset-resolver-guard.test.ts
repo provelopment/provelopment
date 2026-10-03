@@ -84,7 +84,31 @@ describe("runtime asset ownership resolver guard", () => {
     expect(source).toContain("ownerOf(name) === null) return undefined");
   });
 
-  it("is additive and unwired: the live asset module does not reference it", () => {
-    expect(readFileSync(LIVE_ASSET_MODULE, "utf8")).not.toContain("runtime-asset-resolver");
+  it("is the LIVE authority: the asset module builds exactly ONE compatibility resolver from the deployment", () => {
+    const live = readFileSync(LIVE_ASSET_MODULE, "utf8");
+    expect(live).toContain("runtime-asset-resolver");
+    expect(live.split("createRuntimeAssetOwnershipResolver(").length - 1).toBe(1);
+    // Built from the deployment's namespace authority — the same list the legacy engine used.
+    expect(live).toContain("deploymentPaths().runtimeAssetNamespaces");
+  });
+
+  it("leaves NO second runtime-asset engine in the live asset module", () => {
+    const live = readFileSync(LIVE_ASSET_MODULE, "utf8");
+
+    // No process-global cache of any kind: owner and dimension state live in the resolver instance.
+    expect(live.split("new Map<").length - 1).toBe(0);
+
+    // No duplicated media/ownership implementation: the decoders, the header read and the existence search
+    // all belong to the resolver module now.
+    expect(live).not.toMatch(/readUInt32BE|readUInt32LE|readUInt16BE|readUInt16LE|viewBox|GIF89a/);
+    expect(live).not.toMatch(/\b(existsSync|statSync|openSync|readSync|closeSync)\s*\(/);
+    expect(live).not.toMatch(/from "node:fs"|from "node:path"/);
+
+    // No discovery of arbitrary Spoke namespaces, and no ambient selection state of any kind.
+    expect(live).not.toMatch(/readdirSync|globSync|readdir\(/);
+    for (const word of AMBIENT_SELECTION) expect(live).not.toContain(word);
+
+    // …while every public projection still comes from the resolver: the delegations ARE the module.
+    expect(live.split("compatibilityResolver.").length - 1).toBe(15);
   });
 });

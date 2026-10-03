@@ -222,10 +222,11 @@ describe("P12-FG — separation + reusability contract", () => {
     expect(layout).not.toContain("availableFooterGraphicPath(");
     expect(siteFooter).not.toContain("availableBackgroundMap");
     expect(siteFooter).not.toContain("availableBannerPath");
-    // The decorative layer reuses the SHARED generic availability rule.
+    // The decorative layer reuses the SHARED generic availability rule — ONE implementation, held by the
+    // proven runtime resolver (S3F2A2-R4: this module delegates to it and owns no second rule).
     const assets = readFileSync(path.join(root, "src", "config", "assets.ts"), "utf8");
     expect(assets).toMatch(
-      /export function availableFooterGraphicPath[\s\S]{0,200}availableRoleAssetPath\(absoluteUrl\)/,
+      /export function availableFooterGraphicPath[\s\S]{0,200}compatibilityResolver\.availableFooterGraphicPath\(absoluteUrl\)/,
     );
   });
 });

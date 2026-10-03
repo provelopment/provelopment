@@ -145,12 +145,15 @@ function svgDimensions(head: string): ImageDimensions | undefined {
 /**
  * The accepted ownership rule, as a pure function of an EXPLICIT namespace list: no cache, no process state.
  *
- * Deliberately the same rule as the established primitive in `./assets` (first declaration that holds the
- * basename, in the supplied order, `null` otherwise). Implemented here rather than imported from the live
- * asset module so the eventual cutover never has to import its own dependency: the resolver suite compares
- * the two directly on the same namespace list, so no divergence can creep in.
+ * Deliberately the same rule as the established primitive in `./assets`. It is EXPORTED because
+ * S3F2A2-R4 turned that primitive into the live module's delegate: the parameterised public
+ * `namespaceOwning(name, namespaces)` now answers through THIS function, so the ownership rule exists in
+ * exactly one place in the repository. Because it returns the element of the SUPPLIED list, a caller that
+ * asks "which of my namespaces holds this" gets its own namespace object back — identity preserved (a
+ * resolver instance answers with its own frozen snapshot copy instead, which is the right answer for a
+ * context-bound resolver and the wrong one for that parameterised question).
  */
-function owningNamespaceIn(
+export function owningNamespaceIn(
   name: string,
   namespaces: readonly RuntimeAssetNamespace[],
 ): RuntimeAssetNamespace | null {
