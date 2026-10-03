@@ -13,6 +13,10 @@ import type { RuntimeAssetNamespace } from "./deployment-root";
  * namespace HOLDS a basename, what the absolute path of that generated file is, and the INTRINSIC pixel
  * size of that file (read from its own header — never from a path or a convention).
  *
+ * S3F2A2-R3A adds the URL SIDE of the same answers: the pathname extraction, the runtime URL projection (the
+ * platform namespace and an unowned path both keep the configured pathname; a Spoke namespace answers with
+ * its own URL base) and the icon availability/name/URL/control-default projections.
+ *
  * This module is ADDITIVE and UNWIRED (S3F2A2-R1): `./assets` still backs every production asset export
  * exactly as it does today, so no rendering behaviour changes here. It is proved independently first; the
  * later cutover slice points the production exports at it, keeping every public signature.
@@ -47,6 +51,24 @@ export interface RuntimeAssetOwnershipResolver {
    * the answer is cached per basename, for this resolver only.
    */
   readImageDimensions(sameOriginPath: string | undefined): ImageDimensions | undefined;
+
+  /** The pathname of a configured asset URL (pure): its `pathname`, or the value unchanged if not a URL. */
+  assetPathFromUrl(absoluteUrl: string | undefined): string | undefined;
+
+  /** True when a supplied namespace holds `name` — this resolver's OWN ownership, cached per instance. */
+  iconAssetAvailable(name: string | undefined): boolean;
+
+  /** The three-state icon filename projection: `undefined`/`""` pass through, an unowned name becomes `""`. */
+  availableIconName(name: string | undefined): string | undefined;
+
+  /** The same-origin URL an icon filename is served from, or `""` when no supplied namespace holds it. */
+  availableIconUrl(name: string | undefined): string | undefined;
+
+  /** A control leaf's icon URL with the shipped default resolved here, through THIS instance's ownership. */
+  resolveIconControlUrl(configured: string | undefined, shippedDefault: string): string;
+
+  /** The same-origin URL a configured asset URL resolves to (the accepted runtime-asset projection). */
+  runtimeAssetUrl(absoluteUrl: string | undefined): string | undefined;
 }
 
 /** An intrinsic pixel size read from an asset header (deliberately the accepted shape from `./assets`). */
@@ -219,6 +241,9 @@ export function createRuntimeAssetOwnershipResolver(
     ),
   );
 
+  /** The FIRST supplied namespace is the PLATFORM namespace: its URL base keeps the configured pathname. */
+  const platformUrlBase = snapshot[0]?.urlBase;
+
   /** Instance-local: a basename OWNER belongs to THIS context, never to the process. */
   const ownerCache = new Map<string, RuntimeAssetNamespace | null>();
 
@@ -271,6 +296,25 @@ export function createRuntimeAssetOwnershipResolver(
     return dimensions;
   };
 
+  /**
+   * The runtime URL a configured pathname resolves to — the ACCEPTED rule, projected over THIS resolver's
+   * ownership: the PLATFORM namespace (the FIRST supplied namespace, the one whose URL base is the historical
+   * `/assets`) keeps the configured pathname, and so does an UNOWNED basename, whose path is therefore left
+   * exactly as the adopter spelled it (a directly served public path must keep working, and no 404 is ever
+   * invented here). Only a Spoke namespace answers with a URL of its own.
+   */
+  const runtimeUrlFor = (pathname: string, name: string): string => {
+    const owner = ownerOf(name);
+    if (owner === null || owner.urlBase === platformUrlBase) return pathname;
+    return `${owner.urlBase}/${name}`;
+  };
+
+  /** The same-origin URL an icon FILENAME is served from, or `""` when no supplied namespace holds it. */
+  const iconUrl = (name: string): string => {
+    const owner = ownerOf(name);
+    return owner === null ? "" : `${owner.urlBase}/${name}`;
+  };
+
   return Object.freeze({
     namespaces: snapshot,
     namespaceOwning: (name: string): RuntimeAssetNamespace | null => ownerOf(name),
@@ -284,6 +328,26 @@ export function createRuntimeAssetOwnershipResolver(
       const name = pathname.split("/").pop() ?? "";
       if (!name) return undefined;
       return dimensionsFor(name);
+    },
+    assetPathFromUrl: (absoluteUrl: string | undefined): string | undefined => pathnameOf(absoluteUrl),
+    iconAssetAvailable: (name: string | undefined): boolean =>
+      !name || name === "" ? false : ownerOf(name) !== null,
+    availableIconName: (name: string | undefined): string | undefined => {
+      if (name === undefined || name === "") return name;
+      return ownerOf(name) === null ? "" : name;
+    },
+    availableIconUrl: (name: string | undefined): string | undefined => {
+      if (name === undefined || name === "") return name;
+      return iconUrl(name);
+    },
+    resolveIconControlUrl: (configured: string | undefined, shippedDefault: string): string => {
+      if (configured === "") return "";
+      return iconUrl(configured ?? shippedDefault);
+    },
+    runtimeAssetUrl: (absoluteUrl: string | undefined): string | undefined => {
+      const pathname = pathnameOf(absoluteUrl);
+      if (pathname === undefined) return undefined;
+      return runtimeUrlFor(pathname, pathname.split("/").pop() ?? "");
     },
   });
 }
