@@ -386,3 +386,105 @@ describe("runtime asset dimensions", () => {
     }
   });
 });
+
+/**
+ * S3F2A2-R3A — RESOLVER-LOCAL URL AND ICON PROJECTION
+ * ==================================================
+ *
+ * The same disposable namespaces — whose URL bases deliberately DIFFER (`/assets`, `/alpha/assets`,
+ * `/beta/assets`) — prove that every URL is built from the namespace that actually owns the basename: never
+ * from a process-wide name, never from the platform base, and never from another context's namespace.
+ */
+
+describe("runtime asset urls", () => {
+  it("keeps two contexts' URLs for one icon basename independent across A/B/A/B lookups", () => {
+    const probe = fixture();
+    write(path.join(probe.alphaDirectory, "sidebar-open.svg"), svg(16, 16));
+    write(path.join(probe.betaDirectory, "sidebar-open.svg"), svg(16, 16));
+
+    const alpha = alphaResolver(probe);
+    const beta = betaResolver(probe);
+    const sequence: ReadonlyArray<readonly [RuntimeAssetOwnershipResolver, string]> = [
+      [alpha, "/alpha/assets/sidebar-open.svg"],
+      [beta, "/beta/assets/sidebar-open.svg"],
+      [alpha, "/alpha/assets/sidebar-open.svg"],
+      [beta, "/beta/assets/sidebar-open.svg"],
+    ];
+
+    for (const [resolver, url] of sequence) {
+      expect(resolver.availableIconName("sidebar-open.svg")).toBe("sidebar-open.svg");
+      expect(resolver.availableIconUrl("sidebar-open.svg")).toBe(url);
+      expect(resolver.runtimeAssetUrl("https://foundation.example/assets/sidebar-open.svg")).toBe(url);
+      expect(resolver.resolveIconControlUrl(undefined, "sidebar-open.svg")).toBe(url);
+      expect(resolver.resolveIconControlUrl("unowned.svg", "sidebar-open.svg")).toBe("");
+    }
+  });
+
+  it("projects a platform-owned basename as the configured path, whatever the context's own base is", () => {
+    const probe = fixture();
+    write(path.join(probe.platformDirectory, "shared.svg"), svg(20, 10));
+    write(path.join(probe.alphaDirectory, "shared.svg"), svg(20, 10));
+
+    const alpha = alphaResolver(probe);
+    for (const expected of ["/assets/shared.svg", "/assets/shared.svg"]) {
+      expect(alpha.runtimeAssetUrl("https://example.test/assets/shared.svg")).toBe(expected);
+      expect(alpha.availableIconUrl("shared.svg")).toBe(expected);
+      expect(alpha.resolveIconControlUrl("shared.svg", "shipped-default.svg")).toBe(expected);
+    }
+  });
+
+  it("cannot project a file that only an undeclared namespace holds", () => {
+    const probe = fixture();
+    write(path.join(probe.betaDirectory, "foreign.svg"), svg(1, 1));
+
+    const alpha = alphaResolver(probe);
+    expect(alpha.iconAssetAvailable("foreign.svg")).toBe(false);
+    expect(alpha.availableIconName("foreign.svg")).toBe("");
+    expect(alpha.availableIconUrl("foreign.svg")).toBe("");
+    expect(alpha.runtimeAssetUrl("https://x.test/custom/foreign.svg")).toBe("/custom/foreign.svg");
+    expect(betaResolver(probe).availableIconUrl("foreign.svg")).toBe("/beta/assets/foreign.svg");
+  });
+
+  it("keeps an unowned configured path exactly as configured (direct public paths still work)", () => {
+    const probe = fixture();
+    const alpha = alphaResolver(probe);
+
+    expect(alpha.runtimeAssetUrl("https://example.test/brand/runtime/logo.svg")).toBe(
+      "/brand/runtime/logo.svg",
+    );
+    expect(alpha.runtimeAssetUrl("/brand/runtime/logo.svg")).toBe("/brand/runtime/logo.svg");
+    expect(alpha.availableIconName("logo.svg")).toBe("");
+  });
+
+  it("preserves the three-state icon contract and the pure pathname projection", () => {
+    const probe = fixture();
+    write(path.join(probe.alphaDirectory, "owned.svg"), svg(4, 4));
+    const alpha = alphaResolver(probe);
+
+    expect(alpha.availableIconName(undefined)).toBeUndefined();
+    expect(alpha.availableIconName("")).toBe("");
+    expect(alpha.availableIconName("owned.svg")).toBe("owned.svg");
+    expect(alpha.availableIconName("unowned.svg")).toBe("");
+
+    expect(alpha.availableIconUrl(undefined)).toBeUndefined();
+    expect(alpha.availableIconUrl("")).toBe("");
+    expect(alpha.availableIconUrl("owned.svg")).toBe("/alpha/assets/owned.svg");
+    expect(alpha.availableIconUrl("unowned.svg")).toBe("");
+
+    expect(alpha.iconAssetAvailable(undefined)).toBe(false);
+    expect(alpha.iconAssetAvailable("")).toBe(false);
+    expect(alpha.iconAssetAvailable("owned.svg")).toBe(true);
+
+    expect(alpha.resolveIconControlUrl("", "owned.svg")).toBe("");
+    expect(alpha.resolveIconControlUrl(undefined, "unowned.svg")).toBe("");
+
+    expect(alpha.assetPathFromUrl(undefined)).toBeUndefined();
+    expect(alpha.assetPathFromUrl("")).toBe("");
+    expect(alpha.assetPathFromUrl("https://example.test/a/b.svg")).toBe("/a/b.svg");
+    expect(alpha.assetPathFromUrl("/a/b.svg")).toBe("/a/b.svg");
+    expect(alpha.assetPathFromUrl("b.svg")).toBe("b.svg");
+
+    expect(alpha.runtimeAssetUrl(undefined)).toBeUndefined();
+    expect(alpha.runtimeAssetUrl("")).toBe("");
+  });
+});

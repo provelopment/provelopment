@@ -57,6 +57,14 @@ describe("runtime asset ownership resolver guard", () => {
     expect(source).not.toMatch(/public[\\/]|["'`]public["'`]/);
   });
 
+  it("projects every URL from the owning namespace's own urlBase, never a hardcoded prefix", () => {
+    const projections = source.split("\n").filter((line) => line.includes("urlBase"));
+    expect(projections.length).toBeGreaterThan(0);
+    // No namespace base is ever spelled literally in a URL: each answer is built from the OWNING namespace.
+    for (const line of projections) expect(line).not.toMatch(/["'`]\//);
+    expect(source).toContain("${owner.urlBase}/${name}");
+  });
+
   it("is additive and unwired: the live asset module does not reference it", () => {
     expect(readFileSync(LIVE_ASSET_MODULE, "utf8")).not.toContain("runtime-asset-resolver");
   });
