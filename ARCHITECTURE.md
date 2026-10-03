@@ -217,6 +217,17 @@ asserts that no second user-editable asset authority exists at the repository ro
 
 The content pipeline follows the ports and adapters boundaries:
 
+  **The runtime asset CATALOG** (M16/M17) closes the one place that relationship used to be asked at request
+  time. From the SAME mirror plan, the build publishes an immutable record of which basenames each generated
+  namespace holds and how large each one is — `src/config/generated/runtime-asset-catalog.json`, written by
+  `scripts/sync-runtime-assets.mjs` and drift-checked by `assets:check`. A page render reads that record, so
+  asset ownership and intrinsic size are BUILD knowledge rather than a request-time filesystem probe: a
+  serverless function does NOT contain `public/**` (`public/` is static deployment output served by the CDN),
+  which is why every page route answered 500 while the sitemap, robots and metadata routes kept working. The
+  served URLs are unchanged (`/assets/<file>`, `/spokes/<segment>/assets/<file>`), the namespaces keep their
+  order and their non-shadowability, and the filesystem read survives ONLY as the compatibility mechanism for
+  a namespace that carries no catalog inventory (a synthetic fixture over a temporary directory).
+
 - `src/core/page-content.ts` defines the `PageContent` concept and the ONE
   content-segment rule.
 - `src/core/page-source.ts` declares the two modes, their roots and the ONE

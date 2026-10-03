@@ -5,6 +5,10 @@ import {
   type ImageDimensions,
   type RuntimeAssetOwnershipResolver,
 } from "./runtime-asset-resolver";
+// M16/M17 (Defect B) — the compatibility seam binds the SAME build-time catalog the request path uses, so
+// a build-time diagnostic and a page render can never disagree about what exists. This module is
+// SERVER-ONLY (see its note), so the generated catalog never reaches a client chunk.
+import { withRuntimeAssetInventories } from "./runtime-asset-catalog";
 
 /**
  * P6-1 — configured icon-asset availability (framework layer); S3F2A2-R4 — THE PRODUCTION CUTOVER
@@ -57,7 +61,7 @@ export type { ImageDimensions };
  * dictionary work. This cutover changes the IMPLEMENTATION, never the context.
  */
 const compatibilityResolver = createRuntimeAssetOwnershipResolver(
-  deploymentPaths().runtimeAssetNamespaces,
+  withRuntimeAssetInventories(deploymentPaths().runtimeAssetNamespaces),
 );
 
 /**

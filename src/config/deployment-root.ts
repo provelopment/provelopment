@@ -68,6 +68,10 @@ import { spokeRuntimeAssetUrlBase, spokeRuntimeAssetNamespacePath } from "./spok
 // M16 — the declared Spoke runtime segments a MULTI-Spoke build resolves artwork from. Pure (`./spoke-routing`
 // reads the build's inlined routing description), so this authority stays CLIENT-SAFE.
 import { hostRoutingForBuild } from "./spoke-routing";
+// M16/M17 (Defect B) — TYPE-ONLY: the build-time inventory a runtime namespace may carry. A type import is
+// erased at compile time, so the generated catalog is never pulled into this (CLIENT-SAFE) module's chunks;
+// only the SERVER modules that BIND it (the context builder and the compatibility seam) import its value.
+import type { RuntimeAssetInventory } from "./runtime-asset-catalog";
 
 /** Which layout the deployment root resolved to. */
 export type DeploymentLayout = "capsule" | "repository" | "override";
@@ -88,6 +92,20 @@ export interface RuntimeAssetNamespace {
   readonly directory: string;
   /** The same-origin URL base those files are served from (`/assets`, `/spokes/<segment>/assets`). */
   readonly urlBase: string;
+  /**
+   * THE BUILD-TIME INVENTORY this namespace carries (FOUNDATION-MULTISITE-M16/M17 — Defect B), or
+   * `undefined` when nobody bound one.
+   *
+   * PRESENT in the live runtime: the build published exactly which basenames exist in this namespace and
+   * how large each one is (`./runtime-asset-catalog`), and the resolver answers ownership and size from that
+   * immutable data. That is what makes a page render independent of the generated `public/**` tree, which a
+   * serverless function does NOT contain (`public/` is static deployment output served by the CDN).
+   *
+   * ABSENT for a synthetic namespace — a unit fixture pointing at a temporary directory — where the
+   * resolver's accepted filesystem read remains the compatibility mechanism. Nothing about that path's
+   * semantics changed.
+   */
+  readonly inventory?: RuntimeAssetInventory;
 }
 
 export interface DeploymentRoot {

@@ -69,7 +69,19 @@
  *   node scripts/sync-runtime-assets.mjs --if-deployment  # install only if a deployment exists (the postinstall hook)
  */
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, rmdirSync } from "node:fs";
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  readSync,
+  readdirSync,
+  rmSync,
+  rmdirSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -88,6 +100,10 @@ import {
   spokeRuntimeAssetNamespacePath,
   spokeRuntimeAssetUrlBase,
 } from "../src/config/spoke-runtime-segment.mjs";
+// M16/M17 (Defect B) — the SAME header decoder the resolver uses for a namespace that carries no catalog,
+// so the sizes this build PUBLISHES and the sizes a compatibility read derives cannot drift. Plain ESM with
+// JSDoc types, loaded natively by `node` (see the module note in that file).
+import { MAX_HEADER_BYTES, dimensionsFromBytes } from "../src/config/runtime-asset-dimensions.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RUNTIME_DIR = "public/assets";
@@ -663,6 +679,146 @@ export function syncMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRo
   return { ...report, removed: removed.sort() };
 }
 
+// ───────────────────────────────────────────────────────────────────────────────────────────────────────
+// THE RUNTIME ASSET CATALOG (FOUNDATION-MULTISITE-M16/M17 — DEFECT B)
+// ───────────────────────────────────────────────────────────────────────────────────────────────────────
+// WHY IT EXISTS. A page request re-composed the site and asked whether each configured icon had a matching
+// file by calling `existsSync`/`statSync`/`openSync`/`readSync` under `public/assets/**`. In a serverless
+// function that tree is NOT there: `public/` is static deployment output served by the CDN, and the
+// function bundle carries only what the file tracer could see — so the check answered "missing" for files
+// the deployment was serving perfectly well, and every page route failed loudly (500) while the
+// sitemap/robots/OpenGraph routes kept working. Asset ownership and intrinsic sizes are BUILD knowledge,
+// and this build already computes both deterministically from the same plan that installs the mirror.
+//
+// WHAT IT IS. The immutable answer to exactly the questions the resolver asks — per runtime namespace,
+// which basenames exist and how large each one is — derived from `buildPlan()` (the SAME plan
+// `assets:sync` installs and `assets:check` verifies), so "what is generated" and "what the runtime
+// believes exists" cannot disagree by construction. It is written as a source module
+// (`src/config/generated/runtime-asset-catalog.json`), so it is bundled into every server function — a
+// module import is always traced — and it is COMMITTED, with `--check` failing on drift.
+//
+// WHAT IT IS NOT. Not a second inventory: the plan is the only source. Not a URL authority: the namespaces
+// keep their accepted bases (`/assets`, `/spokes/<segment>/assets`). Not a runtime filesystem substitute
+// for SERVING files: the browser still fetches the real static asset from `public/`.
+
+/** The catalog's declared shape version — a consumer refuses a shape it does not know. */
+export const CATALOG_VERSION = 1;
+/** The GENERATED catalog, as a repository source module (bundled, committed, drift-checked). */
+export const CATALOG_FILE = path.join(ROOT, "src", "config", "generated", "runtime-asset-catalog.json");
+/** The same file, spelled for diagnostics (a message never carries an absolute path). */
+export const CATALOG_RELATIVE = "src/config/generated/runtime-asset-catalog.json";
+
+/**
+ * The intrinsic size of a SOURCE asset, or `null` when the container is unsupported — a value, never an
+ * exception (the accepted fallback), read through the ONE shared decoder.
+ *
+ * @param {string} file the source file's absolute path
+ * @returns {{ width: number, height: number } | null}
+ */
+function sourceDimensions(file) {
+  try {
+    const descriptor = openSync(file, "r");
+    try {
+      const head = Buffer.alloc(MAX_HEADER_BYTES);
+      const read = readSync(descriptor, head, 0, MAX_HEADER_BYTES, 0);
+      const dimensions = dimensionsFromBytes(head.subarray(0, read));
+      return dimensions === undefined ? null : { width: dimensions.width, height: dimensions.height };
+    } finally {
+      closeSync(descriptor);
+    }
+  } catch {
+    return null;
+  }
+}
+
+
+/**
+ * The catalog derived from the PLAN — one entry per declared runtime file, keyed by the namespace's
+ * accepted URL base, with namespace keys and filenames sorted so the file is byte-stable run to run.
+ *
+ * @param {string} [deploymentRoot] the selected Installation's root
+ * @returns {{ version: number, namespaces: Record<string, Record<string, { width: number, height: number } | null>> }}
+ */
+export function buildRuntimeAssetCatalog(deploymentRoot = selectedDeploymentRoot()) {
+  /** @type {Map<string, RuntimeNamespace>} */
+  const byKey = new Map(runtimeNamespaces(deploymentRoot).map((namespace) => [namespace.key, namespace]));
+  /** The declared files per namespace URL base. */
+  const collected = new Map();
+  for (const row of buildPlan(deploymentRoot)) {
+    const namespace = byKey.get(row.namespace);
+    if (namespace === undefined) {
+      throw new Error(`the plan installs into a namespace the runtime does not declare: ${row.namespace}`);
+    }
+    const files = collected.get(namespace.urlBase) ?? new Map();
+    files.set(row.to, sourceDimensions(path.join(deploymentRoot, row.from)));
+    collected.set(namespace.urlBase, files);
+  }
+  const namespaces = Object.fromEntries(
+    [...collected.keys()].sort().map((urlBase) => {
+      const files = collected.get(urlBase);
+      return [
+        urlBase,
+        Object.fromEntries([...files.keys()].sort().map((name) => [name, files.get(name)])),
+      ];
+    }),
+  );
+  return { version: CATALOG_VERSION, namespaces };
+}
+
+/**
+ * The catalog's exact file text — LF, two-space indented, trailing newline: ONE spelling only, so
+ * "unchanged" is a byte comparison and a reformat cannot pass as a change.
+ *
+ * @param {ReturnType<typeof buildRuntimeAssetCatalog>} catalog
+ * @returns {string}
+ */
+export function catalogText(catalog) {
+  return `${JSON.stringify(catalog, null, 2)}\n`;
+}
+
+/**
+ * Verifies the committed catalog against the plan WITHOUT writing (the `--check` half).
+ *
+ * A missing catalog is stale, not an error: a fresh checkout has none until `assets:sync` runs, exactly as
+ * the mirror itself is absent until then. Line endings are normalized before comparing, so a checkout that
+ * stores LF as CRLF reports no drift it does not have (the rule the country-code reference check applies).
+ *
+ * @param {string} [deploymentRoot] the selected Installation's root
+ * @param {string} [catalogFile] the generated catalog's path
+ * @returns {{ file: string, catalog: object, expected: string, current: string, present: boolean, stale: boolean }}
+ */
+export function checkRuntimeAssetCatalog(deploymentRoot = selectedDeploymentRoot(), catalogFile = CATALOG_FILE) {
+  const catalog = buildRuntimeAssetCatalog(deploymentRoot);
+  const expected = catalogText(catalog);
+  const present = existsSync(catalogFile);
+  const current = present ? readFileSync(catalogFile, "utf8") : "";
+  return {
+    file: catalogFile,
+    catalog,
+    expected,
+    current,
+    present,
+    stale: current.replace(/\r\n/g, "\n") !== expected,
+  };
+}
+
+/**
+ * Writes the catalog when — and only when — it differs from the plan (idempotent; the `assets:sync` half).
+ * It runs in the SAME invocation as the mirror, so the tree and the belief about it are installed together
+ * or not at all.
+ *
+ * @param {string} [deploymentRoot] the selected Installation's root
+ * @param {string} [catalogFile] the generated catalog's path
+ * @returns {{ file: string, catalog: object, expected: string, current: string, present: boolean, stale: boolean, changed: boolean }}
+ */
+export function syncRuntimeAssetCatalog(deploymentRoot = selectedDeploymentRoot(), catalogFile = CATALOG_FILE) {
+  const report = checkRuntimeAssetCatalog(deploymentRoot, catalogFile);
+  if (!report.stale) return { ...report, changed: false };
+  mkdirSync(path.dirname(catalogFile), { recursive: true });
+  writeFileSync(catalogFile, report.expected, "utf8");
+  return { ...report, changed: true };
+}
+
 const isMain =
   process.argv[1] !== undefined && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url;
 
@@ -681,6 +837,9 @@ if (isMain) {
   const installation = resolveAssetDeployment();
   const namespaces = runtimeNamespaces();
   const report = checkOnly ? checkMirrors() : syncMirrors();
+  // The CATALOG is installed/verified in the SAME invocation as the tree it describes, so the runtime
+  // never believes in a file this build did not install (and never disbelieves one it did).
+  const catalog = checkOnly ? checkRuntimeAssetCatalog() : syncRuntimeAssetCatalog();
   const noun = (n) => `${n} file${n === 1 ? "" : "s"}`;
   console.log(
     `runtime asset mirror — ${RUNTIME_DIR} (${noun(buildPlan().length)} declared in ` +
@@ -695,6 +854,11 @@ if (isMain) {
       })`,
     );
   }
+  console.log(
+    `  catalog:  ${CATALOG_RELATIVE} (${noun(buildPlan().length)} across ${
+      Object.keys(catalog.catalog.namespaces).length
+    } namespace(s))`,
+  );
   console.log(`  ${checkOnly ? "drifted" : "updated"}: ${noun(report.updated.length)}`);
   console.log(`  absent:   ${noun(report.created.length)}`);
   console.log(`  current:  ${noun(report.current.length)}`);
@@ -725,6 +889,12 @@ if (isMain) {
       report.created.length === buildPlan().length
         ? `the runtime mirror is NOT INSTALLED in ${RUNTIME_DIR}/ — run \`pnpm assets:sync\` (or \`pnpm install\`, which installs it).`
         : "runtime assets are not byte-identical to their sources — run `pnpm assets:sync`.",
+    );
+  }
+  if (checkOnly && catalog.stale) {
+    failures.push(
+      `${CATALOG_RELATIVE} does not match the plan — the plan, not a stale file, decides what the runtime ` +
+        "believes exists. Run `pnpm assets:sync` and commit the result.",
     );
   }
   if (failures.length > 0) {

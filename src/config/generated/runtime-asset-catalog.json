@@ -1,0 +1,409 @@
+{
+  "version": 1,
+  "namespaces": {
+    "/assets": {
+      "facebook.png": {
+        "width": 2084,
+        "height": 2084
+      },
+      "github.svg": {
+        "width": 98,
+        "height": 96
+      },
+      "icon-about.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-account.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-appointment.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-bag.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-beauty.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-benefits.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-blog.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-book.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-calendar.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-careers.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-cart.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-case-studies.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-checkout.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-clients.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-community.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-consultation.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-contact.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-courses.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-delivery.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-directions.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-document.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-donate.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-download.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-drink.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-email.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-emergency.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-enquire.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-enrol.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-events.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-external-link.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-faq.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-feature.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-filter.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-food.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-gallery.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-gift.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-globe.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-health.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-home.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-hours.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-information.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-link.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-location.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-login.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-map.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-membership.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-menu.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-message.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-news.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-order.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-payment.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-phone.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-pickup.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-portfolio.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-pricing.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-process.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-products.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-projects.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-quote.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-register.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-reservation.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-resources.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-reviews.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-rooms.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-sale.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-search.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-service-area.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-services.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-share.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-shop.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-sidebar-close.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-sidebar-open.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-status-error.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-status-info.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-status-success.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-status-warning.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-support.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-table.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-team.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-testimonials.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-treatment.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-upload.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-volunteer.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "icon-wellness.svg": {
+        "width": 24,
+        "height": 24
+      },
+      "instagram.svg": {
+        "width": 1000,
+        "height": 1000
+      },
+      "linkedin.png": {
+        "width": 635,
+        "height": 540
+      },
+      "messenger.svg": {
+        "width": 502,
+        "height": 502
+      },
+      "telegram.svg": {
+        "width": 1000,
+        "height": 1000
+      },
+      "whatsapp.svg": {
+        "width": 720,
+        "height": 720
+      }
+    },
+    "/spokes/foundation/assets": {
+      "favicon.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "footer-graphic.svg": {
+        "width": 2048,
+        "height": 2048
+      },
+      "header-graphic.svg": {
+        "width": 4096,
+        "height": 512
+      },
+      "logo-footer.svg": {
+        "width": 240,
+        "height": 64
+      },
+      "logo-header.svg": {
+        "width": 240,
+        "height": 64
+      },
+      "sidebar-close.svg": {
+        "width": 2,
+        "height": 2
+      },
+      "sidebar-default-icon-closed.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "sidebar-default-icon-open.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "sidebar-open.svg": {
+        "width": 2,
+        "height": 2
+      }
+    }
+  }
+}

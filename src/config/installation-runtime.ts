@@ -53,6 +53,11 @@ import {
   spokeRuntimeAssetNamespacePath,
   spokeRuntimeAssetUrlBase,
 } from "./spoke-runtime-segment.mjs";
+// M16/M17 (Defect B) — every context namespace leaves this module carrying the BUILD-TIME inventory the
+// catalog published for its URL base, so a page render asks immutable data instead of probing `public/**`
+// (which a serverless function does not contain). This module is SERVER-ONLY, so the generated catalog is
+// bundled exactly where it is needed and nowhere near a client chunk.
+import { withRuntimeAssetInventories } from "./runtime-asset-catalog";
 import type { SiteConfig } from "./site-config";
 
 /** How an Installation is authored: `legacy` (no manifest) or `explicit` (a manifest). */
@@ -226,7 +231,9 @@ export function runtimeContextForSpoke(
     resources: spoke.resources,
     // LEGACY has ONE namespace (its role artwork lives in the platform namespace); an EXPLICIT Spoke adds
     // its own. Platform always first, so a Spoke can never shadow platform artwork.
-    runtimeAssetNamespaces: runtimeNamespacesFor(index.mode === "legacy" ? null : spoke.runtimeSegment),
+    runtimeAssetNamespaces: withRuntimeAssetInventories(
+      runtimeNamespacesFor(index.mode === "legacy" ? null : spoke.runtimeSegment),
+    ),
   };
 }
 
