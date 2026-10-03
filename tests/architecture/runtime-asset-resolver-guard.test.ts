@@ -30,13 +30,18 @@ describe("runtime asset ownership resolver guard", () => {
 
   it("carries no ambient Spoke selection state", () => {
     for (const word of AMBIENT_SELECTION) expect(source).not.toContain(word);
-    expect(source).not.toMatch(/\b(?:let|var)\s/);
+    // No module-level MUTABLE binding of any kind: function-local state (e.g. a decoder's cursor) is not
+    // shared state, but a module-scope `let`/`var` would be.
+    expect(source.split("\n").filter((line) => /^(?:export )?(?:let|var)\b/.test(line))).toEqual([]);
   });
 
-  it("keeps its ownership cache inside the resolver instance", () => {
+  it("keeps the owner and dimension caches inside the resolver instance", () => {
     const cacheDeclarations = source.split("\n").filter((line) => line.includes("new Map<"));
-    expect(cacheDeclarations).toHaveLength(1);
-    expect(/^\s/.test(cacheDeclarations[0])).toBe(true);
+    expect(cacheDeclarations).toHaveLength(2);
+    for (const declaration of cacheDeclarations) expect(/^\s/.test(declaration)).toBe(true);
+
+    expect(source).toContain("const ownerCache = new Map<string, RuntimeAssetNamespace | null>();");
+    expect(source).toContain("const dimensionCache = new Map<string, ImageDimensions | undefined>();");
 
     const moduleLevelDeclarations = source
       .split("\n")
