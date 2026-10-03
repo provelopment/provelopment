@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 // it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
 // the `deployment` Vitest project, whose setup selects the REAL installed deployment
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -18,6 +18,8 @@ import { buildSitemapRoutes } from "@/application/route-discovery";
 import { siteConfig } from "@/config";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { resolveUiConfig } from "@/core/ui";
+
+import { runtimeAssetFile, runtimeAssetUrl } from "../../../tests/support/runtime-assets";
 
 /**
  * R1A — THE REFERENCE DEPLOYMENT'S CONFIGURATION AND ITS FIRST TWO PAGES.
@@ -85,9 +87,11 @@ describe("the reference deployment's own configuration", () => {
 
   it("configures the favicon from an asset the repository actually ships", () => {
     expect(siteConfig.assets?.favicon).toBe(`${REFERENCE_ORIGIN}/assets/favicon.svg`);
-    // `/assets/<file>` is the runtime mirror's contract, so the file must exist or
+    // The declared role must resolve to a file the runtime actually serves (S3E1C: the favicon is
+    // REPLACEABLE role artwork, so it ships in the sole Spoke's own namespace, not the platform tree), or
     // the browser would 404 the very icon the configuration declares.
-    expect(existsSync(path.join(deployment.publicAssetsDirectory, "favicon.svg"))).toBe(true);
+    expect(runtimeAssetFile("favicon.svg")).not.toBeUndefined();
+    expect(runtimeAssetUrl("favicon.svg")).toBe("/spokes/foundation/assets/favicon.svg");
   });
 
   it("enables the visitor layout switcher without a competing navigation leaf", () => {
@@ -118,7 +122,9 @@ describe("the reference deployment's own configuration", () => {
     // Icons resolve through the shipped asset family (never a broken <img>).
     for (const item of siteConfig.navigation) {
       for (const icon of [item.iconOpen, item.iconClosed].filter(Boolean)) {
-        expect(existsSync(path.join(deployment.publicAssetsDirectory, icon as string))).toBe(true);
+        // The navigation icons are PLATFORM artwork (the icon library), so they ship in the shared
+        // platform namespace — asked of the authority rather than assumed.
+        expect(runtimeAssetFile(icon as string), icon).not.toBeUndefined();
       }
     }
   });

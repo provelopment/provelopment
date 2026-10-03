@@ -5,6 +5,8 @@ import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { availableFooterGraphicPath } from "@/config/assets";
+
+import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 import { siteConfigFileSchema, siteAssetsSchema } from "@/config/schema";
 import { siteConfig } from "@/config";
 import { FooterGraphic } from "@/components/site/footer-graphic";
@@ -39,10 +41,17 @@ const component = readFileSync(
 /** The single `.ui-footer-graphic` rule block (the decorative-layer contract). */
 const footerGraphicBlock = /\.ui-footer-graphic\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
-/** An FS-4 absolute URL whose basename is backed by a real public/assets file. */
-const AVAILABLE = "https://www.example.com/assets/logo-footer.svg";
+/**
+ * An FS-4 absolute URL whose basename is backed by a real PLATFORM file (S3E1C: the icon library is
+ * installed into the platform namespace of every installation, so the availability RULE is proven
+ * independently of which artwork an installation has activated).
+ */
+const AVAILABLE = "https://www.example.com/assets/icon-phone.svg";
 /** An FS-4 absolute URL whose basename has NO backing file. */
 const MISSING = "https://www.example.com/assets/footer-graphic-does-not-exist.png";
+
+/** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
+const LIVE = runtimeAssetUrl("icon-phone.svg") as string;
 
 const render = (src: string | undefined) => renderToStaticMarkup(FooterGraphic({ src }) ?? null);
 
@@ -84,11 +93,12 @@ describe("P12-FG — schema / backward compatibility", () => {
     // `site.assets.footerGraphic` — in place, or with their own absolute URL.
     expect(siteConfig.assets?.footerGraphic).toBeUndefined();
     expect(availableFooterGraphicPath(siteConfig.assets?.footerGraphic)).toBeUndefined();
-    // The blank placeholder still ships, so activating the role is one config
-    // line and needs no artwork at all. ISO-H2 — that the runtime file IS the placeholder source
+    // The blank placeholder still ships WITH THE INSTALLATION THAT OWNS IT, so activating the role is one
+    // config line and needs no artwork at all. ISO-H2 — that the runtime file IS that placeholder source
     // (byte-identical) is asserted by the deployment's own acceptance suite, because the mirror is
-    // generated from the SELECTED deployment.
-    const shipped = readFileSync(path.join(root, "public", "assets", "footer-graphic.svg"), "utf8");
+    // generated from the SELECTED deployment; S3E1C — a generic run must not read another deployment's
+    // Spoke namespace, so the shipped artwork is asked of this installation's own sources.
+    const shipped = readFileSync(shippedRoleSource("footer-graphic.svg"), "utf8");
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|line|image|text)\b/i);
   });
 });
@@ -101,10 +111,10 @@ describe("P12-FG — availability + rendering contract", () => {
 
   it("3. a valid configured asset → the decorative layer IS rendered with the resolved same-origin path", () => {
     const src = availableFooterGraphicPath(AVAILABLE);
-    expect(src).toBe("/assets/logo-footer.svg");
+    expect(src).toBe(LIVE);
     const html = render(src);
     expect(html).toContain('class="ui-footer-graphic"');
-    expect(html).toContain("background-image:url(/assets/logo-footer.svg)");
+    expect(html).toContain(`background-image:url(${LIVE})`);
   });
 
   it("4. a CONFIGURED-but-MISSING asset → the decorative layer is ABSENT (never a placeholder, never a 404)", () => {
@@ -199,9 +209,9 @@ describe("P12-FG — separation + reusability contract", () => {
     expect(component).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     // The role is generic: it renders whatever `src` the config resolver produced.
     expect(component).toContain("export function FooterGraphic({ src }");
-    // The runtime role is same-origin `public/assets/`, so a file swap is the
-    // simple adopter workflow (same model as the banner/background roles).
-    expect(availableFooterGraphicPath(AVAILABLE)?.startsWith("/assets/")).toBe(true);
+    // The runtime role is same-origin, served from the namespace that owns it, so a file swap is the
+    // simple adopter workflow (same model as the banner/background roles; S3E1C).
+    expect(availableFooterGraphicPath(AVAILABLE)).toBe(LIVE);
   });
 
   it("11. the background and banner systems remain independent of the footer graphic", () => {

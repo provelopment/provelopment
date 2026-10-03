@@ -28,6 +28,12 @@ import {
  *     `syncMirrors` — including unauthorized NESTED directories, which the flat plan never installs;
  *   · `syncMirrors` is IDEMPOTENT and byte-exact for every asset class, and it never touches anything
  *     outside its runtime tree, nor its own sources (the data flow is strictly one-way).
+ *
+ * S3E1C — PATHS IN A REPORT ARE RELATIVE TO THE GENERATED RUNTIME BASE (`public/`), which is the
+ * directory that holds every namespace. The platform namespace is therefore `assets/**` in a report (its
+ * files are installed into `<runtime base>/assets` exactly as before), and a Spoke's own artwork would be
+ * `spokes/<segment>/assets/**` — the qualification that makes two Spokes' identical basenames
+ * distinguishable in one report. `tests/unit/spoke-asset-namespaces.test.ts` proves that half.
  */
 const trees: string[] = [];
 
@@ -124,10 +130,10 @@ describe("missing, stale and unauthorized output are all detected — and repair
     syncMirrors(deploymentRoot, runtimeRoot);
     write(path.join(runtimeRoot, "unauthorized.svg"), "<svg/>");
 
-    expect(checkMirrors(deploymentRoot, runtimeRoot).unexpected).toEqual(["unauthorized.svg"]);
+    expect(checkMirrors(deploymentRoot, runtimeRoot).unexpected).toEqual(["assets/unauthorized.svg"]);
 
     const repaired = syncMirrors(deploymentRoot, runtimeRoot);
-    expect(repaired.removed).toEqual(["unauthorized.svg"]);
+    expect(repaired.removed).toEqual(["assets/unauthorized.svg"]);
     expect(existsSync(path.join(runtimeRoot, "unauthorized.svg"))).toBe(false);
     expect(checkMirrors(deploymentRoot, runtimeRoot).unexpected).toEqual([]);
   });
@@ -138,13 +144,17 @@ describe("missing, stale and unauthorized output are all detected — and repair
     write(path.join(runtimeRoot, "stray", "deeper", "file.svg"), "<svg/>");
 
     expect(checkMirrors(deploymentRoot, runtimeRoot).unexpected).toEqual([
-      "stray/",
-      "stray/deeper/",
-      "stray/deeper/file.svg",
+      "assets/stray/",
+      "assets/stray/deeper/",
+      "assets/stray/deeper/file.svg",
     ]);
 
     const repaired = syncMirrors(deploymentRoot, runtimeRoot);
-    expect(repaired.removed).toEqual(["stray/", "stray/deeper/", "stray/deeper/file.svg"]);
+    expect(repaired.removed).toEqual([
+      "assets/stray/",
+      "assets/stray/deeper/",
+      "assets/stray/deeper/file.svg",
+    ]);
     expect(existsSync(path.join(runtimeRoot, "stray"))).toBe(false);
   });
 
@@ -159,11 +169,11 @@ describe("missing, stale and unauthorized output are all detected — and repair
     rmSync(path.join(deploymentRoot, row.from));
 
     const stale = checkMirrors(deploymentRoot, runtimeRoot);
-    expect(stale.unexpected).toContain(row.to);
-    expect(stale.unexpected).not.toContain(`${row.to}/`);
+    expect(stale.unexpected).toContain(`assets/${row.to}`);
+    expect(stale.unexpected).not.toContain(`assets/${row.to}/`);
 
     const repaired = syncMirrors(deploymentRoot, runtimeRoot);
-    expect(repaired.removed).toContain(row.to);
+    expect(repaired.removed).toContain(`assets/${row.to}`);
     expect(existsSync(path.join(runtimeRoot, row.to))).toBe(false);
     expect(checkMirrors(deploymentRoot, runtimeRoot).unexpected).toEqual([]);
   });

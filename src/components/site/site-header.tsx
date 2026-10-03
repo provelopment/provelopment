@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { siteConfig } from "@/config";
-import { assetPathFromUrl, availableHeaderGraphicPath } from "@/config/assets";
+import { runtimeAssetUrl, availableHeaderGraphicPath } from "@/config/assets";
 import { getDictionary } from "@/config/i18n";
 import { regionDisplayName } from "@/core/display-labels";
 import { regionsForSite } from "@/core/regional-pages";
@@ -132,10 +132,12 @@ export function SiteHeader({ locale, resolved, siteId, siteSwitch }: SiteHeaderP
     const navLinks: readonly ContextNavLink[] = getSiteNavLinks(locale, siteId);
     // P6-3B — the header's left brand slot renders the configured header logo
     // (the `site.assets.logo` role), replacing the former text label.
-    // `assetPathFromUrl` keeps it same-origin; intrinsic aspect ratio is
+    // `runtimeAssetUrl` keeps it same-origin AND points it at the RUNTIME
+    // NAMESPACE that holds the file (S3F1), so a Spoke's own logo is served from
+    // that Spoke's namespace; intrinsic aspect ratio is
     // preserved (`h-8 w-auto`, responsive); accessible name = the site name.
     // Absent config → the previous text brand link (graceful, never broken).
-    const headerLogoSrc = assetPathFromUrl(siteConfig.assets?.logo);
+    const headerLogoSrc = runtimeAssetUrl(siteConfig.assets?.logo);
     // P12-HG — the optional decorative header band (`site.assets.headerGraphic`,
     // the `header-graphic` role). Resolved on the SERVER through the shared
     // availability rule, so a configured-but-missing file resolves to

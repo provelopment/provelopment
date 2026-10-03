@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { DEPLOYMENT_RESOURCE_PATHS, deploymentPaths } from "@/config/deployment-root";
-import { spokeResourcePaths, type SpokeResourcePaths } from "@/config/spoke-resources";
+import { spokeResourceIndexFor, spokeResourcePaths, type SpokeResourcePaths } from "@/config/spoke-resources";
 import { IMPLICIT_SPOKE_ID } from "@/core/spoke";
 
 /**
@@ -170,13 +170,15 @@ describe("S3E1A discovers nothing and is UNWIRED", () => {
       /resolveInstallationSpokeRoots/,
       /discover/i,
       /public\//,
-      /assetBasePath/,
-      /runtime/i,
     ]) {
       expect(code, String(forbidden)).not.toMatch(forbidden);
     }
     // The ONE thing it consults besides the root it was handed: the authority's relative trees.
     expect(code).toMatch(/DEPLOYMENT_RESOURCE_PATHS/);
+    // S3E1C — the runtime facts ARE this module's business now (the segment and the namespace URL base),
+    // and they come from the ONE module that owns the encoding rather than being restated here.
+    expect(code).toMatch(/runtimeSegmentForSpokeId/);
+    expect(code).toMatch(/spokeRuntimeAssetUrlBase/);
   });
 
   it("is named only as a TYPE, and never by the runtime or the client-facing barrel", () => {
@@ -208,4 +210,43 @@ describe("S3E1A discovers nothing and is UNWIRED", () => {
       readFileSync(path.join(process.cwd(), "src", "config", "index.ts"), "utf8"),
     ).not.toMatch(/spoke-resources/);
   });
+
+describe("S3E1C — the resource INDEX names the runtime namespace, and nothing else", () => {
+  it("derives the segment and the asset base path from the IDENTITY, keeping the authored trees", () => {
+    const descriptor = { id: "foundation", root: `${INSTALLATION}/spokes/foundation-web` };
+    const index = spokeResourceIndexFor(descriptor);
+
+    expect(index.spokeId).toBe("foundation");
+    expect(index.runtimeSegment).toBe("foundation");
+    expect(index.assetBasePath).toBe("/spokes/foundation/assets");
+    expect(index.resources).toEqual(spokeResourcePaths(descriptor));
+  });
+
+  it("carries NO configuration, dictionary contents, page documents or request state", () => {
+    const index = spokeResourceIndexFor({ id: "one", root: `${INSTALLATION}/spokes/one` });
+
+    expect(Object.keys(index).sort()).toEqual([
+      "assetBasePath",
+      "resources",
+      "runtimeSegment",
+      "spokeId",
+    ]);
+    expect(Object.keys(index.resources).sort()).toEqual(PUBLISHED_FIELDS);
+  });
+
+  it("gives two identities two namespaces — including the pair an escape-free encoding would collide", () => {
+    const slash = spokeResourceIndexFor({ id: "a/b", root: `${INSTALLATION}/spokes/x` });
+    const escaped = spokeResourceIndexFor({ id: "a~2Fb", root: `${INSTALLATION}/spokes/x` });
+
+    expect(slash.assetBasePath).toBe("/spokes/a~2Fb/assets");
+    expect(escaped.assetBasePath).toBe("/spokes/a~7E2Fb/assets");
+    expect(slash.assetBasePath).not.toBe(escaped.assetBasePath);
+
+    // …and the SAME identity is stable whatever directory it is authored in.
+    const elsewhere = spokeResourceIndexFor({ id: "a/b", root: `${INSTALLATION}/spokes/y` });
+    expect(elsewhere.assetBasePath).toBe(slash.assetBasePath);
+    expect(elsewhere.resources.spokeRoot).toBe(`${INSTALLATION}/spokes/y`);
+  });
+});
+
 });

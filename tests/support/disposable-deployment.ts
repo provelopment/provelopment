@@ -30,13 +30,27 @@ import {
   DEPLOYMENT_CONFIG_ENV,
   DEPLOYMENT_LAYOUT_ENV,
   DEPLOYMENT_ROOT_ENV,
+  deploymentEnvironment,
   resolveDeploymentForBuild,
 } from "../../src/config/deployment-build.mjs";
 
 import { captureProductionStateManifest, productionStateDrift } from "./production-state-manifest";
 
-/** The surfaces a copy must reproduce byte-for-byte for an authoring experiment to mean anything. */
-const FIDELITY_SURFACES = ["site.config.json", "config", "content/pages", "content/assets"] as const;
+/**
+ * The surfaces a copy must reproduce byte-for-byte for an authoring experiment to mean anything.
+ *
+ * The legacy authored locations AND the explicit ones, so the check covers whichever form the selected
+ * Installation uses: in an explicit Installation the website material lives under `spokes/**` (and the
+ * four legacy locations are simply absent, contributing nothing).
+ */
+const FIDELITY_SURFACES = [
+  "site.config.json",
+  "config",
+  "content/pages",
+  "content/assets",
+  "spokes.json",
+  "spokes",
+] as const;
 
 export interface DisposableDeployment {
   /** The temporary root to hand to `FOUNDATION_DEPLOYMENT_ROOT`. */
@@ -73,6 +87,11 @@ export function selectDisposableDeploymentCopy(): DisposableDeployment {
   process.env[DEPLOYMENT_ROOT_ENV] = root;
   process.env[DEPLOYMENT_LAYOUT_ENV] = "override";
   process.env[DEPLOYMENT_CONFIG_ENV] = readFileSync(source.siteConfigFile, "utf8");
+
+  // S3F1 — the copy is a whole Installation, so the AUTHORING MODE and (when explicit) the sole Spoke's
+  // root and runtime segment travel with it. Asked of the seam for the copy's own root, so the copy
+  // describes itself rather than inheriting the source's answer.
+  Object.assign(process.env, deploymentEnvironment(resolveDeploymentForBuild(process.env, process.cwd())));
 
   // LOUD, both ways: the authority must now answer with the copy, and the copy must not BE the source —
   // a writable test that silently kept writing to the real deployment is the defect this exists to end.

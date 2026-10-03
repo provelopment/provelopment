@@ -20,13 +20,16 @@ import { siteConfig } from "@/config";
  *    produce a broken `<img>`.
  */
 describe("P6-1 — configured icon assets", () => {
-  it("the shipped default sidebar icons are real files under public/assets", () => {
-    expect(iconAssetAvailable("sidebar-open.svg")).toBe(true);
-    expect(iconAssetAvailable("sidebar-close.svg")).toBe(true);
+  it("the shipped PLATFORM icons are real files under public/assets", () => {
+    // The icon LIBRARY is platform/shared artwork (S3E1C), so it is installed into the platform namespace
+    // of EVERY installation — unlike a Spoke's replaceable role artwork, which is served from that Spoke's
+    // own namespace and is therefore asked of the installation's sources (see `tests/support/runtime-assets`).
+    expect(iconAssetAvailable("icon-sidebar-open.svg")).toBe(true);
+    expect(iconAssetAvailable("icon-sidebar-close.svg")).toBe(true);
   });
 
   it("availableIconName preserves missing/empty verbatim and neutralizes unavailable names (never a broken image)", () => {
-    expect(availableIconName("sidebar-open.svg")).toBe("sidebar-open.svg");
+    expect(availableIconName("icon-sidebar-open.svg")).toBe("icon-sidebar-open.svg");
     expect(availableIconName("definitely-missing-icon.svg")).toBe("");
     expect(availableIconName("")).toBe("");
     expect(availableIconName(undefined)).toBeUndefined();
@@ -34,11 +37,11 @@ describe("P6-1 — configured icon assets", () => {
 
   it("a config with ONLY existing/empty/absent icon leaves validates", () => {
     expect(() =>
-      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "sidebar-open.svg", close: "sidebar-close.svg" })),
+      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "icon-sidebar-open.svg", close: "icon-sidebar-close.svg" })),
     ).not.toThrow();
     expect(() => assertConfiguredIconAssetsExist(minimalConfigWithIcons({}))).not.toThrow();
     expect(() =>
-      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "", close: "sidebar-close.svg", cta: "" })),
+      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "", close: "icon-sidebar-close.svg", cta: "" })),
     ).not.toThrow();
   });
 

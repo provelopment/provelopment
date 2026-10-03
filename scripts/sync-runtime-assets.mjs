@@ -78,7 +78,16 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 // authority `next.config.ts` and `vitest.config.mts` ask (`src/config/deployment-build.mjs`)
 // instead of implementing a second deployment-root mechanism or hard-coding a location. That
 // module is plain ESM with JSDoc types, so `node` loads it natively — exactly as Next and Vitest do.
-import { resolveDeploymentForBuild } from "../src/config/deployment-build.mjs";
+//
+// S3E1C/S3F1 — the SAME seam also answers which authored form the Installation uses and, when it is
+// EXPLICIT, which Spokes it declares: every declared Spoke owns a runtime namespace of its own, and those
+// answers must come from the authority rather than from a second manifest reader here.
+import { installationSpokes, resolveDeploymentForBuild } from "../src/config/deployment-build.mjs";
+import {
+  SPOKE_RUNTIME_CONTAINER,
+  spokeRuntimeAssetNamespacePath,
+  spokeRuntimeAssetUrlBase,
+} from "../src/config/spoke-runtime-segment.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RUNTIME_DIR = "public/assets";
@@ -88,29 +97,60 @@ const RUNTIME_ROOT = path.join(ROOT, RUNTIME_DIR);
 const SOURCE_DIRECTORY = path.join("content", "assets");
 
 /**
+ * THE RUNTIME NAMESPACE MODEL (FOUNDATION-MULTISITE-S3E1C)
+ * --------------------------------------------------------
+ * Every generated runtime file belongs to exactly ONE namespace, and a namespace is a SEPARATE runtime
+ * root with its own URL base:
+ *
+ *   platform   `<runtime base>/assets`                  →  `/assets/**`
+ *              Foundation/platform-owned artwork: the reusable icon library and the platform marks.
+ *              Shared by every Spoke, never duplicated into one.
+ *   spoke      `<runtime base>/spokes/<segment>/assets` →  `/spokes/<segment>/assets/**`
+ *              ONE Spoke's own replaceable artwork (its role files and its `branding/`), in a namespace
+ *              derived from that Spoke's IDENTITY — so two Spokes may ship the same asset basename
+ *              without either being able to overwrite the other.
+ *
+ * The two are never nested inside one another, and no Spoke namespace ever appears beneath
+ * `public/assets/**`. `runtimeNamespaces()` is the only place either is spelled.
+ */
+
+/** The platform namespace's directory, relative to the runtime base (`public/`). */
+const PLATFORM_NAMESPACE_PATH = path.basename(RUNTIME_DIR);
+/** The platform namespace's same-origin URL base. */
+const PLATFORM_URL_BASE = "/assets";
+/** The stable report key of the platform namespace. */
+const PLATFORM_NAMESPACE_KEY = "platform";
+
+/**
  * WHERE THIS RUN READS ITS SOURCE ASSETS FROM (FOUNDATION-DEPLOYMENT-ISO-H1)
  * -------------------------------------------------------------------------
  * One answer, asked of the seam — never guessed here:
  *
- *   repository  the seam finds no capsule at `<repo>/deployment/`  →  <repo>/content/assets/**
- *   capsule     `<repo>/deployment/site.config.json` exists        →  <repo>/deployment/content/assets/**
- *   override    `FOUNDATION_DEPLOYMENT_ROOT` is set (dev/test)     →  <override-root>/content/assets/**
+ *   repository  the seam finds no authored capsule at `<repo>/deployment/`  →  <repo>/content/assets/**
+ *   capsule     `<repo>/deployment/` is authored (either form)             →  that root's asset sources
+ *   override    `FOUNDATION_DEPLOYMENT_ROOT` is set (dev/test)             →  that root's asset sources
  *
- * `runtimeRoot` is deliberately NOT a deployment location: Next.js serves static files from
- * `public/` only, so the generated mirror stays `<repository>/public/assets/**` in every layout.
- * Exported and parameterised so a generic test can prove all three layouts on synthetic trees.
+ * …and, inside whichever root was selected, the AUTHORING MODE decides WHICH SPOKE supplies the artwork:
+ * the legacy root itself, or (explicit) each Spoke the manifest declares.
+ *
+ * `runtimeRoot` is deliberately NOT a deployment location: Next.js serves static files from `public/`
+ * only, so the generated mirror stays `<repository>/public/assets/**` in every layout. Exported and
+ * parameterised so a generic test can prove all three layouts on synthetic trees.
  *
  * @param {Record<string, string | undefined>} [environment] the process environment the build reads
  *   (the same shape `resolveDeploymentForBuild` consumes), so a test can pass a synthetic one
  * @param {string} [repositoryRoot] the repository the deployment is resolved inside
  */
 export function resolveAssetDeployment(environment = process.env, repositoryRoot = ROOT) {
-  const { layout, root } = resolveDeploymentForBuild(environment, repositoryRoot);
+  const { layout, mode, root, resourceRoot } = resolveDeploymentForBuild(environment, repositoryRoot);
   return {
     layout,
-    /** The root the `MIRRORED` / `MIRRORED_DIRECTORIES` `from` paths are relative to. */
+    mode,
+    /** The Installation root the plan's SOURCE paths are relative to. */
     deploymentRoot: root,
-    sourceRoot: path.join(root, SOURCE_DIRECTORY),
+    /** The root this deployment's RESOURCES live in (the sole Spoke's root in explicit mode). */
+    resourceRoot,
+    sourceRoot: path.join(resourceRoot, SOURCE_DIRECTORY),
     runtimeRoot: path.join(repositoryRoot, RUNTIME_DIR),
   };
 }
@@ -144,9 +184,59 @@ function selectedDeploymentRoot() {
 }
 
 /**
- * Every mirrored source → runtime filename pair. `from` is relative to the SELECTED DEPLOYMENT's
- * root (`resolveAssetDeployment().deploymentRoot` — repository, capsule or override); `to` is a
- * filename inside the repository's `public/assets/`.
+ * ONE generated runtime namespace.
+ * @typedef {object} RuntimeNamespace
+ * @property {string} key the stable report key ("platform", "spoke:<id>")
+ * @property {string} directory the generated directory, RELATIVE to the runtime base (`public/`)
+ * @property {string} urlBase the same-origin URL base its files are served from
+ * @property {string|null} spokeId the Spoke this namespace belongs to (`null` = the platform)
+ */
+
+/**
+ * Every runtime namespace an Installation's artwork is installed into, in REPORT order: the platform
+ * namespace first, then one per declared Spoke (in manifest order), each carrying the segment derived
+ * from that Spoke's IDENTITY.
+ *
+ * A legacy Installation declares no Spoke and therefore has exactly ONE namespace — which is why its
+ * runtime tree stays exactly what it has always been.
+ *
+ * @param {string} deploymentRoot the selected Installation root
+ * @returns {RuntimeNamespace[]}
+ */
+export function runtimeNamespaces(deploymentRoot = selectedDeploymentRoot()) {
+  const authoring = installationSpokes(deploymentRoot);
+  /** @type {RuntimeNamespace[]} */
+  const namespaces = [
+    {
+      key: PLATFORM_NAMESPACE_KEY,
+      directory: PLATFORM_NAMESPACE_PATH,
+      urlBase: PLATFORM_URL_BASE,
+      spokeId: null,
+    },
+  ];
+  if (authoring.mode === "explicit") {
+    for (const spoke of authoring.spokes) {
+      namespaces.push({
+        key: `spoke:${spoke.id}`,
+        directory: spokeRuntimeAssetNamespacePath(spoke.segment),
+        urlBase: spokeRuntimeAssetUrlBase(spoke.segment),
+        spokeId: spoke.id,
+      });
+    }
+  }
+  return namespaces;
+}
+
+/**
+ * The REPLACEABLE ROLE ARTWORK: one source file per runtime ROLE the engine addresses by name (the
+ * favicon, the two logo roles, the decorative header/footer layers, the sidebar disclosure icons and
+ * the nav-item fallback icons).
+ *
+ * `from` is relative to the SELECTED INSTALLATION's root (repository, capsule or override), and `to` is
+ * a FILENAME inside the namespace the row is installed into: the platform namespace for a legacy
+ * Installation, and the SPOKE'S OWN namespace for each declared Spoke — because role artwork is exactly
+ * the material a Spoke replaces. Two Spokes may therefore ship the same role basename without either
+ * being able to overwrite the other's output.
  */
 export const MIRRORED = [
   // ── Identity roles: NEUTRAL placeholders are the template's shipped default ─
@@ -171,25 +261,45 @@ export const MIRRORED = [
   { from: "content/assets/placeholders/sidebar-default-icon-closed.svg", to: "sidebar-default-icon-closed.svg", note: "nav-item icon fallback (collapsed)" },
 ];
 
-/** Whole directory → directory mirrors (source basename preserved). */
+/**
+ * The PLATFORM-OWNED directories: the reusable, non-business-specific icon library and the
+ * platform/social marks. They are installed into the SHARED platform namespace (`/assets/**`) — never
+ * duplicated into a Spoke's namespace, and never shadowable by one — so every Spoke on an Installation
+ * serves the same platform artwork from the same URLs.
+ *
+ * In explicit mode the SOURCE is read from each declared Spoke's authored tree (that is where an
+ * Installation's material lives once its website content has moved into a Spoke), but the TARGET stays
+ * the one platform namespace: two Spokes offering the same platform basename is a plan the installer
+ * REFUSES rather than resolves.
+ */
 export const MIRRORED_DIRECTORIES = [
-  { from: "content/assets/icon-library/icons", to: RUNTIME_DIR, note: "generic icon library" },
-  { from: "content/assets/platform-marks", to: RUNTIME_DIR, note: "platform/social marks" },
+  { from: "content/assets/icon-library/icons", note: "generic icon library" },
+  { from: "content/assets/platform-marks", note: "platform/social marks" },
 ];
 
 /**
- * Runtime files with NO in-repository source. Each entry must be an explicit,
- * justified exception: an undeclared runtime-only file is a manifest error,
- * which is what keeps a second, uncontrolled asset library from appearing under
- * `public/assets/`.
+ * The SPOKE-OWNED directories: an Installation's REPLACEABLE brand artwork, mirrored into the namespace
+ * of the Spoke that authored it. One entry names the source tree; the namespace is that Spoke's.
  *
- * EMPTY BY DESIGN (2026-09 closure pass): the ten `banner-*.png` files used to be
- * the only entries here. Persistent branded artwork must have an authoritative
- * source beneath `content/assets/`, so the banner family now lives in
- * `content/assets/branding/banners/` and is mirrored deterministically like every
- * other runtime graphic. A genuinely runtime-ONLY (generated, source-less) asset
- * may still be declared here with its reason — but nothing is kept here merely
- * because it already was.
+ * Flat and extension-filtered exactly like the platform directories (a subdirectory is not a role), and
+ * deliberately OPTIONAL: a Spoke that ships no brand artwork of its own is the ordinary case — and the
+ * canonical reference Installation is exactly that (`deployment/tests/unit/asset-install.test.ts`
+ * asserts it ships none).
+ */
+export const SPOKE_DIRECTORIES = [
+  { from: "content/assets/branding", note: "replaceable brand artwork (flat)" },
+];
+
+/**
+ * Runtime files with NO in-repository source. Each entry must be an explicit, justified exception: an
+ * undeclared runtime file is a manifest error, which is what keeps a second, uncontrolled asset library
+ * from appearing in a generated namespace.
+ *
+ * EMPTY BY DESIGN (2026-09 closure pass): the ten `banner-*.png` files used to be the only entries here.
+ * Persistent branded artwork must have an authoritative source beneath `content/assets/`, so a banner
+ * family belongs in a Spoke's `content/assets/branding/` and is mirrored deterministically like every
+ * other runtime graphic. A genuinely runtime-ONLY (generated, source-less) asset may still be declared
+ * here with its reason — but nothing is kept here merely because it already was.
  */
 export const RUNTIME_ONLY = [];
 
@@ -198,88 +308,214 @@ const sha256 = (buffer) => createHash("sha256").update(buffer).digest("hex");
 /**
  * One planned mirror row.
  * @typedef {object} MirrorRow
- * @property {string} from the source path, relative to the SELECTED DEPLOYMENT's root
- * @property {string} to the runtime filename the mirror installs
+ * @property {string} from the source path, relative to the SELECTED INSTALLATION's root
+ * @property {string} to the runtime filename the mirror installs, RELATIVE to its namespace
  * @property {string} note why this file is mirrored
+ * @property {string} namespace the namespace key this row installs into (`platform`, `spoke:<id>`)
  */
 
 /** Deliverable artwork extensions — documentation (e.g. `README.md`) is not mirrored. */
 const MIRRORED_EXTENSIONS = new Set([".svg", ".png", ".jpg", ".jpeg", ".webp", ".gif", ".avif"]);
 
+/** The artwork filenames ONE source directory contributes: regular files, deliverable extensions, sorted. */
+function directoryFiles(deploymentRoot, from) {
+  return readdirSync(path.join(deploymentRoot, from), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && MIRRORED_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
+    .map((entry) => entry.name)
+    .sort();
+}
+
 /**
- * The full, deterministic plan of mirrored files (sorted, extension-filtered), read from the
- * SELECTED DEPLOYMENT. `deploymentRoot` is a parameter so a generic test can substitute a
- * synthetic deployment; the CLI uses the deployment the seam resolved.
+ * REFUSE a plan in which two rows would install the SAME runtime file.
+ *
+ * Namespaces exist precisely so that two Spokes may ship the same basename; within ONE namespace,
+ * however, a duplicate target would mean one entry silently overwriting another — a Spoke's artwork
+ * replacing a platform asset, or one Spoke's replacing another's. That is never resolved by precedence:
+ * the plan is rejected and both sources are named.
+ *
+ * @param {MirrorRow[]} rows the planned rows
+ * @returns {MirrorRow[]} the same rows when every target is unique
  */
-export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
-  const rows = [];
-  for (const { from, to, note } of MIRRORED) rows.push({ from, to, note });
-  for (const { from, note } of MIRRORED_DIRECTORIES) {
-    const names = readdirSync(path.join(deploymentRoot, from), { withFileTypes: true })
-      .filter((entry) => entry.isFile() && MIRRORED_EXTENSIONS.has(path.extname(entry.name).toLowerCase()))
-      .map((entry) => entry.name)
-      .sort();
-    for (const name of names) rows.push({ from: `${from}/${name}`, to: name, note });
+function assertUniqueTargets(rows) {
+  /** @type {Map<string, MirrorRow>} */
+  const seen = new Map();
+  for (const row of rows) {
+    const target = `${row.namespace}::${row.to}`;
+    const previous = seen.get(target);
+    if (previous !== undefined) {
+      throw new Error(
+        `the asset plan installs "${row.to}" TWICE into the "${row.namespace}" namespace ` +
+          `(from "${previous.from}" and "${row.from}"). One runtime target must have exactly one ` +
+          "source: give the files distinct names, or let each Spoke own its artwork in its own namespace.",
+      );
+    }
+    seen.set(target, row);
   }
   return rows;
 }
 
 /**
- * Every entry under the runtime tree, RELATIVE to it — files and directories alike, deepest last.
+ * The full, deterministic plan of mirrored files (sorted, extension-filtered), read from the SELECTED
+ * INSTALLATION. `deploymentRoot` is a parameter so a generic test can substitute a synthetic deployment;
+ * the CLI uses the installation the seam resolved.
  *
- * The plan installs FLAT filenames into the runtime directory, so any directory at all (and any file
- * the plan does not declare) is unauthorized output. That is what stops a second, uncontrolled asset
- * library from appearing under `public/assets/`, and what makes a STALE file — a source that was
- * removed — detectable instead of permanent.
+ * LEGACY mode is unchanged, byte for byte: every row installs into the platform namespace, from the
+ * Installation root's own `content/assets/**` — the tree `public/assets/**` has always been.
  *
- * An absent runtime tree is not an error: it is the state a fresh checkout starts in, and
- * `syncMirrors` is what bootstraps it.
+ * EXPLICIT mode gives EVERY declared Spoke its own namespace: its role artwork and its `branding/` are
+ * installed THERE, while the platform-owned trees are installed once, into the shared platform namespace.
  *
- * @param {string} runtimeRoot the generated runtime tree
- * @returns {string[]} relative paths; a directory ends with `/`
+ * @param {string} [deploymentRoot] the selected Installation root
+ * @returns {MirrorRow[]}
  */
-function runtimeEntries(runtimeRoot) {
-  if (!existsSync(runtimeRoot)) return [];
+export function buildPlan(deploymentRoot = selectedDeploymentRoot()) {
+  const authoring = installationSpokes(deploymentRoot);
+  /** @type {MirrorRow[]} */
+  const rows = [];
+  const push = (from, to, note, namespace) => rows.push({ from, to, note, namespace });
+
+  if (authoring.mode === "legacy") {
+    for (const { from, to, note } of MIRRORED) push(from, to, note, PLATFORM_NAMESPACE_KEY);
+    for (const { from, note } of MIRRORED_DIRECTORIES) {
+      for (const name of directoryFiles(deploymentRoot, from)) {
+        push(`${from}/${name}`, name, note, PLATFORM_NAMESPACE_KEY);
+      }
+    }
+    return assertUniqueTargets(rows);
+  }
+
+  for (const spoke of authoring.spokes) {
+    const namespace = `spoke:${spoke.id}`;
+
+    // This Spoke's OWN replaceable role artwork → its own namespace.
+    for (const { from, to, note } of MIRRORED) {
+      push(`${spoke.relativeRoot}/${from}`, to, note, namespace);
+    }
+
+    // …and its replaceable brand artwork, when it authors any.
+    for (const { from, note } of SPOKE_DIRECTORIES) {
+      const directory = `${spoke.relativeRoot}/${from}`;
+      if (!existsSync(path.join(deploymentRoot, directory))) continue;
+      for (const name of directoryFiles(deploymentRoot, directory)) {
+        push(`${directory}/${name}`, name, note, namespace);
+      }
+    }
+
+    // Platform-owned artwork stays SHARED: read from the Spoke's authored tree, installed into the ONE
+    // platform namespace.
+    for (const { from, note } of MIRRORED_DIRECTORIES) {
+      const directory = `${spoke.relativeRoot}/${from}`;
+      if (!existsSync(path.join(deploymentRoot, directory))) continue;
+      for (const name of directoryFiles(deploymentRoot, directory)) {
+        push(`${directory}/${name}`, name, note, PLATFORM_NAMESPACE_KEY);
+      }
+    }
+  }
+
+  return assertUniqueTargets(rows);
+}
+
+/**
+ * The runtime regions this installer OWNS, as `{ relative, absolute }` pairs relative to the generated
+ * runtime base (`public/`): the platform namespace, and the container every Spoke namespace lives in
+ * (which is also where a namespace a manifest no longer declares is found).
+ *
+ * Deliberately NOT the whole base: `public/` is Next.js' static directory, where an adopter may keep
+ * files this installer knows nothing about. Only these two regions are generated output, so only these
+ * two may be converged.
+ *
+ * @param {string} runtimeBase the generated runtime base (`<repo>/public`)
+ * @returns {{ relative: string, absolute: string }[]} the regions that exist
+ */
+function runtimeRegions(runtimeBase) {
+  return [PLATFORM_NAMESPACE_PATH, SPOKE_RUNTIME_CONTAINER]
+    .map((relative) => ({ relative, absolute: path.join(runtimeBase, relative) }))
+    .filter((region) => existsSync(region.absolute));
+}
+
+/**
+ * Every entry under ONE runtime region, as a path RELATIVE TO THE RUNTIME BASE — files and directories
+ * alike, directories suffixed `/`, deepest last.
+ *
+ * A namespace installs FLAT filenames, so any directory at all (and any file the plan does not declare)
+ * is unauthorized output. That is what stops a second, uncontrolled asset library from appearing in a
+ * generated namespace, what makes a STALE file — a source that was removed, or a Spoke a manifest no
+ * longer declares — detectable instead of permanent, and what keeps one Spoke's namespace from being
+ * mistaken for another's.
+ *
+ * An absent runtime tree is not an error: it is the state a fresh checkout starts in, and `syncMirrors`
+ * is what bootstraps it.
+ *
+ * @param {string} directory the region's absolute directory
+ * @param {string} prefix the region's base-relative directory
+ * @returns {string[]} base-relative paths; a directory ends with `/`
+ */
+function entriesUnder(directory, prefix) {
   const found = [];
-  const walk = (directory, prefix) => {
-    const entries = readdirSync(directory, { withFileTypes: true }).sort((a, b) =>
+  const walk = (current, relative) => {
+    const entries = readdirSync(current, { withFileTypes: true }).sort((a, b) =>
       a.name.localeCompare(b.name),
     );
     for (const entry of entries) {
-      const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+      const path_ = relative === "" ? entry.name : `${relative}/${entry.name}`;
       if (entry.isDirectory()) {
-        found.push(`${relative}/`);
-        walk(path.join(directory, entry.name), relative);
+        found.push(`${path_}/`);
+        walk(path.join(current, entry.name), path_);
       } else {
         // Anything that is not a directory (including a symbolic link) is treated as a file.
-        found.push(relative);
+        found.push(path_);
       }
     }
   };
-  walk(runtimeRoot, "");
+  walk(directory, prefix);
   return found;
 }
 
 /**
  * Classify every planned pair: created / updated / current (+ missing sources), and list every runtime
- * entry the plan does NOT account for.
+ * entry the plan does NOT account for — in EVERY runtime namespace the Installation generates.
  *
  * `runtimeRoot` is a parameter for the same reason `deploymentRoot` is: a generic test proves this
  * generated-output lifecycle on disposable trees under the OS temp directory and must never touch the
- * repository's real `public/assets/**`. Every command uses the defaults.
+ * repository's real `public/assets/**`. It is the PLATFORM namespace's directory, and it is what the
+ * runtime base — the directory the namespaces live in — is derived from, so a test can exercise a whole
+ * multi-namespace tree inside its own disposable root. Every command uses the defaults.
  *
- * @param {string} [deploymentRoot] the selected deployment's root
- * @param {string} [runtimeRoot] the generated runtime tree
+ * Paths in the report are RELATIVE TO THE RUNTIME BASE, so a namespace is visible in the path itself
+ * (`assets/favicon.svg`, `spokes/foundation/assets/favicon.svg`) — which is what makes two Spokes'
+ * identical basenames distinguishable in a report.
+ *
+ * @param {string} [deploymentRoot] the selected Installation's root
+ * @param {string} [runtimeRoot] the generated PLATFORM namespace directory
  * @returns {{ created: MirrorRow[], updated: MirrorRow[], current: MirrorRow[], missingSources: MirrorRow[], unexpected: string[] }}
  */
 export function checkMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRoot = RUNTIME_ROOT) {
+  const runtimeBase = path.dirname(runtimeRoot);
+  const rows = buildPlan(deploymentRoot);
+  /** @type {Map<string, RuntimeNamespace>} */
+  const byKey = new Map(runtimeNamespaces(deploymentRoot).map((ns) => [ns.key, ns]));
+
   const created = [];
   const updated = [];
   const current = [];
   const missingSources = [];
-  for (const row of buildPlan(deploymentRoot)) {
+  /** @type {Set<string>} */
+  const plannedFiles = new Set();
+  /** @type {Set<string>} */
+  const plannedDirectories = new Set();
+
+  for (const row of rows) {
+    const namespace = byKey.get(row.namespace);
     const source = path.join(deploymentRoot, row.from);
-    const target = path.join(runtimeRoot, row.to);
+    const target = path.join(runtimeBase, namespace.directory, row.to);
+
+    const relativeTarget = `${namespace.directory}/${row.to}`;
+    plannedFiles.add(relativeTarget);
+    const parts = relativeTarget.split("/");
+    for (let index = 1; index < parts.length; index += 1) {
+      plannedDirectories.add(`${parts.slice(0, index).join("/")}/`);
+    }
+
     if (!existsSync(source)) {
       missingSources.push(row);
       continue;
@@ -289,52 +525,65 @@ export function checkMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeR
     else if (sha256(readFileSync(target)) !== sourceHash) updated.push(row);
     else current.push(row);
   }
-  const planned = new Set(buildPlan(deploymentRoot).map((row) => row.to));
+
   const allowlisted = (name) =>
     RUNTIME_ONLY.some((entry) => entry.pattern.test(name) || entry.pattern.test(path.basename(name)));
-  // A directory is legitimate only while something the plan installs lives inside it.
-  const directoryExpected = (relative) =>
-    [...planned].some((target) => target.startsWith(relative));
-  const unexpected = runtimeEntries(runtimeRoot).filter((relative) =>
-    relative.endsWith("/")
-      ? !directoryExpected(relative)
-      : !planned.has(relative) && !allowlisted(relative),
-  );
-  return { created, updated, current, missingSources, unexpected };
+
+  const unexpected = [];
+  for (const region of runtimeRegions(runtimeBase)) {
+    for (const entry of entriesUnder(region.absolute, region.relative)) {
+      const legitimate = entry.endsWith("/")
+        ? plannedDirectories.has(entry)
+        : plannedFiles.has(entry) || allowlisted(entry);
+      if (!legitimate) unexpected.push(entry);
+    }
+  }
+
+  return { created, updated, current, missingSources, unexpected: unexpected.sort() };
 }
 
 /**
- * Make the runtime mirror EQUAL the plan: create, update, and REMOVE unauthorized output (idempotent).
+ * Make every runtime namespace EQUAL the plan: create, update, and REMOVE unauthorized output
+ * (idempotent).
  *
- * Removal is the half that keeps a generated tree honest. A source that no longer exists, or a file
- * someone placed directly in `public/assets/`, must not survive merely because it is already on disk —
- * the PLAN decides what is legitimate, never "what was already there". Only paths discovered INSIDE
- * `runtimeRoot` are ever removed, only empty directories are unlinked (never a recursive delete), and
- * nothing is removed recursively from a path this function did not list itself.
+ * Removal is the half that keeps a generated tree honest. A source that no longer exists, a file
+ * someone placed directly in a namespace, or a whole namespace belonging to a Spoke the manifest no
+ * longer declares must not survive merely because it is already on disk — the PLAN decides what is
+ * legitimate, never "what was already there". Only paths discovered INSIDE the generated runtime
+ * regions are ever removed, only empty directories are unlinked (never a recursive delete), and nothing
+ * is removed recursively from a path this function did not list itself.
  *
- * @param {string} [deploymentRoot] the selected deployment's root
- * @param {string} [runtimeRoot] the generated runtime tree
+ * ONE SPOKE CANNOT TOUCH ANOTHER'S OUTPUT: every row names the namespace it installs into, the write
+ * boundary is the runtime BASE (so no row can escape it), and a Spoke's namespace is only ever removed
+ * when the plan does not declare that Spoke at all.
+ *
+ * @param {string} [deploymentRoot] the selected Installation's root
+ * @param {string} [runtimeRoot] the generated PLATFORM namespace directory
  * @returns {{ created: MirrorRow[], updated: MirrorRow[], current: MirrorRow[], missingSources: MirrorRow[], unexpected: string[], removed: string[] }}
  */
 export function syncMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRoot = RUNTIME_ROOT) {
-  // Bootstrap FIRST: an absent mirror is the fresh-checkout state, not an error — and the plan is
-  // what decides the tree, so there is nothing to preserve from a previous install.
+  // Bootstrap FIRST: an absent platform namespace is the fresh-checkout state, not an error — and the
+  // plan is what decides every namespace, so there is nothing to preserve from a previous install.
   mkdirSync(runtimeRoot, { recursive: true });
   const report = checkMirrors(deploymentRoot, runtimeRoot);
+  /** @type {Map<string, RuntimeNamespace>} */
+  const byKey = new Map(runtimeNamespaces(deploymentRoot).map((ns) => [ns.key, ns]));
 
-  const root = path.resolve(runtimeRoot);
-  /** A path inside the runtime tree, or a refusal — this function's own write boundary. */
+  const base = path.resolve(path.dirname(runtimeRoot));
+  /** A path inside the runtime base, or a refusal — this function's own write boundary. */
   const inside = (relative) => {
-    const full = path.resolve(root, relative);
-    if (full !== root && !full.startsWith(root + path.sep)) {
-      throw new Error(`refusing to touch a path outside the runtime tree: ${relative}`);
+    const full = path.resolve(base, relative);
+    if (full !== base && !full.startsWith(base + path.sep)) {
+      throw new Error(`refusing to touch a path outside the runtime base: ${relative}`);
     }
     return full;
   };
 
   for (const row of [...report.created, ...report.updated]) {
+    const namespace = byKey.get(row.namespace);
     const source = path.join(deploymentRoot, row.from);
-    const target = inside(row.to);
+    const target = inside(`${namespace.directory}/${row.to}`);
+    mkdirSync(path.dirname(target), { recursive: true });
     const expected = sha256(readFileSync(source));
     copyFileSync(source, target);
     if (sha256(readFileSync(target)) !== expected) throw new Error(`mirror write failed: ${row.to}`);
@@ -357,6 +606,18 @@ export function syncMirrors(deploymentRoot = selectedDeploymentRoot(), runtimeRo
       removed.push(relative);
     }
   }
+  // …then a REGION that no longer holds a namespace: the container itself is the region root, so the
+  // deepest-first pass above cannot see it. An empty SPOKE container is stale output like any other, and
+  // removing it is what makes an abandoned Spoke namespace leave no trace. The PLATFORM namespace is
+  // never removed: it is the generated tree's own root, and `mkdirSync` above bootstraps it every run.
+  for (const region of runtimeRegions(base)) {
+    if (region.relative === PLATFORM_NAMESPACE_PATH) continue;
+    const directory = inside(region.relative);
+    if (existsSync(directory) && readdirSync(directory).length === 0) {
+      rmdirSync(directory);
+      removed.push(`${region.relative}/`);
+    }
+  }
   return { ...report, removed: removed.sort() };
 }
 
@@ -375,18 +636,29 @@ if (isMain) {
     );
     process.exit(0);
   }
-  const deployment = resolveAssetDeployment();
+  const installation = resolveAssetDeployment();
+  const namespaces = runtimeNamespaces();
   const report = checkOnly ? checkMirrors() : syncMirrors();
   const noun = (n) => `${n} file${n === 1 ? "" : "s"}`;
-  console.log(`runtime asset mirror — ${RUNTIME_DIR} (${noun(buildPlan().length)} declared)`);
-  console.log(`  source:   ${deployment.sourceRoot}  (${deployment.layout} deployment)`);
-  console.log(`  target:   ${deployment.runtimeRoot}`);
+  console.log(
+    `runtime asset mirror — ${RUNTIME_DIR} (${noun(buildPlan().length)} declared in ` +
+      `${namespaces.length} namespace${namespaces.length === 1 ? "" : "s"})`,
+  );
+  console.log(`  source:   ${installation.sourceRoot}  (${installation.layout}/${installation.mode})`);
+  console.log(`  target:   ${installation.runtimeRoot}`);
+  for (const namespace of namespaces) {
+    console.log(
+      `    namespace ${namespace.key.padEnd(18)} ${namespace.urlBase}  (${
+        namespace.spokeId === null ? "platform-owned" : `Spoke "${namespace.spokeId}"`
+      })`,
+    );
+  }
   console.log(`  ${checkOnly ? "drifted" : "updated"}: ${noun(report.updated.length)}`);
   console.log(`  absent:   ${noun(report.created.length)}`);
   console.log(`  current:  ${noun(report.current.length)}`);
   if (!checkOnly) console.log(`  removed:  ${noun(report.removed.length)}`);
   for (const row of [...report.updated, ...report.created]) {
-    console.log(`    ${checkOnly ? "drift" : "write"}  ${row.from} → ${row.to}`);
+    console.log(`    ${checkOnly ? "drift" : "write"}  ${row.from} → ${row.namespace}/${row.to}`);
   }
   if (!checkOnly) for (const relative of report.removed) console.log(`    remove ${relative}`);
 
@@ -401,7 +673,8 @@ if (isMain) {
   // the previous contents of the tree, decides what is legitimate.
   if (checkOnly && report.unexpected.length > 0) {
     failures.push(
-      `unauthorized runtime file(s) in ${RUNTIME_DIR}/ — the plan does not declare them, so nobody derived them. Mirror them from a source, or declare them in RUNTIME_ONLY with a reason:\n` +
+      "unauthorized runtime file(s) — the plan does not declare them, so nobody derived them. Mirror " +
+        "them from a source, or declare them in RUNTIME_ONLY with a reason:\n" +
         report.unexpected.map((name) => `    ${name}`).join("\n"),
     );
   }
@@ -419,6 +692,7 @@ if (isMain) {
     process.exit(1);
   }
   console.log(
-    "\nruntime asset mirror OK — every runtime file is byte-identical to its source, and nothing else is present.",
+    "\nruntime asset mirror OK — every runtime file is byte-identical to its source, and nothing else is " +
+      "present in any declared namespace.",
   );
 }

@@ -15,6 +15,8 @@ import { siteConfigFileSchema, siteAssetsSchema } from "@/config/schema";
 import { siteConfig } from "@/config";
 import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/site/header-graphic";
 
+import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
+
 /**
  * P12-HG — the optional DECORATIVE header band / graphic capability.
  *
@@ -60,10 +62,20 @@ const siteHeaderCode = stripComments(siteHeader);
 /** The single `.ui-site-header[data-ui-header-graphic]` rule block (the band contract). */
 const bandBlock = /\.ui-site-header\[data-ui-header-graphic\]\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
-/** An FS-4 absolute URL whose basename is backed by a real public/assets file. */
-const AVAILABLE = "https://www.example.com/assets/logo-header.svg";
+/**
+ * An FS-4 absolute URL whose basename is backed by a real PLATFORM file.
+ *
+ * S3E1C — the neutral availability fixture is a PLATFORM-owned icon-library file, because the icon library
+ * is installed into the platform namespace of every installation. A Spoke's replaceable role artwork is
+ * NOT visible to a run whose selected installation is a different one, and this suite deliberately proves
+ * the availability RULE independently of which artwork a deployment has activated.
+ */
+const AVAILABLE = "https://www.example.com/assets/icon-phone.svg";
 /** An FS-4 absolute URL whose basename has NO backing file. */
 const MISSING = "https://www.example.com/assets/header-graphic-does-not-exist.svg";
+
+/** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
+const LIVE = runtimeAssetUrl("icon-phone.svg") as string;
 
 /**
  * The header as it is actually emitted: the band contributes attributes ONLY
@@ -119,12 +131,15 @@ describe("P12-HG — schema / backward compatibility", () => {
     // stacking context — so an absent or blank role cannot affect the UI.
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
     expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBeUndefined();
-    expect(existsSync(path.join(root, "public", "assets", "header-graphic.svg"))).toBe(true);
+    // The blank placeholder still ships WITH THE INSTALLATION THAT OWNS IT (S3E1C: a Spoke's replaceable
+    // role artwork is asked of that installation's own sources — a generic run serves a different
+    // deployment's generated tree, and must not see its Spoke namespace).
+    expect(existsSync(shippedRoleSource("header-graphic.svg"))).toBe(true);
     // The shipped default draws NOTHING (no paths, no shapes, no raster). ISO-H2 — that the runtime file
-    // is the byte-identical MIRROR of its declared placeholder source, and that the template installs no
+    // is the byte-identical MIRROR of that placeholder source, and that the template installs no
     // deployment-specific brand artwork for the role, are facts about the INSTALLED deployment's asset
     // install: asserted by its own acceptance suite (`deployment/tests/unit/asset-install.test.ts`).
-    const shipped = readFileSync(path.join(root, "public", "assets", "header-graphic.svg"), "utf8");
+    const shipped = readFileSync(shippedRoleSource("header-graphic.svg"), "utf8");
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|image|text)\b/i);
     expect(shipped).toMatch(/viewBox="0 0 4096 512"/);
     expect(shipped).not.toMatch(/#4F7CAC/i);
@@ -145,10 +160,10 @@ describe("P12-HG — availability + rendering contract", () => {
 
   it("3. a valid configured asset → the decorative band IS emitted with the resolved same-origin path", () => {
     const src = availableHeaderGraphicPath(AVAILABLE);
-    expect(src).toBe("/assets/logo-header.svg");
+    expect(src).toBe(LIVE);
     const html = renderHeader(src);
     expect(html).toContain('data-ui-header-graphic="true"');
-    expect(html).toContain("--ui-header-graphic:url(&quot;/assets/logo-header.svg&quot;)");
+    expect(html).toContain(`--ui-header-graphic:url(&quot;${LIVE}&quot;)`);
   });
 
   it("4. a CONFIGURED-but-MISSING asset → the decorative band is ABSENT (never a placeholder, never a 404)", () => {
@@ -298,7 +313,7 @@ describe("P12-HG — separation + reusability contract", () => {
     // The band never touches the banner role or its CSS.
     expect(componentCode).not.toMatch(/banners|ui-page-banner/);
     expect(bandBlock).not.toMatch(/ui-page-banner/);
-    expect(availableBannerPath(AVAILABLE)).toBe("/assets/logo-header.svg");
+    expect(availableBannerPath(AVAILABLE)).toBe(LIVE);
   });
 
   it("7. the header NAVIGATION remains independent and interactive", () => {
@@ -327,7 +342,7 @@ describe("P12-HG — separation + reusability contract", () => {
     // The two roles never read each other's key or resolver.
     expect(siteHeader).not.toContain("footerGraphic");
     expect(siteFooter).not.toContain("headerGraphic");
-    expect(availableFooterGraphicPath(AVAILABLE)).toBe("/assets/logo-header.svg");
+    expect(availableFooterGraphicPath(AVAILABLE)).toBe(LIVE);
     expect(assets).toMatch(/export function availableFooterGraphicPath[\s\S]{0,200}availableRoleAssetPath/);
   });
 
@@ -336,7 +351,7 @@ describe("P12-HG — separation + reusability contract", () => {
     expect(layout).toContain("availableBackgroundMap(");
     expect(componentCode).not.toMatch(/backgrounds|ui-page-background|resolveBackgroundPath/);
     expect(bandBlock).not.toMatch(/ui-page-background/);
-    expect(availableBackgroundMap({ all: AVAILABLE })).toEqual({ all: "/assets/logo-header.svg" });
+    expect(availableBackgroundMap({ all: AVAILABLE })).toEqual({ all: LIVE });
   });
 
   it("16. adopter replaceability is preserved — nothing Provelopment-specific is embedded", () => {
@@ -347,7 +362,8 @@ describe("P12-HG — separation + reusability contract", () => {
     expect(bandBlock).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     // The band renders whatever `src` the config resolver produced.
     expect(component).toContain("export function headerGraphicBandProps(src: string | undefined)");
-    // Same-origin `public/assets/` runtime role → a file swap is the adopter workflow.
-    expect(availableHeaderGraphicPath(AVAILABLE)?.startsWith("/assets/")).toBe(true);
+    // Same-origin runtime role, served from the namespace that owns it → a file swap is the adopter
+    // workflow (S3E1C: the URL is the resolved namespace URL, not a hardcoded `/assets/`).
+    expect(availableHeaderGraphicPath(AVAILABLE)).toBe(LIVE);
   });
 });

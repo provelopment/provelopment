@@ -14,6 +14,8 @@ import {
 } from "@/components/site/nav-links";
 import { NavItem } from "@/components/ui/nav-item";
 
+import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
+
 /**
  * SIDEBAR PAGE-ICON CONTRACT (owner ruling, 2026-09).
  *
@@ -30,7 +32,8 @@ import { NavItem } from "@/components/ui/nav-item";
  */
 
 const ROOT = process.cwd();
-const runtime = (file: string) => path.join(deploymentPaths().publicAssetsDirectory, file);
+const runtime = (file: string) =>
+  runtimeAssetFile(file) ?? path.join(deploymentPaths().publicAssetsDirectory, file);
 // ISO-H2 — the SOURCE side of every assertion comes from the deployment authority, never from a path
 // this test spells: the deployment's artwork is deployment-owned, so it is asked for (the synthetic
 // deployment in the generic project, the real capsule in the deployment project).
@@ -91,14 +94,25 @@ describe("sidebar page icons — the configured source is the icon LIBRARY", () 
   it("keeps the shipped placeholder fallback available for unmapped page types", () => {
     // Precedence step 3: no configured icon and no recognized semantic icon →
     // the blank/generic placeholder pair, still served from the runtime mirror.
+    // S3F1 — the model carries the RESOLVED runtime URL (the framework layer resolves a configured
+    // filename against the generated namespaces, because a Spoke's own artwork is not served from
+    // `/assets/**`), so the fallback arrives as that URL rather than as a bare filename.
     const links = withSidebarNavIcons([{ href: "/custom-page", label: "Custom", key: "nav:0" }]);
-    expect(links[0].openIcon).toBe(DEFAULT_SIDEBAR_ITEM_ICON_OPEN);
-    expect(links[0].closedIcon).toBe(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED);
+    // The model carries the RESOLVED runtime URL of the placeholder pair (S3F1). An installation that does
+    // not ship the placeholder resolves it to `""` — the P5-5 no-icon contract — which is exactly the
+    // installation-relative answer this generic run must give; the deployment acceptance suite proves the
+    // shipped case resolves to a URL in the namespace that holds it.
+    expect(links[0].openIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_OPEN) ?? "");
+    expect(links[0].closedIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED) ?? "");
+    // S3E1C — the placeholder artwork is the INSTALLATION's own replaceable role material, so "it ships" is
+    // asked of this installation's SOURCES: a generic run serves a tree generated from a different
+    // deployment and must never read that deployment's Spoke namespace.
     for (const file of [DEFAULT_SIDEBAR_ITEM_ICON_OPEN, DEFAULT_SIDEBAR_ITEM_ICON_CLOSED]) {
-      expect(existsSync(runtime(file)), `${file} runtime`).toBe(true);
+      expect(existsSync(source("placeholders", file)), `${file} source`).toBe(true);
     }
-    // ISO-H2 — that the placeholder SOURCES exist (and are what the runtime file mirrors) is asserted
-    // by the deployment's own acceptance suite, which is the subject that owns the asset install.
+    // ISO-H2 — that the placeholder SOURCES are installed, byte-identically, into the runtime namespaces of
+    // the SELECTED deployment is asserted by that deployment's own acceptance suite, which is the subject
+    // that owns the asset install.
   });
 
 describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", () => {
@@ -234,8 +248,10 @@ describe("sidebar page icons — expanded vs collapsed behaviour", () => {
   it("every sidebar item renders its 16x16 page icon pair plus the page name", () => {
     for (const [index, html] of rendered.entries()) {
       const link = links[index];
-      expect(html).toContain(`/assets/${link.openIcon}`);
-      expect(html).toContain(`/assets/${link.closedIcon}`);
+      // S3F1 — `openIcon`/`closedIcon` are the RESOLVED runtime URLs, so the rendered src is that value
+      // verbatim (the renderer passes an already-resolved same-origin path through unchanged).
+      expect(html).toContain(`src="${link.openIcon}"`);
+      expect(html).toContain(`src="${link.closedIcon}"`);
       expect(html).toContain("ui-nav-item-icon-open");
       expect(html).toContain("ui-nav-item-icon-closed");
       expect(html).toContain("ui-nav-item-label");

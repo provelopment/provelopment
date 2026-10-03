@@ -1,0 +1,8 @@
+{
+  "spokes": [
+    {
+      "id": "foundation",
+      "root": "spokes/foundation"
+    }
+  ]
+}

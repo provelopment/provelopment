@@ -31,6 +31,11 @@ export const PROTECTED_PRODUCTION_SURFACES = [
   "content/pages",
   "content/assets",
   "content/COUNTRY-CODES.md",
+  // S3F1 — an EXPLICIT Installation authors its website material under `spokes/**` and declares its
+  // Spokes in `spokes.json`, so the proof covers that form too: the legacy locations above are simply
+  // absent there, and these two contribute nothing for a legacy Installation.
+  "spokes.json",
+  "spokes",
 ] as const;
 
 /** A relative POSIX path mapped to the SHA-256 of its bytes. */
