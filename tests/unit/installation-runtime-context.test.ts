@@ -6,6 +6,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { IMPLICIT_SPOKE_ID } from "@/core/spoke";
 
+import { namespaceOwning } from "@/config/assets";
 import { deploymentPaths } from "@/config/deployment-root";
 import { getDictionary } from "@/config/i18n";
 import {
@@ -417,11 +418,10 @@ describe("architecture guards: the new capability is additive and has no mutable
     expect(manifest.spokes[0].id).toBe("foundation");
   });
 
-  it("has RETIRED the internal Spoke page tree: the public route IS the page identity (M17)", () => {
+  it("adds no internal route tree and no hostname dispatch yet", () => {
     expect(existsSync(path.join(process.cwd(), "src", "app", "~spoke"))).toBe(false);
-    expect(existsSync(path.join(process.cwd(), "src", "app", "[...segments]", "page.tsx"))).toBe(true);
-    // `src/proxy.ts` dispatches by HOSTNAME through the build routing table, holding no configuration.
-    expect(read("src/proxy.ts")).toContain("spokeSelectionForHost");
+    // `src/proxy.ts` is behaviourally untouched: it still negotiates from the single inlined config.
+    expect(read("src/proxy.ts")).toContain("negotiateWithin");
   });
 });
 

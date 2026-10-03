@@ -216,8 +216,8 @@ describe("the reference origin reaches the technical routes", () => {
     expect(urls).not.toContain(`${REFERENCE_ORIGIN}/${siteCode}/${localePath}/home`);
   });
 
-  it("references that sitemap from robots.txt", async () => {
-    expect((await robots()).sitemap).toBe(`${REFERENCE_ORIGIN}/sitemap.xml`);
+  it("references that sitemap from robots.txt", () => {
+    expect(robots().sitemap).toBe(`${REFERENCE_ORIGIN}/sitemap.xml`);
   });
 });
 

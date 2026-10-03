@@ -6,43 +6,8 @@ import { describe, expect, it } from "vitest";
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
 import { NextRequest } from "next/server";
 
-import { completePublicPath } from "@/app/[...segments]/spoke-navigation";
-import { SPOKE_SELECTION_HEADER } from "@/config/spoke-selection";
 import { siteConfig } from "@/config";
 import { proxy } from "@/proxy";
-
-/** The path a request is COMPLETED to inside its Spoke, or `null` when it is already complete. */
-function completionFor(path: string, headers: Record<string, string> = {}): string | null {
-  const segments = path.split("/").filter(Boolean);
-  const completion = completePublicPath(siteConfig, segments, {
-    cookieLocale: headers["cookie"]?.split("=")[1],
-    acceptLanguage: headers["accept-language"],
-  });
-  return "redirectPath" in completion ? completion.redirectPath : null;
-}
-
-/**
- * The Spoke the boundary selected for a public path, as the App Router tree reads it.
- *
- * M17 — the boundary no longer encodes the Spoke into the pathname: it passes the request through with the
- * selection on a private upstream header, so a client-side transition can commit against the public route.
- */
-function selectionFor(path: string, host = "foundation-template.provelopment.com"): string | null {
-  const response = proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
-  return response.headers.get(`x-middleware-request-${SPOKE_SELECTION_HEADER}`);
-}
-
-/** The pathname the boundary rewrote the request to — which must now ALWAYS be `null` (M17). */
-function rewriteFor(path: string, host = "foundation-template.provelopment.com"): string | null {
-  const response = proxy(new NextRequest(`https://${host}${path}`, { headers: { host } }));
-  const rewritten = response.headers.get("x-middleware-rewrite");
-  return rewritten === null ? null : new URL(rewritten).pathname;
-}
-
-/** The status the boundary answers when it refuses. */
-function statusFor(path: string, host = "foundation-template.provelopment.com"): number {
-  return proxy(new NextRequest(`https://${host}${path}`, { headers: { host } })).status;
-}
 
 /**
  * FOUNDATION-R1B — A LINK'S LANGUAGE SURVIVES THE REDIRECT THAT COMPLETES IT
@@ -62,14 +27,11 @@ const REFERENCE = siteConfig.defaultSite.code;
 /** R1C — the reference deployment's second site (Germany), whose code is also a locale name. */
 const GERMANY = siteConfig.sites.find((candidate) => candidate.code !== REFERENCE)?.code as string;
 
-/**
- * The `Location` a request is COMPLETED to inside its Spoke, or `null` when the path is already complete.
- *
- * M16 — completion moved from the request boundary into the Spoke the host selected, because it is a decision
- * about ONE Spoke's Sites and locales. The RULES are unchanged, and so is the resulting public path.
- */
+/** The `Location` a request is redirected to, or `null` when it is served as-is. */
 function redirectFor(path: string, headers: Record<string, string> = {}): string | null {
-  return completionFor(path, headers);
+  const response = proxy(new NextRequest(`https://foundation-template.provelopment.com${path}`, { headers }));
+  const location = response.headers.get("location");
+  return location === null ? null : new URL(location).pathname;
 }
 
 describe("an explicit locale in the path is authoritative", () => {
@@ -77,7 +39,7 @@ describe("an explicit locale in the path is authoritative", () => {
     // `en` is a locale, not a site code, so `/en/about` is the site-less locale form of the
     // DEFAULT site — and the URL's language wins over the stored preference.
     expect(
-      completionFor("/en/about", { cookie: "NEXT_LOCALE=de", "accept-language": "de-DE,de" }),
+      redirectFor("/en/about", { cookie: "NEXT_LOCALE=de", "accept-language": "de-DE,de" }),
     ).toBe(`/${REFERENCE}/en/about`);
   });
 
@@ -118,26 +80,5 @@ describe("the site-scoped form is never redirected", () => {
     expect(redirectFor("/ww/en")).toBeNull();
     expect(redirectFor("/ww/de")).toBeNull();
     expect(redirectFor("/ww/de/about", { cookie: "NEXT_LOCALE=en" })).toBeNull();
-  });
-});
-
-describe("the boundary selects the host's Spoke without touching the pathname (M17)", () => {
-  const segment = "foundation";
-
-  it("declares the claimed Spoke upstream and passes the PUBLIC path through unchanged", () => {
-    for (const path of ["/ww/en", "/ww/en/about", "/", "/about"]) {
-      expect(selectionFor(path), path).toBe(segment);
-      expect(rewriteFor(path), path).toBeNull();
-    }
-  });
-
-  it("never answers a DIRECT internal request: the namespace is retired, not a route", () => {
-    expect(statusFor(`/~spoke/${segment}/ww/en`)).toBe(404);
-    expect(statusFor("/~spoke")).toBe(404);
-  });
-
-  it("binds a Spoke's own asset namespace to the host that owns it", () => {
-    expect(statusFor(`/spokes/${segment}/assets/sidebar-open.svg`)).toBe(200);
-    expect(statusFor("/spokes/other/assets/sidebar-open.svg")).toBe(404);
   });
 });

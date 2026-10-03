@@ -230,17 +230,10 @@ function toPageBindings(
 }
 
 /**
- * The application's validated configuration — the ONE-SPOKE COMPATIBILITY BINDING (M16).
+ * The application's validated configuration.
  *
- * A MULTI-SPOKE Installation has NO single configuration to parse, so this function fails LOUDLY when called
- * there (`readDeploymentConfig` refuses it with its own message). It is a FUNCTION rather than a module-level
- * constant precisely so that importing this module — which every consumer of `parseSiteConfig` does — resolves
- * NOTHING: the per-Spoke reader (`./spoke-config`) parses ONE Spoke's configuration in a multi-Spoke
- * Installation, and a module-load failure would make that impossible.
- *
- * The eager binding the application has always had now lives beside the barrel that exports it
- * (`./active-site-config`), unchanged in meaning and failing identically.
+ * This is the only sanctioned way to read a deployment's `site.config.json`; importing
+ * the JSON directly anywhere else bypasses validation AND the deployment root
+ * (`@/config/deployment-root`, which resolves where the deployment's file lives).
  */
-export function activeDeploymentSiteConfig(): SiteConfig {
-  return parseSiteConfig(readDeploymentConfig());
-}
+export const siteConfig: SiteConfig = parseSiteConfig(readDeploymentConfig());

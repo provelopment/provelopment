@@ -70,7 +70,6 @@ import {
   resolveSpokeDeclarations,
   SPOKE_CONFIG_FILE_NAME,
 } from "./spoke-declarations.mjs";
-import { hostRoutingForInstallation } from "./spoke-host-routing.mjs";
 import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
 
 /**
@@ -79,15 +78,8 @@ import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
  */
 
 /**
- * The immutable hostname routing description (M16). Type-only reference to the plain-ESM authority that
- * produces it, so the contract is checked here without this module restating it.
- * @typedef {import("./spoke-host-routing.mjs").InstallationHostRouting} InstallationHostRouting
- */
-
-/**
- * How an Installation is authored: a legacy implicit Spoke, an explicit collection of exactly ONE Spoke
- * (the accepted one-Spoke runtime), or an explicit collection of SEVERAL (hostname dispatch, M16).
- * @typedef {"legacy" | "explicit" | "multi"} InstallationAuthoringMode
+ * How an Installation is authored: a legacy implicit Spoke, or an explicit declared collection.
+ * @typedef {"legacy" | "explicit"} InstallationAuthoringMode
  */
 
 /**
@@ -104,20 +96,14 @@ import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
  * The deployment a build resolved.
  * @typedef {object} ResolvedDeployment
  * @property {DeploymentLayout} layout the layout the build selected
- * @property {InstallationAuthoringMode} mode how the Installation is authored — `multi` when it declares
- *   SEVERAL Spokes, which is the one mode with NO single resource root and NO single configuration
+ * @property {InstallationAuthoringMode} mode how the Installation is authored
  * @property {string} root the directory that owns the INSTALLATION: the capsule, the override root, or the repository
- * @property {string|null} resourceRoot the directory that owns the DEPLOYMENT'S RESOURCES: the root itself
- *   in legacy mode, the sole Spoke's root in explicit mode — and `null` in MULTI mode, where no single
- *   directory owns "the" deployment's resources (every Spoke owns its own). Dictionaries, authored pages
- *   and artwork sources are resolved from here, while installation lifecycle records stay at `root`.
- * @property {string} siteConfigFile the configuration file the build inlined (`""` in multi mode: there is
- *   no single configuration to inline)
+ * @property {string} resourceRoot the directory that owns the DEPLOYMENT'S RESOURCES: the root itself in
+ *   legacy mode, the sole Spoke's root in explicit mode. Dictionaries, authored pages and artwork
+ *   sources are resolved from here, while installation lifecycle records stay at `root`.
+ * @property {string} siteConfigFile the configuration file the build inlined
  * @property {string} config the deployment's raw configuration TEXT, ready to inline into the build
- *   (`""` in multi mode — a Spoke context is what a consumer must select instead)
- * @property {DeclaredSpoke|null} spoke the SOLE declared Spoke in explicit mode; `null` in legacy and in multi mode
- * @property {InstallationHostRouting} hostRouting the immutable request-routing description the build
- *   inlines for the request boundary (`./spoke-host-routing.mjs`) — one entry per declared Spoke
+ * @property {DeclaredSpoke|null} spoke the SOLE declared Spoke in explicit mode; `null` in legacy mode
  */
 
 /** The environment names the build inlines for runtime code (`./deployment-root`). */
@@ -132,12 +118,6 @@ export const DEPLOYMENT_ROOT_ENV = "FOUNDATION_DEPLOYMENT_ROOT";
 export const DEPLOYMENT_MODE_ENV = "FOUNDATION_DEPLOYMENT_MODE";
 export const DEPLOYMENT_SPOKE_ROOT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_ROOT";
 export const DEPLOYMENT_SPOKE_SEGMENT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_SEGMENT";
-/**
- * M16 — the HOSTNAME ROUTING description (`./spoke-host-routing.mjs`), inlined as compact JSON. The
- * request boundary reads this and NOTHING else, so it never parses a Spoke's `site.config.json`, discovers a
- * Spoke root or restates an identity rule: the build resolved the table from the accepted authorities.
- */
-export const DEPLOYMENT_HOST_ROUTING_ENV = "FOUNDATION_DEPLOYMENT_HOST_ROUTING";
 
 /**
  * The capsule directory the selector probes: `<repositoryRoot>/deployment`.
@@ -252,9 +232,6 @@ export function resolveDeploymentForBuild(environment = process.env, repositoryR
         : repositoryRoot;
 
   const authoring = installationSpokes(root);
-  // M16 — the request boundary's routing description, resolved HERE from the same authorities this seam
-  // already consumes (never composed by hand and never re-derived from a directory name).
-  const hostRouting = hostRoutingForInstallation(root);
 
   if (authoring.mode === "legacy") {
     const siteConfigFile = path.join(root, DEPLOYMENT_CONFIG_FILE_NAME);
@@ -266,42 +243,30 @@ export function resolveDeploymentForBuild(environment = process.env, repositoryR
       siteConfigFile,
       config: readFileSync(siteConfigFile, "utf8"),
       spoke: null,
-      hostRouting,
     };
   }
 
   const declared = authoring.spokes;
-
-  // EXACTLY ONE declared Spoke: the accepted one-Spoke runtime, unchanged — its resources are the ones
-  // dictionaries, pages and artwork resolve from, and its configuration is the one the build inlines.
-  if (declared.length === 1) {
-    const [spoke] = declared;
-    const siteConfigFile = path.join(spoke.root, DEPLOYMENT_CONFIG_FILE_NAME);
-    return {
-      layout,
-      mode: "explicit",
-      root,
-      resourceRoot: spoke.root,
-      siteConfigFile,
-      config: readFileSync(siteConfigFile, "utf8"),
-      spoke,
-      hostRouting,
-    };
+  if (declared.length !== 1) {
+    throw new Error(
+      `FOUNDATION-MULTISITE-S3F1: the explicit Installation at "${root}" declares ` +
+        `${declared.length} Spokes (${declared.map((spoke) => `"${spoke.id}"`).join(", ")}). This ` +
+        "Foundation serves EXACTLY ONE Spoke, so a multi-Spoke Installation is refused rather than " +
+        "guessed at: there is no default Spoke and no manifest-order rule, and selecting a Spoke per " +
+        "request (hostname dispatch) is S3F2's work. Reduce the manifest to one Spoke to run it.",
+    );
   }
 
-  // SEVERAL declared Spokes: the multi-host runtime. There is NO default Spoke, no first Spoke and no
-  // manifest-order selection — a request is answered by the Spoke whose hostname claims match, which is why
-  // this mode inlines NO single configuration and claims NO single resource root. Every Spoke owns its own
-  // resources, and the runtime index composes one context per declared Spoke.
+  const [spoke] = declared;
+  const siteConfigFile = path.join(spoke.root, DEPLOYMENT_CONFIG_FILE_NAME);
   return {
     layout,
-    mode: "multi",
+    mode: "explicit",
     root,
-    resourceRoot: null,
-    siteConfigFile: "",
-    config: "",
-    spoke: null,
-    hostRouting,
+    resourceRoot: spoke.root,
+    siteConfigFile,
+    config: readFileSync(siteConfigFile, "utf8"),
+    spoke,
   };
 }
 
@@ -324,6 +289,5 @@ export function deploymentEnvironment(resolved) {
     [DEPLOYMENT_CONFIG_ENV]: resolved.config,
     [DEPLOYMENT_SPOKE_ROOT_ENV]: resolved.spoke?.relativeRoot ?? "",
     [DEPLOYMENT_SPOKE_SEGMENT_ENV]: resolved.spoke?.segment ?? "",
-    [DEPLOYMENT_HOST_ROUTING_ENV]: JSON.stringify(resolved.hostRouting),
   };
 }

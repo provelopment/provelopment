@@ -76,31 +76,8 @@ import { isCanonicalSiteCode } from "@/core/site-code";
  * path is built by concatenating a computed path with an extension: both defeat the analysis
  * and silently inflate every deployment.
  */
-/**
- * THE ACTIVE DEPLOYMENT'S AUTHORING ROOTS, RESOLVED ON FIRST USE (M16).
- *
- * A MULTI-SPOKE Installation has NO installation-wide resource root: every Spoke owns its own. Reading the
- * authority at MODULE LOAD therefore made importing this module impossible in a multi-Spoke build — and it did
- * so for a module the multi-Spoke runtime does not even use (its page composition is bound to the CONTEXT's own
- * roots). Reading it on FIRST USE keeps the failure where it belongs: a caller that asks for "the" deployment's
- * roots in a multi-Spoke Installation still fails LOUDLY, with the authority's own message, while an import
- * that never asks resolves nothing.
- *
- * The values themselves are unchanged, and they are still the authority's pre-declared literals (the shape the
- * build traces statically): only WHEN they are read moved.
- */
-let legacyRoots: PageAuthoringRoots | null = null;
-
-/** The legacy/current deployment's authored page roots — the ONE compatibility binding. */
-function legacyAuthoringRoots(): PageAuthoringRoots {
-  if (legacyRoots === null) {
-    legacyRoots = {
-      markdownPagesRoot: deploymentPaths().markdownPagesRoot,
-      jsonPagesRoot: deploymentPaths().jsonPagesRoot,
-    };
-  }
-  return legacyRoots;
-}
+const MARKDOWN_ROOT = deploymentPaths().markdownPagesRoot;
+const JSON_ROOT = deploymentPaths().jsonPagesRoot;
 
 /**
  * THE AUTHORED PAGE ROOTS ONE CONSUMER READS (FOUNDATION-MULTISITE-S3E1B)
@@ -118,14 +95,10 @@ export interface PageAuthoringRoots {
 }
 
 /** The ACTIVE deployment's roots — the legacy/current binding, and the ONLY wired one. */
-const LEGACY_AUTHORING_ROOTS = {
-  get markdownPagesRoot(): string {
-    return legacyAuthoringRoots().markdownPagesRoot;
-  },
-  get jsonPagesRoot(): string {
-    return legacyAuthoringRoots().jsonPagesRoot;
-  },
-} satisfies PageAuthoringRoots;
+const LEGACY_AUTHORING_ROOTS: PageAuthoringRoots = {
+  markdownPagesRoot: MARKDOWN_ROOT,
+  jsonPagesRoot: JSON_ROOT,
+};
 
 /** The one of a pair of authored roots a mode reads from. */
 function authoringRootOf(roots: PageAuthoringRoots, mode: PageAuthoringMode): string {
@@ -329,7 +302,7 @@ export async function readAuthoringPageFile(
 ): Promise<string | null> {
   if (!isReadablePageRoute(siteId, locale, routePath)) return null;
   // The path and the read stay in ONE expression, so the tracer can resolve the root and
-  // see exactly which subtree is being read (see `legacyAuthoringRoots()` above).
+  // see exactly which subtree is being read (see `MARKDOWN_ROOT` above).
   //
   // This is why the legacy reader keeps the module-level roots INLINE instead of delegating to
   // `readPageFileUnder`: a root arriving as a function argument is exactly what the tracer cannot
@@ -337,8 +310,8 @@ export async function readAuthoringPageFile(
   // differs, and only this wired path is allowed to be the statically resolvable one.
   try {
     return mode === "markdown"
-      ? await readFile(path.join(legacyAuthoringRoots().markdownPagesRoot, siteId, locale, `${routePath}.md`), "utf8")
-      : await readFile(path.join(legacyAuthoringRoots().jsonPagesRoot, siteId, locale, `${routePath}.json`), "utf8");
+      ? await readFile(path.join(MARKDOWN_ROOT, siteId, locale, `${routePath}.md`), "utf8")
+      : await readFile(path.join(JSON_ROOT, siteId, locale, `${routePath}.json`), "utf8");
   } catch {
     return null;
   }

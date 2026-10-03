@@ -116,15 +116,11 @@ describe("M13 — shared server composition guard", () => {
     expect(code(LAYOUT)).not.toContain("createPageSources");
   });
 
-  it("selects the Spoke from the REQUEST at the application boundary, never from a module-global", () => {
+  it("allows currentBuildRuntimeContext ONLY at the one-Spoke application boundary", () => {
     for (const boundary of [PAGE, LAYOUT]) {
       const source = code(boundary);
-      // M17 — the boundary consumes the Spoke the REQUEST selected (the boundary's exact hostname claim,
-      // carried on a private upstream header). The one-Spoke compatibility seam is no longer the page
-      // authority; it remains available to legitimate compatibility tooling.
-      expect(source, relative(boundary)).toContain("requestPublicDestination");
+      expect(source, relative(boundary)).toContain("currentBuildRuntimeContext()");
       expect(source, relative(boundary)).toContain("spokeServerComposition");
-      expect(source, relative(boundary)).not.toContain("currentBuildRuntimeContext");
       // The boundary only CHOOSES the context; it renders nothing itself.
       expect(source, relative(boundary)).not.toContain("getDictionary(");
       expect(source, relative(boundary)).not.toContain("createRuntimeAssetOwnershipResolver");

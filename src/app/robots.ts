@@ -1,23 +1,17 @@
 import type { MetadataRoute } from "next";
 
-import { runtimeContextForRequest } from "@/config/spoke-request";
+import { currentBuildRuntimeContext } from "@/config/installation-runtime";
 
 import { robotsForContext } from "./robots-context";
 
 /**
- * `robots.txt` — a thin Next BOUNDARY (M14), now PER HOST (M16)
- * ============================================================
+ * `robots.txt` — a thin Next BOUNDARY (M14)
+ * ========================================
  *
  * The accepted crawl rules are unchanged (`*` may crawl everything). The ONE Spoke-specific fact — the
- * sitemap origin — belongs to the Spoke the request's HOST resolves to, so `alpha.example/robots.txt`
- * advertises `https://alpha.example/sitemap.xml` and Beta's advertises Beta's. A host NO Spoke answers
- * advertises no sitemap at all: refusing is the only honest answer.
+ * sitemap origin — now comes from the current build's explicit context through `robotsForContext`, so no
+ * module-global configuration answers it.
  */
-export default async function robots(): Promise<MetadataRoute.Robots> {
-  const rules = { userAgent: "*", allow: "/" } as const;
-
-  const context = await runtimeContextForRequest();
-  if (context === null) return { rules };
-
-  return robotsForContext(context);
+export default function robots(): MetadataRoute.Robots {
+  return robotsForContext(currentBuildRuntimeContext());
 }

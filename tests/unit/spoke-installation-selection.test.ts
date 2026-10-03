@@ -191,8 +191,8 @@ describe("EXPLICIT mode: exactly ONE Spoke is runnable, and its resources are th
   });
 });
 
-describe("Every malformed Installation is REFUSED loudly (M16 adds the multi-Spoke runtime; nothing else relaxes)", () => {
-  it("ACCEPTS two declared Spokes as the multi-host runtime — no default, no manifest-order rule", () => {
+describe("S3F1 REFUSES everything that is not exactly one Spoke — loudly, and with no fallback", () => {
+  it("refuses TWO declared Spokes, naming both, whatever their manifest order", () => {
     const root = tempTree("foundation-s3f1-two-");
     plantSpoke(root, "alpha", "spokes/a");
     plantSpoke(root, "beta", "spokes/b");
@@ -201,16 +201,16 @@ describe("Every malformed Installation is REFUSED loudly (M16 adds the multi-Spo
       { id: "beta", root: "spokes/b" },
     ]);
 
-    expect(resolveDeploymentForBuild({}, root).mode).toBe("multi");
-    expect(resolveDeploymentForBuild({}, root).hostRouting.spokes.map((spoke) => spoke.id)).toEqual(["alpha", "beta"]);
-    expect(resolveDeploymentForBuild({}, root).spoke).toBeNull();
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/FOUNDATION-MULTISITE-S3F1/);
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/declares 2 Spokes \("alpha", "beta"\)/);
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/no default Spoke and no manifest-order rule/);
 
     // Reversing the manifest changes nothing: the cardinality decides, never the order.
     declareSpokes(root, [
       { id: "beta", root: "spokes/b" },
       { id: "alpha", root: "spokes/a" },
     ]);
-    expect(resolveDeploymentForBuild({}, root).hostRouting.spokes.map((spoke) => spoke.id)).toEqual(["beta", "alpha"]);
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/declares 2 Spokes \("beta", "alpha"\)/);
 
     // …while the SELECTION-LEVEL question still describes both (the plan tooling needs that).
     expect(installationSpokes(root).spokes.map((spoke) => spoke.id)).toEqual(["beta", "alpha"]);
