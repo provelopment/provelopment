@@ -431,11 +431,16 @@ describe("S3D1A is UNWIRED and discovers nothing", () => {
         .filter((file) => pattern.test(readFileSync(file, "utf8")))
         .map(relative);
 
-    // The composition seam is the reader's ONLY consumer, and nothing consumes the composition seam.
+    // S3F2A — the seams are no longer GLOBALLY unwired: their sanctioned RUNTIME consumer is the immutable
+    // Installation/runtime-context composition boundary, and it is the only one. Nothing else changes: the
+    // composition seam still has exactly one consumer, and no other module may reach either seam.
     expect(importers(/from\s+["'][^"']*spoke-config["']/)).toEqual([
+      "src/config/installation-runtime.ts",
       "src/config/spoke-composition.ts",
     ]);
-    expect(importers(/from\s+["'][^"']*spoke-composition["']/)).toEqual([]);
+    expect(importers(/from\s+["'][^"']*spoke-composition["']/)).toEqual([
+      "src/config/installation-runtime.ts",
+    ]);
   });
 
   it("is not published by the client-facing config barrel", () => {
