@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { createPageSources } from "@/adapters/content/page-sources";
-import { siteConfig } from "@/config";
-import { runtimeAssetUrl, availableFooterGraphicPath } from "@/config/assets";
-import { getDictionary } from "@/config/i18n";
+import type { PageSources } from "@/adapters/content/page-sources";
+import type { Dictionary } from "@/config/i18n/dictionary";
+import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
+import type { RuntimeDictionaryAccess } from "@/config/runtime-dictionaries";
+import type { SiteConfig } from "@/config/site-config";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import type { DirectionLinkResolver } from "@/application/direction-link";
 import { configuredLegalDocs, legalLabel, legalPageRoutePath } from "@/core/legal";
 import { siteHref } from "@/core/site";
 import { BusinessInfo } from "./business-info";
 import { connectMethodLabel } from "./connect-method-label";
-import { connectivityIcon, socialConnectivityLinks } from "./connectivity-links";
+import { socialConnectivityLinks } from "./connectivity-links";
 import { ContextConnectHeading } from "./context-connect-heading";
 import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { FooterGraphic } from "./footer-graphic";
@@ -26,15 +27,33 @@ interface SiteFooterProps {
     readonly siteId: string;
     /** Provider-resolved direction link resolver (composed at the app boundary). */
     readonly directionLinkResolver: DirectionLinkResolver;
+    /**
+     * M13 — THE RENDERING CONTEXT'S OWN INPUTS. The footer holds no Spoke authority: the configuration,
+     * the dictionary answers, the asset answers and the page composition (the SAME context-bound
+     * `PageSources` the page route resolves through) all arrive from the composition, so legal-document
+     * existence can never be decided out of another Spoke's page tree.
+     */
+    readonly siteConfig: SiteConfig;
+    readonly dictionaryAccess: RuntimeDictionaryAccess;
+    readonly assets: RuntimeAssetOwnershipResolver;
+    readonly routes: PageSources;
 }
 
-export async function SiteFooter({ locale, siteId, directionLinkResolver }: SiteFooterProps) {
+export async function SiteFooter({
+    locale,
+    siteId,
+    directionLinkResolver,
+    siteConfig,
+    dictionaryAccess,
+    assets,
+    routes,
+}: SiteFooterProps) {
     // S1E2 — the footer speaks for ONE site: its EFFECTIVE page-facing configuration (the legal
     // documents, primary list, footer group and connection inventory that this site serves) and
     // that site's own dictionary. Nothing here reads the shared values directly, so a site
     // override can never be half-applied.
     const pageConfig = effectiveSitePageConfig(siteConfig, siteId);
-    const dictionary = getDictionary(locale, pageConfig.site.code);
+    const dictionary: Dictionary = dictionaryAccess.get(locale, pageConfig.site.code);
     // Phase K: the legacy global footer NAP is suppressed when operating
     // regions are configured — regional pages expose their own region's
     // identity, and the global block must never leak into them.
@@ -45,7 +64,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
     // (`content/pages/<siteId>/<locale>/legal/<slug>.md` or its JSON counterpart).
     // Existence is decided by the SAME page-source composition every page route resolves
     // through — never a second content store, and never another site's tree.
-    const pages = createPageSources({ sites: siteConfig.sites });
+    const pages = routes;
     const legalLinks: { slug: string; label: string }[] = [];
     for (const doc of configuredLegalDocs(pageConfig.legal)) {
         // Canonical existence (THIS site's default locale) — the same rule as before, so a
@@ -110,7 +129,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
             // absent → undefined (no icon), configured-but-unavailable → ""
             // (no icon, never a broken <img>). The method renders as an
             // authoritative text link either way.
-            icon: connectivityIcon(method.icon),
+            icon: assets.availableIconUrl(method.icon),
         }),
     );
 
@@ -122,6 +141,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
     // no second renderer and no platform-specific branch.
     const socialLinks: readonly ContextNavLink[] = socialConnectivityLinks(
         siteConfig.socialLinks,
+        assets.availableIconUrl,
     );
 
     // The Connect column is a CONNECTION surface, so it renders only when there is
@@ -137,7 +157,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
     // the `footer-graphic` role). Resolved through the SAME generic availability
     // rule as the banner/background roles, so configured-but-missing (or absent)
     // yields `undefined` → no layer is rendered at all.
-    const footerGraphic = availableFooterGraphicPath(siteConfig.assets?.footerGraphic);
+    const footerGraphic = assets.availableFooterGraphicPath(siteConfig.assets?.footerGraphic);
 
     return (
         <footer className="relative isolate mt-16 border-t border-border">
@@ -163,6 +183,8 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
                         locale={locale}
                         siteId={pageConfig.site.code}
                         directionLinkResolver={directionLinkResolver}
+                        siteConfig={siteConfig}
+                        dictionaryAccess={dictionaryAccess}
                     />
                 )}
 
@@ -286,7 +308,7 @@ export async function SiteFooter({ locale, siteId, directionLinkResolver }: Site
                         // (`.ui-site-footer-logo`), never a second hardcoded size.
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                            src={runtimeAssetUrl(siteConfig.assets.logoFooter)}
+                            src={assets.runtimeAssetUrl(siteConfig.assets.logoFooter)}
                             alt=""
                             aria-hidden="true"
                             className="ui-site-footer-logo"

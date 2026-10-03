@@ -290,7 +290,7 @@ describe("swap contract — no engine dependency on any artwork", () => {
   });
 
   it("the configuration is the ONLY source of role values", () => {
-    const layout = read("src", "app", "[...segments]", "layout.tsx");
+    const layout = read("src", "app", "[...segments]", "server-composition.tsx");
     const header = read("src", "components", "site", "site-header.tsx");
     const footer = read("src", "components", "site", "site-footer.tsx");
     expect(layout).toContain("siteConfig.assets?.banners");

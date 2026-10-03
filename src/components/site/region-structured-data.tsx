@@ -1,6 +1,6 @@
+import type { SocialLink } from "@/config/site-config";
 import type { DayOfWeek, OperationalRegion } from "@/core/region";
 import { DAYS_OF_WEEK } from "@/core/region";
-import { siteConfig } from "@/config";
 
 /** schema.org weekday name for each region weekday key. */
 const SCHEMA_WEEKDAYS: Record<DayOfWeek, string> = {
@@ -20,6 +20,11 @@ interface RegionStructuredDataProps {
    * page is the region's identity on the web).
    */
   readonly canonicalUrl: string;
+  /**
+   * M13 — the rendering context's configured social links. An INPUT, never a module-global: the regional
+   * identity published here belongs to the Spoke whose region it is. Output shape is unchanged.
+   */
+  readonly socialLinks: readonly SocialLink[];
 }
 
 /**
@@ -36,6 +41,7 @@ interface RegionStructuredDataProps {
 export function RegionStructuredData({
   region,
   canonicalUrl,
+  socialLinks,
 }: RegionStructuredDataProps) {
   const place: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -45,8 +51,8 @@ export function RegionStructuredData({
     url: canonicalUrl,
   };
 
-  if (siteConfig.socialLinks.length > 0) {
-    place.sameAs = siteConfig.socialLinks.map((link) => link.href);
+  if (socialLinks.length > 0) {
+    place.sameAs = socialLinks.map((link) => link.href);
   }
 
   // JSON-LD prefers the Latin/international representation when supplied, else

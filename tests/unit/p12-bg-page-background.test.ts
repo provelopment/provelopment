@@ -21,7 +21,7 @@ import {
 import { runtimeAssetUrl } from "../support/runtime-assets";
 
 const root = process.cwd();
-const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "layout.tsx"), "utf8");
+const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "server-composition.tsx"), "utf8");
 const globals = readFileSync(path.join(root, "src", "app", "globals.css"), "utf8");
 
 /** The single `.ui-page-background` rule block (the decorative-layer contract). */

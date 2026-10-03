@@ -14,15 +14,23 @@
 import type { PageAvailability } from "@/application/site-switch";
 import type { ResolvedSite } from "@/core/site";
 
+import type { PageAuthoringRoots } from "./authoring-source-discovery";
 import { createPageSources } from "./page-sources";
 
 export interface PageAvailabilityOptions {
   /** The deployment's resolved sites — only a declared site can answer at all. */
   readonly sites: readonly ResolvedSite[];
+  /**
+   * M13 — THE AUTHORED PAGE ROOTS THIS AVAILABILITY READS (absent → the ACTIVE deployment's, exactly as
+   * before). A context-bound caller supplies that context's own `SpokeResourcePaths`, so a Site-switch
+   * decision for one context can never be answered out of another context's page tree: the port stays the
+   * SAME composition (`./page-sources`), only the tree it reads is named.
+   */
+  readonly roots?: PageAuthoringRoots;
 }
 
 export function createPageAvailability(options: PageAvailabilityOptions): PageAvailability {
-  const sources = createPageSources({ sites: options.sites });
+  const sources = createPageSources({ sites: options.sites, roots: options.roots });
 
   return {
     async hasPage(siteCode, routePath, localePath) {

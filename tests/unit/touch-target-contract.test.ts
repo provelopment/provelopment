@@ -30,6 +30,8 @@ import { ShellMobileNav } from "@/components/shell";
 import { siteConfig } from "@/config";
 import { resolveUiConfig } from "@/core/ui";
 
+import { compatibilityChrome } from "../support/compatibility-chrome";
+
 /**
  * VIS1C — THE SHARED SHELL'S TOUCH-TARGET CONTRACT
  *
@@ -68,7 +70,9 @@ const mobileNavHtml = (): string =>
   );
 
 const headerHtml = (): string =>
-  renderToStaticMarkup(SiteHeader({ locale: "en", resolved: resolveUiConfig(SHELL_UI) }));
+  renderToStaticMarkup(
+    SiteHeader({ ...compatibilityChrome(), locale: "en", resolved: resolveUiConfig(SHELL_UI) }),
+  );
 
 /** The opening tag of the first element carrying `className`. */
 function openingTagFor(html: string, className: string): string {

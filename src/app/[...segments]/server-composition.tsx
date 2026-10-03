@@ -1,0 +1,880 @@
+/**
+ * THE SHARED SERVER RENDER GRAPH, BOUND TO ONE EXPLICIT SpokeRuntimeContext (FOUNDATION-MULTISITE-M13)
+ * ====================================================================================================
+ *
+ *     existing public Next route (page.tsx / layout.tsx)
+ *                 │
+ *                 ▼   currentBuildRuntimeContext()        ← the ONE compatibility selection, at the boundary
+ *         ONE explicit SpokeRuntimeContext
+ *                 │
+ *                 ▼   spokeServerComposition(context)      ← every context-derived fact, built ONCE
+ *     page / layout / metadata / static-params composition
+ *                 │
+ *                 ▼   context.siteConfig · context.resources · context.runtimeAssetNamespaces
+ *
+ * WHAT CHANGED. The page route and the root layout used to derive their Spoke-specific facts from
+ * MODULE-GLOBAL state — the compatibility `siteConfig`, the compatibility `getDictionary`, the
+ * compatibility asset resolver in `./assets`. Those facts now come from the context that is being
+ * rendered: its configuration, the dictionary access bound to ITS roots
+ * (`dictionaryAccessForRuntimeContext`), the asset resolver built from ITS own runtime namespaces
+ * (`createRuntimeAssetOwnershipResolver(context.runtimeAssetNamespaces)`) and the page composition bound to
+ * ITS authored trees (`context.resources`). Nothing in this module reads a module-global Spoke authority,
+ * so TWO contexts can be composed in one process, in any order (A/B/A/B), without influencing each other —
+ * proved in `tests/unit/server-composition-context.test.ts`.
+ *
+ * WHAT DID NOT CHANGE. Every rule, precedence, URL, wording and attribute: content precedence
+ * (JSON over Markdown), home-page behaviour, regional namespaces and bindings, dedicated pages, route
+ * discovery, `dynamicParams = false`, metadata shape, canonical origins, hreflang, the shell's resolved UI
+ * configuration, banner/background/status availability, the icon leaf assertion and the Site-switch
+ * destinations. This is a COMPOSITION refactor: the public route is now the compatibility CALLER of the
+ * shared renderer, and the renderer takes the context as an argument.
+ *
+ * SERVER ONLY: the composition reads configuration, dictionaries, pages and asset headers from files, so it
+ * must never become reachable from a client chunk. Values handed to CLIENT components stay narrow and
+ * serializable (labels, URLs, booleans) — never a context, a resolver, a registry or a filesystem path.
+ */
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import type { CSSProperties, ReactNode } from "react";
+
+import type { PageSources, ResolvedPage } from "@/adapters/content/page-sources";
+import { createPageSources } from "@/adapters/content/page-sources";
+import type { PageAvailability } from "@/application/site-switch";
+import type { DirectionLinkResolver } from "@/application/direction-link";
+import { createPageAvailability } from "@/adapters/content/page-availability";
+import { createAnalyticsProvider } from "@/adapters/analytics";
+import { createBookingActionResolver } from "@/adapters/booking";
+import type { BookingActionResolver } from "@/application/booking-action";
+import { createDirectionLinkResolver } from "@/adapters/maps";
+import { resolveRegionalPageContext } from "@/application/page-context";
+import { siteSwitchOptions } from "@/application/site-switch";
+import { ErrorMessagesProvider } from "@/components/site/error-messages-context";
+import { ContextNavLinks } from "@/components/site/context-nav-links";
+import { StatusGraphicProvider } from "@/components/site/status-graphic-context";
+import { StructuredData } from "@/components/site/structured-data";
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+import { ShellEngine } from "@/components/shell";
+import { SidebarPreferenceBoot } from "@/components/ui/sidebar-preference-boot";
+import { PageBanner } from "@/components/site/page-banner";
+import { PageBackground } from "@/components/site/page-background";
+import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
+import { PageDocumentContent } from "@/components/site/page-document-content";
+import { ResolvedRegionBlock } from "@/components/site/region-block";
+import { RegionStructuredData } from "@/components/site/region-structured-data";
+import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
+import { Heading } from "@/components/ui/heading";
+import { Section } from "@/components/ui/section";
+import { assertConfiguredIconAssetsExistFor } from "@/config/assets";
+import type { SpokeRuntimeContext } from "@/config/installation-runtime";
+import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
+import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
+import type { RuntimeDictionaryAccess } from "@/config/runtime-dictionaries";
+import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
+import type { SiteConfig } from "@/config/site-config";
+import { effectiveSitePageConfig } from "@/config/site-page-config";
+import { siteDescriptionForLocale } from "@/config/site-metadata";
+import { buildLanguageAlternates } from "@/core/locale";
+import { HOME_CONTENT_SLUG } from "@/core/page-content";
+import { pageRoutePathSegments } from "@/core/page-route-path";
+import {
+  bindingsForSite,
+  buildRegionalLanguageAlternates,
+  configuredRegionIds,
+  hasPageEntry,
+  regionalPath,
+  regionsForLocale,
+} from "@/core/regional-pages";
+import { buildOpenGraphData, buildTwitterData, resolveOgImageUrl } from "@/core/seo-metadata";
+import {
+  pathContextOr,
+  resolveSiteRequest,
+  siteHref,
+  siteLocalePath,
+  sitePath,
+  sitePrefixPath,
+  siteSetOf,
+  type ResolvedSite,
+  type SiteRequest,
+  type SiteSet,
+} from "@/core/site";
+
+/**
+ * EVERY CONTEXT-DERIVED FACT THE SERVER GRAPH NEEDS, built ONCE per composition.
+ *
+ * The whole point of the bundle is that the CONTEXT is chosen once (at the route boundary) and every
+ * context-dependent answer below — configuration, sites, page composition, dictionary access, asset
+ * resolver, direction links, resolved UI — is derived from it exactly once, so a request cannot mix facts
+ * from two Spokes, and a layout and its page (which share one composition) cannot disagree.
+ */
+export interface SpokeServerComposition {
+  readonly context: SpokeRuntimeContext;
+  readonly siteConfig: SiteConfig;
+  readonly siteSet: SiteSet;
+  readonly routes: PageSources;
+  readonly availability: PageAvailability;
+  readonly dictionaries: RuntimeDictionaryAccess;
+  readonly assets: RuntimeAssetOwnershipResolver;
+  readonly directionLinks: DirectionLinkResolver;
+  readonly bookingActions: BookingActionResolver;
+  readonly resolvedUi: ResolvedUiConfig;
+}
+
+/**
+ * Compose ONE explicit runtime context into everything the server render graph reads.
+ *
+ * Four bindings are the milestone, and each is bound to THIS context alone:
+ *
+ *   page sources      `createPageSources({ sites, roots: context.resources })` — the context's OWN
+ *                     authored trees, so content roots are never rediscovered and never global;
+ *   page availability the same composition (through the accepted port), so a Site-switch decision for
+ *                     this context can never be answered out of another context's pages;
+ *   dictionaries      `dictionaryAccessForRuntimeContext(context)` — the context-bound access (M13 uses
+ *                     no compatibility `getDictionary` in the shared renderer);
+ *   assets            `createRuntimeAssetOwnershipResolver(context.runtimeAssetNamespaces)` plus the SAME
+ *                     icon-leaf assertion, asked of THAT resolver (one rule, one diagnostic).
+ *
+ * The UI configuration and the direction-link resolver are the accepted functions of the context's own
+ * configuration. Nothing here selects a Spoke, remembers one, or reads a module-global authority.
+ */
+export function spokeServerComposition(context: SpokeRuntimeContext): SpokeServerComposition {
+  const siteConfig = context.siteConfig;
+  const siteSet = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
+
+  // P6-1 — every configured UI icon leaf must be backed by a real file (or deliberately ""), judged
+  // against the runtime namespaces THIS context resolves artwork from. Loud at composition time
+  // (server-only), so a missing icon can never become a broken-image placeholder — and a context can
+  // never be validated against another context's artwork.
+  const assets = createRuntimeAssetOwnershipResolver(context.runtimeAssetNamespaces);
+  assertConfiguredIconAssetsExistFor(assets, siteConfig);
+
+  return {
+    context,
+    siteConfig,
+    siteSet,
+    routes: createPageSources({ sites: siteConfig.sites, roots: context.resources }),
+    availability: createPageAvailability({ sites: siteConfig.sites, roots: context.resources }),
+    dictionaries: dictionaryAccessForRuntimeContext(context),
+    assets,
+    directionLinks: createDirectionLinkResolver(siteConfig.mapsFeature),
+    bookingActions: createBookingActionResolver(siteConfig.bookingFeature),
+    resolvedUi: resolveUiConfig(siteConfig.ui ?? {}),
+  };
+}
+
+/** The site context this URL names, or `null` when it names no site at all. */
+function requestOf(
+  composition: SpokeServerComposition,
+  segments: readonly string[] | undefined,
+): SiteRequest | null {
+  return resolveSiteRequest(composition.siteSet, segments ?? []);
+}
+
+/** The region namespace this route path enters, with its page slug, or `null`. */
+function regionContextOf(
+  composition: SpokeServerComposition,
+  site: ResolvedSite,
+  locale: string,
+  routePath: string,
+): { readonly region: string; readonly slug: string | null } | null {
+  const bindings = bindingsForSite(composition.siteConfig.pageBindings, site.code);
+  const segments = pageRoutePathSegments(routePath);
+  const first = segments[0];
+  if (first === undefined || !regionsForLocale(bindings, locale).includes(first)) return null;
+
+  if (segments.length === 1) return { region: first, slug: null };
+  if (segments.length === 2 && hasPageEntry(bindings, locale, first, segments[1] as string)) {
+    return { region: first, slug: segments[1] as string };
+  }
+  return null;
+}
+
+/** Whether the route path ENTERS a region namespace (which must then resolve completely). */
+function entersRegionNamespace(
+  composition: SpokeServerComposition,
+  site: ResolvedSite,
+  locale: string,
+  routePath: string,
+): boolean {
+  const bindings = bindingsForSite(composition.siteConfig.pageBindings, site.code);
+  const first = pageRoutePathSegments(routePath)[0];
+  return first !== undefined && regionsForLocale(bindings, locale).includes(first);
+}
+
+/** The authored page's frame: a Markdown body under its title, or a declarative document. */
+function authoredContent(page: ResolvedPage, locale: string) {
+  return page.kind === "markdown" ? (
+    <>
+      <Heading level={1} tone="title">
+        {page.title}
+      </Heading>
+      <div className="mt-6">
+        <SafeMarkdownContent markdown={page.body} />
+      </div>
+    </>
+  ) : (
+    // The JSON authoring mode's ONE render entry: a validated declarative document becomes a
+    // page through the composer, which owns the h1 and the section vocabulary. The route never
+    // switches on a section type itself.
+    <PageDocumentContent document={page.document} locale={locale} />
+  );
+}
+
+import {
+  DEFAULT_SIDEBAR_CLOSE_ICON,
+  DEFAULT_SIDEBAR_OPEN_ICON,
+  bottomBarCompositions,
+  layoutDataAttributes,
+  mobileDisclosureCompositions,
+  presentationDataAttributes,
+  radiusDataAttribute,
+  railCompositions,
+  resolveUiConfig,
+  type ResolvedUiConfig,
+} from "@/core/ui";
+import { ConnectPageContent, ContactPageContent, StarterHome } from "./dedicated-pages";
+
+
+/** URLs whose chrome is specialised (`./dedicated-pages`). */
+const CONNECT_ROUTE_PATH = "connect";
+const CONTACT_ROUTE_PATH = "contact";
+
+/**
+ * Every (site, locale, route) the build discovered, as ONE static-parameter list — the same inventory the
+ * sitemap uses, so the two cannot disagree about what exists. Derived from the CONTEXT: its sites, its
+ * locale policies, its page bindings and its own authored trees. Multi-Spoke multiplication by runtime
+ * segment is deliberately absent — that is later milestone work, and this helper assumes neither Foundation
+ * nor a global SiteConfig.
+ */
+export async function staticParamsForContext(
+  composition: SpokeServerComposition,
+): Promise<{ segments: string[] }[]> {
+  const { siteConfig, routes } = composition;
+  const params: { segments: string[] }[] = [];
+  const seen = new Set<string>();
+  const add = (segments: readonly string[]): void => {
+    const key = segments.join("/");
+    if (seen.has(key)) return;
+    seen.add(key);
+    params.push({ segments: [...segments] });
+  };
+
+  for (const site of siteConfig.sites) {
+    // The site CODE is the URL's first segment, always — there is no hidden default site.
+    const scope = [site.code];
+    const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
+
+    for (const locale of site.locales.map((entry) => entry.path)) {
+      // The locale root is always generated: a site either authored its home page or keeps the
+      // generic starter homepage, so that URL exists either way.
+      add([...scope, locale]);
+
+      const regionalLandings = regionsForLocale(bindings, locale);
+      for (const routePath of await routes.listRoutes(site.code, locale)) {
+        const segments = pageRoutePathSegments(routePath);
+        if (segments.length === 0) continue;
+        const first = segments[0] as string;
+        // The home page is served at the locale root, never at `/{locale}/home`.
+        if (segments.length === 1 && first === HOME_CONTENT_SLUG) continue;
+        // A region's landing and pages are generated below, with their region.
+        if (segments.length === 1 && regionalLandings.includes(first)) continue;
+        add([...scope, locale, ...segments]);
+      }
+
+      for (const region of regionalLandings) add([...scope, locale, region]);
+      for (const binding of bindings) {
+        if (binding.locale === locale && binding.slug !== null) {
+          add([...scope, locale, binding.region, binding.slug]);
+        }
+      }
+    }
+  }
+
+  return params;
+}
+
+/** The context's site locales, as an hreflang alternates map for one route path. */
+function siteAlternates(
+  composition: SpokeServerComposition,
+  site: ResolvedSite,
+  path = "",
+): Record<string, string> {
+  return buildLanguageAlternates({
+    baseUrl: composition.siteConfig.url,
+    locales: site.locales,
+    defaultLocale: site.defaultLocale,
+    path,
+    sitePrefix: sitePrefixPath(site),
+  });
+}
+
+/**
+ * The page's metadata, composed from the SUPPLIED context: canonical origin, site name, localized site
+ * descriptions, hreflang alternates, OpenGraph/Twitter metadata, the OG-image URL and the regional canonical
+ * URL all belong to the context being rendered — never to a module-global configuration. The output for the
+ * current production Foundation is unchanged (proved by the existing metadata/route tests plus the
+ * production regression).
+ */
+export async function pageMetadataForContext(
+  composition: SpokeServerComposition,
+  segments: readonly string[] | undefined,
+): Promise<Metadata> {
+  const request = requestOf(composition, segments);
+  if (request === null) return {};
+
+  const siteConfig = composition.siteConfig;
+  const { site, locale: localeTag, localePath: locale, routePath } = request;
+  // S1E3 — the generated OG image is served at the SITE + LOCALE segments this page URL carries,
+  // so its URL is built by the site path helper (`/<site>/<locale>/opengraph-image`) instead of a
+  // locale-only concatenation that would 404.
+  const ogImage = resolveOgImageUrl(
+    siteConfig.assets?.ogImage,
+    siteConfig.url,
+    sitePath(site, locale, "opengraph-image") ?? siteLocalePath(site, locale),
+  );
+  // The OG locale/alternate locales are STANDARDS tags (`fr-CA`), unlike the URL segment.
+  const alternateLocales = site.locales
+    .filter((entry) => entry.path !== locale)
+    .map((entry) => entry.canonical);
+
+  // The locale root: the site's own name and description, whatever answers the page itself.
+  if (routePath === "") {
+    const canonical = sitePath(site, locale) as string;
+    // R1B — the locale's OWN words for this locale's root (else the deployment's
+    // `site.description`): no page-level summary speaks for the locale root, so the
+    // site speaks for it, in the locale it is being served in.
+    const description = siteDescriptionForLocale(siteConfig, locale);
+    return {
+      description,
+      alternates: { canonical, languages: siteAlternates(composition, site) },
+      openGraph: buildOpenGraphData({
+        baseUrl: siteConfig.url,
+        siteName: siteConfig.name,
+        locale: localeTag,
+        title: siteConfig.name,
+        fallbackDescription: description,
+        url: canonical,
+        imageUrl: ogImage,
+        alternateLocales,
+      }),
+      twitter: buildTwitterData({
+        title: siteConfig.name,
+        fallbackDescription: description,
+        imageUrl: ogImage,
+      }),
+    };
+  }
+
+  // A page: its OWN title and (optional) summary decide the metadata.
+  const page = await composition.routes.resolve(site.code, routePath, locale);
+  if (!page) return {};
+
+  const regional = regionContextOf(composition, site, locale, routePath);
+  const canonical = regional
+    ? `${siteConfig.url}${regionalPath(locale, regional.region, regional.slug, sitePrefixPath(site))}`
+    : `${siteConfig.url}${sitePath(site, locale, routePath) as string}`;
+  const alternates = regional
+    ? buildRegionalLanguageAlternates({
+        baseUrl: siteConfig.url,
+        locales: site.locales,
+        defaultLocale: site.defaultLocale,
+        entries: bindingsForSite(siteConfig.pageBindings, site.code),
+        region: regional.region,
+        slug: regional.slug,
+        sitePrefix: sitePrefixPath(site),
+      })
+    : siteAlternates(composition, site, `/${routePath}`);
+
+  // R1B — a page without its own summary falls back to the SITE's description IN THIS
+  // LOCALE, never to the deployment's default-language sentence.
+  const siteDescription = siteDescriptionForLocale(siteConfig, locale);
+  return {
+    title: page.title,
+    description: page.description ?? siteDescription,
+    alternates: {
+      canonical,
+      languages: Object.keys(alternates).length > 0 ? alternates : undefined,
+    },
+    openGraph: buildOpenGraphData({
+      baseUrl: siteConfig.url,
+      siteName: siteConfig.name,
+      locale: localeTag,
+      title: page.title,
+      fallbackDescription: siteDescription,
+      url: canonical,
+      imageUrl: ogImage,
+      alternateLocales,
+    }),
+    twitter: buildTwitterData({
+      title: page.title,
+      fallbackDescription: siteDescription,
+      imageUrl: ogImage,
+    }),
+  };
+}
+
+/**
+ * THE PAGE, for ONE explicit context. A path that names no site (or a locale that site does not serve) is
+ * not a page: the ONE resolver answers `null`, so the request becomes a 404 — never a guess, never another
+ * site. Region namespaces, the home page, the two specialised URLs and regional pages behave exactly as they
+ * did, on the context's own configuration and its own page tree.
+ */
+export async function pageForContext(
+  composition: SpokeServerComposition,
+  segments: readonly string[] | undefined,
+): Promise<ReactNode> {
+  const routes = composition.routes;
+  const siteConfig = composition.siteConfig;
+  const request = requestOf(composition, segments);
+  if (request === null) notFound();
+
+  const { site, localePath: locale, routePath } = request;
+
+  // A URL inside a region's namespace is either the landing or a configured regional page:
+  // anything else must not render a page without its region's identity.
+  const regional = regionContextOf(composition, site, locale, routePath);
+  if (entersRegionNamespace(composition, site, locale, routePath) && regional === null) notFound();
+
+  // The locale root: an authored home page (either mode) or the generic starter homepage.
+  if (routePath === "") {
+    const authoredHome = await routes.resolve(site.code, HOME_CONTENT_SLUG, locale);
+    return authoredHome ? (
+      <Section as="article">{authoredContent(authoredHome, locale)}</Section>
+    ) : (
+      <StarterHome
+        locale={locale}
+        siteId={site.code}
+        siteConfig={siteConfig}
+        dictionaryAccess={composition.dictionaries}
+        bookingActions={composition.bookingActions}
+      />
+    );
+  }
+
+  const page = await routes.resolve(site.code, routePath, locale);
+  if (!page) notFound();
+
+  // The two URLs with specialised chrome; their SOURCE is an ordinary page.
+  if (routePath === CONNECT_ROUTE_PATH)
+    return (
+      <ConnectPageContent
+        locale={locale}
+        page={page}
+        siteId={site.code}
+        siteConfig={siteConfig}
+        dictionaryAccess={composition.dictionaries}
+        assets={composition.assets}
+      />
+    );
+  if (routePath === CONTACT_ROUTE_PATH)
+    return (
+      <ContactPageContent
+        locale={locale}
+        page={page}
+        siteId={site.code}
+        siteConfig={siteConfig}
+        dictionaryAccess={composition.dictionaries}
+        assets={composition.assets}
+      />
+    );
+
+  const regionContext = resolveRegionalPageContext(
+    { regions: siteConfig.regions },
+    locale,
+    regional?.region ?? null,
+    regional?.slug ?? null,
+  );
+
+  return (
+    <Section as="article">
+      {authoredContent(page, locale)}
+
+      {regionContext.region && regional ? (
+        <>
+          <ResolvedRegionBlock
+            region={regionContext.region}
+            locale={locale}
+            siteId={site.code}
+            directionLinkResolver={composition.directionLinks}
+          />
+          <RegionStructuredData
+            region={regionContext.region}
+            canonicalUrl={`${siteConfig.url}${regionalPath(
+              locale,
+              regional.region,
+              regional.slug,
+              sitePrefixPath(site),
+            )}`}
+            socialLinks={siteConfig.socialLinks}
+          />
+        </>
+      ) : null}
+    </Section>
+  );
+}
+
+/**
+ * The ROOT LAYOUT's metadata, from the SUPPLIED context: `metadataBase`, the site-name title template and
+ * localized description, OpenGraph/Twitter basics, the favicon URL and the site's own hreflang alternates.
+ * For the current production Foundation the output is identical to the compatibility layout's.
+ */
+export async function layoutMetadataForContext(
+  composition: SpokeServerComposition,
+  segments: readonly string[] | undefined,
+): Promise<Metadata> {
+  const siteConfig = composition.siteConfig;
+  const request = pathContextOr(
+    composition.siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+
+  return {
+    metadataBase: new URL(siteConfig.url),
+    title: {
+      default: siteConfig.name,
+      template: `%s | ${siteConfig.name}`,
+    },
+    description: siteDescriptionForLocale(siteConfig, request.localePath),
+    openGraph: {
+      type: "website",
+      siteName: siteConfig.name,
+      ...(siteConfig.assets?.ogImage ? { images: [{ url: siteConfig.assets.ogImage }] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      ...(siteConfig.assets?.ogImage ? { images: [siteConfig.assets.ogImage] } : {}),
+    },
+    icons: {
+      // P6-3B — SINGLE authoritative favicon declaration, resolved through THIS context's asset resolver
+      // (so a Spoke's own replaceable favicon is served from that Spoke's namespace) — server-only, and
+      // the same answer the compatibility resolver gave for the current build.
+      icon: composition.assets.runtimeAssetUrl(siteConfig.assets?.favicon),
+    },
+    alternates: {
+      // S1 — alternates cover THIS site's locales, under the site's own public prefix, so an
+      // hreflang link can never point at another site's tree.
+      languages: buildLanguageAlternates({
+        baseUrl: siteConfig.url,
+        locales: request.site.locales,
+        defaultLocale: request.site.defaultLocale,
+        sitePrefix: sitePrefixPath(request.site),
+      }),
+    },
+  };
+}
+
+/**
+ * THE DOCUMENT, for ONE explicit context. Every Spoke-specific derived value — the site set, the resolved UI
+ * configuration, the configured-icon assertion, the analytics provider, the direction-link resolver, the
+ * dictionary, the navigation, the banner/background/status availability and the Site-switch destinations —
+ * is derived from the supplied context, so the chrome a visitor sees belongs to exactly one Spoke.
+ *
+ * `htmlClassName` is the caller's static platform fact (the brand/monospace font variables): static platform
+ * values stay module-level in `layout.tsx` and are never turned into request state.
+ */
+export async function layoutForContext(
+  composition: SpokeServerComposition,
+  segments: readonly string[] | undefined,
+  children: ReactNode,
+  htmlClassName: string,
+): Promise<ReactNode> {
+  const siteConfig = composition.siteConfig;
+  const resolvedUi = composition.resolvedUi;
+  const assets = composition.assets;
+  const directionLinkResolver = composition.directionLinks;
+
+  // The URL decides the site and the locale; an unknown path falls back to the DEFAULT site
+  // deterministically (the page below turns it into a 404, so the status page still renders
+  // inside the site chrome).
+  const request = pathContextOr(
+    composition.siteSet,
+    siteConfig.pageBindings,
+    `/${(segments ?? []).join("/")}`,
+    siteConfig.defaultSite.defaultLocale,
+  );
+  const site = request.site;
+  // The chrome works in the locale PATH KEY: it names the content directory (`ca/fr`), the
+  // dictionary entry and every URL this layout builds.
+  const locale = request.localePath;
+  // S1E3 — the shell CTA's DESTINATION belongs to the active site's page tree (a site may point it
+  // at its own page), while its presentation stays shared `ui.cta` configuration. An internal
+  // destination resolves inside the site+locale exactly like any other navigation href, so a
+  // shared `/contact` can never link into another site or 404 on its own site.
+  const pageConfig = effectiveSitePageConfig(siteConfig, site.code);
+  const ctaHrefSource = pageConfig.ctaHref;
+  const ctaHref = ctaHrefSource === undefined ? undefined : siteHref(site, locale, ctaHrefSource);
+
+  // S1E2 — the STANDARDS-FACING tag for the same locale (`fr-CA` for `/ca/fr`): the document's
+  // `lang` and every hreflang alternate identify the language, while the URL stays lowercase.
+  const localeTag = request.locale;
+  const dictionary = composition.dictionaries.get(locale, site.code);
+  const navLinks = getSiteNavLinks({
+    locale,
+    siteId: site.code,
+    siteConfig,
+    dictionary: composition.dictionaries,
+    iconUrl: assets.availableIconUrl,
+  });
+
+  // S1E2 — the Site selector's destinations, resolved ONCE per request by the application rule
+  // (same route when the target serves it, else the target's home), against THIS context's own
+  // page availability. A deployment with a single site renders no selector and pays nothing.
+  const siteSwitch =
+    siteConfig.sites.length > 1
+      ? await siteSwitchOptions(
+          {
+            site,
+            localePath: request.localePath,
+            // The FULL route path: a region's namespace stays part of the page's path.
+            routePath: [request.region, request.routePath].filter(Boolean).join("/"),
+          },
+          {
+            sites: siteConfig.sites,
+            bindings: siteConfig.pageBindings,
+            availability: composition.availability,
+          },
+        )
+      : undefined;
+
+  // P5-5 — `navigation.sidebar.mode: "closed"` means the persistent aside rail
+  // is not composed (the responsive disclosure/`Show navigation` control remains
+  // the way navigation is reached). Distinct from `compact` (rail present,
+  // icon-only) and `open`.
+  const sidebarClosed = resolvedUi.navigation.sidebar.mode === "closed";
+  const sidebarCompact = resolvedUi.navigation.sidebar.mode === "compact";
+  // NAV1A — "is a rail composed?" and "is a bottom bar composed?" are properties of EVERY
+  // composed layout, not of the default one. A site whose visitor may choose the sidebar
+  // layout must compose that layout's rail (≥md) and its mobile drawer (<md) even when the
+  // configured default is the menu bar — and vice versa for the sticky bar. The rail/bar
+  // structure is then exposed by the stylesheet for the ACTIVE layout only, so exactly one
+  // navigation is ever present.
+  const usesAside =
+    !sidebarClosed &&
+    (railCompositions(resolvedUi, "desktop").length > 0 ||
+      railCompositions(resolvedUi, "tablet").length > 0);
+  const usesBottomBar = bottomBarCompositions(resolvedUi).length > 0;
+  // P6-3B/P6-3C — the per-page banner map (page slug → composable banner asset).
+  // Only entries whose file actually exists under `public/assets/` survive, so a
+  // stale/typo'd banner URL renders NO banner (never a placeholder or a 404).
+  // P6-3C — the graphic's INTRINSIC size is read here (server-only) so the
+  // renderer can enforce `displayWidth = min(availableWidth, 1.5 × naturalWidth)`
+  // without client measurement, upscaling flash, or layout shift.
+  const bannerMap = Object.fromEntries(
+    Object.entries(siteConfig.assets?.banners ?? {}).flatMap(([page, url]) => {
+      const path = assets.availableBannerPath(url);
+      if (!path) return [];
+      const size = assets.readImageDimensions(path);
+      return [[page, { src: path, width: size?.width, height: size?.height }]];
+    }),
+  );
+  const regionIds = configuredRegionIds(siteConfig.regions);
+  // P12-BG — the per-page-role background map (page role → resolved decorative
+  // graphic). Same availability rule as the banner role: only entries whose file
+  // actually exists under `public/assets/` survive, so a CONFIGURED-but-missing
+  // background is indistinguishable from an ABSENT one. That is exactly what
+  // drives the documented `background-<page>` → `background-all` → none
+  // fallback at render time (a missing page-specific graphic falls through to
+  // the global one; a missing global one renders no graphic at all). The `all`
+  // key is the reserved GLOBAL role.
+  // No intrinsic size is read here: the layer is a CSS `background-image` with
+  // `cover`, so — unlike a page banner — it needs no dimension/upscale contract.
+  const backgroundMap = assets.availableBackgroundMap(siteConfig.assets?.backgrounds);
+
+  // P12-SG — the optional decorative STATUS graphic (`site.assets.statusGraphic`,
+  // the `status-graphic` role): ONE global role shared by BOTH status surfaces
+  // (`error.tsx` and `not-found.tsx`). Resolved here (server-only) for the same
+  // reason the banner map is: the availability read touches `node:fs`, and
+  // `error.tsx` is a CLIENT component that can never import the resolver. The
+  // value is handed to both surfaces through `StatusGraphicProvider`, the same
+  // transport the error copy uses. Same availability rule as every other graphic
+  // role, so a CONFIGURED-but-missing status graphic is indistinguishable from an
+  // ABSENT one.
+  const statusGraphicPath = assets.availableStatusGraphicPath(siteConfig.assets?.statusGraphic);
+  const statusGraphicDimensions = assets.readImageDimensions(statusGraphicPath);
+  const statusGraphic = statusGraphicPath
+    ? {
+        src: statusGraphicPath,
+        width: statusGraphicDimensions?.width,
+        height: statusGraphicDimensions?.height,
+      }
+    : undefined;
+
+  // Phase K: when operating regions are configured, the legacy global business
+  // block is NOT merged into rendered pages. The layout suppresses the global
+  // footer NAP + JSON-LD; regional pages render their own region's identity.
+  const hasRegions = Object.keys(siteConfig.regions).length > 0;
+
+  // Composition boundary (the ONLY place providers become concrete): the factories
+  // select adapters from THIS context's validated configuration; the layout below
+  // renders the already-composed integrations without any provider-specific
+  // conditional.
+  const analytics = createAnalyticsProvider(siteConfig.analytics);
+
+  // NAV1B — the sidebar's navigation LIST is needed wherever a sidebar composition presents it:
+  // the rail (≥md) AND that composition's constrained-width disclosure. `usesAside` still gates the
+  // RAIL itself (and its pre-paint preference bridge), so `navigation.sidebar.mode: "closed"`
+  // continues to mean "no persistent rail — the disclosure is how navigation is reached".
+  const sidebarNavContent =
+    usesAside || mobileDisclosureCompositions(resolvedUi).length > 0 ? (
+      <ContextNavLinks
+        locale={locale}
+        // P6-3B — every SIDEBAR item gets an expanded/collapsed icon pair (the configured
+        // `iconOpen`/`iconClosed`, else the shipped dot/plus defaults), resolved against THIS
+        // context's own runtime namespaces.
+        links={withSidebarNavIcons(navLinks, assets.availableIconUrl)}
+        className={`space-y-2 ${sidebarCompact ? "ui-nav-mode-compact" : ""}`}
+        linkClassName="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        // P5-5 — the aside rail orders by configured region (top → middle →
+        // bottom), stable within each group; labels stay readable.
+        sortByRegion
+      />
+    ) : undefined;
+
+  const bottomNav = usesBottomBar
+    ? {
+        label: dictionary.navigation.primaryLabel,
+        moreLabel: dictionary.navigation.moreMenu,
+        links: navLinks,
+        // P6-1 — one vocabulary: the disclosure close control says "Hide navigation".
+        closeLabel: dictionary.navigation.hideSidebar,
+        // P5-5 — the bottom navigation shares the same three-state menu
+        // contract (open | compact | closed) as the top/sidebar menus.
+        mode: resolvedUi.navigation.bottom.mode,
+        sidebarClose: {
+          // P6-1 — icon resolved to the runtime namespace that holds it, or to
+          // the shipped default role (never a broken image).
+          icon: assets.resolveIconControlUrl(
+            resolvedUi.navigation.sidebar.close.icon,
+            DEFAULT_SIDEBAR_CLOSE_ICON,
+          ),
+          text: resolvedUi.navigation.sidebar.close.text,
+        },
+      }
+    : undefined;
+
+  // UI1-A2 — THE PRE-PAINT SIDEBAR BRIDGE, and the ONE hydration tolerance it needs. The rail's
+  // open/closed state is the visitor's browser-local preference, so a STATICALLY GENERATED document
+  // cannot know it: the server renders the canonical CLOSED rail (which is exactly what keeps every
+  // page prerendered — no cookie, session, request-time rendering or middleware enters this), and the
+  // browser applies the visitor's OPEN preference BEFORE that canonical geometry is painted. The script
+  // is the FIRST element of `<body>`, and `suppressHydrationWarning` is emitted ONLY where a rail is
+  // actually composed — so a deployment without one ships no bridge and no tolerance.
+  const sidebarPreferenceBridge = usesAside;
+
+  // FS-5 — the configured page/background color flows into the EXISTING
+  // design-token system: when `ui.theme.background` is set, we override the
+  // `--background` CSS variable on `<html>` (components consume the token via
+  // `bg-background`/token utilities; no inline component styles). Absent → the
+  // canonical `:root`/dark `--background` tokens render unchanged.
+  const htmlStyle = resolvedUi.theme.background
+    ? ({ "--background": resolvedUi.theme.background } as CSSProperties)
+    : undefined;
+
+  // P5-3 — the RESOLVED presentation intent flows into the shared renderer as
+  // inert `data-ui-*` attributes on `<html>` (see globals.css — P5-3
+  // presentation tokens). These are generalized vocabulary values (never
+  // presentation names), so the CSS token layer implements presentation without
+  // any identity coupling. Static SSR strings; no hydration risk.
+  // P5-5 — the resolved control/menu modes join the same `data-ui-*` surface
+  // for the same reason (single observability + test hook, no presentation CSS).
+  const htmlPresentationAttrs = {
+    ...presentationDataAttributes(resolvedUi.presentation),
+    ...radiusDataAttribute(resolvedUi.theme.radius),
+    // N2 — the ACTIVE shell layout presentation. Emitted ONLY when the adopter enables
+    // the switcher, so a site without it produces byte-identical markup; the client
+    // control changes this one attribute (see globals.css — shell layout presentation).
+    ...layoutDataAttributes(resolvedUi),
+    "data-ui-sidebar-mode": resolvedUi.navigation.sidebar.mode,
+    "data-ui-top-mode": resolvedUi.navigation.top.mode,
+    "data-ui-bottom-mode": resolvedUi.navigation.bottom.mode,
+    "data-ui-cta-state": resolvedUi.cta.state,
+  };
+
+  return (
+    <html
+      lang={localeTag}
+      className={htmlClassName}
+      style={htmlStyle}
+      suppressHydrationWarning={sidebarPreferenceBridge}
+      {...htmlPresentationAttrs}
+    >
+      <body className="min-h-full flex flex-col">
+        {sidebarPreferenceBridge ? <SidebarPreferenceBoot /> : null}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-foreground"
+        >
+          {dictionary.a11y.skipToContent}
+        </a>
+        <PageBackground backgrounds={backgroundMap} regionIds={regionIds} />
+        <PageBanner banners={bannerMap} regionIds={regionIds} />
+        <ShellEngine
+          resolved={resolvedUi}
+          header={
+            <SiteHeader
+              locale={locale}
+              resolved={resolvedUi}
+              siteId={site.code}
+              siteSwitch={siteSwitch}
+              siteConfig={siteConfig}
+              dictionaryAccess={composition.dictionaries}
+              assets={assets}
+            />
+          }
+          main={
+            <ErrorMessagesProvider messages={dictionary.error}>
+              <StatusGraphicProvider asset={statusGraphic}>{children}</StatusGraphicProvider>
+            </ErrorMessagesProvider>
+          }
+          footer={
+            <SiteFooter
+              locale={locale}
+              siteId={site.code}
+              directionLinkResolver={directionLinkResolver}
+              siteConfig={siteConfig}
+              dictionaryAccess={composition.dictionaries}
+              assets={assets}
+              routes={composition.routes}
+            />
+          }
+          mainId="main"
+          mainClassName="flex-1"
+          navigationLabel={dictionary.navigation.primaryLabel}
+          // P6-1 — the rail disclosure uses the ONE Show/Hide navigation vocabulary
+          // (same as the mobile trigger/close); represented by the localized
+          // labels + the configured open/close control content (icon screened
+          // against the runtime namespaces by the framework layer below).
+          sidebarLabels={{
+            show: dictionary.navigation.showSidebar,
+            hide: dictionary.navigation.hideSidebar,
+          }}
+          sidebarOpen={{
+            icon: assets.resolveIconControlUrl(
+              resolvedUi.navigation.sidebar.open.icon,
+              DEFAULT_SIDEBAR_OPEN_ICON,
+            ),
+            text: resolvedUi.navigation.sidebar.open.text,
+          }}
+          sidebarClose={{
+            icon: assets.resolveIconControlUrl(
+              resolvedUi.navigation.sidebar.close.icon,
+              DEFAULT_SIDEBAR_CLOSE_ICON,
+            ),
+            text: resolvedUi.navigation.sidebar.close.text,
+          }}
+          asideContent={sidebarNavContent}
+          bottomNav={bottomNav}
+          locale={locale}
+          pageBindings={siteConfig.pageBindings}
+          siteSet={composition.siteSet}
+          ctaLabel={resolvedUi.cta.label}
+          ctaHref={ctaHref}
+        />
+        {hasRegions ? null : <StructuredData locale={locale} siteConfig={siteConfig} />}
+        {analytics}
+      </body>
+    </html>
+  );
+}

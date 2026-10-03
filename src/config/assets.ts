@@ -3,6 +3,7 @@ import {
   createRuntimeAssetOwnershipResolver,
   owningNamespaceIn,
   type ImageDimensions,
+  type RuntimeAssetOwnershipResolver,
 } from "./runtime-asset-resolver";
 
 /**
@@ -263,6 +264,23 @@ export interface IconConfigSource {
  * this build-time diagnostic and the runtime projection can never disagree about what exists.
  */
 export function assertConfiguredIconAssetsExist(json: IconConfigSource): void {
+  assertConfiguredIconAssetsExistFor(compatibilityResolver, json);
+}
+
+/**
+ * M13 — THE SAME VALIDATION AGAINST AN ARBITRARY CONTEXT'S RESOLVER.
+ *
+ * The rule is expressed ONCE (below) and asked of whichever resolver owns the artwork: the compatibility
+ * resolver for `assertConfiguredIconAssetsExist`, and a resolver built from that context's own
+ * `runtimeAssetNamespaces` for the server composition that
+ * renders THAT context. A second copy of the validation — or a second wording of the diagnostic — is
+ * exactly what this avoids: the leaf names, the accepted `""`/absent leaves and the thrown message are
+ * identical whichever resolver answers, so a context can only ever be judged by the artwork it may serve.
+ */
+export function assertConfiguredIconAssetsExistFor(
+  resolver: RuntimeAssetOwnershipResolver,
+  json: IconConfigSource,
+): void {
   const leaves: IconLeafRef[] = [];
   const push = (label: string, value: string | undefined) => {
     if (value && value !== "") leaves.push({ label, value });
@@ -277,7 +295,7 @@ export function assertConfiguredIconAssetsExist(json: IconConfigSource): void {
     push(`navigation[${index}].iconClosed`, item.iconClosed);
   }
 
-  const missing = leaves.filter((leaf) => !compatibilityResolver.iconAssetAvailable(leaf.value));
+  const missing = leaves.filter((leaf) => !resolver.iconAssetAvailable(leaf.value));
   if (missing.length > 0) {
     const details = missing
       .map((leaf) => `  - ${leaf.label}: "${leaf.value}" not found under public/assets/`)

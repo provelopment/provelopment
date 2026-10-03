@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
+
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -123,12 +124,22 @@ async function renderFooter(overrides: Record<string, unknown>): Promise<string>
   const { SiteFooter } = await import("@/components/site/site-footer");
   const resolver: Resolver = createDirectionLinkResolver(
     (overrides.mapsFeature ?? siteConfig.mapsFeature) as never,
-  );
+  );  // M13 — the chrome's Spoke facts travel as explicit inputs, read AFTER `vi.resetModules()` so the
+  // SUBSTITUTED configuration above is the one the footer renders with.
+  const { siteConfig: active } = await import("@/config");
+  const { createPageSources } = await import("@/adapters/content/page-sources");
+  const { getDictionary } = await import("@/config/i18n");
+  const { deploymentPaths } = await import("@/config/deployment-root");
+  const { createRuntimeAssetOwnershipResolver } = await import("@/config/runtime-asset-resolver");
 
   return renderToStaticMarkup(
     await SiteFooter({
-      locale: siteConfig.defaultLocale,
-      siteId: siteConfig.defaultSite.code,
+      siteConfig: active,
+      dictionaryAccess: { get: (locale, siteCode) => getDictionary(locale, siteCode) },
+      assets: createRuntimeAssetOwnershipResolver(deploymentPaths().runtimeAssetNamespaces),
+      routes: createPageSources({ sites: active.sites }),
+      locale: active.defaultLocale,
+      siteId: active.defaultSite.code,
       directionLinkResolver: resolver,
     }),
   );

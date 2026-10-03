@@ -56,7 +56,7 @@ const engineSource = readFileSync(
 // NAV1D-V3 — the adopter-owned background authority the rail's surface now consumes, and the file
 // that resolves `ui.theme.background` into it.
 const layoutSource = readFileSync(
-  path.join(process.cwd(), "src", "app", "[...segments]", "layout.tsx"),
+  path.join(process.cwd(), "src", "app", "[...segments]", "server-composition.tsx"),
   "utf8",
 );
 const barSource = readFileSync(

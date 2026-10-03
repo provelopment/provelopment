@@ -23,6 +23,8 @@ import { SiteHeader } from "@/components/site/site-header";
 import { getDictionary } from "@/config/i18n";
 import { resolveUiConfig } from "@/core/ui";
 
+import { compatibilityChrome } from "../support/compatibility-chrome";
+
 const resolved = resolveUiConfig({});
 
 const OPTIONS = [
@@ -30,8 +32,8 @@ const OPTIONS = [
   { code: "ww", label: "Worldwide", href: "/ww/en" },
 ];
 
-function render(props: Parameters<typeof SiteHeader>[0]): string {
-  return renderToStaticMarkup(SiteHeader(props));
+function render(props: Omit<Parameters<typeof SiteHeader>[0], "siteConfig" | "dictionaryAccess" | "assets">): string {
+  return renderToStaticMarkup(SiteHeader({ ...compatibilityChrome(), ...props }));
 }
 
 describe("Site selector presence and composition", () => {

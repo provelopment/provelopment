@@ -1,4 +1,4 @@
-import { siteConfig } from "@/config";
+import type { SiteConfig } from "@/config/site-config";
 import type { BusinessLocation, Weekday } from "@/core/business";
 import { resolveBusinessForLocale } from "@/core/business";
 
@@ -32,7 +32,7 @@ function toGeo(lat: number, lng: number) {
   return { "@type": "GeoCoordinates" as const, latitude: lat, longitude: lng };
 }
 
-function toPlace(loc: BusinessLocation) {
+function toPlace(loc: BusinessLocation, siteConfig: SiteConfig) {
   const place: Record<string, unknown> = {
     "@type": "Place",
     // Stable fragment identifier — locations have no standalone route, so we
@@ -67,7 +67,18 @@ function toPlace(loc: BusinessLocation) {
   return place;
 }
 
-export function StructuredData({ locale }: { readonly locale: string }) {
+/**
+ * M13 — THE CONFIGURATION IS AN INPUT. This component holds no Spoke authority of its own: the JSON-LD it
+ * emits describes the configuration it is HANDED, so a context-driven render can never publish another
+ * Spoke's organization identity through shared global state. Output shape is unchanged.
+ */
+export function StructuredData({
+  locale,
+  siteConfig,
+}: {
+  readonly locale: string;
+  readonly siteConfig: SiteConfig;
+}) {
   const b = resolveBusinessForLocale(siteConfig.business, locale);
   if (!b.locations.length && !b.contact.email && !b.contact.phone) return null;
 
@@ -98,7 +109,7 @@ export function StructuredData({ locale }: { readonly locale: string }) {
   if (b.contact.email) node.email = b.contact.email;
   if (b.contact.phone) node.telephone = b.contact.phone;
   if (b.locations.length) {
-    node.location = b.locations.map(toPlace);
+    node.location = b.locations.map((loc) => toPlace(loc, siteConfig));
   }
 
   return (

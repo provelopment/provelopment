@@ -17,6 +17,7 @@ import { assertConfiguredIconAssetsExist, availableIconName } from "@/config/ass
 import { parseSiteConfig } from "@/config/loader";
 
 import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
+import { compatibilityAssets } from "../support/compatibility-chrome";
 
 /**
  * CONNECTIVITY ICON SEAM — the owner product decision that connectivity (social
@@ -68,7 +69,7 @@ function methodLinks(methods: readonly ConnectMethod[]): readonly ContextNavLink
     label: method.label,
     key: method.id,
     demoOnly: method.demoOnly,
-    icon: connectivityIcon(method.icon),
+    icon: connectivityIcon(method.icon, compatibilityAssets.availableIconUrl),
   }));
 }
 
@@ -239,7 +240,7 @@ describe("connectivity icon seam — text remains authoritative", () => {
 
   it("falls back to text-only when a configured icon has no backing file (never a broken image)", () => {
     expect(availableIconName(MISSING_ICON)).toBe("");
-    expect(connectivityIcon(MISSING_ICON)).toBe("");
+    expect(connectivityIcon(MISSING_ICON, compatibilityAssets.availableIconUrl)).toBe("");
 
     const socialHtml = renderLinks(
       socialLinks([
@@ -259,8 +260,8 @@ describe("connectivity icon seam — text remains authoritative", () => {
   });
 
   it("preserves the deliberate-absence values verbatim", () => {
-    expect(connectivityIcon(undefined)).toBeUndefined();
-    expect(connectivityIcon("")).toBe("");
+    expect(connectivityIcon(undefined, compatibilityAssets.availableIconUrl)).toBeUndefined();
+    expect(connectivityIcon("", compatibilityAssets.availableIconUrl)).toBe("");
   });
 
   it("renders a valid AVAILABLE icon as supplementary artwork beside the label", () => {
@@ -336,7 +337,7 @@ describe("connectivity icon seam — accessibility", () => {
 });
 
 function socialLinks(links: readonly SocialLink[]): readonly ContextNavLink[] {
-  return socialConnectivityLinks(links);
+  return socialConnectivityLinks(links, compatibilityAssets.availableIconUrl);
 }
 
 /**
@@ -464,7 +465,7 @@ describe("connectivity icon seam — scope protection", () => {
       "src/components/site/region-structured-data.tsx",
     ]) {
       const fileSource = readFileSync(path.join(root, ...file.split("/")), "utf8");
-      expect(fileSource, file).toContain("siteConfig.socialLinks.map((link) => link.href)");
+      expect(fileSource, file).toContain("socialLinks.map((link) => link.href)");
     }
   });
 });

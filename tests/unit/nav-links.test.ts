@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { getSiteNavLinks, navItemKey } from "@/components/site/nav-links";
 
+import { compatibilityAssets, compatibilityChrome, compatibilityDictionaries } from "../support/compatibility-chrome";
+
 /**
  * P5-6 — navigation identity is position-derived. `getSiteNavLinks` stamps a
  * deterministic, per-config-position `key` so duplicate destinations never
@@ -10,7 +12,12 @@ import { getSiteNavLinks, navItemKey } from "@/components/site/nav-links";
  */
 describe("P5-6 — navigation identity is position-derived", () => {
   it("assigns a distinct stable key to every configured item", () => {
-    const links = getSiteNavLinks("en");
+    const links = getSiteNavLinks({
+      locale: "en",
+      siteConfig: compatibilityChrome().siteConfig,
+      dictionary: compatibilityDictionaries,
+      iconUrl: compatibilityAssets.availableIconUrl,
+    });
     const keys = links.map((l) => l.key);
     // Every item gets a key, and keys are unique across the configured list.
     expect(keys.every((k) => k !== undefined)).toBe(true);
