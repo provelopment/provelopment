@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { renderToStaticMarkup } from "react-dom/server";
@@ -16,7 +16,7 @@ import { siteConfig } from "@/config";
 import { assertConfiguredIconAssetsExist, availableIconName } from "@/config/assets";
 import { parseSiteConfig } from "@/config/loader";
 
-import { runtimeAssetUrl } from "../support/runtime-assets";
+import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 
 /**
  * CONNECTIVITY ICON SEAM — the owner product decision that connectivity (social
@@ -51,8 +51,8 @@ const baseConfig = {
   navigation: [{ label: "Home", href: "/" }],
 };
 
-/** A generic EXISTING shipped asset (screened available) — not platform artwork. */
-const AVAILABLE_ICON = "sidebar-open.svg";
+/** A generic EXISTING shipped PLATFORM asset (screened available) — the icon library, not platform artwork. */
+const AVAILABLE_ICON = "icon-phone.svg";
 /** A configured-but-absent asset (deliberate missing-file fallback). */
 const MISSING_ICON = "definitely-missing-connectivity-icon.svg";
 
@@ -446,9 +446,15 @@ describe("connectivity icon seam — scope protection", () => {
       "sidebar-default-icon-closed.svg",
       "favicon.svg",
       "logo-header.svg",
-      "logo-footer.svg",
     ]) {
-      expect(availableIconName(icon), icon).toBe(icon);
+      // S3E1C — the inventory spans BOTH namespaces: platform/shared artwork is served from `/assets/**`,
+      // while an installation's OWN replaceable role files ship from that installation's sources (the two
+      // logo ROLES share one source, so `logo-footer.svg` needs no separate file). A generic run never
+      // reads another deployment's Spoke namespace, which is why the source half is asked here.
+      expect(
+        availableIconName(icon) === icon || existsSync(shippedRoleSource(icon)),
+        icon,
+      ).toBe(true);
     }
   });
 

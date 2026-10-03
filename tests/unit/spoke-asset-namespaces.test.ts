@@ -4,6 +4,8 @@ import path from "node:path";
 
 import { afterAll, describe, expect, it } from "vitest";
 
+import { iconAssetAvailable, namespaceOwning, runtimeAssetPath } from "@/config/assets";
+
 import {
   MIRRORED,
   MIRRORED_DIRECTORIES,
@@ -299,5 +301,79 @@ describe("the plan is collision-safe by CONSTRUCTION", () => {
     const repaired = syncMirrors(installationRoot, runtimeRoot);
     expect(repaired.removed).toContain("spokes/ghost/assets/favicon.svg");
     expect(existsSync(path.join(runtimeBase, "spokes"))).toBe(false);
+  });
+});
+
+/**
+ * RESOLUTION READS DECLARED NAMESPACES, AND ONLY THOSE (FOUNDATION-MULTISITE-S3F1)
+ * ==============================================================================
+ *
+ * The mirror above decides WHERE a file is installed. These prove the other half of the same ownership
+ * contract: when the runtime resolves a basename, it consults the namespaces of the CURRENTLY SELECTED
+ * context — the platform one first (a Spoke may never shadow platform artwork), then the sole declared
+ * Spoke's own — and nothing else.
+ *
+ * A generated namespace the context does not declare must be INVISIBLE, even though it is sitting on disk:
+ * ownership is authored, and accidental generated-file presence is not authority. (The rule was previously
+ * relaxed by a last-resort scan of the `spokes/` container, which let one Spoke be served another's
+ * artwork; that fallback is gone, and these are the proofs that it stays gone.)
+ */
+describe("runtime resolution reads DECLARED namespaces only", () => {
+  /** A disposable namespace directory holding `files`, addressed by `urlBase`. */
+  function namespaceAt(
+    prefix: string,
+    urlBase: string,
+    files: readonly string[],
+  ): { directory: string; urlBase: string } {
+    const directory = path.join(tempTree(prefix), "assets");
+    mkdirSync(directory, { recursive: true });
+    for (const file of files) write(path.join(directory, file), `<svg>${prefix}:${file}</svg>`);
+    return { directory, urlBase };
+  }
+
+  const platform = namespaceAt("foundation-ns-platform-", "/assets", ["icon-home.svg", "shared.svg"]);
+  const spokeA = namespaceAt("foundation-ns-a-", "/spokes/a/assets", ["banner.webp", "shared.svg"]);
+  const spokeB = namespaceAt("foundation-ns-b-", "/spokes/b/assets", ["shared.svg"]);
+
+  it("takes the PLATFORM namespace first: a Spoke can never shadow platform artwork", () => {
+    // The same basename in two declared namespaces resolves to the PLATFORM copy, in either order of
+    // declaration — platform assets are non-shadowable (A2).
+    expect(namespaceOwning("shared.svg", [platform, spokeA])).toBe(platform);
+    expect(namespaceOwning("shared.svg", [spokeA, platform])).toBe(spokeA);
+    expect(namespaceOwning("icon-home.svg", [platform, spokeA])).toBe(platform);
+  });
+
+  it("resolves a Spoke-owned basename from the Spoke the context DECLARES", () => {
+    expect(namespaceOwning("banner.webp", [platform, spokeA])).toBe(spokeA);
+  });
+
+  it("gives Spoke B NOTHING of Spoke A's — a foreign generated namespace is invisible to it", () => {
+    // Spoke A OWNS banner.webp and its generated namespace exists on disk beside B's; B does not declare
+    // A, so the file is simply unavailable to it.
+    expect(existsSync(path.join(spokeA.directory, "banner.webp"))).toBe(true);
+    expect(namespaceOwning("banner.webp", [platform, spokeB])).toBeNull();
+    expect(namespaceOwning("banner.webp", [spokeB])).toBeNull();
+  });
+
+  it("gives each declared context only its OWN copy of a shared basename", () => {
+    expect(namespaceOwning("shared.svg", [spokeA])).toBe(spokeA);
+    expect(namespaceOwning("shared.svg", [spokeB])).toBe(spokeB);
+    expect(namespaceOwning("shared.svg", [spokeA])).not.toBe(spokeB);
+  });
+
+  it("treats an UNDECLARED namespace as absent, and never resolves an empty name", () => {
+    expect(namespaceOwning("banner.webp", [platform])).toBeNull();
+    expect(namespaceOwning("banner.webp", [])).toBeNull();
+    expect(namespaceOwning("", [platform, spokeA])).toBeNull();
+  });
+
+  it("ignores the repository's REAL generated Spoke namespace under a legacy selection", () => {
+    // This process selects the synthetic (LEGACY) installation, whose declared namespaces are the platform
+    // one only. The repository's generated tree may well hold the canonical deployment's Spoke namespace
+    // beside it — that is ANOTHER installation's output, and it must be invisible here: a legacy
+    // Installation resolves role artwork from its own platform namespace or not at all.
+    expect(runtimeAssetPath("favicon.svg")).toBeUndefined();
+    expect(iconAssetAvailable("favicon.svg")).toBe(false);
+    expect(runtimeNamespaces().map((namespace) => namespace.urlBase)).toEqual(["/assets"]);
   });
 });

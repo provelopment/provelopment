@@ -220,8 +220,10 @@ describe("S3F1 REFUSES everything that is not exactly one Spoke — loudly, and 
     const root = tempTree("foundation-s3f1-zero-");
     declareSpokes(root, []);
 
-    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/declares NO Spoke/);
-    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/LEGACY form/);
+    // The WORDING is the S3C1 authority's, because the acceptance rules are ONE implementation: an empty
+    // collection is an IDENTITY failure the domain reports, and the build seam reports exactly that.
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/needs at least one Spoke/);
+    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/Invalid Installation Spoke collection/);
   });
 
   it("refuses a root authored BOTH ways, and one authored NEITHER way", () => {
@@ -232,7 +234,7 @@ describe("S3F1 REFUSES everything that is not exactly one Spoke — loudly, and 
     expect(() => resolveDeploymentForBuild({}, both)).toThrow(/authored SIMULTANEOUSLY in both forms/);
 
     const neither = tempTree("foundation-s3f1-neither-");
-    expect(() => resolveDeploymentForBuild({}, neither)).toThrow(/no site\.config\.json/);
+    expect(() => resolveDeploymentForBuild({}, neither)).toThrow(/authored NEITHER way/);
     expect(() => resolveDeploymentForBuild({}, neither)).toThrow(/nothing falls back silently/);
   });
 

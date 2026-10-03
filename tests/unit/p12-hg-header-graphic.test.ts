@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { syntheticDeploymentConfigFile } from "../support/synthetic-deployment";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -15,7 +15,7 @@ import { siteConfigFileSchema, siteAssetsSchema } from "@/config/schema";
 import { siteConfig } from "@/config";
 import { HEADER_GRAPHIC_ATTRIBUTE, headerGraphicBandProps } from "@/components/site/header-graphic";
 
-import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
+import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 
 /**
  * P12-HG — the optional DECORATIVE header band / graphic capability.
@@ -62,13 +62,20 @@ const siteHeaderCode = stripComments(siteHeader);
 /** The single `.ui-site-header[data-ui-header-graphic]` rule block (the band contract). */
 const bandBlock = /\.ui-site-header\[data-ui-header-graphic\]\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
-/** An FS-4 absolute URL whose basename is backed by a real public/assets file. */
-/** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
-const LIVE = runtimeAssetUrl("logo-header.svg") as string;
-
-const AVAILABLE = "https://www.example.com/assets/logo-header.svg";
+/**
+ * An FS-4 absolute URL whose basename is backed by a real PLATFORM file.
+ *
+ * S3E1C — the neutral availability fixture is a PLATFORM-owned icon-library file, because the icon library
+ * is installed into the platform namespace of every installation. A Spoke's replaceable role artwork is
+ * NOT visible to a run whose selected installation is a different one, and this suite deliberately proves
+ * the availability RULE independently of which artwork a deployment has activated.
+ */
+const AVAILABLE = "https://www.example.com/assets/icon-phone.svg";
 /** An FS-4 absolute URL whose basename has NO backing file. */
 const MISSING = "https://www.example.com/assets/header-graphic-does-not-exist.svg";
+
+/** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
+const LIVE = runtimeAssetUrl("icon-phone.svg") as string;
 
 /**
  * The header as it is actually emitted: the band contributes attributes ONLY
@@ -124,13 +131,15 @@ describe("P12-HG — schema / backward compatibility", () => {
     // stacking context — so an absent or blank role cannot affect the UI.
     expect(siteConfig.assets?.headerGraphic).toBeUndefined();
     expect(availableHeaderGraphicPath(siteConfig.assets?.headerGraphic)).toBeUndefined();
-    // The blank placeholder still ships (in the namespace that owns it — S3E1C).
-    expect(runtimeAssetFile("header-graphic.svg")).not.toBeUndefined();
+    // The blank placeholder still ships WITH THE INSTALLATION THAT OWNS IT (S3E1C: a Spoke's replaceable
+    // role artwork is asked of that installation's own sources — a generic run serves a different
+    // deployment's generated tree, and must not see its Spoke namespace).
+    expect(existsSync(shippedRoleSource("header-graphic.svg"))).toBe(true);
     // The shipped default draws NOTHING (no paths, no shapes, no raster). ISO-H2 — that the runtime file
-    // is the byte-identical MIRROR of its declared placeholder source, and that the template installs no
+    // is the byte-identical MIRROR of that placeholder source, and that the template installs no
     // deployment-specific brand artwork for the role, are facts about the INSTALLED deployment's asset
     // install: asserted by its own acceptance suite (`deployment/tests/unit/asset-install.test.ts`).
-    const shipped = readFileSync(runtimeAssetFile("header-graphic.svg") as string, "utf8");
+    const shipped = readFileSync(shippedRoleSource("header-graphic.svg"), "utf8");
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|image|text)\b/i);
     expect(shipped).toMatch(/viewBox="0 0 4096 512"/);
     expect(shipped).not.toMatch(/#4F7CAC/i);

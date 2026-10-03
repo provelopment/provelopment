@@ -12,7 +12,7 @@ import { siteAssetsSchema } from "@/config/schema";
 import { FooterGraphic } from "@/components/site/footer-graphic";
 import { PageBackground } from "@/components/site/page-background";
 
-import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
+import { runtimeAssetFile, runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 import { PageBanner } from "@/components/site/page-banner";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { headerGraphicBandProps } from "@/components/site/header-graphic";
@@ -50,6 +50,21 @@ const runtimeAsset = (file: string) =>
   runtimeAssetFile(file) ?? path.join(ROOT, "public", "assets", file);
 /** The generated runtime file's own TEXT, from whichever namespace holds it (S3E1C). */
 const readRuntime = (file: string) => readFileSync(runtimeAsset(file), "utf8");
+
+/**
+ * Does the SELECTED installation ship `file` — as its own replaceable role artwork (the installation's
+ * authored `content/assets/placeholders/` source) or as PLATFORM artwork mirrored into its platform
+ * namespace?
+ *
+ * S3E1C — a generic run serves a tree generated from the CANONICAL deployment while it SELECTS a synthetic
+ * installation, so another installation's Spoke namespace is deliberately invisible to it (S3F1): what an
+ * installation ships is asked of that installation. That the role artwork is INSTALLED into the runtime
+ * namespaces is the deployment acceptance suite's subject (`deployment/tests/**`).
+ */
+const shipsRoleFile = (file: string) =>
+  existsSync(shippedRoleSource(file)) || runtimeAssetFile(file) !== undefined;
+/** The shipped role file's own TEXT, from the installation that OWNS it (S3E1C). */
+const readShipped = (file: string) => readFileSync(shippedRoleSource(file), "utf8");
 const pathnameOf = (url: string | undefined) => (url ? new URL(url).pathname : "");
 
 /** `BRAND_ASSETS.md` is the ONE authoritative swap contract. */
@@ -134,31 +149,33 @@ describe("swap contract — the configured role inventory", () => {
     for (const role of CONFIGURED_ROLES) {
       expect(role.file, `${role.key} must name a canonical role file`).toMatch(/^[a-z0-9-]+\.(svg|png)$/);
       if (role.url === undefined) continue;
-      // A role that IS configured must be an absolute URL naming that role file, and the RUNTIME must
-      // serve the file that role names (S3E1C: from the namespace that holds it).
+      // A role that IS configured must be an absolute URL naming that role file, and the installation must
+      // ship the file that role names (S3E1C: its own replaceable artwork, or the shared platform tree).
       expect(role.url.startsWith("https://"), `${role.key} must be an absolute URL`).toBe(true);
       expect(pathnameOf(role.url), `${role.key} must name its role file`).toBe(
         `/assets/${role.file}`,
       );
-      expect(runtimeAssetFile(role.file), `${role.key} must be served`).not.toBeUndefined();
+      expect(shipsRoleFile(role.file), `${role.key} must be shipped`).toBe(true);
     }
   });
 
   it("ships the identity + blank decorative role files, and no artwork-only role", () => {
     // Roles a fresh clone actually RENDERS: the identity roles and the blank
-    // decorative defaults (which draw nothing).
+    // decorative defaults (which draw nothing). The footer logo ROLE shares the header logo's source
+    // (the asset plan mirrors one file to both basenames), so the shipped set is expressed by SOURCES.
     for (const file of [
       "logo-header.svg",
-      "logo-footer.svg",
       "favicon.svg",
       "header-graphic.svg",
       "footer-graphic.svg",
     ]) {
-      expect(existsSync(runtimeAsset(file)), `${file} must ship`).toBe(true);
+      expect(shipsRoleFile(file), `${file} must ship`).toBe(true);
     }
     // Artwork-only roles ship NOTHING until an adopter provides artwork: the
-    // template never invents example imagery.
+    // template never invents example imagery — neither in the installation's own
+    // artwork sources nor in the generated tree.
     for (const file of ["og-image.png", "background-all.svg", "status-graphic.svg"]) {
+      expect(existsSync(shippedRoleSource(file)), `${file} must not ship as a source`).toBe(false);
       expect(existsSync(runtimeAsset(file)), `${file} must not ship with the template`).toBe(false);
     }
     for (const page of BANNER_PAGES) {
@@ -168,7 +185,7 @@ describe("swap contract — the configured role inventory", () => {
 
   it("every shipped plain-filename control icon and generic connectivity icon exists", () => {
     for (const file of [...CONTROL_ICON_FILES, ...GENERIC_ICON_FILES]) {
-      expect(existsSync(runtimeAsset(file)), `${file} must be on disk`).toBe(true);
+      expect(shipsRoleFile(file), `${file} must be shipped`).toBe(true);
     }
   });
 
@@ -326,12 +343,10 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
 
   it("uses the canonical runtime filename but is NOT a runtime asset", () => {
     expect(PLACEHOLDER.endsWith("/header-graphic.svg")).toBe(true);
-    // The shipped role file exists and is the BLANK placeholder artwork — the
-    // neutral TEST fixture is still separate from it and never resolved by code.
-    expect(existsSync(runtimeAsset("header-graphic.svg"))).toBe(true);
-    expect(
-      existsSync(runtimeAssetFile("header-graphic-placeholder.svg") ?? runtimeAsset("header-graphic-placeholder.svg")),
-    ).toBe(false);
+    // The shipped role file exists — in the installation that OWNS it (S3E1C) — and is the BLANK
+    // placeholder artwork; the neutral TEST fixture is still separate from it and never resolved by code.
+    expect(shipsRoleFile("header-graphic.svg")).toBe(true);
+    expect(runtimeAssetFile("header-graphic-placeholder.svg")).toBeUndefined();
     expect(JSON.stringify(siteConfig.assets)).not.toMatch(/placeholder/i);
   });
 
@@ -341,9 +356,11 @@ describe("swap contract — the neutral placeholder is a source fixture, and the
     // ISO-H2 — that the runtime file is the BYTE-IDENTICAL MIRROR of its placeholder source is a fact
     // about the installed deployment's asset install, asserted by its own acceptance suite
     // (`deployment/tests/**`): the mirror is generated FROM the selected deployment, so it can only be
-    // checked where that deployment is the subject. What stays here is the platform-independent part.
+    // checked where that deployment is the subject. What stays here is the shipped artwork itself, read
+    // from the installation that owns it (S3E1C — a Spoke's role artwork is never read out of another
+    // deployment's generated namespace).
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
-      const shipped = readRuntime(role);
+      const shipped = readShipped(role);
       expect(shipped, `${role} must draw nothing`).not.toMatch(
         /<(path|rect|circle|ellipse|polygon|line|image|text)\b/i,
       );
@@ -432,8 +449,9 @@ describe("swap contract — the icon colour seam is documented as MEASURED", () 
       expect(file, `${icon} carries no internal style block`).not.toMatch(/<style/i);
       expect(file, `${icon} carries no literal colour`).not.toMatch(/(?:fill|stroke)="#/i);
     }
-    // The counter-example the contract cites for an ENCODED colour.
-    expect(readRuntime("sidebar-default-icon-open.svg")).toContain('fill="#6b7280"');
+    // The counter-example the contract cites for an ENCODED colour — read from the installation that
+    // owns the placeholder artwork (S3E1C).
+    expect(readShipped("sidebar-default-icon-open.svg")).toContain('fill="#6b7280"');
   });
 });
 

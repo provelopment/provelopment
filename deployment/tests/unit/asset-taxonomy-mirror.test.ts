@@ -231,8 +231,11 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     expect(script).toContain("the SOURCE OF TRUTH");
 
     const readme = readFileSync(path.join(deploymentPaths().assetSourceRoot, "README.md"), "utf8");
+    // S3E1C/S3F1 — the generated tree is NAMESPACED, so the instruction is stricter than it was and names
+    // no single hand-edit target: NOTHING under `public/` (either namespace) is ever edited by hand.
     expect(readme).toContain("public/assets");
-    expect(readme).toMatch(/never edit `public\/assets\/` by hand/i);
+    expect(readme).toContain("public/spokes/<runtime-segment>/assets/");
+    expect(readme).toMatch(/never edit anything under `public\/` by hand/i);
   });
 
   it("mirrors every runtime file FROM content/assets (no source outside it)", () => {

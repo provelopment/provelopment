@@ -15,6 +15,9 @@
  * Shared by both Vitest projects (the deployment tree's own suites and the generic ones): it reads the
  * SELECTED deployment's identity, exactly as every other support module does.
  */
+import path from "node:path";
+
+import { deploymentPaths } from "@/config/deployment-root";
 import { availableIconUrl, runtimeAssetPath } from "@/config/assets";
 
 /** The absolute generated path of `<name>`, from whichever namespace holds it, or `undefined`. */
@@ -26,4 +29,19 @@ export function runtimeAssetFile(name: string): string | undefined {
 export function runtimeAssetUrl(name: string): string | undefined {
   const url = availableIconUrl(name);
   return url === undefined || url === "" ? undefined : url;
+}
+
+/**
+ * The AUTHORED path of the selected installation's neutral ROLE artwork
+ * (`content/assets/placeholders/<name>`).
+ *
+ * The companion of the two runtime helpers above, for an assertion whose subject is "this INSTALLATION
+ * ships role artwork". A generic-suite run serves a tree generated from the CANONICAL deployment while its
+ * own selected installation is a synthetic one, so the canonical deployment's Spoke namespace is — and must
+ * be — invisible there (S3F1): what an installation ships is asked of the INSTALLATION's own sources. That
+ * those sources are INSTALLED into the runtime namespaces is the deployment acceptance suite's subject
+ * (`deployment/tests/**`), which runs where that installation IS the selected deployment.
+ */
+export function shippedRoleSource(name: string): string {
+  return path.join(deploymentPaths().assetSourceRoot, "placeholders", name);
 }

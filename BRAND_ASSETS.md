@@ -99,6 +99,25 @@ for someone asking
 "where do I change my logo?" is
 [`content/assets/README.md`](deployment/spokes/foundation/content/assets/README.md).
 
+#### Where a ROLE file is served (the runtime URL of a role)
+
+The **filename is the contract** and it never changes; the **directory it is served
+from depends on how the Installation is authored**, which the build resolves once:
+
+| Authoring | Role artwork (`favicon.svg`, both logo roles, both decorative bands, the sidebar control + fallback icons) | Platform/shared artwork (`icon-library/**`, `platform-marks/**`) |
+| --- | --- | --- |
+| **legacy** — the Installation root carries `site.config.json` and no `spokes.json` | served at `/assets/<filename>`, exactly as it always was (one namespace, unchanged URLs) | `/assets/<filename>` |
+| **explicit** — the Installation root carries `spokes.json` declaring its Spokes | served at `/spokes/<runtime-segment>/assets/<filename>`, from the SOLE declared Spoke's own namespace (the segment is derived from that Spoke's ID) | `/assets/<filename>` — shared, never copied into a Spoke's namespace |
+
+Two consequences worth stating plainly:
+
+* a role file is **never** served from `/assets/` in an explicit Installation, and a
+  Spoke's namespace is never searched for another Spoke's file: resolution reads the
+  DECLARED namespaces only (platform first, so a Spoke cannot shadow a platform file);
+* the URLs below in this document therefore name the **canonical filename** each role
+  expects; the directory is the one this table gives, and it is resolved at build time
+  rather than spelled by hand in configuration.
+
 | Rule | Detail |
 | --- | --- |
 | One authority | A file is **edited in `content/assets/**`** and mirrored. The generated namespaces are byte-identical **derivatives**, never a second place to maintain artwork |
@@ -148,10 +167,10 @@ Both are fully supported and neither requires a code change:
    deployment's `content/assets/**` (§1.1). The configuration keeps pointing at the same
    role file, and the mirror is installed from it by `pnpm assets:sync` (or by
    `pnpm install`, `pnpm dev` and `pnpm build`, which all install it first).
-   `public/assets/**` is GENERATED output and is never the file you edit.
+   Both generated namespaces are GENERATED output and are never the file you edit: `public/assets/**` (platform-owned artwork) and `public/spokes/<segment>/assets/**` (a Spoke's own — §1.1).
 2. **Point configuration at your own file** — set the role's `site.assets.*`
    key to an **absolute URL** (required by the schema, validated at build time)
-   whose basename matches a file in `public/assets/`.
+   whose basename matches a file in one of the DECLARED runtime namespaces (§1.1).
 
 ```jsonc
 {
@@ -173,7 +192,7 @@ Both are fully supported and neither requires a code change:
 
 > **How the value is consumed (the same for every `site.assets.*` role):** the
 > validated absolute URL is reduced to its **pathname**, and then to its
-> **basename**; the basename is checked for existence under `public/assets/`.
+> **basename**; the basename is checked for existence in the installation's DECLARED runtime namespaces (§1.1).
 > **Only the filename decides availability** — which is why every role is swappable
 > by filename alone.
 >
@@ -196,11 +215,11 @@ Both are fully supported and neither requires a code change:
     (filename, type, recommended master size, transparency, crop expectations).
 
 2.  Use the EXACT canonical runtime filename for the role. The filename is the
-    contract: it is what the resolver checks for under public/assets/.
+    contract: it is what the resolver checks for in the DECLARED runtime namespaces (§1.1).
 
-3.  Place it at public/assets/<canonical-filename>
+3.  Place it at its SOURCE under content/assets/** (the mirror installs it into the role's runtime namespace — §1.1) — never edit a generated namespace by hand
     (replace in place) — OR — point the role's site.assets.* key at your own
-    absolute URL whose basename is backed by a file in public/assets/.
+    absolute URL whose basename is backed by a file in one of the DECLARED runtime namespaces (§1.1).
 
 4.  If your deployment maintains a living brand pack (the Provelopment living
     packs do), replace the corresponding living-master file too, so source and
@@ -224,12 +243,12 @@ Both are fully supported and neither requires a code change:
 ```text
 READ approved artwork
   -> COPY to the living master
-  -> COPY to public/assets/<canonical-filename>
+  -> COPY to its source under content/assets/** (then pnpm assets:sync installs it)
   -> VERIFY SHA-256 (source == living == runtime)
 ```
 
 The runtime never depends on where the bytes came from; it only reads
-`public/assets/<basename>` at composition time.
+the role's file `<basename>` in its runtime namespace (§1.1) at composition time.
 
 ---
 
@@ -296,8 +315,8 @@ Rules that follow from this:
 | Content | transparent canvas + neutral dashed bounds, diagonals and corner ticks. No brand artwork, no script, no animation, no embedded raster, no font dependency, no external resource |
 | Purpose | give the swap-contract tests controlled, neutral bytes at the exact canonical filename, so the seam is validated **without touching or asserting on any approved artwork's visual content** |
 | Runtime status | **blank by default (2026-09 owner ruling).** The decorative header/footer roles ship a valid, transparent, drawing-free placeholder, so the default presentation is "blank / not used". The role stays **supported and swappable** — it paints nothing here until a deployment configures `site.assets.headerGraphic` against a file it supplies; see §1, §10.5 and §10.4 |
-| Shipped blank placeholder (header) | `content/assets/placeholders/header-graphic.svg` → mirrored to `public/assets/header-graphic.svg` |
-| Shipped blank placeholder (footer) | `content/assets/placeholders/footer-graphic.svg` → mirrored to `public/assets/footer-graphic.svg` |
+| Shipped blank placeholder (header) | `content/assets/placeholders/header-graphic.svg` → mirrored to the role file `header-graphic.svg` in its runtime namespace (§1.1) |
+| Shipped blank placeholder (footer) | `content/assets/placeholders/footer-graphic.svg` → mirrored into the role's runtime namespace (§1.1) as `footer-graphic.svg` |
 | Optional branded artwork | a **branded deployment** retains its approved masters as **source** in its own `content/assets/branding/page-graphics/` (`header-graphic.svg`, `footer-graphic.svg`) and activates them by replacing the runtime file — a pure artwork swap. This generic template ships no such tree (§1) |
 
 > **The decorative defaults are blank, and branded artwork is one copy away.**
@@ -343,7 +362,7 @@ Corollaries the engine enforces (proven by tests, §13):
 Every `site.assets.*` graphic role and every icon leaf is screened by **one** rule:
 
 ```text
-configured value + basename backed by a real file under public/assets/
+configured value + basename backed by a real file in the DECLARED runtime namespaces (§1.1)
         -> render it
 
 configured value + NO backing file
@@ -458,7 +477,7 @@ artwork; it documents only the file/rendering contract and the substitution path
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/logo-header.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `logo-header.svg` |
 | Config role | `site.assets.logo` (**absolute URL**, schema-validated) |
 | Also consumed by | JSON-LD `Organization.logo` (same key) |
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG (crisp at any size; the mark is also handed to search engines as a logo URL) |
@@ -484,7 +503,7 @@ artwork; it documents only the file/rendering contract and the substitution path
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/logo-footer.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `logo-footer.svg` |
 | Config role | `site.assets.logoFooter` (**absolute URL**, schema-validated) |
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
 | Alternative supported types | PNG, WebP, AVIF, JPEG |
@@ -509,12 +528,12 @@ artwork; it documents only the file/rendering contract and the substitution path
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/favicon.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `favicon.svg` |
 | Config role | `site.assets.favicon` (**absolute URL**, schema-validated) |
 | Consumer | Next.js metadata `icons.icon` — a single authoritative `<link rel="icon">` declaration. There is no competing file-based icon route |
 | Required file type | **HARD:** a browser icon format. **RECOMMENDED:** SVG. PNG and ICO also work |
 | Engine-required dimensions | **HARD: none.** The browser renders it at its own icon size |
-| Source of truth / derivation | **Scope: a deployment that supplies its own brand pack.** **HARD for that deployment (2026-09 owner ruling):** the favicon is DERIVED from its own `content/assets/branding/identity/mark.svg` — the high-resolution mark is never modified — and `content/assets/branding/identity/favicon.svg` is the mark rendered into a **24 × 24 canvas**, mirrored to `public/assets/favicon.svg`. **This generic template supplies no mark and derives nothing** (§1): its `public/assets/favicon.svg` is the byte-identical mirror of the neutral `content/assets/placeholders/favicon.svg` (`MIRRORED`, `scripts/sync-runtime-assets.mjs`), and the capsule's taxonomy test asserts that no `content/assets/branding/` tree ships |
+| Source of truth / derivation | **Scope: a deployment that supplies its own brand pack.** **HARD for that deployment (2026-09 owner ruling):** the favicon is DERIVED from its own `content/assets/branding/identity/mark.svg` — the high-resolution mark is never modified — and `content/assets/branding/identity/favicon.svg` is the mark rendered into a **24 × 24 canvas**, mirrored into the role's runtime namespace (§1.1) as `favicon.svg`. **This generic template supplies no mark and derives nothing** (§1): its role file `favicon.svg` (role namespace — §1.1) is the byte-identical mirror of the neutral `content/assets/placeholders/favicon.svg` (`MIRRORED`, `scripts/sync-runtime-assets.mjs`), and the capsule's taxonomy test asserts that no `content/assets/branding/` tree ships |
 | Required favicon geometry | **HARD for a deployment that derives its own favicon: 24 × 24 canvas, the mark's own (square) `viewBox`, uniform scaling, no crop, no distortion, whole circular mark visible with transparent breathing room.** A narrowed `viewBox` (e.g. `256 256 1536 1536` on a 2048 mark) crops the artwork and produces flat-sided edges. The template has no derivation to check, and **no suite in this repository locks the derivation itself** — the suite that did (`tests/unit/favicon-contract.test.ts`) went with the branded asset set at the FS1 de-bloat (see §14) |
 | Recommended production master | square, transparent, legible at 16px (the approved Foundation master uses a square `viewBox`). **RECOMMENDED only** |
 | Required SVG viewBox | square recommended (a non-square viewBox is letterboxed by the browser) |
@@ -536,21 +555,21 @@ artwork; it documents only the file/rendering contract and the substitution path
 
 **Ten canonical runtime filenames** (one per page role). Each is a **mirrored**
 file: the authoritative source is `content/assets/branding/banners/<name>` and
-`public/assets/<name>` is its byte-identical derivative (no runtime-only
+the role's file `<name>` in its runtime namespace (§1.1) is its byte-identical derivative (no runtime-only
 exception — see §1.1).
 
 | # | Runtime filename | Source | Config key | Page it decorates |
 | --- | --- | --- | --- | --- |
-| 1 | `public/assets/banner-home.png` | `content/assets/branding/banners/banner-home.png` | `site.assets.banners["home"]` | the home page (`/` and the regional landing) |
-| 2 | `public/assets/banner-about.png` | `content/assets/branding/banners/banner-about.png` | `site.assets.banners["about"]` | About |
-| 3 | `public/assets/banner-contact.png` | `content/assets/branding/banners/banner-contact.png` | `site.assets.banners["contact"]` | Contact |
-| 4 | `public/assets/banner-connect.png` | `content/assets/branding/banners/banner-connect.png` | `site.assets.banners["connect"]` | Connect |
-| 5 | `public/assets/banner-offerings.png` | `content/assets/branding/banners/banner-offerings.png` | `site.assets.banners["offerings"]` | Offerings |
-| 6 | `public/assets/banner-portfolio.png` | `content/assets/branding/banners/banner-portfolio.png` | `site.assets.banners["portfolio"]` | Portfolio |
-| 7 | `public/assets/banner-blog.png` | `content/assets/branding/banners/banner-blog.png` | `site.assets.banners["blog"]` | Blog |
-| 8 | `public/assets/banner-resources.png` | `content/assets/branding/banners/banner-resources.png` | `site.assets.banners["resources"]` | Resources |
-| 9 | `public/assets/banner-testimonials.png` | `content/assets/branding/banners/banner-testimonials.png` | `site.assets.banners["testimonials"]` | Testimonials |
-| 10 | `public/assets/banner-legal.png` | `content/assets/branding/banners/banner-legal.png` | `site.assets.banners["legal"]` | Legal |
+| 1 | `banner-home.png` | `content/assets/branding/banners/banner-home.png` | `site.assets.banners["home"]` | the home page (`/` and the regional landing) |
+| 2 | `banner-about.png` | `content/assets/branding/banners/banner-about.png` | `site.assets.banners["about"]` | About |
+| 3 | `banner-contact.png` | `content/assets/branding/banners/banner-contact.png` | `site.assets.banners["contact"]` | Contact |
+| 4 | `banner-connect.png` | `content/assets/branding/banners/banner-connect.png` | `site.assets.banners["connect"]` | Connect |
+| 5 | `banner-offerings.png` | `content/assets/branding/banners/banner-offerings.png` | `site.assets.banners["offerings"]` | Offerings |
+| 6 | `banner-portfolio.png` | `content/assets/branding/banners/banner-portfolio.png` | `site.assets.banners["portfolio"]` | Portfolio |
+| 7 | `banner-blog.png` | `content/assets/branding/banners/banner-blog.png` | `site.assets.banners["blog"]` | Blog |
+| 8 | `banner-resources.png` | `content/assets/branding/banners/banner-resources.png` | `site.assets.banners["resources"]` | Resources |
+| 9 | `banner-testimonials.png` | `content/assets/branding/banners/banner-testimonials.png` | `site.assets.banners["testimonials"]` | Testimonials |
+| 10 | `banner-legal.png` | `content/assets/branding/banners/banner-legal.png` | `site.assets.banners["legal"]` | Legal |
 
 **Page-role resolution (HARD):** the page slug is derived from the URL — the
 leading locale segment is dropped, then an optional configured operating-region
@@ -601,7 +620,7 @@ none                (no graphic background at all)
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/background-all.svg` (and, optionally, `background-<page>.svg` for a page-specific role) |
+| Runtime filename (served from the role namespace — §1.1) | `background-all.svg` (and, optionally, `background-<page>.svg` for a page-specific role) |
 | Config role | `site.assets.backgrounds["all"]` — the reserved **GLOBAL** key. Any other key (`"home"`, `"about"`, …) is that page's background |
 | Required file type | **HARD:** any browser-renderable image (it is a CSS background). **RECOMMENDED:** SVG |
 | Alternative supported types | PNG · JPEG · WebP · AVIF · GIF |
@@ -632,7 +651,7 @@ both, or neither.
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/footer-graphic.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `footer-graphic.svg` |
 | Config role | `site.assets.footerGraphic` |
 | Rendered as | a static CSS **`background-image`** on one decorative `<div class="ui-footer-graphic">` inside the `relative isolate` footer — not a DOM `<img>` |
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
@@ -685,14 +704,14 @@ navigation.
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/header-graphic.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `header-graphic.svg` |
 | Config role | `site.assets.headerGraphic` (ONE global absolute URL) |
 | CSS contract | `.ui-site-header[data-ui-header-graphic]` → `background-image: var(--ui-header-graphic); background-repeat: no-repeat; background-position: center center; background-size: cover` |
 | Required file type | **HARD:** any browser-renderable image. **RECOMMENDED:** SVG |
 | Alternative supported types | PNG · JPEG · WebP · AVIF · GIF |
 | Engine-required dimensions | **HARD: none.** No width, height or aspect ratio is required or read. `cover` accepts **any** ratio |
 | Recommended production master | **RECOMMENDED CANONICAL MASTER: 4096 × 512, `viewBox="0 0 4096 512"`** (8:1) — the branded Foundation master's geometry. This is a **RECOMMENDATION**, not an engine requirement |
-| Shipped default artwork | **blank / transparent (2026-09 owner ruling)** — `public/assets/header-graphic.svg` is the byte-identical mirror of `content/assets/placeholders/header-graphic.svg`, a valid 4096 × 512 canvas that **draws nothing** and carries no branded content. The branded master is retained as source at `content/assets/branding/page-graphics/header-graphic.svg` |
+| Shipped default artwork | **blank / transparent (2026-09 owner ruling)** — the role file `header-graphic.svg` in its runtime namespace (§1.1) is the byte-identical mirror of `content/assets/placeholders/header-graphic.svg`, a valid 4096 × 512 canvas that **draws nothing** and carries no branded content. The branded master is retained as source at `content/assets/branding/page-graphics/header-graphic.svg` |
 | Required SVG viewBox | none. Set it to the canvas you designed; `cover` sizes it |
 | Transparency requirement | **strongly RECOMMENDED: transparent.** The band paints over the header's own `background-color` (the `data-ui-header` treatment), so transparent areas are what let the header surface show through |
 | Runtime sizing / scaling | **HARD:** `cover` magnifies the artwork until it covers the header box. The header box is wide and short: **measured 1265 × 65 ≈ 19.46:1 at desktop 1280**, **885 × 65 ≈ 13.62:1 at tablet 900**, **375 × 145 ≈ 2.59:1 at mobile 390** |
@@ -704,7 +723,7 @@ navigation.
 | Optional? | **yes** |
 | Missing-file behaviour | **availability-screened** → no attribute, no inline style and no CSS at all; the header is byte-identical to a header that never had a band |
 | Removal / disable | remove `site.assets.headerGraphic` |
-| Replacement procedure | §4 — replace `public/assets/header-graphic.svg`, or re-point the key. **The success criterion for this role: an owner may replace the file with another technically conforming `header-graphic.svg` and no source-code change is required** |
+| Replacement procedure | §4 — replace the role file `header-graphic.svg` in its runtime namespace (§1.1), or re-point the key. **The success criterion for this role: an owner may replace the file with another technically conforming `header-graphic.svg` and no source-code change is required** |
 | Requires code change to swap? | **no** |
 | Mobile / desktop behaviour | identical mechanism at every width; only the header box ratio changes (see *Runtime sizing*) |
 | Interaction | a CSS background cannot receive pointer events, be focused or carry semantics — navigation, the logo, the switchers and the mobile trigger are entirely unaffected |
@@ -740,7 +759,7 @@ operable with **no graphic at all**.
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/status-graphic.svg` |
+| Runtime filename (served from the role namespace — §1.1) | `status-graphic.svg` |
 | Config role | `site.assets.statusGraphic` (ONE global absolute URL) |
 | Rendered as | a real in-flow `<img class="ui-status-graphic-image">` inside a centred `.ui-status-graphic` box — the **first child** of the status frame, i.e. **above** the status heading |
 | Required file type | **HARD:** one of **SVG · PNG · JPEG · GIF · WebP** (so the intrinsic size can be read). Any other container still renders — it simply gets no reserved box |
@@ -771,7 +790,7 @@ third-party platforms, not by the Foundation.
 
 | Field | Value |
 | --- | --- |
-| Runtime filename | `public/assets/og-image.png` |
+| Runtime filename (served from the role namespace — §1.1) | `og-image.png` |
 | Config role | `site.assets.ogImage` (ONE global absolute URL) |
 | Emitted as | **the configured absolute URL verbatim** — this is the ONE role that is **not** reduced to a same-origin pathname, because the URL must be absolute for external crawlers |
 | Scope | **global** — every page's `og:image` **and** `twitter:image` derive from this one value |
@@ -791,7 +810,7 @@ third-party platforms, not by the Foundation.
 | Generated fallback when unconfigured | when the key is absent, the engine uses the **generated per-locale OpenGraph image route** (`/{locale}/opengraph-image`). That route deliberately stays in the engine for adopters who remove the static role |
 | Missing-file behaviour | the value is emitted verbatim; a URL with no backing file would be a broken external reference. Ship the file, or point the key at a URL that exists |
 | How to disable the static override | remove `site.assets.ogImage` → the generated per-locale route is used again |
-| How to replace the file | §4 — replace `public/assets/og-image.png`, or point `site.assets.ogImage` at your own `https://…` URL |
+| How to replace the file | §4 — replace the role file `og-image.png` in its source (§4), or point `site.assets.ogImage` at your own `https://…` URL |
 | Requires code change to swap? | **no** |
 
 ### 10.8 Control and navigation icons — plain-filename leaves
@@ -895,7 +914,7 @@ icon-external-link.svg   icon-share.svg   icon-globe.svg
 | Missing icon → | **text-only.** The item renders as its complete, working text link |
 | Visible text remains authoritative | **always.** The label is the accessible name; the icon is strictly supplementary (`alt=""`, `aria-hidden`) |
 | Removal / disable | delete the `icon` leaf, or set it to `""` |
-| New filename | **no code change** — add the file to `public/assets/` and set the leaf |
+| New filename | **no code change** — add the file to its `content/assets/**` source (and let the mirror install it) and set the leaf |
 | Requires code change to swap? | **no** |
 
 ### 11.2 ADMITTED third-party platform marks
@@ -1144,7 +1163,7 @@ directory, a design repository, a design-system tool):
 <your provenance records>/  # the source ↔ living ↔ runtime mapping you maintain
 ```
 
-The runtime never reads those paths. It reads `public/assets/<basename>` only —
+The runtime never reads those paths. It reads the role's file `<basename>` in its runtime namespace (§1.1) only —
 which is precisely why the swap is a file operation and never a code change. The
 in-repository **source** of each runtime file is declared in the mirror manifest
 (§1.1, `scripts/sync-runtime-assets.mjs`), so **source ↔ runtime is enforced

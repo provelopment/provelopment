@@ -1,12 +1,7 @@
-import { closeSync, existsSync, openSync, readSync, readdirSync, statSync } from "node:fs";
+import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 
-import { deploymentPaths } from "./deployment-root";
-import {
-  SPOKE_RUNTIME_CONTAINER,
-  spokeRuntimeAssetNamespacePath,
-  spokeRuntimeAssetUrlBase,
-} from "./spoke-runtime-segment.mjs";
+import { deploymentPaths, type RuntimeAssetNamespace } from "./deployment-root";
 
 /**
  * P6-1 — configured icon-asset availability (framework layer).
@@ -76,51 +71,40 @@ function runtimeUrlFor(pathname: string, name: string): string {
   return `${owner.urlBase}/${name}`;
 }
 
-/** The namespace that HOLDS `name`, or `null`. Cached: the generated tree is fixed for one process. */
-const ownerCache = new Map<string, (typeof runtimeNamespaces)[number] | null>();
+/** The namespace that HOLDS `name`. Cached: the generated tree is fixed for one process. */
+const ownerCache = new Map<string, RuntimeAssetNamespace | null>();
 
 /**
- * The generated runtime BASE — the directory every namespace lives in — taken from the authority's own
- * answer (the platform namespace's parent), never spelled here.
+ * The namespace that HOLDS `name`, or `null`.
+ *
+ * THE ONE RESOLUTION RULE, and the whole of it: the DECLARED namespaces of the currently selected runtime
+ * context, in order — the platform namespace first (a Spoke may never shadow a platform-owned asset, A2),
+ * then the sole declared Spoke's own — and nothing else. If neither declared namespace holds the file, the
+ * asset is UNAVAILABLE.
+ *
+ * It is deliberately NOT a search of the generated tree: an ownership decision may never be inferred from
+ * whichever files happen to exist under `public/spokes/**`. Generated filesystem state is not authority, and
+ * a namespace belonging to a Spoke this context does not declare must be invisible here — otherwise one
+ * Spoke could silently serve another's artwork merely because a build once wrote it.
+ *
+ * Pure and parameterised so the rule itself can be proved directly (the caller may hand in a namespace list);
+ * the default is this process's own declared set.
  */
-const runtimeBaseDirectory = path.dirname(deploymentPaths().publicAssetsDirectory);
+export function namespaceOwning(
+  name: string,
+  namespaces: readonly RuntimeAssetNamespace[],
+): RuntimeAssetNamespace | null {
+  if (!name || name === "") return null;
+  return namespaces.find((namespace) => existsSync(path.join(namespace.directory, name))) ?? null;
+}
 
-/**
- * The namespace that HOLDS `name`, in the ONE documented order:
- *
- *   1. the DECLARED namespaces the build resolved — the platform namespace first (a Spoke may never
- *      shadow a platform-owned asset, A2), then the sole Spoke's own when the Installation is explicit;
- *   2. as a LAST RESORT, a Spoke namespace that EXISTS in the generated tree.
- *
- * Step 2 is deliberately narrow and exists for one honest reason: the GENERATED TREE is what a browser can
- * actually fetch, and a runtime may be served beside output another build of the same repository produced
- * (the generic test project runs a synthetic deployment against this repository's generated mirror). It
- * never overrides a declared answer (1 always wins), it only ever reads the `spokes/` container, and in a
- * real legacy Installation that container does not exist — the installer removes it — so nothing about a
- * legacy deployment's own runtime changes.
- */
-function owningNamespace(name: string): (typeof runtimeNamespaces)[number] | null {
+/** The declared namespace that holds `name`, cached: the generated tree is fixed for one process. */
+function owningNamespace(name: string): RuntimeAssetNamespace | null {
   const cached = ownerCache.get(name);
   if (cached !== undefined) return cached;
-
-  let owner = runtimeNamespaces.find((namespace) => existsSync(path.join(namespace.directory, name)));
-
-  if (owner === undefined) {
-    const container = path.join(runtimeBaseDirectory, SPOKE_RUNTIME_CONTAINER);
-    if (existsSync(container)) {
-      for (const segment of readdirSync(container).sort()) {
-        const directory = path.join(runtimeBaseDirectory, spokeRuntimeAssetNamespacePath(segment));
-        if (existsSync(path.join(directory, name))) {
-          owner = { directory, urlBase: spokeRuntimeAssetUrlBase(segment) };
-          break;
-        }
-      }
-    }
-  }
-
-  const answer = owner ?? null;
-  ownerCache.set(name, answer);
-  return answer;
+  const owner = namespaceOwning(name, runtimeNamespaces);
+  ownerCache.set(name, owner);
+  return owner;
 }
 
 /** True when `<name>` exists as a real file in ANY generated runtime namespace (cached). */

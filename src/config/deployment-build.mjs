@@ -55,15 +55,21 @@
  * "first Spoke", no "default Spoke" and no manifest-order rule — the activation is legitimate because
  * the CARDINALITY is one, not because something chose for us.
  *
- * WHAT THIS MODULE DOES NOT DO: it resolves DECLARED ROOTS (the same question the TypeScript authority
- * `./spoke-roots` answers for one manifest) and reads the sole Spoke's configuration so the build can
- * INLINE it. It composes no Spoke, builds no Hub, resolves no Site and validates no cross-Spoke rule —
- * `./spoke-roots`, `./spoke-config` and `./spoke-composition` stay the authorities for those, and
- * `tests/unit/spoke-installation-selection.test.ts` proves the two answers agree on a real Installation.
+ * WHAT THIS MODULE DOES NOT DO: it resolves DECLARED ROOTS and reads the sole Spoke's configuration so the
+ * build can INLINE it. It composes no Spoke, builds no Hub, resolves no Site and validates no cross-Spoke
+ * rule — `./spoke-roots`, `./spoke-config` and `./spoke-composition` stay the authorities for those.
+ * The DECLARATION AND ROOT CONTRACT itself is not answered twice: `./spoke-declarations.mjs` is the ONE
+ * implementation this seam and the TypeScript authority both consume, so a manifest this seam selects can
+ * never be one the configuration/domain layer would refuse.
  */
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
+import {
+  INSTALLATION_SPOKE_COLLECTION_FILE_NAME,
+  resolveSpokeDeclarations,
+  SPOKE_CONFIG_FILE_NAME,
+} from "./spoke-declarations.mjs";
 import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
 
 /**
@@ -113,12 +119,6 @@ export const DEPLOYMENT_MODE_ENV = "FOUNDATION_DEPLOYMENT_MODE";
 export const DEPLOYMENT_SPOKE_ROOT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_ROOT";
 export const DEPLOYMENT_SPOKE_SEGMENT_ENV = "FOUNDATION_DEPLOYMENT_SPOKE_SEGMENT";
 
-/** The authored configuration file a deployment root — and a declared Spoke root — must carry. */
-export const DEPLOYMENT_CONFIG_FILE_NAME = "site.config.json";
-
-/** The manifest an Installation carries when it DECLARES its Spokes (the explicit authoring form). */
-export const INSTALLATION_SPOKE_COLLECTION_FILE_NAME = "spokes.json";
-
 /**
  * The capsule directory the selector probes: `<repositoryRoot>/deployment`.
  *
@@ -135,62 +135,25 @@ export function capsuleDirectory(repositoryRoot = process.cwd()) {
 }
 
 /**
- * The dedicated namespace every explicitly declared Spoke root must live in.
+ * The authored manifest an Installation carries when it DECLARES its Spokes (the explicit authoring form),
+ * and the dedicated namespace its declared Spoke roots must live in.
  *
- * The SAME architectural boundary the TypeScript authority owns (`./spoke-roots`'s
- * `SPOKE_ROOTS_DIRECTORY_NAME`): restated here ONLY because a plain-ESM module cannot import a
- * TypeScript one, and the two must agree — a manifest this seam accepts and the authority refuses (or
- * the other way around) would let the build serve material the composition layer rejects.
- * `tests/unit/spoke-installation-selection.test.ts` proves the agreement on real manifests.
+ * Both spellings, the identity rules, the locator rules and the physical-containment rules live in ONE
+ * implementation, `./spoke-declarations.mjs`, which the S3C1 authority (`./spoke-roots.ts`) consumes as
+ * well: a build can therefore never SELECT a declared root the configuration/domain layer would refuse.
+ * Re-exported here because this module is where a caller asks a selection-level question.
  */
-export const SPOKE_ROOTS_DIRECTORY_NAME = "spokes";
+export { INSTALLATION_SPOKE_COLLECTION_FILE_NAME };
+export { SPOKE_ROOTS_DIRECTORY_NAME } from "./spoke-declarations.mjs";
 
-/** Is `target` inside `root`, lexically (both absolute)? The ONE containment rule this seam needs. */
-function isInside(root, target) {
-  const relative = path.relative(root, target);
-  return !(relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative));
-}
-
-/**
- * The lexical contract ONE authored Spoke locator must satisfy, or the reason it does not: root
- * relative, POSIX, free of `..`, and located BENEATH the dedicated `spokes/` namespace. The same rules
- * S3C1 enforces, restated so this seam cannot select a root the authority would refuse.
- *
- * @param {string} locator the authored root
- * @param {string} where the message's subject
- * @returns {string|null} the issue, or `null` when the locator is acceptable
- */
-function spokeLocatorIssue(locator, where) {
-  if (locator.trim() === "") return `${where}: root must not be empty`;
-  if (path.isAbsolute(locator) || locator.startsWith("/") || /^[A-Za-z]:/.test(locator)) {
-    return `${where}: root "${locator}" must be root-relative, not absolute`;
-  }
-  if (locator.includes("\\")) {
-    return `${where}: root "${locator}" must use POSIX "/" separators`;
-  }
-  const segments = locator.split("/");
-  if (segments.includes("..")) {
-    return `${where}: root "${locator}" must not contain a ".." segment`;
-  }
-  if (segments[0] !== SPOKE_ROOTS_DIRECTORY_NAME) {
-    return (
-      `${where}: root "${locator}" must live beneath the dedicated ` +
-      `"${SPOKE_ROOTS_DIRECTORY_NAME}/" namespace`
-    );
-  }
-  if (segments.slice(1).every((segment) => segment === "")) {
-    return (
-      `${where}: root "${locator}" must name a Spoke root INSIDE "${SPOKE_ROOTS_DIRECTORY_NAME}/"`
-    );
-  }
-  return null;
-}
+/** The authored configuration file a deployment root — and a declared Spoke root — must carry. */
+export const DEPLOYMENT_CONFIG_FILE_NAME = SPOKE_CONFIG_FILE_NAME;
 
 /**
  * The Spokes ONE Installation root declares, WITHOUT deciding how many the RUNTIME may activate.
  *
  *   no `spokes.json`       legacy   → the root is the one implicit Spoke; nothing is declared here
- *   `spokes.json` present  explicit → its entries, resolved and lexically validated (1..*)
+ *   `spokes.json` present  explicit → its entries, resolved and validated (1..*)
  *   BOTH / NEITHER         REFUSED, loudly — an Installation is authored exactly one way
  *
  * SELECTION-level questions only: identity, location, and the runtime segment each identity owns. It
@@ -198,144 +161,30 @@ function spokeLocatorIssue(locator, where) {
  * `resolveDeploymentForBuild` applies S3F1's "exactly one" rule, so plan-building tooling (which must
  * describe N Spokes) can ask this question without being refused.
  *
+ * The DECLARATION AND ROOT CONTRACT is NOT restated here: `./spoke-declarations.mjs` answers it once for
+ * this seam and for the S3C1 authority, so both sides accept and refuse the same manifests by
+ * construction rather than by agreement between two copies.
+ *
  * @param {string} installationRoot the Installation root to describe
  * @returns {{ mode: InstallationAuthoringMode, manifestFile: string|null, spokes: DeclaredSpoke[] }}
  */
 export function installationSpokes(installationRoot) {
-  const resolved = path.resolve(installationRoot);
-  const manifestFile = path.join(resolved, INSTALLATION_SPOKE_COLLECTION_FILE_NAME);
-  const configFile = path.join(resolved, DEPLOYMENT_CONFIG_FILE_NAME);
-  const hasManifest = existsSync(manifestFile);
-  const hasConfig = existsSync(configFile);
+  const resolved = resolveSpokeDeclarations(installationRoot);
 
-  if (hasManifest && hasConfig) {
-    throw new Error(
-      `FOUNDATION-MULTISITE-S3F1: the Installation root "${resolved}" is authored SIMULTANEOUSLY in ` +
-        `both forms: it carries "${DEPLOYMENT_CONFIG_FILE_NAME}" (a legacy implicit Spoke) and ` +
-        `"${INSTALLATION_SPOKE_COLLECTION_FILE_NAME}" (an explicit Spoke collection). An Installation ` +
-        "is authored one way or the other; no precedence rule exists and nothing is migrated implicitly.",
-    );
-  }
+  if (resolved.mode === "legacy") return { mode: "legacy", manifestFile: null, spokes: [] };
 
-  if (!hasManifest && !hasConfig) {
-    throw new Error(
-      `FOUNDATION-DEPLOYMENT-ISO-B1C: the deployment root "${resolved}" has no ` +
-        `${DEPLOYMENT_CONFIG_FILE_NAME} and no ${INSTALLATION_SPOKE_COLLECTION_FILE_NAME}. A build ` +
-        "must resolve exactly one deployment; nothing falls back silently.",
-    );
-  }
-
-  if (!hasManifest) return { mode: "legacy", manifestFile: null, spokes: [] };
-
-  return resolveExplicitSpokeDeclarations(resolved, manifestFile);
+  return {
+    mode: "explicit",
+    manifestFile: resolved.manifestFile,
+    spokes: resolved.declarations.map((declaration) => ({
+      id: declaration.id,
+      relativeRoot: declaration.locator,
+      root: declaration.root,
+      segment: runtimeSegmentForSpokeId(declaration.id),
+    })),
+  };
 }
 
-/**
- * Every Spoke an EXPLICIT manifest declares, resolved and lexically validated — or a loud, itemised
- * failure naming each unacceptable entry.
- *
- * @param {string} root the resolved Installation root
- * @param {string} manifestFile the manifest's absolute path
- * @returns {{ mode: InstallationAuthoringMode, manifestFile: string, spokes: DeclaredSpoke[] }}
- */
-function resolveExplicitSpokeDeclarations(root, manifestFile) {
-  /** @type {unknown} */
-  let raw;
-  try {
-    raw = JSON.parse(readFileSync(manifestFile, "utf8"));
-  } catch (error) {
-    throw new Error(
-      `FOUNDATION-MULTISITE-S3F1: "${manifestFile}" is not valid JSON: ` +
-        `${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  const container = /** @type {{ spokes?: unknown }} */ (raw);
-  if (container === null || typeof container !== "object" || !Array.isArray(container.spokes)) {
-    throw new Error(
-      `FOUNDATION-MULTISITE-S3F1: "${manifestFile}" must be an object holding a "spokes" array.`,
-    );
-  }
-
-  /** @type {string[]} */
-  const issues = [];
-  /** @type {DeclaredSpoke[]} */
-  const spokes = [];
-  /** @type {Map<string, string>} */
-  const rootOwners = new Map();
-
-  container.spokes.forEach((entry, index) => {
-    const where = `Spoke #${index + 1}`;
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
-      issues.push(`${where} is not an object`);
-      return;
-    }
-    const declaration = /** @type {{ id?: unknown, root?: unknown }} */ (entry);
-    const unknown = Object.keys(declaration).filter((key) => key !== "id" && key !== "root");
-    if (unknown.length > 0) {
-      issues.push(`${where} carries unknown field(s): ${unknown.join(", ")}`);
-      return;
-    }
-
-    const id = declaration.id;
-    if (typeof id !== "string" || id.trim() === "") {
-      issues.push(`${where} has no non-blank string "id"`);
-      return;
-    }
-    const locator = declaration.root;
-    if (typeof locator !== "string") {
-      issues.push(`${where} ("${id}") has no string "root"`);
-      return;
-    }
-
-    const lexical = spokeLocatorIssue(locator, `${where} ("${id}")`);
-    if (lexical !== null) {
-      issues.push(lexical);
-      return;
-    }
-
-    const absolute = path.resolve(root, locator);
-    if (!isInside(root, absolute)) {
-      issues.push(`${where} ("${id}"): root "${locator}" resolves outside the Installation root`);
-      return;
-    }
-    if (!existsSync(absolute) || !statSync(absolute).isDirectory()) {
-      issues.push(`${where} ("${id}"): root "${locator}" is not an existing directory`);
-      return;
-    }
-    if (!existsSync(path.join(absolute, DEPLOYMENT_CONFIG_FILE_NAME))) {
-      issues.push(`${where} ("${id}"): root "${locator}" carries no ${DEPLOYMENT_CONFIG_FILE_NAME}`);
-      return;
-    }
-    const owner = rootOwners.get(absolute);
-    if (owner !== undefined) {
-      issues.push(
-        `${where} ("${id}"): root "${locator}" resolves to the same directory as "${owner}" — ` +
-          "two Spokes cannot share one authored root",
-      );
-      return;
-    }
-    rootOwners.set(absolute, id);
-
-    spokes.push({ id, relativeRoot: locator, root: absolute, segment: runtimeSegmentForSpokeId(id) });
-  });
-
-  if (issues.length > 0) {
-    throw new Error(
-      `Invalid Installation Spoke collection (${manifestFile}):\n` +
-        `${issues.map((issue) => `  - ${issue}`).join("\n")}`,
-    );
-  }
-
-  if (spokes.length === 0) {
-    throw new Error(
-      `FOUNDATION-MULTISITE-S3F1: "${manifestFile}" declares NO Spoke. An explicit Spoke collection ` +
-        'needs at least one Spoke; "no collection" is the LEGACY form, not an empty explicit one.',
-    );
-  }
-
-  return { mode: "explicit", manifestFile, spokes };
-}
 
 /**
  * Resolves the deployment this build serves.

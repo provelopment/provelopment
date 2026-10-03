@@ -143,6 +143,18 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "two synthetic Spoke resource trees under OS temp — authored pages and dictionaries it creates and " +
     "removes afterwards. The selected deployment, the canonical deployment and the committed fixtures " +
     "are only ever READ (S3E1B)",
+  "tests/unit/spoke-asset-namespaces.test.ts":
+    "synthetic Installation trees and their generated runtime namespaces under OS temp — the Spoke " +
+    "namespace/collision proofs' own throwaway trees (legacy and explicit, one and two Spokes), removed by " +
+    "exact ownership. The repository's real generated tree is never written (S3E1C)",
+  "tests/unit/spoke-installation-selection.test.ts":
+    "synthetic Installation roots under OS temp — the explicit one-Spoke selection proofs' own throwaway " +
+    "trees (legacy, explicit one-Spoke and every refused form), removed by exact ownership. The canonical " +
+    "deployment is only ever READ (S3F1)",
+  "tests/unit/spoke-declaration-parity.test.ts":
+    "synthetic Installation roots under OS temp — the build/S3C1 declaration-parity proofs' own throwaway " +
+    "trees (every accepted and refused declaration shape, including links), removed by exact ownership. " +
+    "The canonical deployment is only ever READ (S3F1)",
   "tests/integration/json-page-rendering.test.ts": "the synthetic deployment's JSON page tree (ISO-H2)",
   "tests/support/synthetic-deployment-root.ts": "the synthetic deployment's disposable copy in OS temp (ISO-H2)",
   "tests/support/disposable-deployment.ts": "a byte-identical COPY of the selected deployment in OS temp (ISO-B3C2B)",

@@ -98,13 +98,21 @@ describe("sidebar page icons — the configured source is the icon LIBRARY", () 
     // filename against the generated namespaces, because a Spoke's own artwork is not served from
     // `/assets/**`), so the fallback arrives as that URL rather than as a bare filename.
     const links = withSidebarNavIcons([{ href: "/custom-page", label: "Custom", key: "nav:0" }]);
-    expect(links[0].openIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_OPEN));
-    expect(links[0].closedIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED));
+    // The model carries the RESOLVED runtime URL of the placeholder pair (S3F1). An installation that does
+    // not ship the placeholder resolves it to `""` — the P5-5 no-icon contract — which is exactly the
+    // installation-relative answer this generic run must give; the deployment acceptance suite proves the
+    // shipped case resolves to a URL in the namespace that holds it.
+    expect(links[0].openIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_OPEN) ?? "");
+    expect(links[0].closedIcon).toBe(runtimeAssetUrl(DEFAULT_SIDEBAR_ITEM_ICON_CLOSED) ?? "");
+    // S3E1C — the placeholder artwork is the INSTALLATION's own replaceable role material, so "it ships" is
+    // asked of this installation's SOURCES: a generic run serves a tree generated from a different
+    // deployment and must never read that deployment's Spoke namespace.
     for (const file of [DEFAULT_SIDEBAR_ITEM_ICON_OPEN, DEFAULT_SIDEBAR_ITEM_ICON_CLOSED]) {
-      expect(existsSync(runtime(file)), `${file} runtime`).toBe(true);
+      expect(existsSync(source("placeholders", file)), `${file} source`).toBe(true);
     }
-    // ISO-H2 — that the placeholder SOURCES exist (and are what the runtime file mirrors) is asserted
-    // by the deployment's own acceptance suite, which is the subject that owns the asset install.
+    // ISO-H2 — that the placeholder SOURCES are installed, byte-identically, into the runtime namespaces of
+    // the SELECTED deployment is asserted by that deployment's own acceptance suite, which is the subject
+    // that owns the asset install.
   });
 
 describe("sidebar page icons — 16x16 on desktop AND tablet, in both states", () => {

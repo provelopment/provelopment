@@ -210,6 +210,10 @@ describe("deployment-owned paths are spelled in ONE place", () => {
       // itself (legacy vs explicit, the exactly-one rule, the refusals) and against the runtime authority
       // it inlines, so this suite is another sanctioned consumer of the build harness.
       "tests/unit/spoke-installation-selection.test.ts",
+      // FOUNDATION-MULTISITE-S3F1R — the build/S3C1 DECLARATION-PARITY proof: it asks the seam and the
+      // S3C1 authority the same question about the same disposable roots, so it too is a sanctioned
+      // consumer of the build harness (it selects no deployment itself).
+      "tests/unit/spoke-declaration-parity.test.ts",
     ];
     // FOUNDATION-B4B adds three of these, and for the same reason the list already had entries: they must
     // know WHERE an installation's authored material lives, and asking the authority is the only sanctioned
@@ -322,7 +326,14 @@ describe("the build selects exactly one deployment", () => {
 
       expect(() =>
         resolveDeploymentForBuild({ FOUNDATION_DEPLOYMENT_ROOT: path.join(root, "absent") }, ROOT),
-      ).toThrow(/no site\.config\.json/);
+      ).toThrow(/is not an existing directory/);
+      // S3F1 — the wording and the order of refusal are the ONE declaration authority's (S3C1's), which the
+      // build seam now shares by construction: a root that is absent is named as absent, and a root that
+      // exists but declares nothing names the files it lacks. Nothing can drift between selection and
+      // configuration because there is only one implementation.
+      expect(() =>
+        resolveDeploymentForBuild({ FOUNDATION_DEPLOYMENT_ROOT: root }, ROOT),
+      ).not.toThrow();
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

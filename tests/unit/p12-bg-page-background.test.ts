@@ -30,21 +30,23 @@ const backgroundBlock = /\.ui-page-background\s*\{([^}]*)\}/.exec(globals)?.[1] 
 const bodyBlock = /\nbody\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
 /**
- * Already-shipped real files under `public/assets/`, reused by the positive
- * cases. These are deliberately NEUTRAL non-artwork fixtures (logo files) rather
- * than the approved Foundation background artwork, so the capability is proven
- * independently of which artwork is currently integrated — and the canonical
- * artwork swap (an adopter replacing `background-all.svg`) cannot make these
- * assertions vacuous.
+ * Already-shipped real PLATFORM files (the icon library), reused by the positive cases. These are
+ * deliberately NEUTRAL non-artwork fixtures rather than the approved Foundation background artwork, so the
+ * capability is proven independently of which artwork is currently integrated — and the canonical artwork
+ * swap (an adopter replacing `background-all.svg`) cannot make these assertions vacuous.
+ *
+ * S3E1C — the fixtures are PLATFORM-owned, because the icon library is installed into the platform
+ * namespace of every installation: a Spoke's replaceable role artwork belongs to one installation's own
+ * namespace and is deliberately invisible to a run that selects a different one.
  */
-const REAL_PAGE = "logo-header.svg";
-const REAL_GLOBAL = "logo-footer.svg";
+const REAL_PAGE = "icon-phone.svg";
+const REAL_GLOBAL = "icon-home.svg";
 /**
  * FS1 — the generic template ships NO banner artwork, so the banner fixture is a
- * shipped neutral file too: the resolver is artwork-agnostic, which keeps the
+ * shipped neutral PLATFORM file too: the resolver is artwork-agnostic, which keeps the
  * banner ROLE proven independently of which artwork an adopter integrates.
  */
-const REAL_BANNER = "favicon.svg";
+const REAL_BANNER = "icon-email.svg";
 
 /** An FS-4-style absolute URL (the `site.assets.*` value shape). */
 const realUrl = (name: string) => `https://www.example.com/assets/${name}`;

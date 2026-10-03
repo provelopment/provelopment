@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { availableFooterGraphicPath } from "@/config/assets";
 
-import { runtimeAssetFile, runtimeAssetUrl } from "../support/runtime-assets";
+import { runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
 import { siteConfigFileSchema, siteAssetsSchema } from "@/config/schema";
 import { siteConfig } from "@/config";
 import { FooterGraphic } from "@/components/site/footer-graphic";
@@ -41,13 +41,17 @@ const component = readFileSync(
 /** The single `.ui-footer-graphic` rule block (the decorative-layer contract). */
 const footerGraphicBlock = /\.ui-footer-graphic\s*\{([^}]*)\}/.exec(globals)?.[1] ?? "";
 
-/** An FS-4 absolute URL whose basename is backed by a real public/assets file. */
-const AVAILABLE = "https://www.example.com/assets/logo-footer.svg";
+/**
+ * An FS-4 absolute URL whose basename is backed by a real PLATFORM file (S3E1C: the icon library is
+ * installed into the platform namespace of every installation, so the availability RULE is proven
+ * independently of which artwork an installation has activated).
+ */
+const AVAILABLE = "https://www.example.com/assets/icon-phone.svg";
 /** An FS-4 absolute URL whose basename has NO backing file. */
 const MISSING = "https://www.example.com/assets/footer-graphic-does-not-exist.png";
 
 /** The same-origin URL the runtime resolves the neutral fixture to (asked of the authority — S3E1C). */
-const LIVE = runtimeAssetUrl("logo-footer.svg") as string;
+const LIVE = runtimeAssetUrl("icon-phone.svg") as string;
 
 const render = (src: string | undefined) => renderToStaticMarkup(FooterGraphic({ src }) ?? null);
 
@@ -89,11 +93,12 @@ describe("P12-FG — schema / backward compatibility", () => {
     // `site.assets.footerGraphic` — in place, or with their own absolute URL.
     expect(siteConfig.assets?.footerGraphic).toBeUndefined();
     expect(availableFooterGraphicPath(siteConfig.assets?.footerGraphic)).toBeUndefined();
-    // The blank placeholder still ships, so activating the role is one config
-    // line and needs no artwork at all. ISO-H2 — that the runtime file IS the placeholder source
+    // The blank placeholder still ships WITH THE INSTALLATION THAT OWNS IT, so activating the role is one
+    // config line and needs no artwork at all. ISO-H2 — that the runtime file IS that placeholder source
     // (byte-identical) is asserted by the deployment's own acceptance suite, because the mirror is
-    // generated from the SELECTED deployment.
-    const shipped = readFileSync(runtimeAssetFile("footer-graphic.svg") as string, "utf8");
+    // generated from the SELECTED deployment; S3E1C — a generic run must not read another deployment's
+    // Spoke namespace, so the shipped artwork is asked of this installation's own sources.
+    const shipped = readFileSync(shippedRoleSource("footer-graphic.svg"), "utf8");
     expect(shipped).not.toMatch(/<(path|rect|circle|ellipse|polygon|line|image|text)\b/i);
   });
 });
