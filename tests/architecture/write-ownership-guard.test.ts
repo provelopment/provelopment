@@ -134,6 +134,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic Installation roots it creates under OS temp (legacy, explicit and deliberately invalid " +
     "collections) and removes afterwards — the canonical deployment and the committed authoring are " +
     "never touched (S3C1)",
+  "tests/unit/spoke-composition.test.ts":
+    "synthetic Installation roots and their per-Spoke site.config.json files it creates under OS temp " +
+    "(legacy, explicit one-Spoke and multi-Spoke Installations) and removes afterwards — the canonical " +
+    "deployment is never touched (S3D1A)",
   "tests/integration/json-page-rendering.test.ts": "the synthetic deployment's JSON page tree (ISO-H2)",
   "tests/support/synthetic-deployment-root.ts": "the synthetic deployment's disposable copy in OS temp (ISO-H2)",
   "tests/support/disposable-deployment.ts": "a byte-identical COPY of the selected deployment in OS temp (ISO-B3C2B)",

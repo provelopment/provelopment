@@ -47,6 +47,15 @@ const AUTHORITY = path.join(ROOT, "src", "config", "deployment-root.ts");
 const BUILD_HARNESS = path.join(ROOT, "src", "config", "deployment-build.mjs");
 
 /**
+ * THE PER-SPOKE CONFIGURATION READER (FOUNDATION-MULTISITE-S3D1A) — the SECOND sanctioned reader of a
+ * deployment configuration file, and deliberately NOT a second root authority: it is HANDED the Spoke root
+ * that S3C1 (`src/config/spoke-roots.ts`) already resolved and validated, and it never discovers anything
+ * itself (no `process.cwd()`, no layout, no environment, no `spokes.json`). Named here so the set of modules
+ * allowed to read a deployment configuration file is explicit and reviewable.
+ */
+const SPOKE_CONFIG_READER = path.join(ROOT, "src", "config", "spoke-config.ts");
+
+/**
  * Every module under `src/` this guard polices: TypeScript/TSX sources AND plain-ESM `.mjs` modules
  * — the build harness is one of the latter, so the scan surface must never depend on a file
  * extension (a `.mjs` deployment path would otherwise escape this guard).
@@ -143,11 +152,20 @@ describe("deployment-owned paths are spelled in ONE place", () => {
     expect(codeLines(AUTHORITY).join("\n")).not.toMatch(/^\s*import[^\n]*site\.config\.json/m);
   });
 
-  it("lets nothing outside the build harness READ a deployment configuration file", () => {
+  it("lets nothing outside the SANCTIONED readers READ a deployment configuration file", () => {
+    // FOUNDATION-MULTISITE-S3D1A names the SECOND sanctioned reader explicitly. `deployment-build.mjs`
+    // answers "which Installation?"; `spoke-config.ts` only reads ONE Spoke root it was HANDED by
+    // `spoke-roots.ts` (S3C1) — so the set of modules that may read a deployment configuration file stays
+    // an EXPLICIT list, and the rule is never weakened into "anyone may read one": a module that reads such
+    // a file must be named here. The detection now also covers a read that spells the file name through the
+    // ONE shared constant (`DEPLOYMENT_CONFIG_FILE_NAME`) instead of the literal.
+    const SANCTIONED_READERS = [BUILD_HARNESS, SPOKE_CONFIG_READER];
     const readers = sourceFiles(path.join(ROOT, "src"))
-      .filter((file) => file !== BUILD_HARNESS)
+      .filter((file) => !SANCTIONED_READERS.includes(file))
       .filter((file) =>
-        codeLines(file).some((line) => /readFileSync\([^)]*site\.config\.json/.test(line)),
+        codeLines(file).some((line) =>
+          /readFileSync\([^)]*(site\.config\.json|DEPLOYMENT_CONFIG_FILE_NAME)/.test(line),
+        ),
       );
     expect(readers.map((file) => path.relative(ROOT, file))).toEqual([]);
   });
