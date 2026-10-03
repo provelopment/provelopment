@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 import { normalizeHostname } from "@/core/spoke";
 
@@ -31,7 +31,7 @@ const TABLE = {
 };
 
 /** A FRESH module graph per case: the routing table is a per-build value, cached by design. */
-async function withTable(table) {
+async function withTable(table: unknown) {
   vi.resetModules();
   if (table === undefined) delete process.env[ENV];
   else process.env[ENV] = typeof table === "string" ? table : JSON.stringify(table);
@@ -40,10 +40,10 @@ async function withTable(table) {
   return { ...routing, proxy: proxy.proxy };
 }
 
-const request = (pathname, host) =>
+const request = (pathname: string, host: string) =>
   new NextRequest(`https://${host}${pathname}`, { headers: { host } });
 
-const rewrittenTo = (response) => {
+const rewrittenTo = (response: NextResponse): string | null => {
   const target = response.headers.get("x-middleware-rewrite");
   return target === null ? null : new URL(target).pathname;
 };
@@ -92,7 +92,7 @@ describe("the accepted normalization is reused, not restated", () => {
   it("reports the normalized hostname the decision was made from", async () => {
     const { hostRoutingForBuild, spokeSelectionForHost } = await withTable(TABLE);
     const selection = spokeSelectionForHost(hostRoutingForBuild(), "Alpha.LocalHost:8080");
-    expect(selection).not.toBeNull();
+    if (selection === null) throw new Error("expected the claimed host to resolve");
     expect(selection.hostname).toBe(normalizeHostname("Alpha.LocalHost:8080"));
     expect(selection.spokeId).toBe("alpha");
     expect(selection.reason).toBe("registered-hostname");

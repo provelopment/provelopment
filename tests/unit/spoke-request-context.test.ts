@@ -61,7 +61,7 @@ afterAll(() => {
  * and only the two disposable segments are touched.
  */
 const generatedRoot = path.join(process.cwd(), "public", "spokes");
-const created = [];
+const created: string[] = [];
 
 beforeAll(() => {
   for (const spoke of fixture.spokes) {
@@ -129,9 +129,9 @@ describe("a MULTI-Spoke Installation", () => {
   it("gives each Spoke artwork namespaces of its own, platform first and never a neighbour's", async () => {
     const { runtimeContextForSegment } = await import("@/config/spoke-request");
 
-    const alpha = runtimeContextForSegment("alpha");
-    const beta = runtimeContextForSegment("beta");
-    const urls = (context) => context.runtimeAssetNamespaces.map((namespace) => namespace.urlBase);
+    const alpha = runtimeContextForSegment('alpha'); if (alpha === null) throw new Error('alpha');
+    const beta = runtimeContextForSegment('beta'); if (beta === null) throw new Error('beta');
+    const urls = (context: { runtimeAssetNamespaces: readonly { urlBase: string }[] }) => context.runtimeAssetNamespaces.map((namespace) => namespace.urlBase);
 
     expect(urls(alpha)[0]).toBe("/assets");
     expect(urls(alpha)).toContain("/spokes/alpha/assets");
@@ -148,7 +148,7 @@ describe("a MULTI-Spoke Installation", () => {
 
     const inventories = [];
     for (const segment of ["alpha", "beta"]) {
-      const context = runtimeContextForSegment(segment);
+      const context = runtimeContextForSegment(segment); if (context === null) throw new Error("no context for " + segment);
       const params = await staticParamsForContext(spokeServerComposition(context));
       inventories.push({
         segment,
@@ -183,7 +183,7 @@ describe("a ONE-Spoke Installation keeps the accepted behaviour", () => {
     const { currentBuildRuntimeContext } = await import("@/config/installation-runtime");
 
     const context = runtimeContextForRequestHost("literally-any-host.example");
-    expect(context).not.toBeNull();
+    if (context === null) throw new Error("expected a Spoke context");
     expect(runtimeContextForRequestHost("localhost:3000")?.id).toBe(context.id);
     // …and the compatibility seam agrees, because it IS that same sole Spoke.
     expect(currentBuildRuntimeContext().id).toBe(context.id);

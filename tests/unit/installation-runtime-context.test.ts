@@ -6,7 +6,6 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { IMPLICIT_SPOKE_ID } from "@/core/spoke";
 
-import { afterAll, describe, expect, it } from "vitest";
 import { deploymentPaths } from "@/config/deployment-root";
 import { getDictionary } from "@/config/i18n";
 import {

@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
  *   · the runtime index composes every declared Spoke while the compatibility seam still refuses two.
  */
 const ROOT = process.cwd();
-const read = (relative) => readFileSync(path.join(ROOT, ...relative.split("/")), "utf8");
+const read = (relative: string) => readFileSync(path.join(ROOT, ...relative.split("/")), "utf8");
 
 const PROXY = "src/proxy.ts";
 const ROUTING = "src/config/spoke-routing.ts";
