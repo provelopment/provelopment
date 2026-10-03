@@ -19,6 +19,9 @@ import { setTimeout as sleep } from "node:timers/promises";
 import path from "node:path";
 
 import { materializeMultihostInstallation, runtimeNamespaceFiles, MULTIHOST_SPOKES } from "../support/multihost-installation.mjs";
+// The FOUNDATION's CDP client, reused (never re-implemented): the harness passes the browser BINARY, exactly
+// as it does to a deployment-owned scenario, and each scenario owns the client it opens and closes.
+import { Cdp } from "./cdp.mjs";
 
 /** The scenario's id, used as the report's `presentation` label. */
 export const id = "multihost";
@@ -197,6 +200,14 @@ async function runHostProof(harness, rows, port, installation) {
   harness.check(rows, "Alpha host REFUSES Beta's Spoke asset", otherOnAlpha.status === 404, `status=${otherOnAlpha.status}`);
   harness.check(rows, "Beta host serves its OWN Spoke asset (200)", ownOnBeta.status === 200, `status=${ownOnBeta.status}`);
   harness.check(rows, "Beta host REFUSES Alpha's Spoke asset", otherOnBeta.status === 404, `status=${otherOnBeta.status}`);
+  harness.check(
+    rows,
+    "the shared platform asset is available on BOTH hosts",
+    platformOnAlpha.status === 200 && platformOnBeta.status === 200,
+    `alpha=${platformOnAlpha.status} beta=${platformOnBeta.status}`,
+  );
+}
+
 /**
  * PER-HOST METADATA SURFACES: the sitemap, `robots.txt` and the OpenGraph image of the SAME public
  * pathname, each answered by the Spoke its own host selected.
@@ -303,6 +314,11 @@ async function runHostnameProof(harness, rows, port, installation) {
     `location=${unknown.headers.location ?? "(none)"}`,
   );
 
+  const unknownRoot = await get("unknown.localhost", "/");
+  harness.check(rows, "even an unclaimed host's ROOT is refused (no default Spoke)", unknownRoot.status === 404, `status=${unknownRoot.status}`);
+}
+
+
 /** Waits until the dev server answers ANYTHING (a dev server compiles on the first request). */
 async function waitForAnyResponse(port, timeoutMs = 240000) {
   const end = Date.now() + timeoutMs;
@@ -338,39 +354,44 @@ async function startServer(harness, installation) {
  * address bar. It must read `/ww/en/about` and never the internal namespace.
  */
 async function runBrowserProof(harness, rows, chrome, port, installation) {
-  for (const spoke of installation.spokes) {
-    const fixture = MULTIHOST_SPOKES.find((candidate) => candidate.id === spoke.id);
-    const url = `http://${spoke.hostname}:${port}/ww/en/about`;
-    let observed = null;
+  const cdp = await Cdp.connect(chrome);
+  try {
+    for (const spoke of installation.spokes) {
+      const fixture = MULTIHOST_SPOKES.find((candidate) => candidate.id === spoke.id);
+      const url = `http://${spoke.hostname}:${port}/ww/en/about`;
+      let observed = null;
 
-    await chrome.navigate(url);
-    const end = Date.now() + 60000;
-    while (Date.now() < end) {
-      observed = await chrome.evaluate(
-        `(() => ({ path: location.pathname, host: location.host, text: document.body ? document.body.textContent || "" : "", html: document.documentElement ? document.documentElement.outerHTML : "" }))()`,
+      await cdp.navigate(url);
+      const end = Date.now() + 60000;
+      while (Date.now() < end) {
+        observed = await cdp.evaluate(
+          `(() => ({ path: location.pathname, host: location.host, text: document.body ? document.body.textContent || "" : "", html: document.documentElement ? document.documentElement.outerHTML : "" }))()`,
+        );
+        if (observed && observed.text.includes(fixture.aboutBody)) break;
+        await sleep(400);
+      }
+
+      harness.check(
+        rows,
+        `${spoke.id}: a BROWSER keeps the public pathname`,
+        observed !== null && observed.path === "/ww/en/about",
+        `path=${observed ? observed.path : "(no observation)"}`,
       );
-      if (observed && observed.text.includes(fixture.aboutBody)) break;
-      await sleep(400);
+      harness.check(
+        rows,
+        `${spoke.id}: the browser's document is THIS Spoke's`,
+        observed !== null && observed.text.includes(fixture.siteName) && observed.text.includes(fixture.aboutBody),
+        observed ? observed.text.slice(0, 120) : "(no observation)",
+      );
+      harness.check(
+        rows,
+        `${spoke.id}: the browser's document leaks no internal prefix into any URL`,
+        observed !== null && !/\b(?:href|src)="[^"]*~spoke/.test(observed.html ?? ""),
+        "",
+      );
     }
-
-    harness.check(
-      rows,
-      `${spoke.id}: a BROWSER keeps the public pathname`,
-      observed !== null && observed.path === "/ww/en/about",
-      `path=${observed ? observed.path : "(no observation)"}`,
-    );
-    harness.check(
-      rows,
-      `${spoke.id}: the browser's document is THIS Spoke's`,
-      observed !== null && observed.text.includes(fixture.siteName) && observed.text.includes(fixture.aboutBody),
-      observed ? observed.text.slice(0, 120) : "(no observation)",
-    );
-    harness.check(
-      rows,
-      `${spoke.id}: the browser's document leaks no internal prefix into any URL`,
-      observed !== null && !/\b(?:href|src)="[^"]*~spoke/.test(observed.html ?? ""),
-      "",
-    );
+  } finally {
+    await cdp.close();
   }
 }
 

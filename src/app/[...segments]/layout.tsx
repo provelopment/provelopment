@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
-import { notFound } from "next/navigation";
 
 import { currentBuildRuntimeContext } from "@/config/installation-runtime";
-import { hostRoutingForBuild } from "@/config/spoke-routing";
 
 import { layoutForContext, layoutMetadataForContext, spokeServerComposition } from "./server-composition";
 import "../globals.css";

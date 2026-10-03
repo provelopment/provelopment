@@ -55,7 +55,6 @@ export function RegionBlock({
   region,
   locale,
   direction,
-  siteId,
   dictionary,
 }: RegionBlockProps & { readonly dictionary: Dictionary }) {
   // M16 — the dictionary arrives from the CALLER's context-bound access (`composition.dictionaries`), so this

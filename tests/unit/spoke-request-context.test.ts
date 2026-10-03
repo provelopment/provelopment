@@ -21,8 +21,6 @@ import { materializeMultihostInstallation, runtimeNamespaceFiles } from "../supp
 
 const fixture = materializeMultihostInstallation({ repositoryRoot: process.cwd() });
 const savedRoot = process.env.FOUNDATION_DEPLOYMENT_ROOT;
-const savedMode = process.env.FOUNDATION_DEPLOYMENT_MODE;
-const savedRouting = process.env.FOUNDATION_DEPLOYMENT_HOST_ROUTING;
 
 /** The two-Spoke Installation's OWN routing description, exactly as the build inlines it. */
 const MULTI_ROUTING = {
