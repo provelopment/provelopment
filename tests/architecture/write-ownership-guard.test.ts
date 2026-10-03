@@ -159,6 +159,11 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic Installation trees under OS temp — the two-Spoke runtime-context proofs' own throwaway " +
     "Installations (alpha/beta plus legacy and one-Spoke variants: manifests, configurations, dictionaries, " +
     "pages and role artwork), removed by exact ownership. The canonical deployment is only ever READ (S3F2A)",
+  "tests/unit/runtime-asset-ownership-resolver.test.ts":
+    "disposable namespace directories under OS temp — the ownership resolver's own throwaway trees " +
+    "(a platform namespace plus two contexts' own, with the same basename deliberately in two of them), " +
+    "removed by exact ownership. No served output root is written and the canonical deployment is only " +
+    "ever READ (S3F2A2-R1)",
   "tests/integration/json-page-rendering.test.ts": "the synthetic deployment's JSON page tree (ISO-H2)",
   "tests/support/synthetic-deployment-root.ts": "the synthetic deployment's disposable copy in OS temp (ISO-H2)",
   "tests/support/disposable-deployment.ts": "a byte-identical COPY of the selected deployment in OS temp (ISO-B3C2B)",
