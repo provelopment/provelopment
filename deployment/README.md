@@ -155,3 +155,30 @@ Two things about the result are deliberate:
   (establishment refuses a seed whose capsule does not).
 
 The full procedure, the refusals and the proof are in `scripts/installation/README.md`.
+
+## The two Spokes are discoverable from each other (M19)
+
+Each Spoke authors ONE secondary/footer link to the other website, in its own `site.config.json`:
+
+```jsonc
+// deployment/spokes/foundation/site.config.json
+"footerNavigation": {
+  "items": [{ "label": "Germany", "href": "https://foundation-template-germany.provelopment.com/" }]
+}
+
+// deployment/spokes/germany/site.config.json
+"footerNavigation": {
+  "items": [{ "label": "Global", "href": "https://foundation-template.provelopment.com/" }]
+}
+```
+
+The visitor-facing label comes from that Spoke's OWN dictionaries
+(`config/i18n/<locale>.json`, `navigation.items[<href>]`): `Germany` / `Deutschland` on Foundation,
+`Global` on Germany. The authored `label` is the fallback for a locale without an override, so no raw
+configuration key can ever reach a visitor.
+
+The destination is the other website's ROOT, deliberately: the target applies its own root/locale
+completion (the Germany Spoke's default language is German; a visitor whose browser prefers English
+lands on that website's own English representation) and neither Spoke constructs a foreign page path.
+See `ARCHITECTURE.md` for why this is ordinary authored navigation and not a restored cross-Spoke
+selector.

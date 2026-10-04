@@ -300,6 +300,14 @@ const UI_PROBE = `(() => {
       .concat([...document.querySelectorAll('img[src]')].map((i) => i.getAttribute('src') || '')),
     // A real failure, as a visitor sees it. The nextjs-portal element is Next OWN dev-tools host element; it is
     // present in every development render, so it is NOT evidence of an error; the error TEXT is.
+    // M19 §9 — the cross-Spoke DISCOVERABILITY links, as the visitor receives them: ordinary anchors
+    // with an ABSOLUTE public origin (the target website's root), opened in a new tab.
+    externalLinks: [...document.querySelectorAll('a[href^="http"]')].map((a) => ({
+      href: a.getAttribute('href') || '',
+      label: (a.textContent || '').trim(),
+      target: a.getAttribute('target') || '',
+      rel: a.getAttribute('rel') || '',
+    })),
     hasErrorText: /Application error|Unhandled Runtime Error|Internal Server Error/i.test(body),
     text: body.slice(0, 400),
   };
@@ -359,6 +367,109 @@ async function runBrowserProof(harness, rows, chrome, port) {
       );
       harness.check(rows, `${name}: Germany's English page names English`, germanyEnglish.languageValue === "en", String(germanyEnglish.languageValue));
       harness.check(rows, `${name}: Germany's English page renders no error overlay`, germanyEnglish.hasErrorText === false, germanyEnglish.text.slice(0, 80));
+
+      // ── CROSS-SPOKE DISCOVERABILITY (M19 §9): the two public websites link to EACH OTHER ────────────
+      //
+      // The M19 human checkpoint found the defect: the Germany website was unreachable from the
+      // Foundation website by any discoverable link (the Site control is gone BY DESIGN — one Site per
+      // Spoke, M18 §11). The correction is ordinary authored secondary navigation, so what is proved here
+      // is what a VISITOR receives: an anchor carrying the target's own public origin, its localized
+      // label, and new-tab external semantics.
+      const discovered = (probe, href) =>
+        probe.externalLinks.find((link) => link.href === href) ?? null;
+
+      const foundationToGermany = discovered(foundation, `${GERMANY_ORIGIN}/`);
+      harness.check(
+        rows,
+        `${name}: Foundation /ww/en VISIBLY links to the Germany website (M19 discoverability)`,
+        foundationToGermany !== null &&
+          foundationToGermany.label === "Germany" &&
+          foundationToGermany.target === "_blank" &&
+          /noreferrer/.test(foundationToGermany.rel),
+        JSON.stringify(foundation.externalLinks),
+      );
+
+      const germanyToFoundation = discovered(germany, `${FOUNDATION_ORIGIN}/`);
+      harness.check(
+        rows,
+        `${name}: Germany /de/de VISIBLY links back to the Foundation website (M19 discoverability)`,
+        germanyToFoundation !== null &&
+          germanyToFoundation.label === "Global" &&
+          germanyToFoundation.target === "_blank" &&
+          /noreferrer/.test(germanyToFoundation.rel),
+        JSON.stringify(germany.externalLinks),
+      );
+
+      harness.check(
+        rows,
+        `${name}: the cross-Spoke links expose no internal Spoke prefix and no foreign Site path`,
+        [...foundation.externalLinks, ...germany.externalLinks]
+          .filter((link) => link.href.startsWith(FOUNDATION_ORIGIN) || link.href.startsWith(GERMANY_ORIGIN))
+          .every((link) => !link.href.includes("~spoke") && new URL(link.href).pathname === "/"),
+        "only the two public roots are advertised",
+      );
+
+      // The German-language Foundation page must speak German to its visitor.
+      await cdp.navigate(`http://${FOUNDATION_HOST}:${port}/ww/de`);
+      await harness.waitReady(cdp);
+      const foundationGerman = await cdp.evaluate(UI_PROBE);
+      const germanyInGerman = discovered(foundationGerman, `${GERMANY_ORIGIN}/`);
+      harness.check(
+        rows,
+        `${name}: Foundation /ww/de labels the Germany website "Deutschland"`,
+        germanyInGerman !== null && germanyInGerman.label === "Deutschland",
+        JSON.stringify(germanyInGerman),
+      );
+
+      // FOLLOWING THE LINK. The authored href is the target's PUBLIC origin, which this test environment
+      // cannot resolve; the local transport (host:port) is substituted and the PATH IS UNCHANGED, so the
+      // TARGET website performs exactly the root/locale completion a real visitor would receive — the
+      // whole point of linking to a root instead of a forced locale path.
+      //
+      // The completion itself negotiates the VISITOR'S LANGUAGE PREFERENCE (`src/core/locale.ts`: a
+      // supported language wins, otherwise the Site default), which is pre-existing behaviour identical in
+      // both Spokes: a browser preferring English lands on the target Spoke's own English representation
+      // (`/de/en`), a browser with no preference or a German preference on `/de/de`. What must hold — and
+      // what these checks assert — is that the TARGET Spoke performs its OWN completion INSIDE ITS OWN
+      // Site, never crossing to the other website.
+      const viaLocalTransport = (href) => {
+        const target = new URL(href);
+        return `http://${target.host}:${port}${target.pathname}`;
+      };
+
+      if (foundationToGermany) {
+        await cdp.navigate(viaLocalTransport(foundationToGermany.href));
+        await harness.waitReady(cdp);
+        const arrived = await cdp.evaluate(UI_PROBE);
+        harness.check(
+          rows,
+          `${name}: following the Foundation link reaches the GERMANY website, which completes its own root inside Site de`,
+          /^\/de\/(de|en)$/.test(arrived.path) &&
+            arrived.sitePresent === false &&
+            arrived.locationPresent === true &&
+            arrived.hasErrorText === false,
+          arrived.path,
+        );
+      } else {
+        harness.check(rows, `${name}: the Foundation → Germany link could be followed`, false, "no link discovered");
+      }
+
+      if (germanyToFoundation) {
+        await cdp.navigate(viaLocalTransport(germanyToFoundation.href));
+        await harness.waitReady(cdp);
+        const arrived = await cdp.evaluate(UI_PROBE);
+        harness.check(
+          rows,
+          `${name}: following the Germany link reaches the FOUNDATION website, which completes its own root inside Site ww`,
+          /^\/ww\/(en|de)$/.test(arrived.path) &&
+            arrived.sitePresent === false &&
+            arrived.locationPresent === false &&
+            arrived.hasErrorText === false,
+          arrived.path,
+        );
+      } else {
+        harness.check(rows, `${name}: the Germany → Foundation link could be followed`, false, "no link discovered");
+      }
     }
   } finally {
     await cdp.close();

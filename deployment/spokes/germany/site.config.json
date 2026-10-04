@@ -85,6 +85,14 @@
       "iconClosed": "icon-about.svg"
     }
   ],
+  "footerNavigation": {
+    "items": [
+      {
+        "label": "Global",
+        "href": "https://foundation-template.provelopment.com/"
+      }
+    ]
+  },
   "features": {
     "analytics": {
       "provider": "none"

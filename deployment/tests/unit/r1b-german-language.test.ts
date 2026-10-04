@@ -119,10 +119,15 @@ describe("the German UI dictionary is a complete, validated dictionary", () => {
   it("translates the configured navigation destinations without changing a URL", () => {
     expect(german.navigation.items["/"]).toBe("Startseite");
     expect(german.navigation.items["/about"]).toBe("Über uns");
-    // The dictionary is keyed by HREF: adding a language never invents a German slug.
-    expect(Object.keys(german.navigation.items).sort()).toEqual(
-      siteConfig.navigation.map((item) => item.href).sort(),
-    );
+    // The dictionary is keyed by HREF: adding a language never invents a German slug. M19 adds the
+    // SECONDARY/FOOTER destinations (the cross-Spoke links to the other public website) to this same
+    // href-keyed map, because that is the documented mechanism the footer group resolves its labels
+    // through — so the key set is every configured destination href, primary and secondary alike.
+    const configuredHrefs = [
+      ...siteConfig.navigation.map((item) => item.href),
+      ...(siteConfig.footerNavigation?.items ?? []).map((item) => item.href),
+    ];
+    expect(Object.keys(german.navigation.items).sort()).toEqual(configuredHrefs.sort());
   });
 
   it("leaves the English dictionary alone", () => {

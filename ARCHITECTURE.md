@@ -1936,3 +1936,35 @@ the other Spoke language and never redirects to the other hostname. The accepted
 still normalise a first segment that names one of the ANSWERING Spoke own LOCALES (so a Foundation-host
 request for `/de/about` completes to `/ww/de/about`), and the result stays inside that Spoke and is
 ultimately refused. Ownership, not the first status code, is the contract.
+
+## Cross-Spoke discoverability — authored links, never a selector
+
+The two Spokes are independent public websites, so a visitor who lands on one has no technical way to
+reach the other unless the website SAYS SO. Isolation without discoverability is a defect, and the
+correction is the ordinary web one: **authored reciprocal links between two public origins**, configured
+through the existing secondary/footer navigation surface (`footerNavigation`) and localized through the
+existing dictionary mechanism (`dictionary.navigation.items[href]`):
+
+| Source website | Authored destination | Label |
+| --- | --- | --- |
+| Foundation (`foundation-template.provelopment.com`) | `https://foundation-template-germany.provelopment.com/` | `Germany` / `Deutschland` |
+| Germany (`foundation-template-germany.provelopment.com`) | `https://foundation-template.provelopment.com/` | `Global` |
+
+Four properties make this ordinary navigation rather than a second selection mechanism:
+
+* **The destination is the target website's ROOT.** The source Spoke constructs no `/ww/en` or `/de/de`:
+  the target performs its OWN root/locale completion (its supported-language negotiation, then its Site
+  default), exactly as it does for a typed address.
+* **The link is external.** It renders through the shared `NavItem` contract (new tab,
+  `rel="noreferrer"`), and no `~spoke` prefix, private selection header, rewrite or client Spoke state is
+  ever visible to the visitor.
+* **The Site control is not restored.** Each Spoke still declares exactly ONE Site, so no control offers a
+  cross-Spoke option: the header's contextual controls (Site/Location/Language/Layout) keep describing the
+  CURRENT website only, and the footer carries ordinary secondary navigation.
+* **Sitemap ownership does not merge.** `footerNavigation` is a rendering concern and was never a sitemap
+  source, so each Spoke's `sitemap.xml` continues to publish its OWN origin and its OWN pages only.
+
+The contract is proved at both ends: `deployment/tests/unit/m19-cross-spoke-discoverability.test.ts`
+asserts the authored configuration, the localized labels, the external rendering, the absent Site control
+and the sitemap invariant, while the deployment's browser scenario drives the real hostnames and follows
+each link to the target's own completion.

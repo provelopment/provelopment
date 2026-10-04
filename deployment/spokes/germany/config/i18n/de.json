@@ -17,7 +17,8 @@
     "hideSidebar": "Navigation ausblenden",
     "items": {
       "/": "Startseite",
-      "/about": "Über uns"
+      "/about": "Über uns",
+      "https://foundation-template.provelopment.com/": "Global"
     }
   },
   "notFound": {
