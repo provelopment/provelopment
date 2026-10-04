@@ -1,9 +1,9 @@
 # Content Management — business content ownership
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-30.1`
-> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
-> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Manual revision:** `2026-10-04.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language. It also states the lifecycle contract: **Update** = authored pages and/or assets change while the Foundation release does not; **Upgrade** = a different immutable Foundation release is adopted, Installation-wide; one Installation therefore runs one Foundation release
+> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists. **No procedure-validation run was performed for revision `2026-10-04.1`**: it aligns this manual set's Update/Upgrade lifecycle terminology with the accepted Foundation model and executed no procedure. No release tag is claimed.
 > **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
@@ -15,6 +15,11 @@
 
 > **Actual business content is adopter-owned.** The platform supplies structure,
 > validation and rendering; it never supplies a business's words or pictures.
+
+An ordinary change you make to your own content is an **Update**: the pages and/or assets change, the
+Foundation **release does not**. Editing a page is never a Foundation **Upgrade** — that adopts a
+different immutable release for the whole Installation (`foundation-upgrade.md`). No page edit can
+move the platform, and none of the procedures in this manual changes a release.
 
 Placing platform material must never overwrite adopter content. In an installation,
 establishment copies your authored material verbatim and never overwrites or deletes, and a
