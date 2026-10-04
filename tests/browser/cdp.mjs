@@ -52,7 +52,7 @@ async function waitForDevToolsPort(userDataDir, timeoutMs = 20000) {
   throw new Error("Chrome CDP debug port did not become ready");
 }
 
-async function launchChrome(binary) {
+async function launchChrome(binary, { hostResolverRules } = {}) {
   const userDataDir = await mkdtemp(join(tmpdir(), "ui10-cdp-"));
   const args = [
     "--headless=new",
@@ -65,6 +65,13 @@ async function launchChrome(binary) {
     "--no-default-browser-check",
     "--remote-debugging-port=0",
     `--user-data-dir=${userDataDir}`,
+    // M18 — a TEST-ONLY hostname mapping, requested by the caller that needs one (a deployment scenario
+    // that drives the REAL public hostnames against a local server). It changes no runtime semantics:
+    // production hostname dispatch still matches the exact `Host` claim, and this mapping lives only in
+    // this Chrome process.
+    ...(typeof hostResolverRules === "string" && hostResolverRules !== ""
+      ? [`--host-resolver-rules=${hostResolverRules}`]
+      : []),
     "about:blank",
   ];
   const proc = spawn(binary, args, { stdio: "ignore", windowsHide: true });
@@ -87,8 +94,8 @@ async function launchChrome(binary) {
  * emulation. Real interactions only — this never asserts static HTML.
  */
 export class Cdp {
-  static async connect(binary) {
-    const launched = await launchChrome(binary);
+  static async connect(binary, options = {}) {
+    const launched = await launchChrome(binary, options);
     const cdp = new Cdp(launched.wsUrl);
     await cdp._open();
     cdp._runtime = launched;

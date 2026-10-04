@@ -26,6 +26,14 @@ import { setTimeout as sleep } from "node:timers/promises";
 // mechanics, the deployment owns the expectations. Reading common Foundation code is what a
 // deployment does; changing it is what it must not do.
 import { Cdp } from "../../../tests/browser/cdp.mjs";
+// M18 — the REAL hostnames, the readiness poll and the test-only browser hostname mapping, shared with the
+// deployment's other host-driving scenario (`../support/host-requests.mjs`).
+import {
+  FOUNDATION_HOST,
+  GERMANY_HOST,
+  HOST_RESOLVER_RULES,
+  waitForHostReady,
+} from "../support/host-requests.mjs";
 
 /** The dev server THIS scenario started, as a visitor addresses it (set below, per run). */
 let BASE_URL = "";
@@ -247,19 +255,27 @@ export async function run(chrome, harness) {
     check,
     startDevServer,
     stopServer,
-    waitForServer,
     waitReady,
     chooseLayout,
     configFile: SHIPPED_CONFIG_PATH,
+    spokeConfigFiles,
   } = harness;
 
   const rows = [];
   const port = BASE_PORT + 410;
-  const url = `http://localhost:${port}/ww/en`;
-  BASE_URL = `http://localhost:${port}`;
+  const url = `http://${FOUNDATION_HOST}:${port}/ww/en`;
+  BASE_URL = `http://${FOUNDATION_HOST}:${port}`;
   // The SHIPPED configuration, READ ONLY: writing it here would prove a
   // configuration the repository does not ship.
-  const reference = JSON.parse(await readFile(SHIPPED_CONFIG_PATH, "utf8"));
+  // M18 — this deployment declares TWO Spokes, so there is no installation-wide configuration file to read:
+  // the scenario reads the FOUNDATION Spoke's OWN authored configuration, by identity, from the list the
+  // harness resolved through the deployment authority. (`SHIPPED_CONFIG_PATH` stays the one-Spoke
+  // compatibility value, which is empty in this form.)
+  const foundationConfigFile = spokeConfigFiles.find((spoke) => spoke.id === "foundation")?.configFile ?? "";
+  const germanyConfigFile = spokeConfigFiles.find((spoke) => spoke.id === "germany")?.configFile ?? "";
+  const reference = JSON.parse(await readFile(foundationConfigFile, "utf8"));
+  /** The GERMANY Spoke's own host, as a visitor addresses it locally. */
+  const GERMANY_BASE_URL = `http://${GERMANY_HOST}:${port}`;
   check(rows, "reference.config.siteUrl", reference.site?.url === REFERENCE_ORIGIN, String(reference.site?.url));
   check(
     rows,
@@ -284,8 +300,8 @@ export async function run(chrome, harness) {
   const server = startDevServer(port, { synthetic: false });
   let cdp = null;
   try {
-    await waitForServer(url);
-    cdp = await Cdp.connect(chrome);
+    await waitForHostReady(port, FOUNDATION_HOST, "/ww/en", server);
+    cdp = await Cdp.connect(chrome, { hostResolverRules: HOST_RESOLVER_RULES });
     await cdp.setViewport(VIEWPORTS.desktop.width, VIEWPORTS.desktop.height);
     await cdp.evaluate("window.localStorage.clear(); true").catch(() => undefined);
     await cdp.navigate(url);
@@ -682,49 +698,49 @@ export async function run(chrome, harness) {
     );
 
     // ── THE FOUR DIMENSIONS, ON THE SHIPPED CONFIGURATION (R1C) ─────────────
-    // The deployment now declares TWO sites: `ww` (Global) and `de` (Germany, a country site with
-    // the demonstration locations Berlin and Frankfurt). The EXISTING controls appear because that
-    // configuration is real: the Site selector because two sites exist, and the Location selector
-    // only on Germany, which is the one that binds locations.
-    const germanConfig = (reference.i18n?.locales ?? []).find((locale) => locale.code === "de");
-    const declaredSites = reference.sites ?? [];
+    // M18 — the deployment declares TWO SPOKES, each owning exactly ONE Site: `foundation` owns `ww`
+    // (Global), and `germany` owns `de` (Germany, the country site with the two demonstration locations).
+    // The GERMANY facts are therefore read from the GERMANY Spoke's OWN authored configuration: the
+    // Foundation's configuration no longer carries a second Site, a region or a Germany page binding.
+    const germanConfig = JSON.parse(await readFile(germanyConfigFile, "utf8"));
+    const declaredSites = germanConfig.sites ?? [];
     check(
       rows,
-      "reference.sites.declaresGlobalAndGermany",
-      declaredSites.length === 2 &&
-        declaredSites[0]?.code === "ww" &&
-        declaredSites[0]?.label === "Global" &&
-        declaredSites[1]?.code === "de" &&
-        declaredSites[1]?.label === "Germany" &&
-        reference.defaultSite === "ww",
+      "reference.sites.germanySpokeDeclaresItsOwnSite",
+      declaredSites.length === 1 &&
+        declaredSites[0]?.code === "de" &&
+        declaredSites[0]?.label === "Germany" &&
+        germanConfig.defaultSite === "de",
       JSON.stringify(declaredSites),
     );
     check(
       rows,
       "reference.sites.germanyServesGermanAndEnglish",
-      JSON.stringify(declaredSites[1]?.locales ?? null) === JSON.stringify(["de", "en"]) &&
-        declaredSites[1]?.defaultLocale === "de",
-      JSON.stringify(declaredSites[1] ?? null),
+      JSON.stringify(declaredSites[0]?.locales ?? null) === JSON.stringify(["de", "en"]) &&
+        declaredSites[0]?.defaultLocale === "de",
+      JSON.stringify(declaredSites[0] ?? null),
     );
     check(
       rows,
       "reference.locations.berlinAndFrankfurtBoundToGermanyOnly",
-      JSON.stringify(Object.keys(reference.business?.regions ?? {})) ===
-        JSON.stringify(["berlin", "frankfurt"]) &&
-        JSON.stringify(reference.business?.pages ?? null) ===
+      JSON.stringify(Object.keys(germanConfig.business?.regions ?? {})) === JSON.stringify(["berlin", "frankfurt"]) &&
+        JSON.stringify(germanConfig.business?.pages ?? null) ===
           JSON.stringify([
             { site: "de", locale: "de", region: "berlin" },
             { site: "de", locale: "en", region: "berlin" },
             { site: "de", locale: "de", region: "frankfurt" },
             { site: "de", locale: "en", region: "frankfurt" },
-          ]),
-      JSON.stringify(reference.business ?? null),
+          ]) &&
+        JSON.stringify(reference.business?.regions ?? {}) === JSON.stringify({}) &&
+        JSON.stringify(reference.business?.pages ?? null) === JSON.stringify([]),
+      JSON.stringify(germanConfig.business ?? null),
     );
     check(
       rows,
       "reference.german.configDeclaresGermanOnTheDefaultLocale",
-      germanConfig?.label === "Deutsch" && reference.i18n?.defaultLocale === "en",
-      JSON.stringify(reference.i18n ?? null),
+      (germanConfig.i18n?.locales ?? []).some((locale) => locale.code === "de" && locale.label === "Deutsch") &&
+        reference.i18n?.defaultLocale === "en",
+      JSON.stringify(germanConfig.i18n ?? null),
     );
     check(
       rows,
@@ -733,26 +749,14 @@ export async function run(chrome, harness) {
       "the neutral Location label is the dictionary's All locations / Alle Standorte",
     );
 
-    // At Global's English About: the Site selector appeared; Location did NOT (Global has none),
-    // and the documented order is Site → Language → Layout.
+    // At Global's English About: NO Site control (this Spoke owns ONE Site), Location did NOT appear
+    // (Global has none), and the documented order of the controls that DO exist is Layout → Language.
     const englishSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
     check(
       rows,
-      "reference.sites.haveOwnSiteSelector",
-      englishSelectors.sitePresent === true,
+      "reference.sites.noSiteSelectorOnAOneSiteSpoke",
+      englishSelectors.sitePresent === false,
       JSON.stringify(englishSelectors),
-    );
-    check(
-      rows,
-      "reference.sites.exactVisibleChoices",
-      (englishSelectors.siteOptions ?? []).join(" | ") === "Global | Germany",
-      String(englishSelectors.siteOptions),
-    );
-    check(
-      rows,
-      "reference.sites.globalIsCurrentOnGlobal",
-      englishSelectors.siteValue === "ww",
-      String(englishSelectors.siteValue),
     );
     check(
       rows,
@@ -781,47 +785,24 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.selectors.orderOnGlobal",
-      // NAV1B — the navigation-MODE control now owns the TOP row, so it LEADS the document order;
-      // the contextual group follows in its documented Site → Location → Language order.
-      JSON.stringify(englishSelectors.selectorOrder ?? null) ===
-        JSON.stringify(["layout", "site", "language"]),
+      // NAV1B — the navigation-MODE control owns the TOP row, so it LEADS the document order; the
+      // contextual group follows in its documented order. M18 — with ONE Site there is no Site control,
+      // so the contextual group is the Language control alone.
+      JSON.stringify(englishSelectors.selectorOrder ?? null) === JSON.stringify(["layout", "language"]),
       JSON.stringify(englishSelectors.selectorOrder ?? null),
     );
 
     // ── SITE SWITCHING: Global ↔ Germany keeps the page where the target serves it ──
     await cdp.navigate(`${BASE_URL}/ww/en/about`);
     await waitReady(cdp);
-    check(rows, "reference.sites.switchToGermanyApplies", await cdp.evalBool(chooseSite("de")));
-    await sleep(1000);
-    await waitReady(cdp);
-    const germanyEnglishAbout = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    // M18 — SITE SWITCHING is RETIRED: each Spoke declares exactly ONE Site, so there is no Site control
+    // to switch with, and M18 invents no cross-Spoke selector. The facts that block proved about GERMANY's
+    // content and routes are proved AT THE GERMANY HOST by `./germany-spoke.scenario.mjs`.
     check(
       rows,
-      "reference.sites.englishRoutePreservedAcrossSites",
-      germanyEnglishAbout.path === "/de/en/about",
-      String(germanyEnglishAbout.path),
+      "reference.sites.noSiteControlToSwitchWith",
+      (await cdp.evalBool(chooseSite("de"))) === false,
     );
-    check(
-      rows,
-      "reference.sites.germanyServesItsOwnPage",
-      germanyEnglishAbout.h1s[0] === "About the Germany site",
-      JSON.stringify(germanyEnglishAbout.h1s),
-    );
-    await cdp.navigate(`${BASE_URL}/ww/de/about`);
-    await waitReady(cdp);
-    check(rows, "reference.sites.switchFromGermanGlobalToGermany", await cdp.evalBool(chooseSite("de")));
-    await sleep(1000);
-    await waitReady(cdp);
-    const germanyGermanAbout = await cdp.evaluate("location.pathname");
-    check(
-      rows,
-      "reference.sites.germanRoutePreservedAcrossSites",
-      germanyGermanAbout === "/de/de/about",
-      String(germanyGermanAbout),
-    );
-    check(rows, "reference.sites.switchBackToGlobal", await cdp.evalBool(chooseSite("ww")));
-    await sleep(1000);
-    await waitReady(cdp);
     const backOnGlobal = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
     check(
       rows,
@@ -988,14 +969,14 @@ export async function run(chrome, harness) {
     );
 
     // ── GERMANY: locations inside ONE site ──────────────────────────────────
-    await cdp.navigate(`${BASE_URL}/de/de`);
+    await cdp.navigate(`${GERMANY_BASE_URL}/de/de`);
     await waitReady(cdp);
     await sleep(300);
     const germanyHomeSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
     check(
       rows,
-      "reference.germany.hasAllFourControls",
-      germanyHomeSelectors.sitePresent === true &&
+      "reference.germany.locationAndLanguageButNoSiteControl",
+      germanyHomeSelectors.sitePresent === false &&
         germanyHomeSelectors.locationPresent === true &&
         germanyHomeSelectors.languagePresent === true &&
         germanyHomeSelectors.layoutPresent === true,
@@ -1111,7 +1092,7 @@ export async function run(chrome, harness) {
     );
 
     // ── A LOCATION NEVER LEAKS ACROSS A SITE SWITCH ─────────────────────────
-    await cdp.navigate(`${BASE_URL}/de/en/berlin`);
+    await cdp.navigate(`${GERMANY_BASE_URL}/de/en/berlin`);
     await waitReady(cdp);
     await sleep(300);
     const englishBerlin = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
@@ -1158,7 +1139,7 @@ export async function run(chrome, harness) {
       await cdp.setViewport(viewport.width, viewport.height);
       for (const surface of ["sidebar", "menu-bar"]) {
         for (const localePath of ["de", "en"]) {
-          await cdp.navigate(`${BASE_URL}/de/${localePath}`);
+          await cdp.navigate(`${GERMANY_BASE_URL}/de/${localePath}`);
           await waitReady(cdp);
           await cdp.evaluate(chooseLayout(surface));
           await sleep(250);

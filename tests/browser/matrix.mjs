@@ -38,6 +38,11 @@ import {
 // second capsule rule here — and WHICH family of scenarios a run executes is decided by the harness's
 // one ownership module, which a generic test can import and prove without starting a browser.
 import { resolveDeploymentForBuild } from "../../src/config/deployment-build.mjs";
+// M18 — the Spoke DECLARATIONS of the selected deployment, so a deployment-scope scenario can be handed the
+// configuration file of EVERY Spoke it declares (`spokeConfigFilesFor`) instead of an installation-wide
+// value a multi-Spoke Installation does not have.
+import { installationSpokes } from "../../src/config/deployment-build.mjs";
+import { SPOKE_CONFIG_FILE_NAME } from "../../src/config/spoke-declarations.mjs";
 import {
   SCENARIO_SUFFIX,
   browserScopePlan,
@@ -117,6 +122,12 @@ function selectedDeployment() {
         // root's own in legacy mode, the sole Spoke's in explicit mode. Asked of the authority rather
         // than composed here, so the harness follows the authoring form.
         siteConfigFile: resolved.siteConfigFile,
+        // M18 — EVERY declared Spoke's own configuration file, in declared order. A deployment-scope
+        // scenario whose Installation declares more than one Spoke needs THIS question: `siteConfigFile`
+        // above stays the ONE-SPOKE compatibility value and is empty in that form, exactly as the build's
+        // own environment states it. The list is the authority's own declaration list, never a path this
+        // harness composed and never a default Spoke.
+        spokeConfigFiles: spokeConfigFilesFor(resolved),
       };
     } catch {
       // The authority's own message is the diagnostic a BUILD needs; here it only means "this
@@ -126,6 +137,24 @@ function selectedDeployment() {
   }
   return installedDeployment;
 }
+/**
+ * The authored configuration file of EVERY Spoke a deployment declares, in declared order.
+ *
+ * It answers the question `siteConfigFile` cannot answer for a multi-Spoke Installation, and it answers it
+ * from the SAME authority that declares the Spokes — never by composing a `spokes/<dir>` path here and
+ * never by picking one. A legacy Installation declares no Spoke, so the list is empty.
+ */
+function spokeConfigFilesFor(resolved) {
+  try {
+    return installationSpokes(resolved.root).spokes.map((spoke) => ({
+      id: spoke.id,
+      configFile: join(resolved.root, spoke.relativeRoot, SPOKE_CONFIG_FILE_NAME),
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** The installed deployment's config — READ ONLY, for the deployment's own scenarios. */
 function shippedConfigPath() {
   const deployment = selectedDeployment();
@@ -594,6 +623,10 @@ function deploymentHarness() {
     waitReady,
     chooseLayout,
     configFile: shippedConfigPath(),
+    // M18 — the configuration file of EVERY Spoke the selected deployment declares. `configFile` above is
+    // the ONE-SPOKE compatibility value (empty for a multi-Spoke Installation); this is the question a
+    // deployment-scope scenario asks when its Installation declares more than one Spoke.
+    spokeConfigFiles: selectedDeployment()?.spokeConfigFiles ?? [],
   };
 }
 
@@ -641,6 +674,10 @@ async function runDeploymentScenarios(chrome, directory, names) {
     console.log(
       `[matrix] ${label}: ${scenarioRows.length - failures}/${scenarioRows.length} checks passed${failures ? ` FAIL=${failures}` : ""}`,
     );
+    // WHICH invariant broke, by name — a count alone leaves a failing run to be re-diagnosed by hand.
+    for (const row of scenarioRows.filter((entry) => !entry.ok)) {
+      console.log(`[matrix] ${label}: FAIL ${row.name}` + (row.detail ? ` :: ${row.detail}` : ""));
+    }
   }
   return rows;
 }
@@ -671,6 +708,10 @@ async function runFoundationScenarios(chrome, names) {
     console.log(
       `[matrix] ${label}: ${scenarioRows.length - failures}/${scenarioRows.length} checks passed${failures ? ` FAIL=${failures}` : ""}`,
     );
+    // WHICH invariant broke, by name — a count alone leaves a failing run to be re-diagnosed by hand.
+    for (const row of scenarioRows.filter((entry) => !entry.ok)) {
+      console.log(`[matrix] ${label}: FAIL ${row.name}` + (row.detail ? ` :: ${row.detail}` : ""));
+    }
   }
   return rows;
 }
