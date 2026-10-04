@@ -20,7 +20,7 @@ import { describe, expect, it } from "vitest";
  * Comments are stripped before every assertion: prose may name these modules (it must, to be maintained).
  */
 
-const SEGMENT_DIRECTORY = path.join(process.cwd(), "src", "app", "[...segments]");
+const SEGMENT_DIRECTORY = path.join(process.cwd(), "src", "app", "[[...segments]]");
 const COMPOSITION = path.join(SEGMENT_DIRECTORY, "server-composition.tsx");
 const PAGE = path.join(SEGMENT_DIRECTORY, "page.tsx");
 const LAYOUT = path.join(SEGMENT_DIRECTORY, "layout.tsx");
@@ -111,16 +111,20 @@ describe("M13 — shared server composition guard", () => {
       code(file).includes("createPageSources("),
     );
     // The shared composition owns page-source creation for the server graph; the boundary files do not.
-    expect(callers.map(relative)).toEqual(["src/app/[...segments]/server-composition.tsx"]);
+    expect(callers.map(relative)).toEqual(["src/app/[[...segments]]/server-composition.tsx"]);
     expect(code(PAGE)).not.toContain("createPageSources");
     expect(code(LAYOUT)).not.toContain("createPageSources");
   });
 
-  it("allows currentBuildRuntimeContext ONLY at the one-Spoke application boundary", () => {
+  it("selects the Spoke from the REQUEST at the application boundary, never from a module-global", () => {
     for (const boundary of [PAGE, LAYOUT]) {
       const source = code(boundary);
-      expect(source, relative(boundary)).toContain("currentBuildRuntimeContext()");
+      // M17 — the boundary consumes the Spoke the REQUEST selected (the boundary's exact hostname claim,
+      // carried on a private upstream header). The one-Spoke compatibility seam is no longer the page
+      // authority; it remains available to legitimate compatibility tooling.
+      expect(source, relative(boundary)).toContain("requestPublicDestination");
       expect(source, relative(boundary)).toContain("spokeServerComposition");
+      expect(source, relative(boundary)).not.toContain("currentBuildRuntimeContext");
       // The boundary only CHOOSES the context; it renders nothing itself.
       expect(source, relative(boundary)).not.toContain("getDictionary(");
       expect(source, relative(boundary)).not.toContain("createRuntimeAssetOwnershipResolver");

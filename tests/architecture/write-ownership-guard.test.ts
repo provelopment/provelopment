@@ -37,8 +37,11 @@ import {
  *
  *   Foundation application code (`src/**`)                       NOTHING — no writer exists there at all
  *   deployment generator `scripts/generate-country-code-…mjs`    `<selected>/content/COUNTRY-CODES.md` only
- *   runtime asset installer `scripts/sync-runtime-assets.mjs`     `<repo>/public/assets/**` and
- *                                                                 `<repo>/public/spokes/**` only
+ *   runtime asset installer `scripts/sync-runtime-assets.mjs`     `<repo>/public/assets/**`,
+ *                                                                 `<repo>/public/spokes/**` and the ONE
+ *                                                                 generated catalog it publishes for the
+ *                                                                 runtime (`<repo>/src/config/generated/
+ *                                                                 runtime-asset-catalog.json`) only
  *   CI classifier `scripts/ci/change-scope.mjs`                  `$GITHUB_OUTPUT` (the runner's file)
  *   generic tests + the browser harness                          OS temp, the synthetic deployment, `.report/`
  *   a deployment's writable authoring test                       a disposable COPY of the selected deployment
@@ -126,9 +129,15 @@ const SANCTIONED_DOMAIN_WRITERS: Record<string, string> = {
  * report directory. The runtime manifest is what proves none of them reaches shipped state.
  */
 const TEST_SCRATCH_WRITERS: Record<string, string> = {
-  "tests/browser/scratch.mjs": "the guard: OS temp + `tests/browser/.report/`, refusing every other target",
-  "tests/browser/matrix.mjs": "the synthetic deployment copy, `.report/` and OS temp — all via scratch.mjs",
+  "tests/browser/scratch.mjs": "the guard: OS temp + `tests/browser/.report/` + the generated Spoke namespaces, refusing every other target",
+  "tests/browser/matrix.mjs": "the synthetic deployment copy, `.report/`, OS temp and the generated Spoke namespaces a multi-Spoke scenario materialises — all via scratch.mjs",
   "tests/browser/cdp.mjs": "the headless-Chrome profile directory it created, under OS temp",
+  "tests/browser/multihost.scenario.mjs":
+    "OS temp (its disposable two-Spoke Installation) and `public/spokes/<segment>/**` — the GENERATED namespaces it materialises and removes for the cross-host asset proof",
+  "tests/support/multihost-installation.mjs":
+    "OS temp only: the disposable two-Spoke Installation it authors and the caller removes",
+  "tests/unit/spoke-request-context.test.ts":
+    "OS temp (its disposable two-Spoke Installation) and the GENERATED `public/spokes/<segment>/**` namespaces it materialises and removes",
   "tests/architecture/deployment-root-guard.test.ts": "OS temp trees for its layout proofs",
   "tests/architecture/write-ownership-guard.test.ts": "OS temp trees for this suite's own proofs",
   "tests/unit/spoke-roots.test.ts":
@@ -345,8 +354,15 @@ describe("the browser harness writes only into its own scratch", () => {
     }
   });
 
-  it("accepts OS temp and `tests/browser/.report/`, and nothing else", () => {
-    expect(harnessWriteRoots().allowed).toEqual([tmpdir(), path.join(ROOT, "tests", "browser", ".report")]);
+  it("accepts OS temp, `tests/browser/.report/` and the GENERATED Spoke namespaces — and nothing else", () => {
+    // M16 — the third domain is `public/spokes/**`: GENERATED, git-ignored output (never deployment state)
+    // that a multi-Spoke proof must materialise for the SECOND Spoke, because "Alpha's artwork is served on
+    // Alpha's host and REFUSED on Beta's" is only observable when Beta's host has its own directory.
+    expect(harnessWriteRoots().allowed).toEqual([
+      tmpdir(),
+      path.join(ROOT, "tests", "browser", ".report"),
+      path.join(ROOT, "public", "spokes"),
+    ]);
     const probe = path.join(tmpdir(), "foundation-harness-probe.json");
     expect(assertHarnessWritable(probe)).toBe(probe);
     expect(() => assertHarnessWritable(path.join(ROOT, "tests", "browser", ".report", "x.json"))).not.toThrow();
@@ -411,6 +427,12 @@ describe("each sanctioned writer stays inside the ONE domain it owns", () => {
       /^rmdirSync\(full\);$/,
       // …and a generated REGION that no longer holds a namespace is unlinked the same way (its container).
       /^rmdirSync\(directory\);$/,
+      // M16/M17 (Defect B) — the generated runtime-asset catalog: this BUILD's own derived record of what it
+      // installed and how large each file is, so a serverless page render never has to probe `public/**`
+      // (which the function does not carry). It is written to the ONE generated source module the runtime
+      // imports, never into any deployment's sources.
+      /^mkdirSync\(path\.dirname\(catalogFile\), { recursive: true \}\);$/,
+      /^writeFileSync\(catalogFile, report\.expected, "utf8"\);$/,
     ];
     const lines = mutationLines(script);
     expect(lines.length).toBeGreaterThan(0);
@@ -426,6 +448,11 @@ describe("each sanctioned writer stays inside the ONE domain it owns", () => {
     // …and the platform path it installs into is the root-anchored generated mirror (ISO-B3C1).
     expect(readFileSync(path.join(ROOT, script), "utf8")).toContain(
       'const RUNTIME_DIR = "public/assets";',
+    );
+    // …and the catalog it publishes is the ONE generated source module the runtime imports, so the tree it
+    // installs and the belief the runtime holds are produced by the same run (M16/M17 Defect B).
+    expect(readFileSync(path.join(ROOT, script), "utf8")).toContain(
+      'const CATALOG_FILE = path.join(ROOT, "src", "config", "generated", "runtime-asset-catalog.json");',
     );
     // S3E1C — the write boundary is the generated runtime BASE (`public/`), so a Spoke's namespace is
     // inside it while no deployment source ever is, and the namespace model comes from the ONE module that

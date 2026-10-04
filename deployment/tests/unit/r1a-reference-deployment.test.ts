@@ -10,7 +10,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import { deploymentPaths } from "@/config/deployment-root";
 
-import PageRoute from "@/app/[...segments]/page";
+import PageRoute from "@/app/[[...segments]]/page";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";
@@ -216,8 +216,8 @@ describe("the reference origin reaches the technical routes", () => {
     expect(urls).not.toContain(`${REFERENCE_ORIGIN}/${siteCode}/${localePath}/home`);
   });
 
-  it("references that sitemap from robots.txt", () => {
-    expect(robots().sitemap).toBe(`${REFERENCE_ORIGIN}/sitemap.xml`);
+  it("references that sitemap from robots.txt", async () => {
+    expect((await robots()).sitemap).toBe(`${REFERENCE_ORIGIN}/sitemap.xml`);
   });
 });
 

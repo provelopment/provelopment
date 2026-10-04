@@ -2,6 +2,10 @@ import { closeSync, existsSync, openSync, readSync, statSync } from "node:fs";
 import path from "node:path";
 
 import type { RuntimeAssetNamespace } from "./deployment-root";
+// The decoder exists ONCE, shared with the build script that publishes the catalog (see that module's
+// note). The resolver keeps a filesystem read only for a namespace that carries NO inventory — the
+// compatibility case — so the live render path never needs `public/**` to exist inside its function.
+import { MAX_HEADER_BYTES, dimensionsFromBytes } from "./runtime-asset-dimensions.mjs";
 
 /**
  * S3F2A2-R1 — RUNTIME ASSET NAMESPACE OWNERSHIP BOUND TO AN EXPLICIT CONTEXT
@@ -102,46 +106,6 @@ export interface ImageDimensions {
   readonly height: number;
 }
 
-/** The header bytes worth reading — enough for every supported container (the accepted limit). */
-const MAX_HEADER_BYTES = 512 * 1024;
-
-function svgLength(source: string, attribute: string): number | undefined {
-  const match = new RegExp(`${attribute}\\s*=\\s*["']\\s*([0-9.]+)\\s*(?:px)?\\s*["']`, "i").exec(source);
-  if (!match) return undefined;
-  const value = Number(match[1]);
-  return Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-/**
- * SVG: the size declared on the ROOT `<svg …>` element — explicit
- * width/height (unitless or `px`), else the viewBox. Only the root tag is
- * consulted, so a nested element (e.g. an embedded `<image width="…">`) can
- * never be mistaken for the document size; a root length in a non-pixel unit
- * is left to the viewBox, which describes the artwork's own grid.
- */
-function svgDimensions(head: string): ImageDimensions | undefined {
-  const rootTag = /<svg\b[^>]*>/i.exec(head)?.[0];
-  if (!rootTag) return undefined;
-  const box = /viewBox\s*=\s*["']\s*-?[\d.]+[\s,]+-?[\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)\s*["']/i.exec(rootTag);
-  const viewWidth = box ? Number(box[1]) : undefined;
-  const viewHeight = box ? Number(box[2]) : undefined;
-  const width = svgLength(rootTag, "width");
-  const height = svgLength(rootTag, "height");
-  if (width !== undefined && height !== undefined) {
-    return { width: Math.round(width), height: Math.round(height) };
-  }
-  if (viewWidth && viewHeight && viewWidth > 0 && viewHeight > 0) {
-    if (width !== undefined) {
-      return { width: Math.round(width), height: Math.round((width * viewHeight) / viewWidth) };
-    }
-    if (height !== undefined) {
-      return { width: Math.round((height * viewWidth) / viewHeight), height: Math.round(height) };
-    }
-    return { width: Math.round(viewWidth), height: Math.round(viewHeight) };
-  }
-  return undefined;
-}
-
 /**
  * The accepted ownership rule, as a pure function of an EXPLICIT namespace list: no cache, no process state.
  *
@@ -158,85 +122,27 @@ export function owningNamespaceIn(
   namespaces: readonly RuntimeAssetNamespace[],
 ): RuntimeAssetNamespace | null {
   if (!name || name === "") return null;
-  return namespaces.find((namespace) => existsSync(path.join(namespace.directory, name))) ?? null;
+  return namespaces.find((namespace) => namespaceHoldsAsset(namespace, name)) ?? null;
 }
 
-/** PNG: IHDR width/height (big-endian) straight after the signature + length/type. */
-function pngDimensions(head: Buffer): ImageDimensions | undefined {
-  if (head.length < 24) return undefined;
-  return { width: head.readUInt32BE(16), height: head.readUInt32BE(20) };
-}
-
-/** GIF: logical screen descriptor width/height (little-endian). */
-function gifDimensions(head: Buffer): ImageDimensions | undefined {
-  if (head.length < 10) return undefined;
-  return { width: head.readUInt16LE(6), height: head.readUInt16LE(8) };
-}
-
-/** JPEG: walk the segment chain until a Start-Of-Frame carries the frame size. */
-function jpegDimensions(head: Buffer): ImageDimensions | undefined {
-  let offset = 2;
-  while (offset + 9 <= head.length) {
-    if (head[offset] !== 0xff) {
-      offset += 1;
-      continue;
-    }
-    const marker = head[offset + 1];
-    if (marker === 0xff) {
-      offset += 1;
-      continue;
-    }
-    // Standalone markers (no payload): RSTn / SOI / EOI.
-    if (marker >= 0xd0 && marker <= 0xd9) {
-      offset += 2;
-      continue;
-    }
-    const isStartOfFrame =
-      marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc;
-    if (isStartOfFrame) {
-      return { height: head.readUInt16BE(offset + 5), width: head.readUInt16BE(offset + 7) };
-    }
-    const segmentLength = head.readUInt16BE(offset + 2);
-    if (segmentLength < 2) return undefined;
-    offset += 2 + segmentLength;
-  }
-  return undefined;
-}
-
-/** WebP: VP8X (extended) / VP8 (lossy) / VP8L (lossless) all expose the canvas size. */
-function webpDimensions(head: Buffer): ImageDimensions | undefined {
-  const chunk = head.toString("ascii", 12, 16);
-  if (chunk === "VP8X" && head.length >= 30) {
-    return {
-      width: 1 + (head[24] | (head[25] << 8) | (head[26] << 16)),
-      height: 1 + (head[27] | (head[28] << 8) | (head[29] << 16)),
-    };
-  }
-  if (chunk === "VP8 " && head.length >= 30) {
-    const width = head.readUInt16LE(26) & 0x3fff;
-    const height = head.readUInt16LE(28) & 0x3fff;
-    return width && height ? { width, height } : undefined;
-  }
-  if (chunk === "VP8L" && head.length >= 25) {
-    const bits = head.readUInt32LE(21);
-    return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
-  }
-  return undefined;
-}
-
-/** Dispatches on the container's magic bytes (never the file extension). */
-function dimensionsFromBytes(head: Buffer): ImageDimensions | undefined {
-  if (head.length >= 24 && head.readUInt32BE(0) === 0x89504e47) return pngDimensions(head);
-  if (head.length >= 3 && head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff) {
-    return jpegDimensions(head);
-  }
-  const gifHeader = head.length >= 6 ? head.toString("ascii", 0, 6) : "";
-  if (gifHeader === "GIF87a" || gifHeader === "GIF89a") return gifDimensions(head);
-  if (head.length >= 16 && head.toString("ascii", 0, 4) === "RIFF" && head.toString("ascii", 8, 12) === "WEBP") {
-    return webpDimensions(head);
-  }
-  const text = head.toString("utf8", 0, Math.min(head.length, 4096));
-  return /<svg[\s>]/i.test(text) ? svgDimensions(text) : undefined;
+/**
+ * DOES this namespace hold this basename? — the ONE ownership predicate, and the exact place Defect B was
+ * fixed.
+ *
+ * A namespace that carries a BUILD-TIME INVENTORY (the catalog this build published — see
+ * `./runtime-asset-catalog`) answers from immutable data: the key's presence IS existence, and nothing is
+ * read from disk. That is the live path, and it is why a page render no longer needs `public/**` to exist
+ * inside its server function.
+ *
+ * A namespace with NO inventory keeps the accepted FILESYSTEM rule — the compatibility mechanism the unit
+ * fixtures rely on when they point namespaces at temporary directories. Nothing about those semantics
+ * changed: a basename a namespace does not declare is still invisible, however many such files happen to
+ * exist on disk elsewhere.
+ */
+function namespaceHoldsAsset(namespace: RuntimeAssetNamespace, name: string): boolean {
+  const inventory = namespace.inventory;
+  if (inventory !== undefined) return Object.prototype.hasOwnProperty.call(inventory, name);
+  return existsSync(path.join(namespace.directory, name));
 }
 
 /**
@@ -265,7 +171,14 @@ export function createRuntimeAssetOwnershipResolver(
 ): RuntimeAssetOwnershipResolver {
   const snapshot: readonly RuntimeAssetNamespace[] = Object.freeze(
     namespaces.map((namespace) =>
-      Object.freeze({ directory: namespace.directory, urlBase: namespace.urlBase }),
+      Object.freeze({
+        directory: namespace.directory,
+        urlBase: namespace.urlBase,
+        // CARRIED THROUGH, never dropped: a context-bound resolver answers ownership and size from the
+        // build-time catalog this namespace arrived with, so freezing the snapshot cannot cost a context
+        // its knowledge of what the build installed.
+        inventory: namespace.inventory,
+      }),
     ),
   );
 
@@ -294,35 +207,51 @@ export function createRuntimeAssetOwnershipResolver(
   };
 
   /**
-   * The accepted header-read flow, resolved through THIS resolver's ownership and cached for THIS resolver:
+   * The accepted size answer, resolved through THIS resolver's ownership and cached for THIS resolver:
    * nothing is measured unless a supplied namespace holds the file, and a file that cannot be decoded is a
    * cached `undefined` rather than an exception.
+   *
+   * THE BUILD-TIME HALF (Defect B): a namespace that carries an inventory answers with the size the build
+   * measured from the source asset's own header — a data lookup, with no `statSync`/`openSync`/`readSync`,
+   * and a `null` (undecodable at build time) becomes the same `undefined` this method always returned.
+   * The filesystem read below survives ONLY for an inventory-less namespace, which is the compatibility
+   * case; the live request path never takes it.
    */
   const dimensionsFor = (name: string): ImageDimensions | undefined => {
     if (dimensionCache.has(name)) return dimensionCache.get(name);
     let dimensions: ImageDimensions | undefined;
-    const filePath = pathFor(name);
-    if (filePath !== undefined) {
-      try {
-        const fileSize = statSync(filePath).size;
-        const length = Math.min(fileSize, MAX_HEADER_BYTES);
-        if (length > 0) {
-          const descriptor = openSync(filePath, "r");
-          try {
-            const head = Buffer.alloc(length);
-            const read = readSync(descriptor, head, 0, length, 0);
-            dimensions = dimensionsFromBytes(head.subarray(0, read));
-          } finally {
-            closeSync(descriptor);
-          }
-        }
-      } catch {
-        dimensions = undefined;
-      }
+    const owner = ownerOf(name);
+    if (owner !== null) {
+      dimensions =
+        owner.inventory !== undefined
+          ? (owner.inventory[name] ?? undefined)
+          : readDimensionsFromFile(path.join(owner.directory, name));
     }
     dimensionCache.set(name, dimensions);
     return dimensions;
   };
+
+  /**
+   * The compatibility read: the accepted header flow for a namespace that carries NO build-time inventory.
+   * A file that cannot be read or decoded is `undefined` — never an exception.
+   */
+  function readDimensionsFromFile(filePath: string): ImageDimensions | undefined {
+    try {
+      const fileSize = statSync(filePath).size;
+      const length = Math.min(fileSize, MAX_HEADER_BYTES);
+      if (length <= 0) return undefined;
+      const descriptor = openSync(filePath, "r");
+      try {
+        const head = Buffer.alloc(length);
+        const read = readSync(descriptor, head, 0, length, 0);
+        return dimensionsFromBytes(head.subarray(0, read));
+      } finally {
+        closeSync(descriptor);
+      }
+    } catch {
+      return undefined;
+    }
+  }
 
   /**
    * The runtime URL a configured pathname resolves to — the ACCEPTED rule, projected over THIS resolver's

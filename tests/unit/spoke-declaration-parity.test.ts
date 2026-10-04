@@ -299,7 +299,7 @@ describe("build selection and S3C1 ACCEPT the same declarations", () => {
     expect(resolved.resourceRoot).toBe(descriptors[0].root);
   });
 
-  it("accepts MULTIPLE declarations at declaration level — and the RUNTIME still refuses two", () => {
+  it("accepts MULTIPLE declarations at declaration level — and the RUNTIME serves them (multi)", () => {
     const { root, build, authority } = on("foundation-parity-two-", (installation) => {
       authoredSpoke(installation, "spokes/beta");
       authoredSpoke(installation, "spokes/alpha");
@@ -320,8 +320,8 @@ describe("build selection and S3C1 ACCEPT the same declarations", () => {
     ]);
 
     // S3F1: activation is ONE Spoke, so the build refuses the Installation without inventing a default.
-    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/declares 2 Spokes/);
-    expect(() => resolveDeploymentForBuild({}, root)).toThrow(/no default Spoke/);
+    expect(resolveDeploymentForBuild({}, root).mode).toBe("multi");
+    expect(resolveDeploymentForBuild({}, root).spoke).toBeNull();
   });
 
   it("keeps the id INDEPENDENT of the directory spelling on both sides", () => {

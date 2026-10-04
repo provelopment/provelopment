@@ -132,7 +132,7 @@ describe("Foundation accent — every branded consumer DERIVES from it", () => {
 describe("Foundation accent — the visible heading consumes it", () => {
   // S1E3 — the starter homepage markup moved with the catch-all route: the home surface lives in
   // the route folder's dedicated pages, still rendered by the ONE page route.
-  const home = read("src", "app", "[...segments]", "dedicated-pages.tsx");
+  const home = read("src", "app", "[[...segments]]", "dedicated-pages.tsx");
 
   it("renders the configured Foundation name through the brand text token", () => {
     expect(home).toMatch(/text-primary[^>]*>\s*\{siteConfig\.name\}/);

@@ -84,3 +84,26 @@ export function normalizeHostname(host: string | null | undefined): Hostname | n
 
   return value === "" ? null : value;
 }
+
+/**
+ * THE HOSTNAME OF AN AUTHORED CANONICAL ORIGIN, or `null` when the origin yields none.
+ *
+ * This is the ONE place the `origin → hostname` step is spelled, and the accepted composition authority
+ * (`@/config/spoke-composition`'s `canonicalHostnameForSpoke`) consumes it too — so a Spoke's canonical
+ * hostname is derived identically at build time, at request time and in the runtime index, and the
+ * request boundary's routing table cannot disagree with the domain about which host a Spoke answers for.
+ *
+ * Pure: it parses an origin and normalizes the result. A value that is not an absolute origin, or whose
+ * host normalizes to nothing, answers `null` — the caller decides whether that is a loud failure (the
+ * composition authority makes it one) or simply "no claim".
+ */
+export function hostnameFromOrigin(origin: string): Hostname | null {
+  let host: string;
+  try {
+    host = new URL(origin).host;
+  } catch {
+    return null;
+  }
+
+  return normalizeHostname(host);
+}

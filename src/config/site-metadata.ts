@@ -6,7 +6,7 @@
  * deployment — the ordinary adopter — states them once. A site's locale ROOT
  * (`/<site>/<locale>`) is the one URL where no page-level summary speaks for the
  * site: the route deliberately uses the site's own description there, "whatever
- * answers the page itself" (`[...segments]/page.tsx`). Without a locale dimension,
+ * answers the page itself" (`[[...segments]]/page.tsx`). Without a locale dimension,
  * that meant a translated locale root advertised the deployment's default-language
  * sentence.
  *

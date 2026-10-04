@@ -216,7 +216,7 @@ describe("P12-FG — separation + reusability contract", () => {
 
   it("11. the background and banner systems remain independent of the footer graphic", () => {
     // Distinct config keys, distinct resolvers — no conflation.
-    const layout = readFileSync(path.join(root, "src", "app", "[...segments]", "server-composition.tsx"), "utf8");
+    const layout = readFileSync(path.join(root, "src", "app", "[[...segments]]", "server-composition.tsx"), "utf8");
     expect(layout).toContain("availableBackgroundMap(siteConfig.assets?.backgrounds)");
     expect(layout).toContain("availableBannerPath(");
     expect(layout).not.toContain("availableFooterGraphicPath(");

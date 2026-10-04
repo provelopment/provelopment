@@ -4,7 +4,7 @@
  *
  *     existing public Next route (page.tsx / layout.tsx)
  *                 │
- *                 ▼   currentBuildRuntimeContext()        ← the ONE compatibility selection, at the boundary
+ *                 ▼   requestPublicDestination()          ← the REQUEST-selected Spoke, at the boundary
  *         ONE explicit SpokeRuntimeContext
  *                 │
  *                 ▼   spokeServerComposition(context)      ← every context-derived fact, built ONCE
@@ -503,6 +503,7 @@ export async function pageForContext(
             locale={locale}
             siteId={site.code}
             directionLinkResolver={composition.directionLinks}
+            dictionary={composition.dictionaries.get(locale, site.code)}
           />
           <RegionStructuredData
             region={regionContext.region}

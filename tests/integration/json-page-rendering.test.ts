@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
-import PageRoute from "@/app/[...segments]/page";
+import PageRoute from "@/app/[[...segments]]/page";
 import { siteConfig } from "@/config";
 import { PAGE_SECTION_TYPES } from "@/core/page-document";
 

@@ -1,18 +1,24 @@
 import type { MetadataRoute } from "next";
 
-import { currentBuildRuntimeContext } from "@/config/installation-runtime";
+import { runtimeContextForRequest } from "@/config/spoke-request";
 
 import { sitemapForContext } from "./sitemap-context";
 
 /**
- * The deployment's XML sitemap — a thin Next BOUNDARY (M14)
- * =======================================================
+ * The deployment's XML sitemap — a thin Next BOUNDARY (M14), now PER HOST (M16)
+ * ============================================================================
  *
- * The inventory and the canonical origin belong to ONE explicit Spoke context; this file only selects the
- * current build's context (the accepted one-Spoke compatibility seam) and returns `sitemapForContext`. There
- * is no second inventory: `./sitemap-context` composes the entries from that context's own sites, bindings,
- * origin and authored page roots through the SAME page composition every page route resolves with.
+ * The inventory and the canonical origin belong to ONE explicit Spoke context, and WHICH context depends on
+ * the request's HOST: `alpha.example/sitemap.xml` is Alpha's origin and Alpha's inventory, `beta.example/…`
+ * is Beta's, and there is never a union of two Spokes. The boundary itself composes nothing — it selects the
+ * context the request resolves to (hostname dispatch, or the Installation's ONE Spoke) and returns
+ * `sitemapForContext`.
+ *
+ * A host NO Spoke answers publishes an EMPTY sitemap: refusing is the only honest answer, because the
+ * alternative would advertise another Spoke's URLs under a hostname that Spoke does not own.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  return sitemapForContext(currentBuildRuntimeContext());
+  const context = await runtimeContextForRequest();
+  if (context === null) return [];
+  return sitemapForContext(context);
 }

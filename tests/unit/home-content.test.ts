@@ -9,8 +9,8 @@ import path from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import PageRoute from "@/app/[...segments]/page";
-import { StarterHome } from "@/app/[...segments]/dedicated-pages";
+import PageRoute from "@/app/[[...segments]]/page";
+import { StarterHome } from "@/app/[[...segments]]/dedicated-pages";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createBookingActionResolver } from "@/adapters/booking";
 import { buildSitemapRoutes } from "@/application/route-discovery";
@@ -40,7 +40,7 @@ import { compatibilityChrome } from "../support/compatibility-chrome";
 const root = process.cwd();
 const read = (...segments: string[]) => readFileSync(path.join(root, ...segments), "utf8");
 
-const homeRouteSource = read("src", "app", "[...segments]", "server-composition.tsx");
+const homeRouteSource = read("src", "app", "[[...segments]]", "server-composition.tsx");
 const pageRouteSource = homeRouteSource;
 const sitemapSource = read("src", "app", "sitemap.ts");
 

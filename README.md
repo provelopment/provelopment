@@ -60,7 +60,7 @@ procedure, what establishment refuses, and how to prove the installation you jus
 ## Repository structure
 
 ```
-src/app         # Next.js App Router routes under src/app/[...segments], layouts, globals.css tokens
+src/app         # Next.js App Router routes under src/app/[[...segments]], layouts, globals.css tokens
 src/components  # Presentation components (site, shell, shared ui primitives)
 src/core        # Framework-independent domain concepts and the UI engine
 src/application # Use-case ports and services

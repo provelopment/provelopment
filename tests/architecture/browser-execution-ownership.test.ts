@@ -115,10 +115,20 @@ describe("deployment-owned scenarios are discovered, never enumerated", () => {
     expect(deploymentBrowserDirectory("/tmp/acme/")).toBe("/tmp/acme/tests/browser");
   });
 
-  it("keeps the generic family OUT of the discoverable tree — one harness, one owner each", () => {
-    // The Foundation's generic scenarios are defined inside the harness. If any of them were also a
-    // `*.scenario.mjs` file here, a `deployment`-scoped run would execute Foundation scenarios.
-    expect(deploymentScenarioFiles(readdirSync(path.join(ROOT, "tests", "browser")))).toEqual([]);
+  it("keeps each owner's scenarios in ITS OWN tree — one harness, one owner each (M16)", () => {
+    // The DEPLOYMENT family is discovered from the SELECTED DEPLOYMENT's own browser directory, so a
+    // Foundation-owned scenario in the harness's directory can never be executed by a `deployment`-scoped run:
+    // the two families are discovered from two different roots.
+    const harness = readFileSync(path.join(ROOT, "tests", "browser", "matrix.mjs"), "utf8");
+    expect(harness).toContain("deploymentBrowserDirectory(deployment.root)");
+    expect(harness).toContain("discoverFoundationScenarios");
+    // …and the Foundation family is discovered from the harness directory, never from a deployment's.
+    expect(harness).toContain("await readdir(HERE)");
+    // The Foundation-owned scenarios that exist are exactly the harness directory's own `*.scenario.mjs`
+    // files, and the deployment discovery never points at that directory.
+    const foundationOwned = deploymentScenarioFiles(readdirSync(path.join(ROOT, "tests", "browser")));
+    expect(foundationOwned.length).toBeGreaterThan(0);
+    expect(harness).not.toContain("deploymentScenarioFiles(readdirSync(HERE))");
   });
 });
 

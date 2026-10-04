@@ -53,8 +53,14 @@ describe("runtime asset ownership resolver guard", () => {
     expect(source).not.toContain("deploymentPaths");
     expect(source).not.toMatch(/readdirSync|globSync|readdir\(/);
     // No reference to the served output root at all (a path segment or a quoted literal), as opposed to the
-    // word appearing in prose about public API signatures.
-    expect(source).not.toMatch(/public[\\/]|["'`]public["'`]/);
+    // word appearing in prose about public API signatures — so comments are stripped first: since M16/M17 the
+    // module DOCUMENTS why a serverless function does not carry `public/**`, and documentation is not code.
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .split("\n")
+      .map((line) => line.replace(/\/\/.*$/, ""))
+      .join("\n");
+    expect(code).not.toMatch(/public[\\/]|["'`]public["'`]/);
   });
 
   it("projects every URL from the owning namespace's own urlBase, never a hardcoded prefix", () => {

@@ -12,7 +12,7 @@ import {
   pageMetadataForContext,
   spokeServerComposition,
   staticParamsForContext,
-} from "@/app/[...segments]/server-composition";
+} from "@/app/[[...segments]]/server-composition";
 import {
   installationRuntimeIndex,
   runtimeContextForSpoke,
