@@ -19,7 +19,7 @@ import { request as httpRequest } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import path from "node:path";
 
-import { materializeMultihostInstallation, runtimeNamespaceFiles, MULTIHOST_SPOKES } from "../support/multihost-installation.mjs";
+import { materializeMultihostInstallation, runtimeNamespaceFiles, MULTIHOST_INSPECTION, MULTIHOST_SPOKES } from "../support/multihost-installation.mjs";
 // The FOUNDATION's CDP client, reused (never re-implemented): the harness passes the browser BINARY, exactly
 // as it does to a deployment-owned scenario, and each scenario owns the client it opens and closes.
 import { Cdp } from "./cdp.mjs";
@@ -351,6 +351,86 @@ async function runHostnameProof(harness, rows, port, installation) {
   harness.check(rows, "even an unclaimed host's ROOT is refused (no default Spoke)", unknownRoot.status === 404, `status=${unknownRoot.status}`);
 }
 
+/**
+ * THE PLATFORM'S OWN INSPECTION URLS (M20 §32–§35, §44).
+ *
+ * The hosting platform publishes a unique deployment URL and a branch URL for the build it runs, and an
+ * operator uses exactly those to check that a deployment renders. This Installation NOMINATES `alpha` for
+ * them, so both must render alpha's own pages — while every other Vercel-shaped hostname stays refused
+ * (recognition is exact equality against what the platform reported, never a `*.vercel.app` suffix rule).
+ *
+ * The metadata assertion is the other half of the policy: the inspection hostname is a VIEWING surface, so
+ * the rendered document must stay canonical to alpha's OWN authored origin and must never use the
+ * inspection hostname as an origin.
+ */
+async function runInspectionProof(harness, rows, port, installation) {
+  const [alpha, beta] = installation.spokes;
+  const alphaFacts = factsFor(alpha, MULTIHOST_SPOKES[0]);
+  const betaFacts = factsFor(beta, MULTIHOST_SPOKES[1]);
+  const navigationWording = MULTIHOST_SPOKES[0].navigationLabels["/about"];
+  const get = (host, pathname) => requestWithHost(port, host, pathname);
+
+  const surfaces = [
+    ["the unique deployment URL", installation.inspection.hostname],
+    ["the branch URL", installation.inspection.branchHostname],
+  ];
+
+  for (const [label, host] of surfaces) {
+    const root = await get(host, "/");
+    const about = await get(host, "/ww/en/about");
+    const again = await get(host, "/ww/en/about");
+
+    harness.check(
+      rows,
+      `${label}: the root completes into the nominated Spoke's own locale`,
+      root.status === 307 && /\/ww\/(?:en|de)$/.test((root.headers.location ?? "").trim()),
+      `status=${root.status} location=${root.headers.location ?? "(none)"}`,
+    );
+    harness.check(
+      rows,
+      `${label}: /ww/en/about is served by the nominated Spoke`,
+      about.status === 200 && about.body.includes(alphaFacts.name) && about.body.includes(alphaFacts.content),
+      `status=${about.status}`,
+    );
+    harness.check(
+      rows,
+      `${label}: the other Spoke is never exposed`,
+      !about.body.includes(betaFacts.name) && !about.body.includes(betaFacts.content),
+      "",
+    );
+    harness.check(
+      rows,
+      `${label}: metadata stays canonical to the Spoke's OWN origin`,
+      about.body.includes(alphaFacts.origin) && !anyUrlContains(about.body, host),
+      `host=${host}`,
+    );
+    harness.check(
+      rows,
+      `${label}: no internal prefix leaks into any URL`,
+      !anyUrlContains(about.body, "~spoke"),
+      "",
+    );
+    harness.check(
+      rows,
+      `${label}: V/A/V — the same request twice is the same page`,
+      fingerprint(about.body) === fingerprint(again.body),
+      "",
+    );
+  }
+
+  const refused = [
+    "some-other-project.vercel.app",
+    "unrelated-team.vercel.app",
+    `${installation.inspection.branchHostname}.evil.test`,
+    "unknown.example.com",
+  ];
+  for (const host of refused) {
+    const answer = await get(host, "/ww/en/about");
+    harness.check(rows, `an unrecognised host is still refused: ${host}`, answer.status === 404, `status=${answer.status}`);
+  }
+}
+
+
 
 /** Waits until the dev server answers ANYTHING (a dev server compiles on the first request). */
 async function waitForAnyResponse(port, timeoutMs = 240000) {
@@ -366,9 +446,18 @@ async function waitForAnyResponse(port, timeoutMs = 240000) {
   return false;
 }
 
-/** Starts the dev server for THIS Installation, trying the next port when one is already taken. */
+/**
+ * Starts the dev server for THIS Installation, trying the next port when one is already taken.
+ *
+ * The hosting platform's OWN identity for the build is exported first (M20 §23): `VERCEL_URL` and
+ * `VERCEL_BRANCH_URL` are exactly what a Vercel build is given, and the dev server INHERITS this process's
+ * environment — so the proof exercises the production mechanism rather than a test-only switch.
+ */
 async function startServer(harness, installation) {
   let last = null;
+  const platformIdentity = { ...MULTIHOST_INSPECTION };
+  process.env["VERCEL_URL"] = platformIdentity.hostname;
+  process.env["VERCEL_BRANCH_URL"] = platformIdentity.branchHostname;
   for (const offset of PORT_OFFSETS) {
     const port = harness.basePort + offset;
     const server = harness.startDevServer(port, { deploymentRoot: installation.root });
@@ -505,6 +594,7 @@ export async function run(chrome, harness) {
     await runHostProof(harness, rows, started.port, installation);
     await runSurfaceProof(harness, rows, started.port, installation);
     await runHostnameProof(harness, rows, started.port, installation);
+    await runInspectionProof(harness, rows, started.port, installation);
     await runBrowserProof(harness, rows, chrome, started.port, installation);
   } catch (error) {
     harness.check(
@@ -521,6 +611,10 @@ export async function run(chrome, harness) {
     }
     removeNamespaces(harness, installation);
     installation.cleanup();
+    // The platform identity was exported for this scenario's build alone; the harness's own environment is
+    // left exactly as it was found.
+    delete process.env["VERCEL_URL"];
+    delete process.env["VERCEL_BRANCH_URL"];
   }
 
   return rows;

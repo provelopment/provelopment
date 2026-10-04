@@ -62,11 +62,21 @@ export const SPOKE_ROOTS_DIRECTORY_NAME = "spokes";
 export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
 
 /**
- * THE MANIFEST'S STRUCTURAL CONTRACT — STRICT, and exactly the two leaves a declaration may author.
+ * THE MANIFEST'S STRUCTURAL CONTRACT — STRICT, and exactly the leaves a declaration may author.
+ *
+ * TWO kinds of leaf, and no others:
+ *
+ *   `spokes`           the declared Spoke roots, each an `id` and a `root` locator;
+ *   `inspectionSpoke`  OPTIONAL: the ONE Spoke that represents this Installation when it is
+ *                      reached through an accepted hosting-platform INSPECTION hostname
+ *                      (a Vercel deployment/branch URL). It is an EXPLICIT policy, never a
+ *                      first-declared or manifest-order fallback — which is why it is stated
+ *                      here, beside the declaration, instead of being derived from it.
  *
  * Identity semantics (non-blank, the reserved id, uniqueness) are NOT restated here — they belong to the
  * pure domain (`../core/spoke/spoke-id.mjs`), so configuration and the domain cannot drift apart. This
- * validator does STRUCTURAL typing only, exactly as the zod schema it replaces did.
+ * validator does STRUCTURAL typing only, exactly as the zod schema it replaces did; that the policy NAMES
+ * a declared Spoke is a semantic check the resolver makes, where the declared set is known.
  *
  * WHY IT IS HAND-ROLLED, NOT ZOD: this seam is loaded by the platform's own Node tooling, and a
  * RELEASE must run that tooling in an installation with NO third-party packages at all
@@ -76,7 +86,7 @@ export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
  * package. The `{ success, data, error: { issues } }` surface is the minimal one its callers use (this
  * module's own resolver and the S3C1 acceptance suite), with `issues` shaped like a zod issue list.
  *
- * @type {{ safeParse: (raw: unknown) => { success: true, data: { spokes: { id: string, root: string }[] } } |
+ * @type {{ safeParse: (raw: unknown) => { success: true, data: { spokes: { id: string, root: string }[], inspectionSpoke: string | null } } |
  *   { success: false, error: { issues: { path: (string|number)[], message: string }[] } } }}
  */
 export const installationSpokeCollectionSchema = {
@@ -96,10 +106,21 @@ export const installationSpokeCollectionSchema = {
       };
     }
 
-    unrecognized(raw, ["spokes"], []);
+    unrecognized(raw, ["spokes", "inspectionSpoke"], []);
     if (!Array.isArray(raw.spokes)) {
       issues.push({ path: ["spokes"], message: "Invalid input: expected array" });
       return { success: false, error: { issues } };
+    }
+
+    // OPTIONAL, and structural only: `null` states "this Installation declares no inspection policy".
+    /** @type {string | null} */
+    let inspectionSpoke = null;
+    if (raw.inspectionSpoke !== undefined && raw.inspectionSpoke !== null) {
+      if (typeof raw.inspectionSpoke !== "string") {
+        issues.push({ path: ["inspectionSpoke"], message: "Invalid input: expected string" });
+      } else {
+        inspectionSpoke = raw.inspectionSpoke;
+      }
     }
 
     /** @type {{ id: string, root: string }[]} */
@@ -120,7 +141,7 @@ export const installationSpokeCollectionSchema = {
 
     return issues.length > 0
       ? { success: false, error: { issues } }
-      : { success: true, data: { spokes: declared } };
+      : { success: true, data: { spokes: declared, inspectionSpoke } };
   },
 };
 
@@ -178,7 +199,7 @@ function isInside(root, target) {
  *
  * @param {string} installationRoot the Installation root to describe
  * @returns {{ mode: "legacy"|"explicit", installationRoot: string, manifestFile: string|null,
- *   declarations: { id: string, locator: string|null, root: string }[] }}
+ *   inspectionSpoke: string|null, declarations: { id: string, locator: string|null, root: string }[] }}
  */
 export function resolveSpokeDeclarations(installationRoot) {
   const root = path.resolve(installationRoot);
@@ -218,6 +239,8 @@ export function resolveSpokeDeclarations(installationRoot) {
       mode: "legacy",
       installationRoot: root,
       manifestFile: null,
+      // A legacy implicit Spoke has no manifest to declare a policy in, and one Spoke answers every host.
+      inspectionSpoke: null,
       declarations: [{ id: IMPLICIT_SPOKE_ID, locator: null, root }],
     };
   }
@@ -327,5 +350,26 @@ function resolveExplicitSpokeDeclarations(root, manifestFile) {
 
   if (issues.length > 0) throw invalid(issues);
 
-  return { mode: "explicit", installationRoot: root, manifestFile, declarations: declared };
+  const declaredIds = declared.map((entry) => entry.id);
+  const inspectionSpoke = parsed.data.inspectionSpoke;
+
+  // §29/§30 — THE POLICY NAMES A DECLARED SPOKE, or the Installation is refused HERE (a configuration
+  // error at build time) rather than falling back to "the first Spoke" at request time. An absent policy
+  // stays absent: no Spoke is ever chosen implicitly.
+  if (inspectionSpoke !== null && !declaredIds.includes(inspectionSpoke)) {
+    throw invalid([
+      `inspectionSpoke: "${inspectionSpoke}" is not one of the declared Spokes ` +
+        `(${declaredIds.map((id) => `"${id}"`).join(", ")}). The Spoke that represents this ` +
+        "Installation on an accepted hosting-platform inspection hostname must be declared here, " +
+        "by identity — there is no default.",
+    ]);
+  }
+
+  return {
+    mode: "explicit",
+    installationRoot: root,
+    manifestFile,
+    inspectionSpoke,
+    declarations: declared,
+  };
 }

@@ -42,3 +42,16 @@ public/assets/** -text
 # configuration, so it is stored and checked out verbatim, for the same reason
 # the distributed manuals and the artwork are. Do not reflow it.
 LICENSE -text
+
+# The Foundation Spoke's English About page IS the owner's CANONICAL document
+# (`01.web/sites/provelopment/config/pages-markdown/en/about.md`), installed
+# byte-for-byte (FOUNDATION-MULTISITE-M20 Part A §1/§14/§15): no rewriting, no
+# reformatting and NO line-ending normalisation. It is stored and checked out
+# verbatim for the same reason the distributed manuals, the artwork and the licence
+# are — its SHA-256 is the identity proof
+# (`deployment/tests/unit/m20-authoring-finalization.test.ts`) — and its own CRLF
+# line endings are part of the bytes the owner delivered.
+# `git diff --check` is told so here rather than being allowed to rewrite the file:
+# this path's CR is a LINE TERMINATOR, not trailing whitespace, and git must not
+# reflow the bytes it is comparing.
+deployment/spokes/foundation/content/pages/markdown/ww/en/about.md -text whitespace=cr-at-eol

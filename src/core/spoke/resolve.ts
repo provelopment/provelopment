@@ -32,10 +32,31 @@ import type { Spoke, SpokeHub, SpokeId } from "./model";
 /**
  * How a Spoke was selected.
  *
- * Exactly one reason exists in this slice. A development/preview reason is deliberately absent until a
- * later slice decides that policy; adding it then WIDENS this union rather than changing a caller.
+ * TWO reasons, in this order, and the order is the policy:
+ *
+ *   `registered-hostname`  the host is one a Spoke claims EXPLICITLY (its authored canonical origin or an
+ *                          alias). This always wins, so an inspection policy can never override a real
+ *                          authored hostname;
+ *   `inspection-hostname`  the host is one the HOSTING PLATFORM reported for this deployment, and the
+ *                          Installation explicitly nominated a Spoke to represent it there.
+ *
+ * A development/preview reason is still deliberately absent: a preview host resolves to nothing UNLESS
+ * the platform itself reported it, because "any host we do not know" is not a policy.
  */
-export type SpokeSelectionReason = "registered-hostname";
+export type SpokeSelectionReason = "registered-hostname" | "inspection-hostname";
+
+/**
+ * The EXPLICIT inspection policy of ONE Installation (M20 §29): which Spoke represents it when reached
+ * through a hosting platform's own inspection hostname, and which hostnames those are.
+ *
+ * Both halves are supplied by the caller — the Spoke id from the Installation's declared collection, the
+ * hostnames from the platform's own build/runtime identity — because this module is PURE: it never reads
+ * the environment, a file or a project setting, and it never guesses which host is "ours".
+ */
+export interface SpokeInspectionPolicy {
+  readonly spokeId: SpokeId;
+  readonly hostnames: readonly Hostname[];
+}
 
 /** WHICH Spoke answers a request host, and the normalized hostname the decision was made from. */
 export interface SpokeSelection {
@@ -50,10 +71,17 @@ export interface SpokeSelection {
  * Total and pure: it never throws and never guesses. The first Spoke with a matching claim wins, and
  * `./coherence` is what guarantees a second can never exist — a hostname claimed by two Spokes is a
  * REPORTED defect, not a race settled here.
+ *
+ * `inspection` is the Installation's explicit policy, or `null`/absent when it declares none. When it is
+ * present, a hostname that NO Spoke claims is answered by the nominated Spoke ONLY if the platform itself
+ * reported that hostname for this deployment — never by a suffix rule, a wildcard, or a "development"
+ * catch-all. A policy naming a Spoke the hub does not contain answers nothing, so a caller cannot conjure
+ * a Spoke by asking for it.
  */
 export function resolveSpokeFromHost(
   spokeHub: SpokeHub,
   host: string | null | undefined,
+  inspection?: SpokeInspectionPolicy | null,
 ): SpokeSelection | null {
   const hostname = normalizeHostname(host);
   if (hostname === null) return null;
@@ -62,6 +90,15 @@ export function resolveSpokeFromHost(
     if (spoke.identity.hostnameClaims.includes(hostname)) {
       return { spokeId: spoke.identity.id, hostname, reason: "registered-hostname" };
     }
+  }
+
+  if (
+    inspection !== null &&
+    inspection !== undefined &&
+    inspection.hostnames.includes(hostname) &&
+    spokeHub.spokes.some((spoke) => spoke.identity.id === inspection.spokeId)
+  ) {
+    return { spokeId: inspection.spokeId, hostname, reason: "inspection-hostname" };
   }
 
   return null;

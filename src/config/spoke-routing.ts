@@ -21,9 +21,11 @@
  */
 import {
   hostnameFromOrigin,
+  normalizeHostname,
   resolveSpokeFromHost,
   type Hostname,
   type SpokeHub,
+  type SpokeInspectionPolicy,
   type SpokeSelection,
 } from "@/core/spoke";
 
@@ -52,6 +54,13 @@ export interface SpokeHostRoutingEntry {
 export interface InstallationHostRouting {
   readonly mode: HostRoutingMode;
   readonly spokes: readonly SpokeHostRoutingEntry[];
+  /**
+   * The Installation's EXPLICIT inspection policy (M20 §29), or `null` when it declares none.
+   *
+   * Its hostnames are the hosting platform's own, normalized through the ONE pure step — never a suffix
+   * rule and never a wildcard — and its Spoke id is the one the collection names.
+   */
+  readonly inspection: SpokeInspectionPolicy | null;
 }
 
 /** One entry's claims: `origin → hostname`, through the ONE pure step; an unusable origin claims nothing. */
@@ -65,6 +74,54 @@ function claimsFor(origin: string, where: string): readonly Hostname[] {
     );
   }
   return [hostname];
+}
+
+/**
+ * The build's published inspection block, normalized into the pure policy — or `null` when none.
+ *
+ * The hostnames arrive VERBATIM from the build (the hosting platform's own values for the deployment
+ * being built), and this is the ONE place they become hostnames: the pure `normalizeHostname` step. A
+ * value the provider reported that is not a usable hostname is a build defect, so it is REFUSED rather
+ * than silently dropped — a policy that quietly recognises nothing would look identical to one that
+ * works, and an operator would be told nothing.
+ */
+function inspectionOf(raw: unknown): SpokeInspectionPolicy | null {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M20: the build's inspection policy is malformed — it needs a Spoke id and " +
+        "the hostnames the hosting platform reported.",
+    );
+  }
+
+  const entry = raw as { spokeId?: unknown; hostnames?: unknown };
+  if (typeof entry.spokeId !== "string" || entry.spokeId.trim() === "") {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M20: the build's inspection policy names no Spoke, so it could never " +
+        "select one.",
+    );
+  }
+
+  const rawHostnames = Array.isArray(entry.hostnames) ? entry.hostnames : [];
+  const hostnames: Hostname[] = [];
+  for (const value of rawHostnames) {
+    if (typeof value !== "string") {
+      throw new Error(
+        "FOUNDATION-MULTISITE-M20: the build's inspection policy carries a hostname that is not text.",
+      );
+    }
+    const hostname = normalizeHostname(value);
+    if (hostname === null) {
+      throw new Error(
+        `FOUNDATION-MULTISITE-M20: the hosting platform reported "${value}" as an inspection hostname ` +
+          "for this deployment, and it is not a usable hostname. Recognition is exact, so an unusable " +
+          "value must be reported rather than ignored.",
+      );
+    }
+    if (!hostnames.includes(hostname)) hostnames.push(hostname);
+  }
+
+  return Object.freeze({ spokeId: entry.spokeId, hostnames: Object.freeze(hostnames) });
 }
 
 let cached: InstallationHostRouting | null = null;
@@ -81,11 +138,11 @@ export function hostRoutingForBuild(): InstallationHostRouting {
 
   const raw = process.env[DEPLOYMENT_HOST_ROUTING_ENV]?.trim() ?? "";
   if (raw === "") {
-    cached = Object.freeze({ mode: "single" as const, spokes: Object.freeze([]) });
+    cached = Object.freeze({ mode: "single" as const, spokes: Object.freeze([]), inspection: null });
     return cached;
   }
 
-  let parsed: { mode?: unknown; spokes?: unknown };
+  let parsed: { mode?: unknown; spokes?: unknown; inspection?: unknown };
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
@@ -118,7 +175,7 @@ export function hostRoutingForBuild(): InstallationHostRouting {
     });
   });
 
-  cached = Object.freeze({ mode, spokes: Object.freeze(spokes) });
+  cached = Object.freeze({ mode, spokes: Object.freeze(spokes), inspection: inspectionOf(parsed.inspection) });
 
   // MULTI — hostname dispatch: a Spoke that claims NO host can never be selected, so an Installation that
   // declares several Spokes must have an authored canonical origin for every one of them. Refusing HERE (with
@@ -154,6 +211,10 @@ export function routingEntryFor(
  * reached through `resolveSpokeFromHost` over a Hub-shaped projection of THIS description, so the request
  * boundary and the configuration layer cannot disagree about what "this Spoke claims this host" means.
  * There is no wildcard, no suffix rule, no implicit subdomain and no default Spoke.
+ *
+ * The build's OWN inspection policy is passed straight through (M20 §26): an authored claim is tested
+ * first, so it always wins, and a hostname recognised only as an inspection hostname resolves to the Spoke
+ * the Installation explicitly nominated. A build with no policy behaves exactly as before.
  */
 export function spokeSelectionForHost(
   routing: InstallationHostRouting,
@@ -170,5 +231,5 @@ export function spokeSelectionForHost(
     })),
   };
 
-  return resolveSpokeFromHost(hub, host);
+  return resolveSpokeFromHost(hub, host, routing.inspection);
 }
