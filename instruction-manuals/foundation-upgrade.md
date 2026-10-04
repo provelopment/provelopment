@@ -1,9 +1,9 @@
 # Foundation Upgrade — absorbing a newer Foundation release
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-09-30.1`
-> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language
-> **Procedure validation:** exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists, and this revision claims validation against no release tag.
+> **Manual revision:** `2026-10-04.1`
+> **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language. It also states the lifecycle contract: **Update** = authored pages and/or assets change while the Foundation release does not; **Upgrade** = a different immutable Foundation release is adopted, Installation-wide; one Installation therefore runs one Foundation release
+> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists. **No procedure-validation run was performed for revision `2026-10-04.1`**: it aligns this manual set's Update/Upgrade lifecycle terminology with the accepted Foundation model and executed no procedure. No release tag is claimed.
 > **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
@@ -26,6 +26,42 @@ accidentally overwritten.
 
 > **Foundation platform files may change; adopter-specific business content, branding,
 > configuration and assets must never be accidentally overwritten.**
+
+## Update and Upgrade — two different operations
+
+The Foundation **Installation** is the lifecycle boundary: it owns **one** immutable Foundation
+release, and that release is what an Upgrade adopts.
+
+```text
+UPDATE                                   UPGRADE
+same Foundation release                  different Foundation release
+authored pages and/or assets change      the entire Installation adopts it
+an ordinary authoring or asset task      a deliberate, reviewed operator decision
+no release identity change               the release identity changes
+```
+
+- **Update** — change the pages and/or assets **you** author (see `content-management.md`). The
+  Foundation release does not move: no platform file changes, and nothing about the Installation's
+  release changes. Editing a page is an Update, and it is never an Upgrade.
+- **Upgrade** — adopt a **different** immutable Foundation release. A **multi-Spoke Installation
+  upgrades as one lifecycle unit**: every Spoke in it serves the same release, so they upgrade
+  together, and there is no per-Spoke release to move on its own.
+- **Rollback** — returning that Installation to its previous known-good revision. Like the in-place
+  upgrade path, **no rollback command ships in this release**; see the table below before promising
+  one.
+
+```text
+one Foundation Installation  →  one Foundation release  →  one upgrade/rollback boundary
+separate Installations       →  independent upgrade schedules, independent blast radius
+```
+
+**Separate Installations are separate boundaries.** Two Installations may run different releases
+and may stay on different releases indefinitely, each upgrading on its own schedule.
+
+The Foundation ships **no** fleet manager, batch upgrade executor, upgrade-wave manager or
+automatic Spoke-migration service. Those are operational strategies an operator or a management
+plane may build *around* the Installation boundary; they are never Foundation commands, and no
+manual in this set may present them as one.
 
 ## What the Foundation implements today — and what it does not
 
