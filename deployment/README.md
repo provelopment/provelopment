@@ -12,11 +12,12 @@ each other.
 
 | Path | What it is |
 | --- | --- |
-| `spokes.json` | The Installation's Spoke collection: `[{ "id": "foundation", "root": "spokes/foundation" }]`. Its presence makes this an EXPLICIT Installation — the form where the website material lives in the declared Spoke beneath `spokes/`, and the installation root keeps only the lifecycle records below. |
-| `spokes/foundation/` | **The one Spoke this Installation declares** — and therefore the website itself. It carries: |
-| ↳ `spokes/foundation/site.config.json` | This deployment's configuration: its sites, languages, locations, contact details, social links, navigation and feature flags. |
-| ↳ `spokes/foundation/config/i18n/` | This deployment's user-visible interface strings, one file per locale. |
-| ↳ `spokes/foundation/content/` | This deployment's authored content: its pages — Markdown, or the declarative JSON mode — and the artwork sources in `content/assets/`. `content/README.md` is the map of what to edit. |
+| `spokes.json` | The Installation's Spoke collection. It declares the two Spokes this Installation serves: `[{ "id": "foundation", "root": "spokes/foundation" }, { "id": "germany", "root": "spokes/germany" }]`. Its presence makes this an EXPLICIT Installation — the form where the website material lives in the declared Spokes beneath `spokes/`, and the installation root keeps only the lifecycle records below. |
+| `spokes/foundation/` | **The FOUNDATION Spoke, and the Installation's default Spoke.** It carries: |
+| ↳ `spokes/foundation/site.config.json` | The Foundation Spoke's configuration: its one Site (`ww`), its languages, contact details, social links, navigation and feature flags. |
+| ↳ `spokes/foundation/config/i18n/` | The Foundation Spoke's user-visible interface strings, one file per locale. |
+| ↳ `spokes/foundation/content/` | The Foundation Spoke's authored content: its pages — Markdown, or the declarative JSON mode — and the artwork sources in `content/assets/`. `content/README.md` is the map of what to edit. |
+| `spokes/germany/` | **The GERMANY Spoke**, served at its OWN public hostname. It owns exactly ONE Site, `de`, with the two demonstration locations Berlin and Frankfurt, and it carries its own `site.config.json`, its own `config/i18n/` dictionaries and its own `content/` tree, in exactly the same shape as the Foundation Spoke above. |
 | `tests/unit/` | This deployment's durable unit-level acceptance: its real configuration, dictionaries, routes, copy and structured data. |
 | `tests/integration/` | This deployment's durable integration acceptance: its authored pages served through the real application. |
 | `tests/browser/` | This deployment's browser acceptance scenario, run by the Foundation's browser harness. |
@@ -29,6 +30,29 @@ sources live here and nowhere else — there is no second copy at the repository
 change needs no edit outside this directory. The artwork's runtime mirror (`public/assets/**`) is
 generated build output rather than deployment source: `pnpm assets:sync` writes it and
 `pnpm assets:check` proves it is byte-identical to the sources above.
+
+## The topology this Installation serves
+
+```text
+Foundation Installation
+├── Spoke Hub                     ← the one request boundary: the public Host header is its only input
+│   ├── foundation Spoke          → https://foundation-template.provelopment.com   (default Spoke)
+│   │   └── Site ww               (Global)
+│   └── germany Spoke             → https://foundation-template-germany.provelopment.com
+│       └── Site de               (Germany, with the Locations Berlin and Frankfurt)
+```
+
+Each Spoke is a complete, isolated website: its own configuration, dictionaries, content tree, page
+tree, sitemap, `robots.txt`, OpenGraph images and asset namespaces. A Spoke owns exactly one Site here,
+so neither Spoke offers a Site control: the public `Host` decides which Spoke answers, and the Site is
+therefore a property of the hostname rather than a visitor choice.
+
+**Language is not ownership.** `/ww/de` is the *German-language* representation of the Global Site
+`ww`, owned by the **Foundation** Spoke — ordinary German pages authored inside that Spoke. `/de/de` is
+the German-language representation of Site `de`, owned by the **Germany** Spoke, and it is the only
+Spoke that binds the Berlin and Frankfurt locations. Nothing on either host serves the other Spoke's
+content: a Site-shaped coordinate addressed to the wrong Spoke is never answered with the other Spoke's
+pages, never redirects to the other hostname, and is ultimately refused.
 
 ## How to work on this deployment
 

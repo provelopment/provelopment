@@ -1904,3 +1904,35 @@ COMPLETE, verified, ACTIVATED installation — `live` names the exact candidate 
 Foundation state — and leaves health unevaluated (`offline`, `healthEvaluatedAt: null`), because no health
 check ran. Promotion is not health, and only `recordInstallationHealth` — a real evaluation of the live
 installation — can make it `online`.
+
+## Deployment topology — one Installation, many Spokes (FOUNDATION-MULTISITE-M18)
+
+One Installation is ONE repository with ONE request boundary, and it may declare MORE THAN ONE **Spoke**.
+A Spoke is a complete website: its own `site.config.json`, its own `config/i18n/` dictionaries, its own
+`content/` tree (pages and artwork sources), its own page tree and its own Site collection. The
+declaration lives in `deployment/spokes.json`, and each entry gives the Spoke an id and a root beneath the
+installation root.
+
+| Spoke | Public origin (its own `site.url`) | Site | Owns |
+| --- | --- | --- | --- |
+| `foundation` (default) | https://foundation-template.provelopment.com | `ww` (Global) | the Global page tree, in English and German |
+| `germany` | https://foundation-template-germany.provelopment.com | `de` (Germany) | the Germany page tree and the Locations Berlin and Frankfurt |
+
+The request boundary is hostname-dispatched: the public `Host` header is the ONLY input, it selects at
+most ONE Spoke by its exact canonical claim, and the selection travels as a private, unspoofable request
+context rather than through the URL. Everything a visitor sees — chrome, navigation, dictionaries, pages,
+sitemap, `robots.txt`, OpenGraph images and asset namespaces — is answered from THAT Spoke, and from no
+other. This repository declares exactly two Spokes, and `deployment/README.md` documents the capsule that
+holds them.
+
+**Language is not ownership.** `/ww/de` is the German-language representation of the Global Site `ww`
+and belongs to the Foundation Spoke; `/de/de` is the German-language representation of Site `de` and
+belongs to the Germany Spoke, which is the only Spoke that binds the Berlin and Frankfurt locations.
+Because each Spoke declares exactly ONE Site, neither offers a Site control and no cross-Spoke control
+exists: ownership is a property of the hostname, not a visitor choice.
+
+**Foreign coordinates fail closed.** A Site-shaped path addressed to the wrong Spoke is never served with
+the other Spoke language and never redirects to the other hostname. The accepted completion rules may
+still normalise a first segment that names one of the ANSWERING Spoke own LOCALES (so a Foundation-host
+request for `/de/about` completes to `/ww/de/about`), and the result stays inside that Spoke and is
+ultimately refused. Ownership, not the first status code, is the contract.
