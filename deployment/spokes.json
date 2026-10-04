@@ -3,6 +3,10 @@
     {
       "id": "foundation",
       "root": "spokes/foundation"
+    },
+    {
+      "id": "germany",
+      "root": "spokes/germany"
     }
   ]
 }

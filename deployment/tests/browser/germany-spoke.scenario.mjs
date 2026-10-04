@@ -1,0 +1,399 @@
+// deployment/tests/browser/germany-spoke.scenario.mjs
+// THE REAL TWO-SPOKE DEPLOYMENT, DRIVEN BY ITS REAL HOSTNAMES (FOUNDATION-MULTISITE-M18).
+//
+// This scenario belongs to THIS deployment, so it lives in the deployment's own capsule
+// (`deployment/tests/browser/**`, ISO-B2A) and is discovered by the Foundation's ONE browser harness. It
+// starts its OWN dev server WITHOUT the synthetic override, because its subject is the real deployment:
+// the Installation that declares `foundation` + `germany`, served from the capsule.
+//
+// THE REAL HOSTNAMES, LOCALLY
+// --------------------------
+// The two public coordinates are driven EXACTLY as production spells them:
+//
+//   Host: foundation-template.provelopment.com
+//   Host: foundation-template-germany.provelopment.com
+//
+// Server-side proofs send that `Host` header explicitly (the boundary's whole input, exactly as
+// `tests/browser/multihost.scenario.mjs` does). Browser proofs need Chrome itself to reach the local
+// server by that name, so the scenario asks the harness's CDP client for the SMALLEST test-only mapping —
+// `--host-resolver-rules` — and nothing else. No runtime hostname semantic is changed: the boundary still
+// matches the exact claim, and the mapping exists only inside this scenario's Chrome process.
+//
+// OWNERSHIP. It writes nothing: it reads the shipped deployment, its generated namespaces and the
+// responses. A missing generated namespace is reported as a FAILED CHECK with the command that installs
+// it, never silently created (the deployment harness owns no writers).
+import { Cdp } from "../../../tests/browser/cdp.mjs";
+// The two real hostnames, the explicit-`Host` request helper and the readiness poll are SHARED, because
+// more than one deployment scenario must address the same two coordinates: `../support/host-requests.mjs`.
+import {
+  FOUNDATION_HOST,
+  FOUNDATION_ORIGIN,
+  GERMANY_HOST,
+  GERMANY_ORIGIN,
+  HOST_RESOLVER_RULES,
+  requestWithHost,
+  waitForHostReady,
+} from "../support/host-requests.mjs";
+
+/** The scenario's id, used as the report's `presentation` label. */
+export const id = "germany-spoke";
+
+/** The ports this scenario tries, so a busy port is a retry rather than a failure. */
+const PORT_OFFSETS = [31, 32, 33];
+
+/**
+ * Starts the REAL deployment's dev server on a free port and waits until the request boundary answers a
+ * CLAIMED host — the only readiness signal a multi-Spoke Installation can give, because an unclaimed host
+ * is answered with nothing at all.
+ */
+async function startServer(harness) {
+  const last = PORT_OFFSETS.length - 1;
+  for (const [index, offset] of PORT_OFFSETS.entries()) {
+    const port = harness.basePort + offset;
+    const server = harness.startDevServer(port, { synthetic: false });
+    try {
+      await waitForHostReady(port, FOUNDATION_HOST, "/ww/en", server);
+      return { port, server };
+    } catch (error) {
+      await harness.stopServer(server);
+      if (index === last) throw error;
+    }
+  }
+  throw new Error("no free port answered for the real deployment");
+}
+
+/**
+ * THE FOUNDATION HOST'S PUBLIC CONTRACT, AT THE REAL HOSTNAME (§20).
+ *
+ * Every request carries `Host: foundation-template.provelopment.com`, and every assertion reads the
+ * RENDERED document (or the served file) — never an internal API. The refusals are as important as the
+ * successes: a Germany coordinate on this host must fail closed, and no Germany content may appear.
+ */
+async function runFoundationContract(harness, rows, port) {
+  const get = (pathname) => requestWithHost(port, FOUNDATION_HOST, pathname);
+  const root = await get("/");
+
+  harness.check(
+    rows,
+    "Foundation `/` completes INSIDE this Spoke (307 → /ww/<locale>)",
+    (root.status === 307 || root.status === 308) &&
+      /^\/ww\/[a-z]{2}$/.test(new URL(root.location, FOUNDATION_ORIGIN).pathname),
+    `status=${root.status} location=${root.location || "(none)"}`,
+  );
+  harness.check(
+    rows,
+    "Foundation `/` never redirects to the GERMANY Spoke",
+    !root.location.includes(GERMANY_HOST) && !root.location.startsWith("/de/"),
+    root.location || "(none)",
+  );
+
+  for (const pathname of ["/ww/en", "/ww/en/about", "/ww/de", "/ww/de/about"]) {
+    const response = await get(pathname);
+    harness.check(
+      rows,
+      `Foundation ${pathname} is served (200)`,
+      response.status === 200,
+      `status=${response.status}`,
+    );
+  }
+
+  const englishAbout = await get("/ww/en/about");
+  harness.check(
+    rows,
+    "Foundation serves its OWN About page, not Germany's",
+    englishAbout.body.includes("About this Foundation website") &&
+      !englishAbout.body.includes("About the Germany site"),
+    "",
+  );
+  const germanAbout = await get("/ww/de/about");
+  harness.check(
+    rows,
+    "Foundation's German About is the Global Site's own German page",
+    germanAbout.status === 200 && !germanAbout.body.includes("About the Germany site"),
+    `status=${germanAbout.status}`,
+  );
+
+  // ── the retired coordinates are NOT OWNED by this host (§22) ───────────────────────────────────────────
+  // The ACCEPTED completion rules still normalise a path whose first segment names one of THIS Spoke's own
+  // LOCALES (`de` is a Foundation language: `/de/about` → `/ww/de/about`), so the response may be a
+  // same-host completion rather than a bare 404. What is asserted is what §22 requires of OWNERSHIP: the
+  // coordinate is never SERVED here (never 200), any completion stays inside THIS Spoke and never lands on
+  // a `/de/**` Site path, and no Germany content is ever rendered.
+  for (const pathname of ["/de/de", "/de/de/about", "/de/de/berlin", "/de/en/about"]) {
+    const response = await get(pathname);
+    const target = response.location ? new URL(response.location, FOUNDATION_ORIGIN) : null;
+    harness.check(
+      rows,
+      `Foundation does NOT own the Germany coordinate ${pathname}`,
+      response.status !== 200,
+      `status=${response.status} location=${response.location || "(none)"}`,
+    );
+    harness.check(
+      rows,
+      `Foundation ${pathname} stays inside this Spoke and lands on no /de Site path`,
+      (target === null || (target.origin === FOUNDATION_ORIGIN && !target.pathname.startsWith("/de/"))) &&
+        !response.body.includes("About the Germany site"),
+      `location=${response.location || "(none)"}`,
+    );
+  }
+
+  // ── per-host metadata surfaces ────────────────────────────────────────────────────────────────────────
+  const sitemap = await get("/sitemap.xml");
+  harness.check(rows, "Foundation sitemap is served (200)", sitemap.status === 200, `status=${sitemap.status}`);
+  harness.check(
+    rows,
+    "Foundation sitemap publishes the Foundation origin and no Germany URL",
+    sitemap.body.includes(FOUNDATION_ORIGIN) &&
+      !sitemap.body.includes(GERMANY_HOST) &&
+      !sitemap.body.includes(`${FOUNDATION_ORIGIN}/de/`),
+    sitemap.body.slice(0, 160),
+  );
+  const robots = await get("/robots.txt");
+  harness.check(
+    rows,
+    "Foundation robots advertises the Foundation sitemap only",
+    robots.body.includes(`${FOUNDATION_ORIGIN}/sitemap.xml`) && !robots.body.includes(GERMANY_HOST),
+    robots.body.trim().slice(0, 160),
+  );
+  const image = await get("/ww/en/opengraph-image");
+  harness.check(
+    rows,
+    "Foundation /ww/en/opengraph-image is an image (200 + image/png)",
+    image.status === 200 && String(image.headers["content-type"] ?? "").startsWith("image/png"),
+    `status=${image.status} type=${String(image.headers["content-type"] ?? "(none)")}`,
+  );
+
+  // ── asset host isolation (§30) ────────────────────────────────────────────────────────────────────────
+  const ownAsset = await get("/spokes/foundation/assets/sidebar-open.svg");
+  const otherAsset = await get("/spokes/germany/assets/sidebar-open.svg");
+  const platformAsset = await get("/assets/icon-home.svg");
+  harness.check(rows, "Foundation host serves its OWN Spoke asset", ownAsset.status === 200, `status=${ownAsset.status}`);
+  harness.check(
+    rows,
+    "Foundation host REFUSES the Germany Spoke's asset",
+    otherAsset.status === 404,
+    `status=${otherAsset.status}`,
+  );
+  harness.check(rows, "the shared platform asset is available", platformAsset.status === 200, `status=${platformAsset.status}`);
+}
+
+/** THE GERMANY HOST'S PUBLIC CONTRACT, AT THE REAL HOSTNAME (§21). */
+async function runGermanyContract(harness, rows, port) {
+  const get = (pathname) => requestWithHost(port, GERMANY_HOST, pathname);
+  const root = await get("/");
+
+  harness.check(
+    rows,
+    "Germany `/` completes to /de/de inside this Spoke",
+    (root.status === 307 || root.status === 308) &&
+      new URL(root.location, GERMANY_ORIGIN).pathname === "/de/de",
+    `status=${root.status} location=${root.location || "(none)"}`,
+  );
+  harness.check(
+    rows,
+    "Germany `/` never redirects to the Foundation Spoke",
+    !root.location.includes(FOUNDATION_HOST) && !root.location.startsWith("/ww/"),
+    root.location || "(none)",
+  );
+
+  for (const pathname of [
+    "/de/de",
+    "/de/de/about",
+    "/de/de/berlin",
+    "/de/de/frankfurt",
+    "/de/en",
+    "/de/en/about",
+    "/de/en/berlin",
+    "/de/en/frankfurt",
+  ]) {
+    const response = await get(pathname);
+    harness.check(rows, `Germany ${pathname} is served (200)`, response.status === 200, `status=${response.status}`);
+  }
+
+  const englishAbout = await get("/de/en/about");
+  harness.check(
+    rows,
+    "Germany serves its OWN About page, not the Foundation's",
+    englishAbout.body.includes("About the Germany site") &&
+      !englishAbout.body.includes("About this Foundation website"),
+    "",
+  );
+  const berlin = await get("/de/de/berlin");
+  harness.check(rows, "Germany's Berlin landing names Berlin", berlin.body.includes("Berlin"), "");
+
+  // ── the other Spoke's coordinates are NOT OWNED by this host (§21/§23) ─────────────────────────────────
+  for (const pathname of ["/ww/en", "/ww/de"]) {
+    const response = await get(pathname);
+    const target = response.location ? new URL(response.location, GERMANY_ORIGIN) : null;
+    harness.check(
+      rows,
+      `Germany does NOT own the Foundation coordinate ${pathname}`,
+      response.status !== 200,
+      `status=${response.status} location=${response.location || "(none)"}`,
+    );
+    harness.check(
+      rows,
+      `Germany ${pathname} stays inside this Spoke and lands on no /ww Site path`,
+      (target === null || (target.origin === GERMANY_ORIGIN && !target.pathname.startsWith("/ww/"))) &&
+        !response.body.includes("About this Foundation website"),
+      `location=${response.location || "(none)"}`,
+    );
+  }
+
+  const sitemap = await get("/sitemap.xml");
+  harness.check(rows, "Germany sitemap is served (200)", sitemap.status === 200, `status=${sitemap.status}`);
+  harness.check(
+    rows,
+    "Germany sitemap publishes the Germany origin and no Foundation URL",
+    sitemap.body.includes(GERMANY_ORIGIN) && !sitemap.body.includes(FOUNDATION_HOST) && !sitemap.body.includes("/ww/"),
+    sitemap.body.slice(0, 160),
+  );
+  const robots = await get("/robots.txt");
+  harness.check(
+    rows,
+    "Germany robots advertises the Germany sitemap only",
+    robots.body.includes(`${GERMANY_ORIGIN}/sitemap.xml`) && !robots.body.includes(FOUNDATION_HOST),
+    robots.body.trim().slice(0, 160),
+  );
+  const image = await get("/de/de/opengraph-image");
+  harness.check(
+    rows,
+    "Germany /de/de/opengraph-image is an image (200 + image/png)",
+    image.status === 200 && String(image.headers["content-type"] ?? "").startsWith("image/png"),
+    `status=${image.status} type=${String(image.headers["content-type"] ?? "(none)")}`,
+  );
+
+  const ownAsset = await get("/spokes/germany/assets/sidebar-open.svg");
+  const otherAsset = await get("/spokes/foundation/assets/sidebar-open.svg");
+  const platformAsset = await get("/assets/icon-home.svg");
+  harness.check(rows, "Germany host serves its OWN Spoke asset", ownAsset.status === 200, `status=${ownAsset.status}`);
+  harness.check(
+    rows,
+    "Germany host REFUSES the Foundation Spoke's asset",
+    otherAsset.status === 404,
+    `status=${otherAsset.status}`,
+  );
+  harness.check(rows, "the shared platform asset is available", platformAsset.status === 200, `status=${platformAsset.status}`);
+}
+
+/**
+ * THE BROWSER-VISIBLE CONTRACT ON BOTH REAL HOSTS (§22): ONE probe, in a real Chrome, at desktop AND
+ * mobile widths, reading only what a visitor can see or follow — the address bar, the controls the header
+ * offers, the links and images the document carries, and whether anything failed while rendering.
+ */
+const UI_PROBE = `(() => {
+  const selects = [...document.querySelectorAll('select[data-selector]')];
+  const one = (name) => selects.find((s) => s.getAttribute('data-selector') === name) ?? null;
+  const options = (el) => (el ? [...el.querySelectorAll('option')].map((o) => o.textContent.trim()) : null);
+  const site = one('site'); const location = one('location'); const language = one('language');
+  const body = document.body ? document.body.textContent || '' : '';
+  return {
+    path: window.location.pathname,
+    selectors: selects.map((s) => s.getAttribute('data-selector')),
+    sitePresent: site !== null,
+    locationPresent: location !== null,
+    locationOptions: options(location),
+    languagePresent: language !== null,
+    languageValue: language ? language.value : null,
+    navTexts: [...document.querySelectorAll('nav a')].map((a) => (a.textContent || '').trim()).filter(Boolean),
+    urls: [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href') || '')
+      .concat([...document.querySelectorAll('img[src]')].map((i) => i.getAttribute('src') || '')),
+    // A real failure, as a visitor sees it. The nextjs-portal element is Next OWN dev-tools host element; it is
+    // present in every development render, so it is NOT evidence of an error; the error TEXT is.
+    hasErrorText: /Application error|Unhandled Runtime Error|Internal Server Error/i.test(body),
+    text: body.slice(0, 400),
+  };
+})()`;
+
+async function runBrowserProof(harness, rows, chrome, port) {
+  const cdp = await Cdp.connect(chrome, { hostResolverRules: HOST_RESOLVER_RULES });
+  try {
+    for (const [name, viewport] of Object.entries(harness.viewports)) {
+      await cdp.setViewport(viewport.width, viewport.height);
+
+      // ── FOUNDATION: the `ww` Site, at /ww/en ──────────────────────────────────────────────────────────
+      await cdp.navigate(`http://${FOUNDATION_HOST}:${port}/ww/en`);
+      await harness.waitReady(cdp);
+      const foundation = await cdp.evaluate(UI_PROBE);
+
+      harness.check(rows, `${name}: Foundation /ww/en commits on the public pathname`, foundation.path === "/ww/en", foundation.path);
+      harness.check(rows, `${name}: Foundation renders NO Site control (§11)`, foundation.sitePresent === false, JSON.stringify(foundation.selectors));
+      harness.check(rows, `${name}: Foundation renders NO Location control (§12)`, foundation.locationPresent === false, JSON.stringify(foundation.selectors));
+      harness.check(rows, `${name}: Foundation offers its Language control on en`, foundation.languagePresent === true && foundation.languageValue === "en", String(foundation.languageValue));
+      harness.check(rows, `${name}: Foundation renders no error overlay`, foundation.hasErrorText === false, foundation.text.slice(0, 80));
+      harness.check(rows, `${name}: Foundation leaks no internal Spoke prefix into ANY URL`, !foundation.urls.some((url) => url.includes("~spoke")), "");
+      harness.check(rows, `${name}: Foundation never names the Germany Spoke's asset namespace (§30)`, !foundation.urls.some((url) => url.includes("/spokes/germany/assets/")), "");
+
+      // ── GERMANY: the `de` Site, in German ─────────────────────────────────────────────────────────────
+      await cdp.navigate(`http://${GERMANY_HOST}:${port}/de/de`);
+      await harness.waitReady(cdp);
+      const germany = await cdp.evaluate(UI_PROBE);
+
+      harness.check(rows, `${name}: Germany /de/de commits on the public pathname`, germany.path === "/de/de", germany.path);
+      harness.check(rows, `${name}: Germany renders NO Site control (§11)`, germany.sitePresent === false, JSON.stringify(germany.selectors));
+      harness.check(
+        rows,
+        `${name}: Germany's Location control offers Berlin and Frankfurt (§13)`,
+        germany.locationPresent === true &&
+          JSON.stringify(germany.locationOptions) === JSON.stringify(["Alle Standorte", "Berlin", "Frankfurt"]),
+        JSON.stringify(germany.locationOptions),
+      );
+      harness.check(rows, `${name}: Germany offers its Language control on de`, germany.languagePresent === true && germany.languageValue === "de", String(germany.languageValue));
+      harness.check(rows, `${name}: Germany renders no error overlay`, germany.hasErrorText === false, germany.text.slice(0, 80));
+      harness.check(rows, `${name}: Germany leaks no internal Spoke prefix into ANY URL`, !germany.urls.some((url) => url.includes("~spoke")), "");
+      harness.check(rows, `${name}: Germany never names the Foundation Spoke's asset namespace (§30)`, !germany.urls.some((url) => url.includes("/spokes/foundation/assets/")), "");
+      harness.check(rows, `${name}: Germany's navigation speaks German, never raw dictionary keys`, germany.navTexts.includes("Startseite") && !germany.text.includes("navigation.items"), JSON.stringify(germany.navTexts.slice(0, 4)));
+
+      // ── GERMANY in ENGLISH: the same Site, its other language ─────────────────────────────────────────
+      await cdp.navigate(`http://${GERMANY_HOST}:${port}/de/en/about`);
+      await harness.waitReady(cdp);
+      const germanyEnglish = await cdp.evaluate(UI_PROBE);
+
+      harness.check(rows, `${name}: Germany /de/en/about commits on the public pathname`, germanyEnglish.path === "/de/en/about", germanyEnglish.path);
+      harness.check(
+        rows,
+        `${name}: Germany's English page keeps its Location control, in English`,
+        germanyEnglish.locationPresent === true &&
+          JSON.stringify(germanyEnglish.locationOptions) === JSON.stringify(["All locations", "Berlin", "Frankfurt"]),
+        JSON.stringify(germanyEnglish.locationOptions),
+      );
+      harness.check(rows, `${name}: Germany's English page names English`, germanyEnglish.languageValue === "en", String(germanyEnglish.languageValue));
+      harness.check(rows, `${name}: Germany's English page renders no error overlay`, germanyEnglish.hasErrorText === false, germanyEnglish.text.slice(0, 80));
+    }
+  } finally {
+    await cdp.close();
+  }
+}
+
+/**
+ * THE SCENARIO: the real deployment, at its real hostnames, with every proof above.
+ *
+ * A failure anywhere is reported as a FAILED CHECK with its cause rather than as a thrown scenario, so the
+ * report says WHICH invariant broke; the dev server is always released afterwards.
+ */
+export async function run(chrome, harness) {
+  const rows = [];
+  let started = null;
+  try {
+    started = await startServer(harness);
+    await runFoundationContract(harness, rows, started.port);
+    await runGermanyContract(harness, rows, started.port);
+    await runBrowserProof(harness, rows, chrome, started.port);
+  } catch (error) {
+    harness.check(
+      rows,
+      "the real two-Spoke host scenario ran to completion",
+      false,
+      error instanceof Error ? error.message : String(error),
+    );
+  } finally {
+    try {
+      await harness.stopServer(started === null ? null : started.server);
+    } catch {
+      /* the server is already gone */
+    }
+  }
+  return rows;
+}
+
+export default { id, run };

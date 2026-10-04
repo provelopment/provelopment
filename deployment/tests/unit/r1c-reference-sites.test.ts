@@ -5,106 +5,108 @@ import { describe, expect, it, vi } from "vitest";
 // it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
 // the `deployment` Vitest project, whose setup selects the REAL installed deployment
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
-
-// The header contains real client controls (Site/Language/Location switches navigate); this suite
-// asserts the SERVER-RENDERED composition, so navigation is stubbed exactly as the other
-// header-composition suites do.
-// The header's client controls read the CURRENT URL to decide what they offer, so the mocked
-// pathname is set per render (the same technique the other URL-authoritative component suites use).
+//
+// M18 — THE R1C CONTRACT, IN ITS TWO-SPOKE FORM.
+// ==============================================
+// R1C proved that ONE Spoke could own TWO Sites (`ww` + `de`) with independent page trees, per-site
+// languages, Germany-local Locations and a Site control that preserved the route. M18 moves the Germany
+// Site into its OWN Spoke, so the same behavioural contract is now expressed as ONE Site per Spoke:
+//
+//   Foundation Spoke   Site `ww` (Global)   en + de, NO Locations, its own Home/About tree
+//   Germany Spoke      Site `de` (Germany)  de + en, Locations Berlin/Frankfurt, its own page tree
+//
+// Three consequences follow, and each is asserted below rather than assumed:
+//
+//   · every fact is asserted PER SPOKE, through the accepted runtime authorities
+//     (`./support/spoke-contexts` → `installationRuntimeIndex` + `runtimeContextForSpoke`);
+//   · no assertion uses the retired installation-wide compatibility bindings (`@/config`'s `siteConfig`,
+//     `deploymentPaths()`'s resource root, the global dictionary access): a multi-Spoke Installation has
+//     none, and the authorities refuse that answer loudly;
+//   · BOTH Spokes render NO Site control, because each declares exactly ONE Site (§11). M18 invents no
+//     cross-Spoke selector to preserve the old one.
+//
+// The browser-visible half of the same contract lives in `deployment/tests/browser/` and runs against
+// both exact hostnames.
 let mockPath = "/ww/en";
 vi.mock("next/navigation", () => ({
   usePathname: () => mockPath,
   useRouter: () => ({ push: () => {} }),
 }));
 
-import { createPageAvailability } from "@/adapters/content/page-availability";
 import { createPageSources } from "@/adapters/content/page-sources";
-import { siteSwitchOptions } from "@/application/site-switch";
 import { SiteHeader } from "@/components/site/site-header";
-import { siteConfig } from "@/config";
-import { deploymentPaths } from "@/config/deployment-root";
-import { getDictionary } from "@/config/i18n";
 import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
+import {
+  dictionaryAccessForRuntimeContext,
+  type RuntimeDictionaryAccess,
+} from "@/config/runtime-dictionaries";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import {
   bindingsForSite,
+  localesForRegion,
   regionalPath,
+  regionsForLocale,
   regionsForSite,
+  resolveLocaleDestination,
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
 import { resolveUiConfig } from "@/core/ui";
+import { foundationSpoke, germanySpoke, type DeploymentSpoke } from "../support/spoke-contexts";
 
-/**
- * FOUNDATION-R1C1A — THE FULL CONTEXT MODEL, SHIPPED
- * ==================================================
- *
- * The reference deployment now demonstrates every visitor dimension at once:
- *
- *     Site → Languages + Locations + independent page tree
- *     Layout = an independent presentation preference
- *
- *   Global  (`ww`)  English + Deutsch, no locations, its own Home/About
- *   Germany (`de`)  Deutsch + English, demonstration Locations Berlin and Frankfurt,
- *                   an INDEPENDENT page tree (never a fallback to Global's pages)
- *
- * This file proves the configuration consequences: which sites exist, which languages and
- * locations each one serves, that the Site selector appears with the configured labels and
- * preserves the route, that a Location stays inside its own site and changes neither the site
- * nor the language, and that the controls are composed in the documented order
- * (Site → Location → Language → Layout).
- *
- * The browser-visible half (real switching, four controls at four widths, sticky navigation) is
- * proved in the `reference-content` scenario against the SHIPPED configuration.
- */
+/** The two authored coordinates of the reference deployment, and the Spoke each one belongs to. */
 const GLOBAL = "ww";
 const GERMANY = "de";
 const GERMAN_HOME_TITLE = "Deutschland: eine Website, zwei Sprachen, zwei Standorte.";
 const GERMANY_ENGLISH_HOME_TITLE = "Germany: one site, two languages, two locations.";
+const GERMAN_ABOUT_TITLE = "About the Germany site";
+const GLOBAL_ABOUT_TITLE = "About this Foundation website";
 
-const pages = () => createPageSources({ sites: siteConfig.sites });
-const siteByCode = (code: string) => siteConfig.sites.find((site) => site.code === code)!;
-const globalSite = siteByCode(GLOBAL);
-const germanySite = siteByCode(GERMANY);
+const FOUNDATION = foundationSpoke;
+const GERMANY_SPOKE = germanySpoke;
 
-const ui = resolveUiConfig(siteConfig.ui ?? {});
+/**
+ * Each Spoke reads its OWN authored page tree (`roots`): a multi-Spoke Installation has no
+ * installation-wide page roots, so a composition that omitted them would be asking for the retired
+ * single-Spoke answer.
+ */
+const pagesFor = (spoke: DeploymentSpoke) =>
+  createPageSources({ sites: spoke.config.sites, roots: spoke.resources });
 
-const switchOptionsFor = (site = globalSite, localePath = "en", routePath = "") =>
-  siteSwitchOptions(
-    { site, localePath, routePath },
-    {
-      sites: siteConfig.sites,
-      bindings: siteConfig.pageBindings,
-      availability: createPageAvailability({ sites: siteConfig.sites }),
-    },
-  );
+/** The dictionary answers of ONE Spoke, through the accepted context-bound access. */
+const dictionariesFor = (spoke: DeploymentSpoke): RuntimeDictionaryAccess =>
+  dictionaryAccessForRuntimeContext(spoke.context);
 
-/** The header as the layout composes it, for one site + locale + route. */
-async function headerHtml(options: {
-  readonly siteCode: string;
-  readonly localePath: string;
-  readonly routePath: string;
-}): Promise<string> {
-  const site = siteByCode(options.siteCode);
-  // The header is rendered for the URL the visitor is on: a site's controls offer what THAT site
-  // has, so the mocked pathname mirrors the render target.
-  mockPath = `/${options.siteCode}/${options.localePath}${options.routePath === "" ? "" : `/${options.routePath}`}`;
-  const siteSwitch =
-    siteConfig.sites.length > 1
-      ? await switchOptionsFor(site, options.localePath, options.routePath)
-      : undefined;
+const siteByCode = (spoke: DeploymentSpoke, code: string) =>
+  spoke.config.sites.find((site) => site.code === code)!;
+
+/**
+ * The header as the layout composes it, for ONE Spoke's site + locale + route.
+ *
+ * `siteSwitch` is DELIBERATELY absent: every Spoke here declares exactly one Site, so there is nothing
+ * to switch between and the control is not offered (§11). Its absence is asserted below, not assumed.
+ */
+async function headerHtml(
+  spoke: DeploymentSpoke,
+  options: { readonly siteCode: string; readonly localePath: string; readonly routePath: string },
+): Promise<string> {
+  const site = siteByCode(spoke, options.siteCode);
+  // The header is rendered for the URL the visitor is on: a site's controls offer what THAT site has,
+  // so the mocked pathname mirrors the render target.
+  mockPath = `/${options.siteCode}/${options.localePath}${
+    options.routePath === "" ? "" : `/${options.routePath}`
+  }`;
 
   return renderToStaticMarkup(
     SiteHeader({
-      /* M13 — the chrome's Spoke facts travel as explicit inputs; the compatibility bindings are the
-         SAME ones this deployment's single-Spoke build selects. */
-      siteConfig,
-      dictionaryAccess: { get: (locale, siteCode) => getDictionary(locale, siteCode) },
-      assets: createRuntimeAssetOwnershipResolver(deploymentPaths().runtimeAssetNamespaces),
+      /* M13 — the chrome's Spoke facts travel as explicit inputs: THIS Spoke's own configuration, its own
+         dictionary access and its own asset namespaces. Never an installation-wide binding. */
+      siteConfig: spoke.config,
+      dictionaryAccess: dictionariesFor(spoke),
+      assets: createRuntimeAssetOwnershipResolver(spoke.runtimeAssetNamespaces),
       locale: options.localePath,
-      resolved: ui,
+      resolved: resolveUiConfig(spoke.config.ui ?? {}),
       siteId: site.code,
-      siteSwitch,
     }),
   );
 }
@@ -121,44 +123,119 @@ const selectorOptions = (html: string, name: string): string[] => {
   );
 };
 
-describe("the deployment declares two real sites", () => {
-  it("configures Global first as the default site, then Germany", () => {
-    expect(siteConfig.sites.map((site) => site.code)).toEqual([GLOBAL, GERMANY]);
-    expect(siteConfig.defaultSite.code).toBe(GLOBAL);
-    expect(globalSite.label).toBe("Global");
-    expect(germanySite.label).toBe("Germany");
+describe("Foundation Spoke — the `ww` Site alone, with its own page tree", () => {
+  it("declares Site `ww` alone, as its default Site", () => {
+    expect(FOUNDATION.config.sites.map((site) => site.code)).toEqual([GLOBAL]);
+    expect(FOUNDATION.config.defaultSite.code).toBe(GLOBAL);
+    expect(siteByCode(FOUNDATION, GLOBAL).label).toBe("Global");
+    // The Germany Site is NOT declared here any more (§5): ownership moved to the Germany Spoke.
+    expect(FOUNDATION.config.sites.map((site) => site.code)).not.toContain(GERMANY);
   });
 
-  it("keeps Global's languages and its own (absent) location inventory", () => {
-    expect(globalSite.locales.map((locale) => locale.path)).toEqual(["en", "de"]);
-    expect(globalSite.defaultLocale).toBe("en");
-    expect(regionsForSite(siteConfig.pageBindings, GLOBAL)).toEqual([]);
+  it("keeps that Site's accepted languages, default locale and origin", () => {
+    const global = siteByCode(FOUNDATION, GLOBAL);
+    expect(global.locales.map((locale) => locale.path)).toEqual(["en", "de"]);
+    expect(global.defaultLocale).toBe("en");
+    expect(FOUNDATION.config.locales.map((locale) => locale.code)).toEqual(["en", "de"]);
+    expect(FOUNDATION.config.defaultLocale).toBe("en");
+    expect(FOUNDATION.config.url).toBe("https://foundation-template.provelopment.com");
   });
 
-  it("gives Germany its own languages, deriving the country context from simple keys", () => {
-    expect(germanySite.locales.map((locale) => locale.path)).toEqual([GERMANY, "en"]);
-    // A country site derives its own variant: `/de/de` IS `de-DE` and `/de/en` IS `en-DE`
-    // (the path key addresses, the canonical tag identifies) — no explicit form was needed.
-    expect(germanySite.locales.map((locale) => locale.canonical)).toEqual(["de-DE", "en-DE"]);
-    expect(germanySite.defaultLocale).toBe(GERMANY);
+  it("carries NO Locations, and no Germany-only binding of any kind (§6)", () => {
+    expect(regionsForSite(FOUNDATION.config.pageBindings, GLOBAL)).toEqual([]);
+    expect(bindingsForSite(FOUNDATION.config.pageBindings, GLOBAL)).toEqual([]);
+    expect(FOUNDATION.config.regions).toEqual({});
+    expect(FOUNDATION.config.pageBindings).toEqual([]);
   });
 
-  it("binds exactly two demonstration locations to Germany, and none to Global", () => {
-    expect(regionsForSite(siteConfig.pageBindings, GERMANY)).toEqual(["berlin", "frankfurt"]);
-    for (const region of ["berlin", "frankfurt"] as const) {
-      expect(siteConfig.regions[region]?.timezone).toBe("Europe/Berlin");
-      // Demonstration data only: no opening hours are claimed (every day normalises to an empty
-      // schedule) and the address is a placeholder.
-      const hours = siteConfig.regions[region]?.hours as unknown as Readonly<
-        Record<string, readonly unknown[]>
-      >;
-      for (const day of ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]) {
-        expect(hours[day], `${region}.${day}`).toHaveLength(0);
-      }
-      expect(siteConfig.regions[region]?.address.street).toBe("Example Street 1");
+  it("resolves its own Home and About in BOTH of its languages, from its OWN roots", async () => {
+    const pages = pagesFor(FOUNDATION);
+    const englishHome = await pages.resolve(GLOBAL, HOME_CONTENT_SLUG, "en");
+    const englishAbout = await pages.resolve(GLOBAL, "about", "en");
+    const germanHome = await pages.resolve(GLOBAL, HOME_CONTENT_SLUG, "de");
+    const germanAbout = await pages.resolve(GLOBAL, "about", "de");
+
+    expect(englishAbout?.title).toBe(GLOBAL_ABOUT_TITLE);
+    // `de` on this Spoke is a LANGUAGE, not a Site: Global's German pages are Global's own, authored in
+    // its own tree (foundation/content/pages/**/ww/de/**), and each one answers rather than falling back.
+    for (const [label, page] of [
+      ["ww/en", englishHome],
+      ["ww/en/about", englishAbout],
+      ["ww/de", germanHome],
+      ["ww/de/about", germanAbout],
+    ] as const) {
+      expect(page, label).not.toBeNull();
+      expect(page?.fallback, `${label} is authored, not a fallback`).toBe(false);
     }
-    // Every bound (locale, region) is a landing, for BOTH of Germany's languages.
-    const bindings = bindingsForSite(siteConfig.pageBindings, GERMANY);
+    // …and Global's German About is NOT the Germany Spoke's About page.
+    expect(germanAbout?.title).not.toBe(GERMAN_ABOUT_TITLE);
+    expect(germanHome?.title).not.toBe(GERMAN_HOME_TITLE);
+  });
+
+  it("cannot resolve ANY Germany Spoke coordinate, in either of its languages (§10)", async () => {
+    const pages = pagesFor(FOUNDATION);
+    for (const locale of [GERMANY, "en"] as const) {
+      expect(await pages.resolve(GERMANY, HOME_CONTENT_SLUG, locale), `de/${locale}`).toBeNull();
+    }
+    // The location landings exist only in Germany's tree.
+    expect(await pages.resolve(GLOBAL, "berlin", GERMANY)).toBeNull();
+    expect(await pages.resolve(GLOBAL, "frankfurt", GERMANY)).toBeNull();
+    expect(await pages.resolve(GLOBAL, "berlin", "en")).toBeNull();
+    expect(await pages.resolve(GLOBAL, "frankfurt", "en")).toBeNull();
+  });
+
+  it("offers the controls it actually has, in the accepted order — and no Site control (§12)", async () => {
+    const english = await headerHtml(FOUNDATION, { siteCode: GLOBAL, localePath: "en", routePath: "" });
+    const german = await headerHtml(FOUNDATION, { siteCode: GLOBAL, localePath: "de", routePath: "" });
+
+    expect(selectorOrder(english)).toEqual(["layout", "language"]);
+    expect(selectorOrder(german)).toEqual(["layout", "language"]);
+    // ONE Site ⇒ nothing to switch between, so no Site control and no cross-Spoke selector is invented.
+    expect(english).not.toContain('data-selector="site"');
+    expect(german).not.toContain('data-selector="site"');
+    // …and NO Location control, because this Spoke binds no location at all.
+    expect(english).not.toContain('data-selector="location"');
+    expect(german).not.toContain('data-selector="location"');
+    // The Language control offers exactly this Site's own languages, and nothing else is named.
+    expect(selectorOptions(english, "language").join(" | ")).toContain("English");
+    expect(selectorOptions(german, "language").join(" | ")).toContain("Deutsch");
+  });
+
+  it("renders its own dictionary wording and its own asset namespace (never the other Spoke's)", async () => {
+    const dictionaries = dictionariesFor(FOUNDATION);
+    expect(dictionaries.get("en").language.label).toBe("Language");
+    expect(dictionaries.get("de").language.label).toBe("Sprache");
+    expect(dictionaries.get("en").navigation.items["/about"]).toBe("About");
+
+    const namespaces = createRuntimeAssetOwnershipResolver(FOUNDATION.runtimeAssetNamespaces)
+      .namespaces.map((namespace) => namespace.urlBase);
+    expect(namespaces).toEqual(["/assets", "/spokes/foundation/assets"]);
+
+    const html = await headerHtml(FOUNDATION, { siteCode: GLOBAL, localePath: "en", routePath: "" });
+    expect(html).not.toContain(`/spokes/${GERMANY}/assets/`);
+  });
+});
+
+describe("Germany Spoke — the `de` Site alone, with its own page tree and Locations", () => {
+  it("declares Site `de` alone, as its default Site, on its own origin", () => {
+    expect(GERMANY_SPOKE.config.sites.map((site) => site.code)).toEqual([GERMANY]);
+    expect(GERMANY_SPOKE.config.defaultSite.code).toBe(GERMANY);
+    expect(siteByCode(GERMANY_SPOKE, GERMANY).label).toBe("Germany");
+    expect(GERMANY_SPOKE.config.url).toBe("https://foundation-template-germany.provelopment.com");
+    expect(GERMANY_SPOKE.config.sites.map((site) => site.code)).not.toContain(GLOBAL);
+  });
+
+  it("keeps its languages, its default locale and its country canonical variants (§9)", () => {
+    const germany = siteByCode(GERMANY_SPOKE, GERMANY);
+    expect(germany.locales.map((locale) => locale.path)).toEqual([GERMANY, "en"]);
+    expect(germany.defaultLocale).toBe(GERMANY);
+    // A country site derives its own variant: `/de/de` IS `de-DE` and `/de/en` IS `en-DE`.
+    expect(germany.locales.map((locale) => locale.canonical)).toEqual(["de-DE", "en-DE"]);
+  });
+
+  it("binds exactly Berlin and Frankfurt, with the accepted demonstration data (§9)", () => {
+    const bindings = bindingsForSite(GERMANY_SPOKE.config.pageBindings, GERMANY);
+    expect(regionsForSite(GERMANY_SPOKE.config.pageBindings, GERMANY)).toEqual(["berlin", "frankfurt"]);
     expect(bindings.map((binding) => `${binding.locale}/${binding.region}`).sort()).toEqual([
       "de/berlin",
       "de/frankfurt",
@@ -166,170 +243,113 @@ describe("the deployment declares two real sites", () => {
       "en/frankfurt",
     ]);
     expect(bindings.every((binding) => binding.slug === null)).toBe(true);
-  });
-});
+    // Both locations are landings in BOTH of this Site's languages.
+    expect(regionsForLocale(bindings, GERMANY)).toEqual(["berlin", "frankfurt"]);
+    expect(regionsForLocale(bindings, "en")).toEqual(["berlin", "frankfurt"]);
+    expect(localesForRegion(bindings, "berlin")).toEqual([GERMANY, "en"]);
+    expect(localesForRegion(bindings, "frankfurt")).toEqual([GERMANY, "en"]);
 
-describe("each site serves its OWN pages", () => {
-  it("resolves Germany's pages from Germany's tree, in both languages", async () => {
-    const germanHome = await pages().resolve(GERMANY, HOME_CONTENT_SLUG, GERMANY);
-    const englishHome = await pages().resolve(GERMANY, HOME_CONTENT_SLUG, "en");
-
-    expect(germanHome?.title).toBe(GERMAN_HOME_TITLE);
-    expect(englishHome?.title).toBe(GERMANY_ENGLISH_HOME_TITLE);
-    expect(germanHome?.fallback).toBe(false);
-    expect(englishHome?.fallback).toBe(false);
-  });
-
-  it("never answers a Germany URL with a Global page (or the reverse)", async () => {
-    const globalGermanHome = await pages().resolve(GLOBAL, HOME_CONTENT_SLUG, GERMANY);
-    const germanyHome = await pages().resolve(GERMANY, HOME_CONTENT_SLUG, GERMANY);
-    const globalAbout = await pages().resolve(GLOBAL, "about", "en");
-    const germanyAbout = await pages().resolve(GERMANY, "about", "en");
-
-    expect(globalGermanHome?.title).not.toBe(germanyHome?.title);
-    expect(globalAbout?.title).toBe("About this Foundation website");
-    expect(germanyAbout?.title).toBe("About the Germany site");
-  });
-
-  it("publishes a location landing page inside Germany's tree", async () => {
-    const berlin = await pages().resolve(GERMANY, "berlin", GERMANY);
-    const frankfurtEnglish = await pages().resolve(GERMANY, "frankfurt", "en");
-
-    expect(berlin?.title).toBe("Berlin");
-    expect(frankfurtEnglish?.title).toBe("Frankfurt");
-    // A Global context has no such page at all — locations belong to Germany's tree.
-    expect(await pages().resolve(GLOBAL, "berlin", GERMANY)).toBeNull();
-  });
-});
-
-describe("the Site selector appears naturally, with the configured labels", () => {
-  it("offers Global and Germany, and reflects the active site", async () => {
-    const html = await headerHtml({ siteCode: GLOBAL, localePath: "en", routePath: "about" });
-
-    expect(html).toContain('data-selector="site"');
-    expect(html).toContain(">Global<");
-    expect(html).toContain(">Germany<");
-    expect(html).toContain('aria-label="Site"');
-  });
-
-  it("labels the control in the active language", async () => {
-    const german = await headerHtml({ siteCode: GERMANY, localePath: GERMANY, routePath: "" });
-    expect(german).toContain(`aria-label="${getDictionary(GERMANY).site.label}"`);
-  });
-
-  it("preserves the route when the target site serves it, in both directions", async () => {
-    const globalGermanAbout = await switchOptionsFor(globalSite, "de", "about");
-    const globalEnglishAbout = await switchOptionsFor(globalSite, "en", "about");
-    const germanyBackToGlobal = await switchOptionsFor(germanySite, GERMANY, "about");
-
-    expect(globalGermanAbout.map((option) => option.code)).toEqual([GLOBAL, GERMANY]);
-    // German About, Global → Germany (which serves `/about` in `de`) → the same page.
-    expect(globalGermanAbout.find((option) => option.code === GERMANY)?.href).toBe("/de/de/about");
-    // English About, Global → Germany's English exists → the same page in English.
-    expect(globalEnglishAbout.find((option) => option.code === GERMANY)?.href).toBe("/de/en/about");
-    // …and back: Germany's German → Global, which also serves German.
-    expect(germanyBackToGlobal.find((option) => option.code === GLOBAL)?.href).toBe("/ww/de/about");
-  });
-});
-
-describe("a Location stays inside its own site", () => {
-  const germanyBindings = bindingsForSite(siteConfig.pageBindings, GERMANY);
-
-  it("keeps the site and the language, and lands on the location's own page", () => {
-    const toBerlin = resolveLocationDestination({
-      entries: germanyBindings,
-      locale: GERMANY,
-      targetRegion: "berlin",
-      currentSlug: "about",
-    });
-
-    expect(toBerlin).toEqual({ locale: GERMANY, region: "berlin", slug: null });
-    // The destination is built with GERMANY's prefix: the visitor never leaves the site, and the
-    // language is unchanged — a location is not a language or a site switch.
-    expect(regionalPath(toBerlin!.locale, toBerlin!.region, toBerlin!.slug, "/de")).toBe(
-      "/de/de/berlin",
-    );
-  });
-
-  it("offers every location in BOTH of the site's languages", () => {
     for (const region of ["berlin", "frankfurt"] as const) {
-      for (const locale of [GERMANY, "en"] as const) {
-        expect(
-          resolveLocationDestination({
-            entries: germanyBindings,
-            locale,
-            targetRegion: region,
-            currentSlug: null,
-          }),
-          `${locale}/${region}`,
-        ).toEqual({ locale, region, slug: null });
+      expect(GERMANY_SPOKE.config.regions[region]?.timezone).toBe("Europe/Berlin");
+      expect(GERMANY_SPOKE.config.regions[region]?.address.street).toBe("Example Street 1");
+      const hours = GERMANY_SPOKE.config.regions[region]?.hours as unknown as Readonly<
+        Record<string, readonly unknown[]>
+      >;
+      for (const day of ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]) {
+        expect(hours[day], `${region}.${day}`).toHaveLength(0);
       }
     }
   });
 
-  it("returns to the site's own pages through the neutral choice", () => {
-    // "All locations" is the site's non-regional page — still inside Germany.
-    expect(unspecifiedDestination(GERMANY, null, "/de")).toBe("/de/de");
+  it("resolves EVERY Germany coordinate from its OWN roots (§10)", async () => {
+    const pages = pagesFor(GERMANY_SPOKE);
+    const expected = [
+      [GERMANY, HOME_CONTENT_SLUG, GERMAN_HOME_TITLE],
+      [GERMANY, "about", ""],
+      [GERMANY, "berlin", "Berlin"],
+      [GERMANY, "frankfurt", ""],
+      ["en", HOME_CONTENT_SLUG, GERMANY_ENGLISH_HOME_TITLE],
+      ["en", "about", GERMAN_ABOUT_TITLE],
+      ["en", "berlin", ""],
+      ["en", "frankfurt", "Frankfurt"],
+    ] as const;
+
+    for (const [locale, slug, title] of expected) {
+      const page = await pages.resolve(GERMANY, slug, locale);
+      expect(page, `/de/${locale}/${slug}`).not.toBeNull();
+      expect(page?.fallback, `/de/${locale}/${slug} is authored`).toBe(false);
+      if (title !== "") expect(page?.title, `${locale}/${slug}`).toBe(title);
+    }
+    // `/de/en` is Germany's OWN English Home, never Global's English Home.
+    expect((await pages.resolve(GERMANY, HOME_CONTENT_SLUG, "en"))?.title).toBe(GERMANY_ENGLISH_HOME_TITLE);
+  });
+});
+
+describe("Germany Spoke — Locations, controls and ownership", () => {
+  it("cannot resolve the Foundation Spoke's own coordinates (§10)", async () => {
+    const pages = pagesFor(GERMANY_SPOKE);
+    expect(await pages.resolve(GLOBAL, HOME_CONTENT_SLUG, "en")).toBeNull();
+    expect(await pages.resolve(GLOBAL, "about", "en")).toBeNull();
+    expect(await pages.resolve(GLOBAL, HOME_CONTENT_SLUG, GERMANY)).toBeNull();
   });
 
-  it("cannot be reached from Global, which binds no location at all", () => {
-    const globalBindings = bindingsForSite(siteConfig.pageBindings, GLOBAL);
-    expect(globalBindings).toEqual([]);
+  it("keeps a Location inside Site `de`, and keeps the active language when it serves it (§14)", () => {
+    const bindings = bindingsForSite(GERMANY_SPOKE.config.pageBindings, GERMANY);
+    // The neutral choice is the Site's own non-regional page — still inside Site `de`.
+    expect(unspecifiedDestination(GERMANY, null, `/${GERMANY}`)).toBe("/de/de");
+    expect(
+      resolveLocationDestination({ entries: bindings, locale: GERMANY, targetRegion: "berlin", currentSlug: null }),
+    ).toEqual({ locale: GERMANY, region: "berlin", slug: null });
+    expect(
+      resolveLocationDestination({ entries: bindings, locale: "en", targetRegion: "frankfurt", currentSlug: null }),
+    ).toEqual({ locale: "en", region: "frankfurt", slug: null });
+    // The public route it produces is this Site's own regional route.
+    expect(regionalPath(GERMANY, "berlin", null, `/${GERMANY}`)).toBe("/de/de/berlin");
+    expect(regionalPath("en", "frankfurt", null, `/${GERMANY}`)).toBe("/de/en/frankfurt");
+    // Switching LANGUAGE keeps the location when the target locale serves it.
+    expect(resolveLocaleDestination(bindings, "en", "berlin", null)).toEqual({ region: "berlin", slug: null });
+    expect(resolveLocaleDestination(bindings, GERMANY, "frankfurt", null)).toEqual({ region: "frankfurt", slug: null });
+    // Foundation binds no location, so no destination can resolve there.
     expect(
       resolveLocationDestination({
-        entries: globalBindings,
-        locale: "en",
+        entries: bindingsForSite(FOUNDATION.config.pageBindings, GLOBAL),
+        locale: "de",
         targetRegion: "berlin",
         currentSlug: null,
       }),
     ).toBeNull();
-  });
-});
-
-describe("the Location control appears exactly where locations exist", () => {
-  it("stays absent on Global, which configures none", async () => {
-    const english = await headerHtml({ siteCode: GLOBAL, localePath: "en", routePath: "" });
-    const german = await headerHtml({ siteCode: GLOBAL, localePath: "de", routePath: "" });
-
-    expect(english).not.toContain('data-selector="location"');
-    expect(german).not.toContain('data-selector="location"');
+    expect(regionsForSite(FOUNDATION.config.pageBindings, GERMANY)).toEqual([]);
   });
 
-  it("appears on Germany with the neutral choice and both demonstration locations", async () => {
-    const english = await headerHtml({ siteCode: GERMANY, localePath: "en", routePath: "" });
-    const german = await headerHtml({ siteCode: GERMANY, localePath: "de", routePath: "" });
-
-    // The neutral choice and exactly the two configured locations — never a fabricated one, and
-    // never the Site's own vocabulary.
+  it("offers the Location and Language controls, in order, and no Site control (§13)", async () => {
+    const english = await headerHtml(GERMANY_SPOKE, { siteCode: GERMANY, localePath: "en", routePath: "" });
+    const german = await headerHtml(GERMANY_SPOKE, { siteCode: GERMANY, localePath: GERMANY, routePath: "" });
+    expect(selectorOrder(english)).toEqual(["layout", "location", "language"]);
+    expect(selectorOrder(german)).toEqual(["layout", "location", "language"]);
+    for (const html of [english, german]) {
+      const order = selectorOrder(html);
+      expect(new Set(order).size, "each control appears once").toBe(order.length);
+      expect(html).not.toContain('data-selector="site"');
+    }
     expect(selectorOptions(english, "location")).toEqual(["All locations", "Berlin", "Frankfurt"]);
     expect(selectorOptions(german, "location")).toEqual(["Alle Standorte", "Berlin", "Frankfurt"]);
-    // The neutral option is the dictionary's, so the two concepts stay distinct words.
-    expect(getDictionary("en").location.unspecified).toBe("All locations");
-    expect(getDictionary(GERMANY).location.unspecified).toBe("Alle Standorte");
-    // …and the Site control keeps its own vocabulary beside it.
-    expect(selectorOptions(german, "site")).toEqual(["Global", "Germany"]);
-  });
-});
-
-describe("the controls are composed in the documented order", () => {
-  // NAV1B — the navigation-MODE control owns the header's TOP row (beside the identity, anchored at
-  // its right edge), so it LEADS the document order; the contextual group follows it in its
-  // documented Site → Location → Language order inside the SECOND row.
-  it("renders Layout → Site → Language on a site with no locations", async () => {
-    const html = await headerHtml({ siteCode: GLOBAL, localePath: "en", routePath: "" });
-    expect(selectorOrder(html)).toEqual(["layout", "site", "language"]);
   });
 
-  it("renders Layout → Site → Location → Language on Germany", async () => {
-    const html = await headerHtml({ siteCode: GERMANY, localePath: GERMANY, routePath: "" });
-    expect(selectorOrder(html)).toEqual(["layout", "site", "location", "language"]);
-  });
+  it("renders its own dictionary wording and its own asset namespace (§15/§16)", async () => {
+    const dictionaries = dictionariesFor(GERMANY_SPOKE);
+    expect(dictionaries.get(GERMANY).language.label).toBe("Sprache");
+    expect(dictionaries.get("en").language.label).toBe("Language");
+    expect(dictionaries.get(GERMANY).location.unspecified).toBe("Alle Standorte");
+    // Different roots, different access objects: neither Spoke reads the other's dictionary tree.
+    expect(GERMANY_SPOKE.resources.dictionaryRoot).not.toBe(FOUNDATION.resources.dictionaryRoot);
+    expect(dictionariesFor(FOUNDATION)).not.toBe(dictionaries);
 
-  it("keeps every control present at once, once and only once", async () => {
-    const html = await headerHtml({ siteCode: GERMANY, localePath: "en", routePath: "about" });
-    const order = selectorOrder(html);
-    expect(new Set(order).size).toBe(order.length);
-    expect(order).toEqual(["layout", "site", "location", "language"]);
+    const namespaces = createRuntimeAssetOwnershipResolver(GERMANY_SPOKE.runtimeAssetNamespaces)
+      .namespaces.map((namespace) => namespace.urlBase);
+    expect(namespaces).toEqual(["/assets", "/spokes/germany/assets"]);
+
+    const html = await headerHtml(GERMANY_SPOKE, { siteCode: GERMANY, localePath: GERMANY, routePath: "" });
+    expect(html).not.toContain("/spokes/foundation/assets/");
   });
 });
 

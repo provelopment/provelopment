@@ -86,7 +86,13 @@ export function selectDisposableDeploymentCopy(): DisposableDeployment {
 
   process.env[DEPLOYMENT_ROOT_ENV] = root;
   process.env[DEPLOYMENT_LAYOUT_ENV] = "override";
-  process.env[DEPLOYMENT_CONFIG_ENV] = readFileSync(source.siteConfigFile, "utf8");
+  // The compatibility configuration binding is published ONLY when the Installation HAS one. A MULTI-Spoke
+  // Installation inlines no single configuration at all (S3F2A/M16 — there is no default Spoke to inline),
+  // so `siteConfigFile` is empty and reading it would fail for exactly the deployment form the multi-Spoke
+  // proof is about. The `deploymentEnvironment(...)` call below publishes the copy's OWN answer either way.
+  if (source.siteConfigFile !== "") {
+    process.env[DEPLOYMENT_CONFIG_ENV] = readFileSync(source.siteConfigFile, "utf8");
+  }
 
   // S3F1 — the copy is a whole Installation, so the AUTHORING MODE and (when explicit) the sole Spoke's
   // root and runtime segment travel with it. Asked of the seam for the copy's own root, so the copy

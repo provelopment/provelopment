@@ -411,10 +411,15 @@ describe("architecture guards: the new capability is additive and has no mutable
     expect(read("src/config/installation-runtime.ts")).not.toMatch(/from "@\/config"/);
   });
 
-  it("still declares exactly ONE production Spoke (activation is S3F2B's act)", () => {
+  it("declares the TWO production Spokes this deployment activates (M18)", () => {
     const manifest = JSON.parse(read("deployment/spokes.json"));
-    expect(manifest.spokes).toHaveLength(1);
-    expect(manifest.spokes[0].id).toBe("foundation");
+    expect(manifest.spokes.map((spoke: { id: string }) => spoke.id)).toEqual(["foundation", "germany"]);
+    // Each Spoke is authored in its OWN root beneath the dedicated `spokes/` namespace, and manifest
+    // order is authored REPORTING order only — never a default, a first Spoke or a precedence rule.
+    expect(manifest.spokes.map((spoke: { root: string }) => spoke.root)).toEqual([
+      "spokes/foundation",
+      "spokes/germany",
+    ]);
   });
 
   it("has RETIRED the internal Spoke page tree: the public route IS the page identity (M17)", () => {

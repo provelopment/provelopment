@@ -34,6 +34,14 @@ vi.mock("next/navigation", () => ({
   },
 }));
 
+vi.mock("next/headers", () => ({
+  headers: async () =>
+    new Headers({
+      host: "foundation-template.provelopment.com",
+      "x-foundation-spoke-segment": "foundation",
+    }),
+}));
+
 // The copy must be selected BEFORE anything reads the config surface, and this project's setup file has
 // already read it once (it asserted the REAL deployment) — so the app modules are loaded AFTER a module
 // reset, which is what makes them describe the copy rather than the instances the setup warmed.
@@ -50,13 +58,15 @@ const publicRouteInventory = async (): Promise<{ segments: string[] }[]> => {
   const { staticParamsForContext, spokeServerComposition } = await import(
     '@/app/[[...segments]]/server-composition'
   );
-  const { currentBuildRuntimeContext } = await import('@/config/installation-runtime');
-  return staticParamsForContext(spokeServerComposition(currentBuildRuntimeContext()));
+  const { foundationSpoke } = await import('../support/spoke-contexts');
+  return staticParamsForContext(spokeServerComposition(foundationSpoke.context));
 };
 const sitemap = (await import("@/app/sitemap")).default;
 const { createPageSources } = await import("@/adapters/content/page-sources");
-const { siteConfig } = await import("@/config");
-const { deploymentPaths } = await import("@/config/deployment-root");
+// M18 — a multi-Spoke Installation has no installation-wide configuration, so this suite names the Spoke
+// whose authored pages it plants fixtures beside: the FOUNDATION Spoke (`ww`). The Germany Spoke's own
+// authoring is proved by `deployment/tests/unit/m18-germany-spoke.test.ts`.
+const { foundationConfig: siteConfig, foundationSpoke } = await import("../support/spoke-contexts");
 const { HOME_CONTENT_SLUG } = await import("@/core/page-content");
 const { resolveSites } = await import("@/core/site");
 
@@ -103,7 +113,7 @@ const shippedBefore = captureProductionStateManifest(disposable.sourceRoot);
  * a path this file invented. The authority now answers with the disposable copy this file selected, and
  * the assertion below refuses to continue if it answers with anything else.
  */
-const copyPaths = deploymentPaths();
+const copyPaths = foundationSpoke;
 if (path.resolve(copyPaths.root) !== path.resolve(disposable.root)) {
   throw new Error(
     "FOUNDATION-DEPLOYMENT-ISO-B3C2B: this suite plants fixtures into a disposable copy of the selected " +
@@ -528,7 +538,7 @@ describe("the one page model, through the real application", () => {
         defaultLocale: "en",
         locales: ["en", HOME_FIXTURE_LOCALE],
       }).sites;
-      const pages = createPageSources({ sites });
+      const pages = createPageSources({ sites, roots: foundationSpoke.resources });
       const home = await pages.resolve(
         HOME_FIXTURE_SITE,
         HOME_CONTENT_SLUG,

@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { StructuredData } from "@/components/site/structured-data";
-import { siteConfig } from "@/config";
+import { germanyConfig as siteConfig } from "../support/spoke-contexts";
 import { resolveRegion } from "@/core/region";
 
 /** Extracts the first JSON-LD payload from a rendered `<script>` block. */

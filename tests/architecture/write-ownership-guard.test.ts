@@ -467,7 +467,7 @@ describe("each sanctioned writer stays inside the ONE domain it owns", () => {
     const source = readFileSync(path.join(ROOT, script), "utf8");
     const lines = mutationLines(script);
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatch(/^writeFileSync\(report\.document,/);
+    expect(lines[0]).toMatch(/^writeFileSync\(target\.document,/);
     // The location is deployment-RELATIVE and comes from the shared selector — never from a literal.
     // That it is never anchored to the repository is asserted where the generator's own deployment
     // contract is proved (`tests/unit/country-code-generator-deployment-root.test.ts`), and by the

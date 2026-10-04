@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so
 // it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
@@ -8,8 +8,24 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 import PageRoute, { generateMetadata } from "@/app/[[...segments]]/page";
 import { createPageSources } from "@/adapters/content/page-sources";
-import { siteConfig } from "@/config";
-import { getDictionary } from "@/config/i18n";
+// M18 — FOUNDATION Spoke binding: the `ww` Site, its dictionaries and its origin. A multi-Spoke
+// Installation has no installation-wide configuration to read (the authority refuses that answer), so a
+// deployment-scope suite names the Spoke it describes. `dictionaries` is the ACCEPTED context-bound
+// dictionary access, never the one-Spoke compatibility global.
+import { foundationConfig as siteConfig, foundationSpoke } from "../support/spoke-contexts";
+import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
+
+const dictionaries = dictionaryAccessForRuntimeContext(foundationSpoke.context);
+// M18 — the public route and its metadata resolve the Spoke from the REQUEST BOUNDARY private selection
+// header, so a node test that drives them must present one, exactly as the boundary would. Without it a
+// multi-Spoke Installation answers NOTHING: no claimed host means no Spoke, never a default one.
+vi.mock("next/headers", () => ({
+  headers: async () =>
+    new Headers({
+      host: "foundation-template.provelopment.com",
+      "x-foundation-spoke-segment": "foundation",
+    }),
+}));
 import { dictionarySchema } from "@/config/i18n/dictionary";
 import { siteDescriptionForLocale } from "@/config/site-metadata";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
@@ -44,7 +60,7 @@ const GERMAN_HOME_TITLE = "Eine Website, die Ihnen gehört.";
 const GERMAN_ABOUT_TITLE = "Über diese Foundation-Website";
 const REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
-const pages = () => createPageSources({ sites: siteConfig.sites });
+const pages = () => createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
 const params = (...segments: string[]) => ({ params: Promise.resolve({ segments }) });
 const site = siteConfig.sites.find((candidate) => candidate.code === SITE);
 
@@ -76,7 +92,7 @@ describe("the `ww` site serves a real second language", () => {
 
 
 describe("the German UI dictionary is a complete, validated dictionary", () => {
-  const german = getDictionary(GERMAN);
+  const german = dictionaries.get(GERMAN);
 
   it("satisfies the complete dictionary schema", () => {
     const parsed = dictionarySchema.safeParse(german);
@@ -110,8 +126,8 @@ describe("the German UI dictionary is a complete, validated dictionary", () => {
   });
 
   it("leaves the English dictionary alone", () => {
-    expect(getDictionary(ENGLISH).language.label).toBe("Language");
-    expect(getDictionary(ENGLISH).navigation.items["/about"]).toBe("About");
+    expect(dictionaries.get(ENGLISH).language.label).toBe("Language");
+    expect(dictionaries.get(ENGLISH).navigation.items["/about"]).toBe("About");
   });
 });
 

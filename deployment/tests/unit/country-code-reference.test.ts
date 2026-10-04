@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
-import { deploymentPaths } from "@/config/deployment-root";
+
+import { deploymentSpokes } from "../support/spoke-contexts";
 
 import { COUNTRY_SITE_CODES, WORLDWIDE_SITE_CODE, isSiteCode } from "@/core/site-code";
 
@@ -18,8 +19,14 @@ import { COUNTRY_SITE_CODES, WORLDWIDE_SITE_CODE, isSiteCode } from "@/core/site
  * The reserved Worldwide value is checked SEPARATELY: `ww` is Foundation-defined, not an ISO country,
  * and it must not appear in the country list.
  */
-const referencePath = path.join(deploymentPaths().contentRoot, "COUNTRY-CODES.md");
-const document = readFileSync(referencePath, "utf8");
+// M18 — this deployment declares TWO Spokes, so the reference is authored ONCE PER SPOKE (each Spoke owns
+// its own `content/` tree). Every copy is checked, and they must agree with each other as well as with the
+// platform authority, because a Spoke that drifted alone would be a reference an owner reads and trusts.
+const documents = deploymentSpokes.map((spoke) => ({
+  spokeId: spoke.id,
+  text: readFileSync(path.join(spoke.contentRoot, "COUNTRY-CODES.md"), "utf8"),
+}));
+const document = documents[0].text;
 
 const START = "<!-- CODES:START -->";
 const END = "<!-- CODES:END -->";
@@ -79,18 +86,36 @@ describe("the country-code reference matches the runtime authority", () => {
   });
 });
 
+describe("every Spoke authors its own copy of the reference", () => {
+  it("names each declared Spoke and its own document", () => {
+    expect(documents.map((entry) => entry.spokeId)).toEqual(["foundation", "germany"]);
+  });
+
+  it("keeps every copy byte-identical to the platform-generated section", () => {
+    for (const entry of documents) {
+      expect(entry.text, `${entry.spokeId} carries the generated section`).toContain(START);
+      expect(entry.text, `${entry.spokeId} carries the generated section`).toContain(END);
+      expect(entry.text, `${entry.spokeId} section`).toBe(document);
+    }
+  });
+});
+
 describe("the reference is published where an author looks", () => {
   it("is linked from the content map", () => {
-    const map = readFileSync(path.join(deploymentPaths().contentRoot, "README.md"), "utf8");
-    expect(map).toContain("COUNTRY-CODES.md");
+    for (const spoke of deploymentSpokes) {
+      const map = readFileSync(path.join(spoke.contentRoot, "README.md"), "utf8");
+      expect(map, spoke.id).toContain("COUNTRY-CODES.md");
+    }
   });
 
   it("is linked from both authoring roots", () => {
-    for (const root of ["pages/markdown/README.md", "pages/json/README.md"]) {
-      expect(
-        readFileSync(path.join(deploymentPaths().contentRoot, ...root.split("/")), "utf8"),
-        root,
-      ).toContain("COUNTRY-CODES.md");
+    for (const spoke of deploymentSpokes) {
+      for (const root of ["pages/markdown/README.md", "pages/json/README.md"]) {
+        expect(
+          readFileSync(path.join(spoke.contentRoot, ...root.split("/")), "utf8"),
+          `${spoke.id}: ${root}`,
+        ).toContain("COUNTRY-CODES.md");
+      }
     }
   });
 });

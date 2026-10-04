@@ -8,7 +8,7 @@ import { NextRequest } from "next/server";
 
 import { completePublicPath } from "@/app/[[...segments]]/spoke-navigation";
 import { SPOKE_SELECTION_HEADER } from "@/config/spoke-selection";
-import { siteConfig } from "@/config";
+import { foundationConfig as siteConfig } from "../support/spoke-contexts";
 import { proxy } from "@/proxy";
 
 /** The path a request is COMPLETED to inside its Spoke, or `null` when it is already complete. */
@@ -59,8 +59,13 @@ function statusFor(path: string, host = "foundation-template.provelopment.com"):
  * deployment default).
  */
 const REFERENCE = siteConfig.defaultSite.code;
-/** R1C — the reference deployment's second site (Germany), whose code is also a locale name. */
-const GERMANY = siteConfig.sites.find((candidate) => candidate.code !== REFERENCE)?.code as string;
+/**
+ * M18 — the Germany SITE now belongs to the GERMANY SPOKE, so `de` is not a site code OF THIS SPOKE any
+ * more. What remains true of the Foundation Spoke is that `de` is one of ITS LOCALES (`/ww/de/**`), which
+ * is exactly the distinction the assertions below draw: a LOCALE named `de` completes into this Spoke,
+ * while a SITE named `de` is answered only by the Germany Spoke (§22/§23).
+ */
+const GERMANY = "de";
 
 /**
  * The `Location` a request is COMPLETED to inside its Spoke, or `null` when the path is already complete.
@@ -85,15 +90,21 @@ describe("an explicit locale in the path is authoritative", () => {
     expect(redirectFor("/en", { "accept-language": "de-DE,de" })).toBe(`/${REFERENCE}/en`);
   });
 
-  it("treats a SITE code as a site, not as a locale (R1C: `de` is the Germany site)", () => {
-    // The first segment wins as a site code, so `/de/about` is the Germany site's About page
-    // missing its locale. Which locale completes it is GERMANY's own policy — its default when the
-    // visitor expresses no preference, or the visitor's cookie WHEN THAT SITE SERVES IT. What must
-    // never happen is the visitor landing in another site.
-    expect(redirectFor("/de/about")).toBe(`/${GERMANY}/de/about`);
-    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=en" })).toBe(`/${GERMANY}/en/about`);
-    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=fr" })).toBe(`/${GERMANY}/de/about`);
-    expect(redirectFor("/de")).toBe(`/${GERMANY}/de`);
+  it("treats `de` as THIS Spoke's LOCALE, never as a site it does not own (M18 §22)", () => {
+    // The Germany SITE belongs to the Germany Spoke now. On the Foundation Spoke `de` is one of the
+    // Foundation's own LOCALES, so the site-less locale form completes INSIDE this Spoke — `/ww/de/**` —
+    // and never into a Site this host does not claim. Nothing crosses to the other Spoke's origin.
+    expect(redirectFor("/de/about")).toBe(`/${REFERENCE}/de/about`);
+    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=en" })).toBe(`/${REFERENCE}/de/about`);
+    expect(redirectFor("/de/about", { cookie: "NEXT_LOCALE=fr" })).toBe(`/${REFERENCE}/de/about`);
+    expect(redirectFor("/de")).toBe(`/${REFERENCE}/de`);
+  });
+
+  it("declares no `de` SITE on the Foundation Spoke at all (M18 §22)", () => {
+    // The Site itself moved: the Foundation host owns `ww` and nothing else. A `/de/de…` URL on this host
+    // is therefore not completable into a Site — it fails closed (the browser proof asserts the refusal).
+    expect(siteConfig.sites.map((site) => site.code)).toEqual([REFERENCE]);
+    expect(siteConfig.sites.map((site) => site.code)).not.toContain(GERMANY);
   });
 });
 
