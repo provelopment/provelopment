@@ -10,15 +10,14 @@ This page belongs to the **Germany** site in this Foundation reference deploymen
 - an **independent page tree** for Germany, separate from the Global site
 - the site is available in **German and English**
 - two demonstration **locations**, Berlin and Frankfurt
-- the **Site**, **Location**, **Language** and **Layout** controls working together
+- the **Location**, **Language** and **Layout** controls working together
 
 The Global site and this site are independent: neither reads pages from the other. That is deliberate — a country site can grow its own structure without changing what the Global site says.
 
 # Sites, languages and locations
 
-The controls in the header describe four different aspects of this website:
+The controls in the header describe three different aspects of this website:
 
-- **Site** chooses which website you are reading — here, *Global* or *Germany*.
 - **Language** chooses how the site is read — German or English.
 - **Location** chooses a physical or service context inside the site — Berlin or Frankfurt, or **All locations** for the whole site.
 - **Layout** changes only how the interface is presented — Sidebar or Menu bar. It is a visitor preference and belongs to no site.

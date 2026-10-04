@@ -232,6 +232,10 @@ describe("deployment-owned paths are spelled in ONE place", () => {
       // S3C1 authority the same question about the same disposable roots, so it too is a sanctioned
       // consumer of the build harness (it selects no deployment itself).
       "tests/unit/spoke-declaration-parity.test.ts",
+      // FOUNDATION-MULTISITE-M20 — the multi-Spoke ESTABLISHMENT proof is seeded with a byte-faithful copy
+      // of the REAL authored capsule, so it must know where that capsule is; asking the build authority
+      // (`capsuleDirectory`) is the sanctioned way to know it, and it selects no deployment itself.
+      "tests/integration/foundation-installation-multispoke.test.ts",
     ];
     // FOUNDATION-B4B adds three of these, and for the same reason the list already had entries: they must
     // know WHERE an installation's authored material lives, and asking the authority is the only sanctioned

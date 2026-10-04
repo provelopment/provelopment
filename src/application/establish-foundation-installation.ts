@@ -72,11 +72,12 @@ import {
   INSTALLATION_CONTENT_SCOPE,
   INSTALLATION_GENERATED_STATE_IGNORE_RULE,
   INSTALLATION_SEED_REFUSED_PATHS,
-  INSTALLATION_SEED_REQUIREMENTS,
   foundationInstallationAdoptionRecord,
   installationIsEstablishedFrom,
+  installationSeedTopologyRefusals,
   offsetInstant,
   portableInstallationSeed,
+  type InstallationSeedTopology,
 } from "@/core/foundation-installation/establishment";
 import {
   beginInstallationPromotion,
@@ -142,18 +143,22 @@ function contentDigest(
   return `sha256:${hasher.sha256Hex(utf8.encode(contentDigestSubject(entries, { scope })))}`;
 }
 
-/** Why this seed cannot become a complete installation. Empty means the seed is usable. */
-function seedRefusals(files: readonly FoundationContentFile[]): string[] {
-  const refusals: string[] = [];
+/**
+ * Why this seed cannot become a complete installation. Empty means the seed is usable.
+ *
+ * THE AUTHORED SURFACES ARE APPLIED TO EVERY SPOKE ROOT THE SEED'S OWN MODE DECLARES
+ * (FOUNDATION-MULTISITE-M20): the Installation root itself for a legacy implicit seed, and EACH declared
+ * Spoke root for an explicit one. The rule is stated once, in the core, and takes the topology as DATA — so
+ * this function never reads a manifest, never enumerates a `spokes/` directory (membership is the manifest's
+ * alone) and never restates a declaration rule. An incomplete Spoke is therefore named in the refusal,
+ * rather than reported as a missing root-level file the operator cannot act on.
+ */
+function seedRefusals(
+  files: readonly FoundationContentFile[],
+  topology: InstallationSeedTopology,
+): string[] {
+  const refusals: string[] = [...installationSeedTopologyRefusals(topology, files)];
   const paths = files.map((file) => file.path);
-
-  for (const requirement of INSTALLATION_SEED_REQUIREMENTS) {
-    const present =
-      requirement.kind === "file"
-        ? paths.includes(requirement.path)
-        : paths.some((path) => path.startsWith(`${requirement.path}/`));
-    if (!present) refusals.push(`the seed has no ${requirement.path} — ${requirement.reason}`);
-  }
 
   for (const refused of INSTALLATION_SEED_REFUSED_PATHS) {
     if (paths.includes(refused.path)) {
@@ -222,6 +227,16 @@ export interface FoundationEstablishmentResult {
   readonly targetRoot: string;
   /** Every file establishment wrote, target-relative, in the order it wrote them. */
   readonly writtenFiles: readonly string[];
+  /**
+   * THE AUTHORED INPUT'S OWN AUTHORING MODE, and the Spoke ids its manifest declares (M20).
+   *
+   * Reported because an operator establishing a MULTI-SPOKE Installation needs to see that the authored
+   * material was understood as a Spoke collection rather than as one implicit Spoke — and because the mode is
+   * a fact about the act (which capsule was supplied), not something to re-derive from the target later.
+   * `seedSpokes` is empty for a legacy implicit seed: that shape declares no Spoke by manifest.
+   */
+  readonly seedMode: InstallationSeedTopology["mode"];
+  readonly seedSpokes: readonly string[];
   /**
    * Records the seed carried that establishment deliberately did NOT inherit, target-relative.
    *
@@ -346,9 +361,15 @@ export async function establishFoundationInstallation(
     // 4. THE AUTHORED INPUT MUST BE USABLE — its shape, its generated state, and its configuration.
     //    The refusals are decided on the seed AS SUPPLIED: a capsule is judged by what it contains, never by
     //    what establishment is about to leave behind.
+    //
+    //    WHICH AUTHORING MODE the seed is authored in comes from the platform's ONE Spoke-declaration
+    //    authority, through the seed port (FOUNDATION-MULTISITE-M20): a seed authored BOTH ways, or NEITHER
+    //    way, is refused by that authority with its own words, and the refusal reaches the operator as an
+    //    unusable seed. There is no precedence rule, no migration guess and no default Spoke here either.
     category = FAILURE_CATEGORY.installation;
+    const seedTopology = await seed.topology();
     const suppliedSeedFiles = await seed.files();
-    const seedIssues = seedRefusals(suppliedSeedFiles);
+    const seedIssues = seedRefusals(suppliedSeedFiles, seedTopology);
     if (seedIssues.length > 0) {
       return refused(
         FAILURE_CATEGORY.installation,
@@ -365,21 +386,42 @@ export async function establishFoundationInstallation(
     //     read again, never modified and never deleted.
     const { portable: seedFiles, notInherited } = portableInstallationSeed(suppliedSeedFiles);
 
+    // 4c. EVERY SPOKE ROOT'S OWN CONFIGURATION (FOUNDATION-MULTISITE-M20). The surfaces were checked per
+    //     Spoke root above; the CONFIGURATION must be validated the same way, or an explicit Installation
+    //     would be validated against a file its shape never has. The legacy implicit root is the one-root
+    //     case of the same rule, so its diagnostics are unchanged; an explicit Spoke's problem names the
+    //     file AND the Spoke, because an operator must know WHICH one is wrong.
+    const configurations =
+      seedTopology.mode === "legacy"
+        ? [{ path: "site.config.json", where: "" }]
+        : seedTopology.spokes.map((spoke) => ({
+            path: `${spoke.locator.replace(/\/+$/, "")}/site.config.json`,
+            where: ` (declared Spoke "${spoke.id}")`,
+          }));
+
     const configProblems: string[] = [];
-    let config: unknown = null;
-    try {
-      const configFile = seedFiles.find((file) => file.path === "site.config.json");
-      config = JSON.parse(new TextDecoder().decode(configFile?.bytes ?? new Uint8Array()));
-    } catch (error) {
-      configProblems.push(
-        `site.config.json is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    }
-    if (configProblems.length === 0) {
+    for (const { path: configPath, where } of configurations) {
+      const configFile = seedFiles.find((file) => file.path === configPath);
+      let config: unknown = null;
+      try {
+        config = JSON.parse(new TextDecoder().decode(configFile?.bytes ?? new Uint8Array()));
+      } catch (error) {
+        configProblems.push(
+          where === ""
+            ? `${configPath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`
+            : `${configPath}${where} is not valid JSON: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+        );
+        continue;
+      }
       const parsed = siteConfigFileSchema.safeParse(config);
       if (!parsed.success) {
         for (const issue of parsed.error.issues) {
-          configProblems.push(`${issue.path.join(".") || "(root)"}: ${issue.message}`);
+          const at = issue.path.join(".") || "(root)";
+          configProblems.push(
+            where === "" ? `${at}: ${issue.message}` : `${configPath}${where}: ${at}: ${issue.message}`,
+          );
         }
       }
     }
@@ -471,6 +513,8 @@ export async function establishFoundationInstallation(
         seedFrom: seed.description,
         targetRoot: request.targetRoot,
         writtenFiles: materialisedFiles.map((file) => file.path),
+        seedMode: seedTopology.mode,
+        seedSpokes: seedTopology.mode === "legacy" ? [] : seedTopology.spokes.map((spoke) => spoke.id),
         notInherited: notInherited.map((file) => inCapsule(file.path)),
         events: stored.history,
         operationalStateFile: inCapsule(INSTALLATION_OPERATIONAL_STATE_FILE_NAME),

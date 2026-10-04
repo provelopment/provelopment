@@ -2604,13 +2604,12 @@ namespace**.
 - **A Hub is not an address.** It never appears in a public URL, it adds no filesystem path, and a
   site keeps exactly the URLs it already had.
 
-### The four visitor controls
+### The visitor controls
 
 | Control | What it changes | When it appears |
 | --- | --- | --- |
-| **Site** | which independent website | when the deployment configures more than one site |
-| **Language** | the language inside the active site | when the active site offers more than one language |
-| **Location** | the office/city/region inside the active site | when locations are configured for it |
+| **Language** | the language inside the active website | when that website offers more than one language |
+| **Location** | the office/city/region inside the active website | when locations are configured for it |
 | **Layout** | Sidebar or Menu bar presentation (visitor's own choice) | when `ui.layoutSwitcher.enabled` is true |
 
 Each control is a plain, labelled form control (keyboard-usable, with its current value exposed),
@@ -2618,36 +2617,40 @@ and each one only ever offers destinations that exist — a control never invent
 or a location. They are composed in one documented order:
 
 ```text
-Site → Location → Language → Layout
+Location → Language → Layout
 ```
+
+**There is no Site control, and no cross-website control of any kind.** Since M18 one website is one
+**Spoke**, with its own `site.config.json`, dictionaries, pages and artwork, selected by HOSTNAME alone
+(a private request context — never a URL segment and never a visitor choice). Which website a visitor sees
+is decided by the address they used; a link from one of our websites to another is ordinary authored footer
+navigation, not a control.
 
 ### What the reference deployment demonstrates
 
-The public reference deployment (<https://foundation-template.provelopment.com>) is configured as a
-worked example of that model:
+The public reference deployment is TWO independent websites, one Spoke each:
 
 ```text
-Global  (ww)                     Germany (de)
-├── English                      ├── Languages
-└── Deutsch                      │   ├── Deutsch
-    (no locations)               │   └── English
-                                 ├── Locations
-                                 │   ├── Berlin
-                                 │   └── Frankfurt
-                                 └── Pages (independent of Global)
+foundation-template.provelopment.com         foundation-template-germany.provelopment.com
+foundation Spoke — Site ww (Global)          germany Spoke — Site de (Germany)
+├── English, Deutsch                         ├── Deutsch (default), English
+├── no locations                             ├── Locations: Berlin, Frankfurt
+└── its own pages, dictionaries, artwork     └── its own pages, dictionaries, artwork
 ```
 
-The configuration behind it is `site.config.json` → `sites` (the two sites, `ww` labelled
-**Global** and `de` labelled **Germany**), `i18n.locales` (the languages each site serves) and
-`business.regions` + `business.pages` (the locations and the locale + region combinations that
-exist). Its pages are ordinary content files under `content/pages/`, one tree per site.
+The configuration behind each one is that Spoke's OWN `site.config.json`
+(`deployment/spokes/<spoke>/site.config.json`) → `sites`, `i18n.locales` and `business.regions` +
+`business.pages`; its pages are ordinary content files under that Spoke's `content/pages/`, one tree per
+Site and one localized representation per language.
 
-Two things the example deliberately shows:
+Three things the example deliberately shows:
 
-- **the Location control appears only where locations exist** — Global configures none, so its
-  header shows Site, Language and Layout; Germany's shows all four;
-- **languages belong to the site, not to a single location** — Germany offers German and English and
-  both locations are readable in both. This model has no per-location language restriction.
+- **the Location control appears only where locations exist** — the Foundation website configures none, so
+  its header shows Language and Layout, while the Germany website shows Location, Language and Layout;
+- **languages belong to the website, not to a single location** — the Germany website offers German and
+  English and both locations are readable in both. This model has no per-location language restriction;
+- **each website is reachable from the other** through an ordinary authored footer link to the other public
+  origin (`footerNavigation`), which is navigation rather than a selector.
 
 **Germany, Berlin and Frankfurt are demonstration data.** They are not statements about
 Provelopment's own offices, addresses or markets, the configured addresses are placeholders, and no

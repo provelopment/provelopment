@@ -10,15 +10,14 @@ Diese Seite gehört zur Website **Germany** in dieser Foundation-Referenzinstall
 - einen **eigenständigen Seitenbaum** für Deutschland, getrennt von der Website Global
 - die Website ist in **Deutsch und Englisch** verfügbar
 - zwei Demonstrations-**Standorte**, Berlin und Frankfurt
-- das Zusammenspiel der Bedienelemente **Site**, **Standort**, **Sprache** und **Layout**
+- das Zusammenspiel der Bedienelemente **Standort**, **Sprache** und **Layout**
 
 Die Website Global und diese Website sind eigenständig: Keine liest Seiten der anderen. Das ist beabsichtigt — eine Länder-Website kann ihre eigene Struktur ausbauen, ohne dass sich ändert, was die Website Global aussagt.
 
 # Sites, Sprachen und Standorte
 
-Die Bedienelemente in der Kopfzeile beschreiben vier verschiedene Aspekte dieser Website:
+Die Bedienelemente in der Kopfzeile beschreiben drei verschiedene Aspekte dieser Website:
 
-- **Site** wählt, welche Website Sie lesen — hier *Global* oder *Germany* (die Website für Deutschland).
 - **Sprache** wählt, in welcher Sprache die Website gelesen wird — Deutsch oder Englisch.
 - **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb der Website — Berlin, Frankfurt oder **Alle Standorte** für die gesamte Website.
 - **Layout** ändert nur die Darstellung der Oberfläche — Seitenleiste oder Menüleiste. Es ist eine Einstellung des Besuchers und gehört zu keiner Website.

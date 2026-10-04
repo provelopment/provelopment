@@ -491,6 +491,11 @@ describe("S3C1 is UNWIRED — today's build and runtime are untouched", () => {
       .map((file) => path.relative(process.cwd(), file).split(path.sep).join("/"))
       .sort();
     expect(importers).toEqual([
+      // M20 — THE ESTABLISHMENT BOUNDARY asks the same question of a SEED DIRECTORY: which authoring mode
+      // is it authored in, and where are its Spoke roots? The answer is resolved here, at the adapter
+      // boundary, and passed into the pure establishment rules as data, so no second parser, locator rule
+      // or membership rule exists.
+      "src/adapters/installation/directory-seed-source.ts",
       // S3F2A — the Whole-Installation runtime index consumes the SAME resolver the config layer uses,
       // so it describes an Installation (1..* Spokes) without a second manifest authority.
       "src/config/installation-runtime.ts",

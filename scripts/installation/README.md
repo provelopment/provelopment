@@ -31,9 +31,25 @@ pnpm installation:establish \
   --repository "<this installation's own repository>"
 ```
 
-`--seed` is the authored material the platform cannot invent: a directory holding `site.config.json`,
-`config/i18n/**` and `content/**` (in this repository that is the `deployment/` capsule). `--name` and
-`--repository` describe **this installation**, and are recorded in its operational record.
+`--seed` is the authored material the platform cannot invent, and it may be authored in EITHER accepted
+form. The capsule's own shape decides which, and establishment DISCOVERS it — it never guesses, migrates or
+prefers one:
+
+* **Implicit (legacy):** no `spokes.json`. The seed directory IS its one Spoke, and it holds
+  `site.config.json`, `config/i18n/**` and `content/**` directly.
+* **Explicit (multi-Spoke):** a `spokes.json` manifest declaring 1..* Spoke roots beneath `spokes/`, and
+  EACH declared Spoke root carries its own `site.config.json`, `config/i18n/**`, `content/pages/**` and
+  `content/assets/**`. **In this repository that is the `deployment/` capsule**, which declares
+  `foundation` and `germany` — establish it with `--seed deployment`.
+
+A seed authored BOTH ways (a manifest **and** a root `site.config.json`) or NEITHER way is refused: there is
+no precedence rule, no migration and no default Spoke. In the explicit form EVERY declared Spoke root is
+validated, and a missing surface or configuration is reported with the Spoke it belongs to. What the capsule
+expresses is the hierarchy `Foundation Installation → Spoke Hub → 1..* Spokes → Sites`; the page model inside
+a Site is a **Page Hub** (one page concept and its route, one localized representation per language). A
+**Spoke Hub** is the group of Spokes an Installation declares and is never shortened to "Hub".
+
+`--name` and `--repository` describe **this installation**, and are recorded in its operational record.
 
 **An existing installation's capsule is a valid seed** — it is the ordinary case. Such a capsule carries its
 own `foundation-baseline.json`, and establishment does not inherit it: the record names the release THAT

@@ -59,12 +59,17 @@ export { INSTALLATION_FAILURE_CATEGORIES, isInstallationFailureCategory } from "
 export type { InstallationFailure, InstallationFailureCategory } from "./failures";
 
 /**
- * WHAT A COMPLETE INSTALLATION IS MADE OF (FOUNDATION-B4B). The rules establishment obeys: the seed's
- * required shape, the generated state a seed may never contain, the ignore rule that keeps the operational
- * record out of authored state, the content scopes a candidate identity is built from, the adoption record
- * it writes, and the predicate that answers "is this installation established from exactly this release and
- * candidate?". The MECHANICS are `@/application/establish-foundation-installation` and
- * `src/adapters/installation/**`.
+ * WHAT A COMPLETE INSTALLATION IS MADE OF (FOUNDATION-B4B). The rules establishment obeys: the authored
+ * surfaces ONE SPOKE ROOT must carry, the generated state a seed may never contain, the ignore rule that
+ * keeps the operational record out of authored state, the content scopes a candidate identity is built
+ * from, the adoption record it writes, and the predicate that answers "is this installation established from
+ * exactly this release and candidate?". The MECHANICS are `@/application/establish-foundation-installation`
+ * and `src/adapters/installation/**`.
+ *
+ * M20 adds the AUTHORING-MODE vocabulary: which mode a seed is authored in (legacy implicit, or an explicit
+ * Spoke collection) and where each declared Spoke root is — as PURE DATA — plus the ONE rule that applies the
+ * authored surfaces to every root that mode declares. Which real directory is authored which way remains the
+ * declaration authority's answer (`@/config/spoke-declarations.mjs`), never a second implementation here.
  */
 export {
   INSTALLATION_ADOPTION_RECORD_FILE_NAME,
@@ -74,11 +79,14 @@ export {
   INSTALLATION_SEED_REQUIREMENTS,
   foundationInstallationAdoptionRecord,
   installationIsEstablishedFrom,
+  installationSeedTopologyRefusals,
   offsetInstant,
 } from "./establishment";
 export type {
   FoundationInstallationAdoptionRecord,
   InstallationSeedRequirement,
+  InstallationSeedSpoke,
+  InstallationSeedTopology,
 } from "./establishment";
 
 // The release contract is NOT re-exported here: it is its own authority (`@/core/foundation-release`),

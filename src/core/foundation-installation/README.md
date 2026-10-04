@@ -272,8 +272,10 @@ judged whether it serves. The example below shows the same installation AFTER a 
 * Durability comes from the installation's own filesystem (and, later, wherever an installation keeps its state):
   it survives restarts, it is read by whoever operates the installation, and it is not carried inside a
   Foundation release payload — so materialising a release can never overwrite it.
-* The AUTHORED state stays exactly what it was: `site.config.json`, `config/i18n/**`, `content/**`. The
-  record never becomes a second place where an owner authors anything.
+* The AUTHORED state stays exactly what it was: every Spoke root's own `site.config.json`,
+  `config/i18n/**` and `content/**` — the legacy implicit Installation has exactly one such root, which is
+  the Installation root itself (FOUNDATION-MULTISITE-M20). The record never becomes a second place where an
+  owner authors anything.
 
 The ADOPTED baseline is a different fact and keeps its own file: `deployment/foundation-baseline.json` is a
 declaration ("I deliberately adopt this release", a reviewed act), while `live` is an observation ("this is

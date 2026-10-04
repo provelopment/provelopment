@@ -29,6 +29,7 @@ import type {
   InstallationClock,
   InstallationOperationalStateStore,
 } from "./foundation-installation-ports";
+import type { InstallationSeedTopology } from "@/core/foundation-installation/establishment";
 
 /**
  * ONE file of a content set: a ROOT-RELATIVE POSIX path and its exact bytes.
@@ -69,6 +70,23 @@ export interface FoundationInstallationSeedSource {
   /** A description of where the authored input was read from, for diagnostics. */
   readonly description: string;
   files(): Promise<readonly FoundationContentFile[]>;
+  /**
+   * WHICH authoring mode this seed is authored in, and where each declared Spoke root is
+   * (FOUNDATION-MULTISITE-M20).
+   *
+   * A seed is authored EITHER implicitly (no manifest: its root is its one Spoke, and the authored surfaces
+   * sit directly in it) OR explicitly (a `spokes.json` manifest declaring 1..* Spoke roots beneath the
+   * dedicated `spokes/` namespace, each carrying its OWN surfaces). WHICH of the two a real directory is —
+   * and which spellings, identities and containment a declaration may have — is decided by the platform's
+   * ONE Spoke-declaration authority, never here: an implementation resolves the real seed through that
+   * authority and returns its answer as this pure value, so the use case can apply ONE rule to every root
+   * without reading a manifest, touching a filesystem, or restating a single declaration rule.
+   *
+   * It is a METHOD rather than a property because resolving it may read the filesystem; a seed whose
+   * manifest is contradictory or absent in both forms must FAIL here rather than be guessed at — the
+   * authority refuses, and the refusal reaches the operator as an unusable seed.
+   */
+  topology(): Promise<InstallationSeedTopology>;
 }
 
 /**
