@@ -1,20 +1,20 @@
 {
   "schemaVersion": 1,
 
-  "title": "Germany: one site, two languages, two locations.",
+  "title": "Germany: two languages, two locations.",
 
-  "description": "The demonstration site for Germany in this Foundation reference deployment: an independent site with German and English and the demonstration locations Berlin and Frankfurt.",
+  "description": "A Germany demonstration website showing how one Foundation website can support multiple languages and locations.",
 
   "sections": [
 
     {
       "type": "hero",
 
-      "lede": "This page belongs to the Germany site. It is part of the Foundation reference deployment and shows how a country keeps its own website: its own pages, its own languages and its own locations — independent of the Global site.",
+      "lede": "This is the Germany demonstration website in the Foundation reference installation. It has its own pages and address, supports German and English, and uses Berlin and Frankfurt to demonstrate location-specific information.",
 
       "actions": [
 
-        { "label": "Read about this site", "href": "/de/en/about" },
+        { "label": "Read about this website", "href": "/de/en/about" },
 
         {
           "label": "View the Foundation repository",
@@ -28,7 +28,7 @@
     {
       "type": "columns",
 
-      "heading": "Two languages on one site",
+      "heading": "Two languages on one website",
 
       "ratio": "equal",
 
@@ -36,12 +36,12 @@
 
         {
           "title": "English",
-          "body": "You are reading this page in English. Inside this site the **Language** control switches between German and English at any time, and the page you are on stays the same."
+          "body": "You are reading the English version. Use **Language** to switch to German while staying on the corresponding page."
         },
 
         {
           "title": "Deutsch",
-          "body": "The German version belongs to the same site. Both languages are created from the same pages, so the site does not need a second set of pages to be readable in two languages."
+          "body": "The German version belongs to the same website and follows the same routes, with content written for German readers."
         }
 
       ]
@@ -52,7 +52,7 @@
 
       "heading": "Berlin and Frankfurt are demonstration data",
 
-      "body": "The locations Berlin and Frankfurt are part of this reference configuration. They are not statements about any real Provelopment office. Replace them with your own locations.",
+      "body": "Berlin and Frankfurt are included only to demonstrate locations. They are not real Provelopment offices. Replace them with the locations that belong to your organisation.",
 
       "surface": "muted"
     },
@@ -60,14 +60,14 @@
     {
       "type": "cards",
 
-      "heading": "What this site demonstrates",
+      "heading": "What this website demonstrates",
 
       "items": [
 
         {
-          "title": "An independent site",
-          "body": "This site shares no pages with the Global site. It has its own page tree — the same structure, its own content.",
-          "action": { "label": "About this site", "href": "/de/en/about" }
+          "title": "Its own website and content",
+          "body": "The Germany website has its own address and its own content. It is separate from the Global demonstration website while sharing the same Foundation installation.",
+          "action": { "label": "About this website", "href": "/de/en/about" }
         }
 
       ]
@@ -76,17 +76,17 @@
     {
       "type": "prose",
 
-      "heading": "Locations extend a site instead of multiplying it",
+      "heading": "Locations belong inside the website",
 
-      "body": "**Berlin** and **Frankfurt** are locations *inside* this site. Choosing one in the **Location** control keeps the site, keeps the language and keeps your Layout preference: a location describes a physical or service context and does not create a second page tree."
+      "body": "**Berlin** and **Frankfurt** are locations within this website. Choosing a location keeps you on the same website and in the same language while showing the information that applies to that location."
     },
 
     {
       "type": "prose",
 
-      "heading": "This configuration is an example",
+      "heading": "This configuration is only an example",
 
-      "body": "Sites, languages and locations are configuration. A business can add sites for further countries, add languages or remove locations as its website develops. Languages are configured for the whole site and are therefore available to every one of its locations."
+      "body": "The languages and locations shown here are demonstration choices. A Foundation website can use the languages and locations that make sense for the organisation it represents."
     }
 
   ]

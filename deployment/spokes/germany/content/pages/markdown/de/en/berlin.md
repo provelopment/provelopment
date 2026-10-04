@@ -1,17 +1,19 @@
 ---
 title: Berlin
-description: Berlin is a demonstration location of the Germany site in this Foundation reference deployment — not a claim about any real business address.
+description: Berlin is a demonstration location in the Germany Foundation website and does not represent a real Provelopment office or address.
 ---
 
-This page belongs to the **Germany** site in this Foundation reference deployment. Berlin is one of the two demonstration locations configured for it, alongside Frankfurt.
+Berlin is one of two demonstration locations on the Germany website, alongside Frankfurt.
 
-# What a location means here
+# What a location means
 
-A location is a physical or service context *inside* a site. It does not create a second page tree: these Berlin pages are part of the Germany site, and switching between Berlin, Frankfurt and **All locations** never leaves Germany and never changes the language you are reading.
+A location lets one website show information for a particular place or service area.
 
-The time zone and address shown on this page are demonstration data. Replace them with your own location details when you configure Foundation for your business.
+Choosing **Berlin**, **Frankfurt** or **All locations** keeps you on the same Germany website and in the same language. Only the location-specific information changes.
+
+The address and time zone shown here are demonstration data. Replace them with the details that apply to your own organisation.
 
 # Where to go next
 
-- **Home** returns to the Germany site's start page.
-- **About** explains what this reference deployment demonstrates.
+- **Home** returns to the Germany website's start page.
+- **About** explains what this demonstration website shows.

@@ -170,7 +170,7 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const about = await pages.resolve(siteCode, "about", localePath);
     expect(about?.kind).toBe("markdown");
     expect(about?.title).toBe(REFERENCE_ABOUT_TITLE);
-    expect(about?.description).toContain("What this live reference site demonstrates");
+    expect(about?.description).toContain("What this live Foundation reference site demonstrates");
   });
 
   it("publishes each page's own URL and never /home", async () => {

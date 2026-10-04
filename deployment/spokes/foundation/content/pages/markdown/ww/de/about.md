@@ -1,71 +1,69 @@
 ---
 title: Über diese Foundation-Website
-description: Was diese Live-Referenz zeigt, wie ihre Seiten erstellt werden, was Sie anpassen können und welche Rolle optionale Provelopment-Dienstleistungen spielen.
+description: Was diese Foundation-Referenz zeigt, wie ihre Seiten erstellt werden und wie Sie daraus Ihre eigene Website machen können.
 ---
 
-Diese Website ist eine Live-Referenz für die Open-Source-Vorlage Provelopment Foundation. Sie basiert auf dem öffentlich verfügbaren Foundation-Code, den Sie herunterladen, an Ihre Anforderungen anpassen und aus Ihrem eigenen Repository bereitstellen können.
+Dies ist eine Live-Referenz für die Open-Source-Vorlage Provelopment Foundation. Sie basiert auf dem öffentlich verfügbaren Foundation-Code, den Sie herunterladen, anpassen und aus Ihrem eigenen Repository bereitstellen können.
 
 # Was diese Website zeigt
 
-Dies ist eine Referenzwebsite für Foundation und keine Kundenseite. Sie zeigt anhand einer tatsächlich betriebenen Website, wie die wichtigsten Bestandteile von Foundation zusammenspielen:
+Dies ist eine echte Foundation-Website und kein Vorschaumodell. Sie zeigt:
 
-- eine Startseite im deklarativen JSON-Seitenformat
-- diese Seite in Markdown
-- gemeinsame Navigation und zentrale Website-Konfiguration
-- zwei Sites: diese Website Global und eine Demonstrations-Website für Deutschland
-- mehrere Sprachen, derzeit Deutsch und Englisch
-- zwei Demonstrations-Standorte innerhalb der Website für Deutschland: Berlin und Frankfurt
-- Seitenleisten- und Menüleistenansicht
-- Auswahlmöglichkeiten für Site, Sprache, Standort und Layout
+- eine Startseite mit deklarativem JSON
+- diese Seite mit Markdown
+- dieselbe Website auf Deutsch und Englisch
+- Seitenleisten- und Menüansicht
+- eine zweite Demonstrations-Website für Deutschland innerhalb derselben Foundation-Installation
+- standortbezogene Informationen am Beispiel von Berlin und Frankfurt
 
-Die Website soll die Funktionen von Foundation nicht nur beschreiben, sondern praktisch zeigen. Gleichzeitig bietet sie einen brauchbaren Ausgangspunkt, an dem Sie sehen können, wie eine eigene Website aufgebaut und erweitert werden kann.
+Das Beispiel soll die wichtigsten Möglichkeiten von Foundation im Zusammenspiel zeigen, ohne unnötig kompliziert zu werden.
 
 # Eine Website unter Ihrer Kontrolle
 
 Foundation ist so aufgebaut, dass Sie die Kontrolle über Ihre Website behalten.
 
-Seiten, Bilder und andere Inhalte liegen als Dateien in Ihrem Repository. Einstellungen und Verhalten der Website werden über Konfigurationsdateien festgelegt. Die Website wird aus diesen Dateien erstellt und ist nicht an einen geschlossenen Website-Baukasten gebunden.
+Seiten, Bilder und andere Inhalte liegen als Dateien in Ihrem Repository. Konfigurationsdateien bestimmen das Verhalten der Website. Dadurch bleibt Ihre Website an Ihren eigenen Quellcode gebunden und nicht an einen geschlossenen Website-Baukasten.
 
-Sie können die Website selbst betreuen, einen anderen Dienstleister damit beauftragen oder Provelopment-Dienstleistungen nutzen. Die Website und ihre Inhalte bleiben dabei unter Ihrer Kontrolle.
+Sie können die Website selbst betreuen, einen anderen Dienstleister damit beauftragen oder Provelopment-Dienstleistungen nutzen. Die Entscheidung bleibt bei Ihnen.
 
-# Zwei Arten, Seiten zu erstellen
+# Zwei Wege, Seiten zu erstellen
 
-Foundation bietet zwei Möglichkeiten, Seiten zu erstellen.
+Foundation unterstützt zwei Formate für Seiten.
 
-**Markdown** eignet sich für einfache Inhaltsseiten. Es bleibt gut lesbarer Text und verwendet nur wenige Zeichen für Überschriften, Listen, Links und Hervorhebungen.
+**Markdown** eignet sich besonders für gewöhnliche Inhaltsseiten. Der Text bleibt übersichtlich und lässt sich einfach mit Überschriften, Listen, Links und Hervorhebungen strukturieren.
 
-**Deklaratives JSON** eignet sich für Seiten, die stärker strukturiert werden sollen. Statt die gesamte Seite als Fließtext zu schreiben, legen Sie Bereiche wie einen Hero-Bereich, Spalten, Kacheln, Tabellen oder Frage-und-Antwort-Bereiche fest.
+**Deklaratives JSON** eignet sich für Seiten, die stärker gegliedert werden sollen. Damit lassen sich Bereiche wie Hero, Spalten, Karten, Tabellen oder Fragen zusammenstellen.
 
-Diese Seite ist das Markdown-Beispiel. Die Startseite ist das JSON-Beispiel.
+Diese Seite verwendet Markdown. Die Startseite verwendet JSON.
 
-In beiden Fällen handelt es sich um normale Seiten. Die Datei enthält den Inhalt, ihr Speicherort bestimmt die Adresse, und veröffentlichte Seiten werden automatisch in die Sitemap aufgenommen.
+Beide sind ganz normale Foundation-Seiten und werden direkt aus den Dateien erstellt, die Sie selbst bearbeiten.
 
-# Sites, Sprachen, Standorte und Layout
+# Websites, Sprachen und Standorte
 
-Foundation kann eine einzelne Website ebenso abbilden wie eine Website für mehrere Länder, Sprachen, Standorte und Märkte. Diese Referenzinstallation ist so eingerichtet, dass die Besucher-Dimensionen im Zusammenspiel sichtbar werden:
+Eine Foundation-Installation kann sehr einfach aufgebaut sein oder mehrere zusammengehörige Websites bedienen.
 
-- **Sprache** wählt, in welcher Sprache die aktive Website gelesen wird. Diese Website Global bietet Deutsch und Englisch, die Website für Deutschland dieselben zwei Sprachen — Sprachen gehören zu einer Website und nicht zu einer einzelnen Seite.
-- **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb einer Website, ohne einen zweiten Seitenbaum zu erzeugen. Diese Website Global besitzt keine eigenen Standorte, deshalb erscheint hier kein Standort-Bedienelement; die Website für Deutschland zeigt die Standorte *Berlin* und *Frankfurt*.
-- **Layout** ändert nur die Darstellung der Oberfläche — Seitenleiste oder Menüleiste. Es ist eine Einstellung des Besuchers und gehört zu keiner Website; sie bleibt daher bei einem Wechsel von Sprache oder Standort erhalten.
+Diese Demonstration umfasst zwei eigenständige Websites: die globale Website, die Sie gerade lesen, und eine Deutschland-Website, die über den Link in der Fußzeile erreichbar ist. Beide haben eigene Inhalte und eigene Adressen, nutzen aber dieselbe Foundation-Installation.
 
-Ein **Site**-Bedienelement gibt es nicht: welche Website Sie lesen, entscheidet die Adresse, und die Website für Deutschland ist über einen gewöhnlichen Link in der Fußzeile erreichbar. Jedes Bedienelement erscheint nur, wenn die entsprechende Konfiguration vorhanden ist: Diese Website Global zeigt deshalb zwei davon (**Layout** und **Sprache**), die Website für Deutschland drei (**Layout**, **Standort** und **Sprache**).
+Beide Websites stehen auf Deutsch und Englisch zur Verfügung. Die Deutschland-Website zeigt zusätzlich mit **Berlin** und **Frankfurt**, wie Standorte innerhalb einer Website verwendet werden können.
 
-# Diese Konfiguration ist ein Beispiel
+Welche Auswahlmöglichkeiten Besucher sehen, hängt von der jeweiligen Konfiguration ab. Diese Website benötigt **Sprache** und **Layout**; auf der Deutschland-Website kommt zusätzlich **Standort** hinzu.
 
-Sites, Sprachen und Standorte sind Konfiguration. Deutsch, Berlin und Frankfurt sind Demonstrationswerte — sie sind keine Aussagen über tatsächliche Standorte, Sprachen oder Märkte von Provelopment.
+# Diese Konfiguration ist nur ein Beispiel
 
-Wer Foundation einsetzt, ersetzt sie durch die eigenen Angaben und kann mit wachsender Website Sites, Sprachen und Standorte hinzufügen oder entfernen.
+Die hier verwendeten Websites, Sprachen und Standorte dienen ausschließlich der Demonstration. Sie sagen nichts über die tatsächlichen Märkte, Geschäftsstellen oder die Organisationsstruktur von Provelopment aus.
+
+Wenn Sie Foundation einsetzen, ersetzen Sie diese Beispiele durch die Struktur und Inhalte, die zu Ihrer eigenen Organisation passen.
 
 # Open Source als Grundlage
 
 **Foundation ist kostenlos und Open Source: herunterladen, bereitstellen, anpassen und zu Ihrer eigenen Website machen.**
 
-Provelopment-Dienstleistungen sind optional. Provelopment kann eine Foundation-Website aufbauen, erweitern oder pflegen, aber Sie benötigen diese Leistungen nicht, um die Website weiterhin zu nutzen.
+Provelopment-Dienstleistungen sind optional. Provelopment kann eine Foundation-Website aufbauen, erweitern oder pflegen, aber Sie benötigen diese Leistungen nicht, um die Website weiter zu nutzen.
 
-Ihr Repository bleibt die Grundlage Ihrer Website. Dadurch können Sie sie selbst betreiben, von jemand anderem betreuen lassen oder auf einer anderen Infrastruktur bereitstellen.
+Ihr Repository bleibt die Grundlage Ihrer Website. Sie können sie selbst betreiben, auf eine andere Infrastruktur umziehen oder von einem anderen Dienstleister pflegen lassen.
 
 # Mehr erfahren
 
-Auf [foundation.provelopment.com](https://foundation.provelopment.com/) erfahren Sie mehr über Provelopment Foundation und die Möglichkeiten der Plattform.
+Auf [foundation.provelopment.com](https://foundation.provelopment.com/) erfahren Sie mehr über Provelopment Foundation.
 
-Der Quellcode der Vorlage, die technische Dokumentation und die Anleitungen finden Sie im [öffentlichen Provelopment Foundation Repository](https://github.com/provelopment/provelopment-foundation).
+Den Quellcode der Vorlage, die technische Dokumentation und die Anleitungen finden Sie im [öffentlichen Provelopment Foundation Repository](https://github.com/provelopment/provelopment-foundation).

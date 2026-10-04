@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
 
-  "title": "Deutschland: eine Website, zwei Sprachen, zwei Standorte.",
+  "title": "Deutschland: zwei Sprachen, zwei Standorte.",
 
-  "description": "Die Demonstrations-Website für Deutschland in dieser Foundation-Referenzinstallation: eine eigenständige Website mit Deutsch und Englisch sowie den Demonstrations-Standorten Berlin und Frankfurt.",
+  "description": "Eine Demonstrations-Website für Deutschland, die zeigt, wie eine Foundation-Website mehrere Sprachen und Standorte unterstützen kann.",
 
   "sections": [
 
     {
       "type": "hero",
 
-      "lede": "Diese Seite gehört zur Website für Deutschland. Sie ist Teil der Foundation-Referenzinstallation und zeigt, wie ein Land eine eigene Website erhält: mit eigenen Seiten, eigenen Sprachen und eigenen Standorten — unabhängig von der Website Global.",
+      "lede": "Dies ist die Demonstrations-Website für Deutschland innerhalb der Foundation-Referenzinstallation. Sie hat eigene Inhalte und eine eigene Adresse, steht auf Deutsch und Englisch zur Verfügung und zeigt mit Berlin und Frankfurt, wie standortbezogene Informationen eingebunden werden können.",
 
       "actions": [
 
@@ -36,12 +36,12 @@
 
         {
           "title": "Deutsch",
-          "body": "Sie lesen diese Seite auf Deutsch. Innerhalb dieser Website wechselt das Bedienelement **Sprache** jederzeit zwischen Deutsch und Englisch, und die Seite, auf der Sie sich befinden, bleibt dieselbe."
+          "body": "Sie lesen die deutsche Fassung. Über **Sprache** wechseln Sie zur englischen Version und bleiben dabei auf der entsprechenden Seite."
         },
 
         {
           "title": "English",
-          "body": "Die englische Fassung gehört zur selben Website. Beide Sprachen entstehen aus denselben Seiten, sodass für zwei Sprachen kein zweiter Satz Seiten nötig ist."
+          "body": "Die englische Fassung gehört zur selben Website und folgt denselben Seiten und Adressen, mit Inhalten, die für englischsprachige Leser geschrieben sind."
         }
 
       ]
@@ -52,7 +52,7 @@
 
       "heading": "Berlin und Frankfurt sind Demonstrationsdaten",
 
-      "body": "Die Standorte Berlin und Frankfurt gehören zu dieser Referenzkonfiguration. Sie sind keine Angaben über tatsächliche Geschäftsstellen von Provelopment. Ersetzen Sie sie durch Ihre eigenen Standorte.",
+      "body": "Berlin und Frankfurt dienen ausschließlich als Beispiele für Standorte. Sie sind keine tatsächlichen Geschäftsstellen von Provelopment. Ersetzen Sie sie durch die Standorte, die zu Ihrer Organisation gehören.",
 
       "surface": "muted"
     },
@@ -65,8 +65,8 @@
       "items": [
 
         {
-          "title": "Eine eigenständige Website",
-          "body": "Diese Website teilt keine Seiten mit der Website Global. Sie besitzt einen eigenen Seitenbaum — die gleiche Struktur, eigene Inhalte.",
+          "title": "Eine eigene Website mit eigenen Inhalten",
+          "body": "Die Deutschland-Website hat eine eigene Adresse und eigene Inhalte. Sie ist von der globalen Demonstrations-Website getrennt, nutzt aber dieselbe Foundation-Installation.",
           "action": { "label": "Über diese Website", "href": "/de/de/about" }
         }
 
@@ -76,17 +76,17 @@
     {
       "type": "prose",
 
-      "heading": "Standorte erweitern eine Website, statt sie zu vervielfachen",
+      "heading": "Standorte gehören zur Website",
 
-      "body": "**Berlin** und **Frankfurt** sind Standorte *innerhalb* dieser Website. Wenn Sie im Bedienelement **Standort** einen davon auswählen, bleiben die Website, die Sprache und Ihre Layout-Einstellung erhalten: Ein Standort beschreibt einen physischen oder organisatorischen Kontext und erzeugt keinen zweiten Seitenbaum."
+      "body": "**Berlin** und **Frankfurt** sind Standorte innerhalb dieser Website. Wenn Sie einen Standort auswählen, bleiben Sie auf derselben Website und in derselben Sprache und sehen die Informationen, die für diesen Standort gelten."
     },
 
     {
       "type": "prose",
 
-      "heading": "Diese Konfiguration ist ein Beispiel",
+      "heading": "Diese Konfiguration ist nur ein Beispiel",
 
-      "body": "Sites, Sprachen und Standorte sind Konfiguration. Ein Unternehmen kann mit wachsender Website weitere Sites für weitere Länder hinzufügen, Sprachen ergänzen oder Standorte entfernen. Sprachen werden für die gesamte Website festgelegt und stehen daher jedem ihrer Standorte zur Verfügung."
+      "body": "Die hier gezeigten Sprachen und Standorte dienen nur der Demonstration. Eine Foundation-Website kann genau die Sprachen und Standorte verwenden, die zur jeweiligen Organisation passen."
     }
 
   ]

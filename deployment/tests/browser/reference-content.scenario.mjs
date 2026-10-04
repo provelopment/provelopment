@@ -614,7 +614,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.home.ownershipPrinciple",
-      home.text.includes("Using Provelopment services is optional."),
+      home.text.includes("Provelopment services are optional."),
       "the portability statement is delivered on Home",
     );
     check(
@@ -679,8 +679,8 @@ export async function run(chrome, harness) {
         "What this site demonstrates",
         "A website you control",
         "Two ways to create pages",
-        "Sites, languages, locations and layout",
-        "This configuration is an example",
+        "Websites, languages and locations",
+        "This configuration is only an example",
         "Open source as the foundation",
         "Learn more",
       ].every((heading) => about.headings.includes(heading)),
@@ -832,7 +832,7 @@ export async function run(chrome, harness) {
       rows,
       "reference.sites.noCrossSiteContent",
       backOnGlobal.path === "/ww/de/about" &&
-        backOnGlobal.text.includes("Zwei Arten, Seiten zu erstellen") &&
+        backOnGlobal.text.includes("Zwei Wege, Seiten zu erstellen") &&
         !backOnGlobal.text.includes("Berlin und Frankfurt sind Demonstrationsdaten"),
       "Global's German About is Global's own page, not Germany's",
     );
@@ -873,9 +873,9 @@ export async function run(chrome, harness) {
       [
         "Was diese Website zeigt",
         "Eine Website unter Ihrer Kontrolle",
-        "Zwei Arten, Seiten zu erstellen",
-        "Sites, Sprachen, Standorte und Layout",
-        "Diese Konfiguration ist ein Beispiel",
+        "Zwei Wege, Seiten zu erstellen",
+        "Websites, Sprachen und Standorte",
+        "Diese Konfiguration ist nur ein Beispiel",
         "Mehr erfahren",
       ].every((heading) => germanAbout.headings.includes(heading)),
       JSON.stringify(germanAbout.headings),
@@ -964,10 +964,10 @@ export async function run(chrome, harness) {
       rows,
       "reference.german.homeSectionsRender",
       [
-        "Zwei Arten, Seiten zu erstellen",
+        "Zwei Wege, eine Seite zu erstellen",
         "Ihre Website gehört Ihnen",
         "Über diese Website",
-        "Für unterschiedliche Anforderungen ausgelegt",
+        "Für unterschiedliche Anforderungen",
         "Die vollständige Website ist öffentlich",
       ].every((heading) => germanHome.headings.includes(heading)),
       JSON.stringify(germanHome.headings),

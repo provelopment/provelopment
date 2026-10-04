@@ -1,45 +1,51 @@
 ---
-title: Über die Website für Deutschland
-description: Was die Website für Deutschland in dieser Foundation-Referenzinstallation zeigt — einen eigenständigen Seitenbaum, Deutsch und Englisch, die Demonstrations-Standorte Berlin und Frankfurt und eine unabhängige Layout-Einstellung.
+title: Über die Deutschland-Website
+description: Was die Demonstrations-Website für Deutschland zeigt, wie mehrere Sprachen und Standorte funktionieren und wie sie zur Foundation-Referenzinstallation gehört.
 ---
 
-Diese Seite gehört zur Website **Germany** in dieser Foundation-Referenzinstallation. Deutschland ist das Referenzbeispiel für ein Land, das innerhalb einer Foundation-Installation eine eigene Website führt.
+Dies ist die Demonstrations-Website für Deutschland innerhalb der Foundation-Referenzinstallation. Sie hat eine eigene Adresse und eigene Inhalte und nutzt dieselbe Foundation-Installation wie die globale Demonstrations-Website.
 
 # Was diese Website zeigt
 
-- einen **eigenständigen Seitenbaum** für Deutschland, getrennt von der Website Global
-- die Website ist in **Deutsch und Englisch** verfügbar
-- zwei Demonstrations-**Standorte**, Berlin und Frankfurt
-- das Zusammenspiel der Bedienelemente **Standort**, **Sprache** und **Layout**
+Das Deutschland-Beispiel zeigt:
 
-Die Website Global und diese Website sind eigenständig: Keine liest Seiten der anderen. Das ist beabsichtigt — eine Länder-Website kann ihre eigene Struktur ausbauen, ohne dass sich ändert, was die Website Global aussagt.
+- eine eigenständige Website mit eigenen Inhalten
+- eine deutsche und eine englische Fassung
+- zwei Demonstrations-Standorte: Berlin und Frankfurt
+- das Zusammenspiel von Sprache, Standort und Layout
 
-# Sites, Sprachen und Standorte
+Das Beispiel soll zeigen, wie eine Website mehrere Sprachen und Standorte unterstützen kann, ohne unnötig kompliziert zu werden.
 
-Die Bedienelemente in der Kopfzeile beschreiben drei verschiedene Aspekte dieser Website:
+# Sprachen und Standorte
 
-- **Sprache** wählt, in welcher Sprache die Website gelesen wird — Deutsch oder Englisch.
-- **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb der Website — Berlin, Frankfurt oder **Alle Standorte** für die gesamte Website.
-- **Layout** ändert nur die Darstellung der Oberfläche — Seitenleiste oder Menüleiste. Es ist eine Einstellung des Besuchers und gehört zu keiner Website.
+Die Deutschland-Website steht auf **Deutsch** und **Englisch** zur Verfügung.
 
-Ein Standort erzeugt keinen zweiten Seitenbaum. Berlin und Frankfurt nutzen die Seiten dieser Website für Deutschland — genau das macht sie zu Standorten und nicht zu weiteren Sites.
+Über **Sprache** wechseln Sie zwischen beiden Fassungen und bleiben dabei auf der entsprechenden Seite.
 
-# Sprachen gehören zur Website
+**Berlin** und **Frankfurt** sind Standorte innerhalb derselben Website. Wenn Sie einen Standort auswählen, bleiben Website und Sprache unverändert und Sie sehen die Informationen, die für diesen Standort gelten.
 
-Sprachen werden für die gesamte Website festgelegt. Diese Website bietet Deutsch und Englisch für alle ihre Standorte, Berlin und Frankfurt werden also in denselben zwei Sprachen gelesen. Standorte tragen in diesem Modell keine eigenen Sprachbeschränkungen.
+Mit **Alle Standorte** sehen Sie die Informationen für die Deutschland-Website als Ganzes.
 
-# Die Layout-Wahl bleibt Ihre
+# Layout ist unabhängig
 
-Das Bedienelement **Layout** in der Kopfzeile wechselt zwischen Seitenleisten- und Menüleistenansicht, ohne die Seite, ihre Adresse, ihre Website, ihre Sprache oder ihren Standort zu ändern. Ihre Wahl bleibt in Ihrem Browser gespeichert und wird beim nächsten Besuch wieder verwendet.
+Mit **Layout** wechseln Sie zwischen Seitenleisten- und Menüansicht.
+
+Das Layout verändert weder die Seite noch Sprache oder Standort. Ihre Auswahl wird im Browser gespeichert.
 
 # Berlin und Frankfurt sind Demonstrationsdaten
 
-Berlin und Frankfurt gehören zur Referenzkonfiguration. Sie sind keine Angaben über tatsächliche Geschäftsstellen, Adressen, Telefonnummern oder Öffnungszeiten von Provelopment; die angezeigte Adresse ist ein Platzhalter.
+Berlin und Frankfurt dienen ausschließlich dazu zu zeigen, wie Standorte funktionieren. Sie sind keine tatsächlichen Geschäftsstellen, Adressen, Telefonnummern oder Öffnungszeiten von Provelopment.
 
-Wer Foundation einsetzt, ersetzt diese Demonstrationskonfiguration durch die eigenen Sites, Sprachen und Standorte. Deutschland steht hier, damit die Funktion sichtbar wird — nicht, weil die Vorlage etwas über Deutschland wüsste.
+Wenn Sie Foundation einsetzen, ersetzen Sie diese Beispiele durch die Standorte und Angaben Ihrer eigenen Organisation.
+
+# Teil derselben Foundation-Installation
+
+Die Deutschland-Website und die globale Demonstrations-Website haben unterschiedliche Adressen und eigene Inhalte, laufen aber innerhalb derselben Foundation-Installation.
+
+Damit zeigt die Referenz, wie eine Organisation mehrere zusammengehörige Websites gemeinsam betreiben und deren Inhalte dennoch klar voneinander trennen kann.
 
 # Mehr erfahren
 
-Auf [foundation.provelopment.com](https://foundation.provelopment.com/) erfahren Sie mehr über Provelopment Foundation und die Möglichkeiten der Plattform.
+Auf [foundation.provelopment.com](https://foundation.provelopment.com/) erfahren Sie mehr über Provelopment Foundation.
 
-Der Quellcode der Vorlage, die technische Dokumentation und die Anleitungen finden Sie im [öffentlichen Provelopment Foundation Repository](https://github.com/provelopment/provelopment-foundation).
+Den Quellcode der Vorlage, die technische Dokumentation und die Anleitungen finden Sie im [öffentlichen Provelopment Foundation Repository](https://github.com/provelopment/provelopment-foundation).
