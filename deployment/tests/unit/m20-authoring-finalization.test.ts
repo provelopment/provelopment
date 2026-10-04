@@ -4,14 +4,13 @@
  *
  * M20 finishes what an author meets when they open this repository's authored material: documentation at
  * every intermediate authoring root, empty-locale behaviour proved (in `tests/unit/page-authoring-
- * directory-contract.test.ts`, on a disposable tree), the canonical English About installed byte-for-byte,
- * and the retired Site-control copy reconciled.
+ * directory-contract.test.ts`, on a disposable tree), the Foundation-owned English About in place, and the
+ * retired Site-control copy reconciled.
  *
  * This is DEPLOYMENT scope: it asserts the REAL capsule, through the accepted authorities, so a future
- * authoring change cannot quietly undo the contract — a missing `README.md`, an edited canonical file, or
- * a page that starts advertising a Site control again all fail here, by name.
+ * authoring change cannot quietly undo the contract — a missing `README.md`, a rewritten About page, or a
+ * page that starts advertising a Site control again all fail here, by name.
  */
-import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -38,28 +37,14 @@ const SPOKE_DOCS: Record<string, readonly string[]> = {
 };
 
 /**
- * THE CANONICAL ENGLISH ABOUT, INSTALLED BYTE-FOR-BYTE (M20 Part A §14/§15).
+ * THE AUTHORED PAGE MATERIAL IS FOUNDATION'S OWN (M20, final).
  *
- * `deployment/spokes/foundation/content/pages/markdown/ww/en/about.md` IS the owner's canonical
- * `01.web/sites/provelopment/config/pages-markdown/en/about.md`: this many bytes, this digest. The file was
- * COPIED, never authored — no reformatting, no re-flowing, no metadata removed — and its `actions:`
- * frontmatter parses because the Markdown authoring mode gained that one optional key.
- *
- * THE CANONICAL JSON PAGES REMAIN A REPORTED CONFLICT (M20 Part A §10).
- *
- * The six canonical `config/pages/en/*.json` documents are COMPOSED, SITE-SCOPED composition declarations
- * rather than page documents: their contract is Provelopment's own presentation components plus a
- * four-namespace destination vocabulary (`route:` `foundation:` `repo:` `site:`) resolved against a registry
- * of OTHER first-party sites, and their envelope deliberately carries a metadata title that is not the
- * page's h1. This platform has no such vocabulary and no site-scoped component seam, so no faithful
- * projection exists — and §10 forbids approximating one. They are therefore NOT installed; the full
- * classification and the owner's decision are recorded in the PR body.
+ * An authored page in this capsule is one of the platform's two authoring modes and nothing else: a
+ * declarative JSON document (`{ schemaVersion, title, sections[] }`) or safe Markdown whose front matter
+ * is at most `title`/`description`. No page here is imported from, derived from, transformed from or
+ * verified against any other project's page tree: Foundation has NO page-content relationship with
+ * anything outside this repository, and the English About is Foundation-owned copy.
  */
-const CANONICAL_ABOUT = {
-  relativePath: "content/pages/markdown/ww/en/about.md",
-  bytes: 2815,
-  sha256: "a3c9917b4f15cc2fd921ca7152dc134d2c685973ff28ae6ff75003aa3ff2d759",
-} as const;
 
 /** The retired-control wording no authored page may offer any more (M20 §30). */
 const RETIRED_CLAIMS = [
@@ -114,16 +99,7 @@ describe("M20 — the real authoring tree is self-explanatory", () => {
   }
 });
 
-describe("M20 — the canonical English About, and no retired-control copy", () => {
-  it("holds the canonical English About byte-for-byte", () => {
-    // The owner's canonical `01.web/sites/provelopment/config/pages-markdown/en/about.md`, installed
-    // unchanged: these two numbers ARE the identity proof (they were recorded from the source).
-    const absolute = path.join(foundationSpoke.spokeRoot, CANONICAL_ABOUT.relativePath);
-    const bytes = readFileSync(absolute);
-    expect(bytes.length).toBe(CANONICAL_ABOUT.bytes);
-    expect(createHash("sha256").update(bytes).digest("hex")).toBe(CANONICAL_ABOUT.sha256);
-  });
-
+describe("M20 — the authoring copy offers no retired control", () => {
   it("has no authored page offering the retired Site control", () => {
     for (const spoke of [foundationSpoke, germanySpoke]) {
       for (const file of authoredContentFiles(spoke)) {
@@ -135,10 +111,43 @@ describe("M20 — the canonical English About, and no retired-control copy", () 
       }
     }
   });
+
+/**
+ * M20 Part B — THIS INSTALLATION'S EXPLICIT INSPECTION POLICY.
+ *
+ * The three-class hostname policy (`deployment/README.md`) is a real property of this capsule, so it is
+ * asserted here on the shipped declaration: exactly one Spoke is nominated for a hostname the hosting
+ * platform reports for the build it is running, the nomination is NOT read out of manifest order, and the
+ * build's own description is what the request boundary consumes.
+ */
+/**
+ * M20 — FOUNDATION OWNS ITS PAGE MATERIAL.
+ *
+ * Every authored page in this capsule is one of the platform's two authoring modes and nobody else's copy:
+ * a `.md` (safe Markdown, front matter at most `title`/`description`) or a `.json` (a declarative document).
+ * No page file names another workspace project, and none of them is derived from, transformed from or
+ * verified against another project's page tree. The match is against the workspace's sibling-project naming
+ * convention, so no other project is named here either.
+ */
+describe("M20 — the authored page material is Foundation's own", () => {
+  it("holds only this repository's own page files, in the two authoring modes", () => {
+    const siblingProject = /\b0[0-9]\.[a-z][a-z-]*/;
+    const offenders: string[] = [];
+
+    for (const spoke of [foundationSpoke, germanySpoke]) {
+      for (const file of authoredContentFiles(spoke)) {
+        const relative = file.slice(spoke.spokeRoot.length + 1).split(path.sep).join("/");
+        if (!/\.(?:md|json)$/.test(file)) offenders.push(`${relative}: not a page file`);
+        if (siblingProject.test(readFileSync(file, "utf8"))) offenders.push(`${relative}: names another project`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
 });
 
-describe("M20 — this Installation's inspection policy (Part B)", () => {
-  it("names `foundation`, and the platform's own hostnames select it", () => {
+describe("M20 — this Installation's inspection policy", () => {
+  it("names `foundation` beside the declaration, and the platform's own hostnames select it", () => {
     const capsule = path.join(process.cwd(), "deployment");
     const manifest = JSON.parse(readFileSync(path.join(capsule, "spokes.json"), "utf8")) as {
       spokes: { id: string }[];
@@ -149,8 +158,6 @@ describe("M20 — this Installation's inspection policy (Part B)", () => {
     expect(manifest.spokes.map((spoke) => spoke.id)).toEqual(["foundation", "germany"]);
     expect(manifest.inspectionSpoke).toBe("foundation");
 
-    // The BUILD's own description is what the request boundary consumes: on the two URLs the owner
-    // reported, the nominated Spoke represents this Installation.
     const before = { url: process.env["VERCEL_URL"], branch: process.env["VERCEL_BRANCH_URL"] };
     process.env["VERCEL_URL"] = "provelopment-foundation-raoo2g20f-provelopment.vercel.app";
     process.env["VERCEL_BRANCH_URL"] = "provelopment-foundation-git-main-provelopment.vercel.app";
@@ -171,4 +178,6 @@ describe("M20 — this Installation's inspection policy (Part B)", () => {
       else process.env["VERCEL_BRANCH_URL"] = before.branch;
     }
   });
+});
+
 });

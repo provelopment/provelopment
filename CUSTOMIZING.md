@@ -50,6 +50,13 @@ deployment (this repository's deployment is the capsule at `deployment/`); the c
 presentation is what the shipped config resolves to. No other presentation is
 selectable, so nothing can diverge.
 
+## Changing pages is an Update, not an Upgrade
+
+Editing `content/pages/**` or `content/assets/**` is an **Update**: the Foundation release you run does not
+change, and neither does anything the platform owns. Adopting a *different* Foundation release is an
+**Upgrade** — the whole installation moves together, every website in it. `ARCHITECTURE.md` states the
+distinction and the vocabulary; `instruction-manuals/foundation-upgrade.md` is the operator's procedure.
+
 ## Customization ownership boundary
 
 `CUSTOMIZING.md` is the downstream user guide: everything you are expected to

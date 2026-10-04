@@ -22,12 +22,6 @@
  *   `description:`  an author-supplied search/social summary. When it is absent
  *                   the page keeps the site's own metadata fallback; this reader
  *                   does NOT invent SEO prose out of the page's text.
- *   `actions:`      an OPTIONAL labelled pair of closing links — one or two, each a
- *                   `label` and an `href`. A page that never leaves Markdown simply
- *                   writes ordinary links in the body; an author-declared action pair
- *                   is a labelling decision, and its destinations are classified by
- *                   `@/core/safe-url`, so an unsafe one FAILS the build rather than
- *                   being dropped silently.
  *
  * There are no secret Markdown commands: no shortcodes, no directives, no
  * embedded JSON, no magic comments, no pseudo-components. An ordinary link in the
@@ -40,23 +34,11 @@
  */
 import type { Locale } from "@/core/locale";
 import { isPageRoutePath, pageRouteLeaf } from "@/core/page-route-path";
-import type { PageAction } from "@/core/page-document";
-import { PAGE_MAX_LABEL } from "@/core/page-document";
 import type { PageContent } from "@/core/page-content";
-import { requireSafeAuthorUrl } from "@/core/safe-url";
 import { hasFrontmatter, parseFrontmatter } from "./frontmatter";
 
 /** The metadata keys the Markdown authoring mode supports. None of them is required. */
-export const AUTHORING_METADATA_KEYS = ["title", "description", "actions"] as const;
-
-/**
- * How many closing actions a page may declare.
- *
- * TWO, because the pair is a presentation fact the platform owns: a primary action and
- * a secondary one, in the order the author wrote them. A third would be a menu, and a
- * menu is a body link or a page of its own.
- */
-export const AUTHORING_MAX_ACTIONS = 2;
+export const AUTHORING_METADATA_KEYS = ["title", "description"] as const;
 
 /** Where a page's title came from. */
 export type AuthoringTitleSource = "metadata" | "heading" | "route-path";
@@ -67,67 +49,6 @@ export type AuthoringTitleSource = "metadata" | "heading" | "route-path";
 export interface AuthoringPage extends PageContent {
   /** Which rule produced the title. */
   readonly titleSource: AuthoringTitleSource;
-  /**
-   * The author-declared closing action pair, in the author's order.
-   *
-   * Absent means the page declares none — which is the ordinary case, and it renders
-   * exactly as every authored page has always rendered: a title and a body.
-   */
-  readonly actions?: readonly PageAction[];
-}
-
-/**
- * The optional `actions:` pair the author declared.
- *
- * ONE OR TWO items, each carrying `label` and `href` and NOTHING else, and every
- * destination classified by the safe-URL policy — an unsafe one fails the build rather
- * than being dropped silently, because an author must be told what is wrong with their
- * page. The order is the author's: the first action reads as the page's primary action
- * and the second as its secondary one, which is a presentation decision the platform
- * makes once (the same pair an authored page renders anywhere in the platform).
- */
-function metadataActionsOf(
-  values: Readonly<Record<string, unknown>>,
-  routePath: string,
-): readonly PageAction[] | undefined {
-  const raw = values.actions;
-  if (raw === undefined) return undefined;
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > AUTHORING_MAX_ACTIONS) {
-    throw new Error(
-      `Invalid "actions" in authored page "${routePath}": expected one or two items, ` +
-        `and ${Array.isArray(raw) ? raw.length : 0} were declared.`,
-    );
-  }
-
-  return raw.map((entry, index) => {
-    const subject = `"actions" item ${index + 1} of authored page "${routePath}"`;
-    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
-      throw new Error(`Invalid ${subject}: expected "label" and "href" fields.`);
-    }
-    const fields = entry as Readonly<Record<string, unknown>>;
-    const unknown = Object.keys(fields).filter((field) => field !== "label" && field !== "href");
-    if (unknown.length > 0) {
-      throw new Error(`Invalid ${subject}: unexpected field "${unknown[0]}".`);
-    }
-
-    const label = fields.label;
-    const href = fields.href;
-    if (typeof label !== "string" || label.trim().length === 0) {
-      throw new Error(`Invalid ${subject}: "label" must be non-empty text.`);
-    }
-    if (label.trim().length > PAGE_MAX_LABEL) {
-      throw new Error(`Invalid ${subject}: "label" must be at most ${PAGE_MAX_LABEL} characters.`);
-    }
-    if (typeof href !== "string") {
-      throw new Error(`Invalid ${subject}: "href" must be text.`);
-    }
-
-    return {
-      label: label.trim(),
-      href: requireSafeAuthorUrl(href.trim(), subject),
-      variant: index === 0 ? "primary" : "secondary",
-    } satisfies PageAction;
-  });
 }
 
 /**
@@ -233,7 +154,6 @@ export function parseAuthoringPageFile(raw: string, routePath: string, locale: L
       : "route-path";
 
   const description = metadataDescriptionOf(parsed.values, routePath);
-  const actions = metadataActionsOf(parsed.values, routePath);
 
   return {
     routePath,
@@ -242,6 +162,5 @@ export function parseAuthoringPageFile(raw: string, routePath: string, locale: L
     titleSource,
     body: parsed.body,
     ...(description === undefined ? {} : { description }),
-    ...(actions === undefined ? {} : { actions }),
   };
 }

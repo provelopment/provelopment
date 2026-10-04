@@ -149,9 +149,12 @@ function atStage(
  * what later steps read.
  *
  * Refused: a second attempt while one is in flight (one at a time, by contract); an `install` where
- * something is already live; an `upgrade` where nothing is; and a `rollback` that does not name the state
- * the installation actually has available — a rollback is a return to a KNOWN-GOOD previous state, never an
- * arbitrary step backwards. (Rolling back further than one step is an ordinary upgrade to a release the
+ * something is already live; an `update` or an `upgrade` where nothing is; a `rollback` that does not name the
+ * state the installation actually has available — a rollback is a return to a KNOWN-GOOD previous state,
+ * never an arbitrary step backwards; and a MISLABELLED operation, because the release decides which one an
+ * operation is: an `update` that names a DIFFERENT release is an upgrade, and an `upgrade` that names the
+ * release already live is an update. Refusing both keeps the recorded vocabulary honest — the history is
+ * read as provenance. (Rolling back further than one step is an ordinary upgrade to a release the
  * installation already knows: releases are immutable, so it needs no special machinery.)
  */
 export function startInstallationAttempt(
@@ -172,11 +175,24 @@ export function startInstallationAttempt(
   if (kind === "install" && live !== null) {
     return refuse(
       `this installation is already live (${foundationReleaseLabel(live.release)}) — establishing it again is ` +
-        "an upgrade, not an install",
+        "an update or an upgrade, not an install",
     );
   }
-  if (kind === "upgrade" && live === null) {
-    return refuse("this installation has nothing live to upgrade — a first activation is an install");
+  if ((kind === "update" || kind === "upgrade") && live === null) {
+    return refuse(`this installation has nothing live to ${kind} — a first activation is an install`);
+  }
+  if (kind === "update" && live !== null && !identicalFoundationReleases(target, live.release)) {
+    return refuse(
+      `an update keeps the live Foundation release (${foundationReleaseLabel(live.release)}): it changes the ` +
+        "Spokes' authored pages and assets, not Foundation's code. Moving this installation to " +
+        `${foundationReleaseLabel(target)} is an upgrade`,
+    );
+  }
+  if (kind === "upgrade" && live !== null && identicalFoundationReleases(target, live.release)) {
+    return refuse(
+      `this installation is already live on ${foundationReleaseLabel(target)} — adopting the SAME release ` +
+        "changes the Spokes' authored pages and assets, which is an update, not an upgrade",
+    );
   }
   if (kind === "rollback") {
     if (live === null || live.previous === null) {

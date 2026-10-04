@@ -135,7 +135,7 @@ transition can never produce a record the contract would refuse to read.
 
 | Move | From | To | Events | Refused when |
 | --- | --- | --- | --- | --- |
-| `startInstallationAttempt` | any settled state | `preparing`, `pending` | `attempt-started` | an attempt is already in flight; `install` while something is live; `upgrade` while nothing is; `rollback` without a previous live state, or to a release that is not it |
+| `startInstallationAttempt` | any settled state | `preparing`, `pending` | `attempt-started` | an attempt is already in flight; `install` while something is live; `update`/`upgrade` while nothing is; `update` naming a release OTHER than the live one (that is an upgrade); `upgrade` naming the release ALREADY live (that is an update); `rollback` without a previous live state, or to a release that is not it |
 | `recordInstallationCandidate` | `preparing` | `validating` | `candidate-prepared` | the candidate contains a release other than the one requested |
 | `recordInstallationCandidateValidated` | `validating` | `validated` | `candidate-validated` | — (the validator decides; the installation records it here) |
 | `recordInstallationCandidateStaged` | `validated` | `staged` | `candidate-staged` | the candidate was not validated in this attempt |
@@ -200,6 +200,27 @@ it names `current.live.previous.release` exactly, and a completed promotion reco
 the new `previous`. Rolling back further than one step is an ordinary upgrade to a release the installation
 already knows — releases are immutable, so it needs no special machinery. Rollback never means undoing an
 arbitrary filesystem change, restoring an untracked backup, moving a tag, or `git reset`.
+
+## Update and upgrade are different operations (M20)
+
+The release decides which operation an attempt is, and the four kinds are exactly these:
+
+| Kind | Live state | Release | What changes |
+| --- | --- | --- | --- |
+| `install` | nothing live | established | the installation's first live candidate |
+| `update` | live | **unchanged** — the target must be the release already live | the Spokes' authored pages and assets |
+| `upgrade` | live | **changed** — the target must be a DIFFERENT immutable release | the Foundation codebase; authored state is carried forward |
+| `rollback` | live, with a previous state | the previous live release (or the SAME release after an Update) | the live revision |
+
+**An installation has exactly ONE live Foundation release.** There is no per-Spoke release, no per-Spoke
+upgrade state, and no Hub-level cohort anywhere in this model: an upgrade promotes the whole installation —
+every Spoke together — exactly as an update does. If two Spokes ever need independent release schedules, they
+belong in **separate installations**, which is the ownership and blast-radius boundary.
+
+An Update's rollback provenance therefore legitimately carries the SAME release with a different revision
+(`current.live.previous.release === current.live.release` is accepted; what is refused is a `previous` that IS
+the live state — same release *and* same revision). A failed update leaves the live revision exactly as it was,
+and a rollback after an update restores the earlier revision without moving the release.
 
 ## The durable record
 
@@ -329,8 +350,9 @@ operational state is unestablished. Reading a store that answers `null` is the h
 * health `online` with nothing live, or health `online` with no evaluation instant — being online is an
   observation somebody made, and an undated claim is refused (an ACTIVATED installation with no evaluation
   instant is not a contradiction: it is an installation nothing has judged yet, FOUNDATION-B4B-A1);
-* a `live.previous` that names the live release itself, or a rollback provenance that is not a complete
-  state;
+* a `live.previous` that IS the live state — the same release **and** the same revision — or a rollback
+  provenance that is not a complete state (the same release with a DIFFERENT revision is an Update's rollback
+  provenance and is accepted: see *Update and upgrade are different operations*);
 * a release identity no Foundation release could have (a branch, a bare commit, a checkpoint, an impossible
   date or minute), or a malformed commit/tree/digest/count;
 * a candidate that contains a release other than the one the attempt asked for;
@@ -338,7 +360,7 @@ operational state is unestablished. Reading a store that answers `null` is the h
   or a failure on an attempt that did not fail;
 * a succeeded attempt whose live release or live revision is not the candidate it promoted — the
   exact-promotion agreement;
-* an `upgrade`/`rollback` with nothing live, or an unsettled `install` that left something live;
+* an `update`/`upgrade`/`rollback` with nothing live, or an unsettled `install` that left something live;
 * history that is not ordered oldest-first, longer than the contract's bound, or carrying a type outside
   the vocabulary.
 

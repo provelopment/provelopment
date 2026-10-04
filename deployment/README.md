@@ -88,6 +88,21 @@ Vercel at request time, no Vercel setting is read or written, and there is delib
 rule**: an unrelated project's Vercel URL, a team URL, or a name that merely *contains* ours answers 404 like
 any other unknown host.
 
+## Update, and Upgrade (M20)
+
+| Operation | Foundation release | The authored material |
+| --- | --- | --- |
+| **Update** | unchanged | `content/pages/**` and `content/assets/**` of the Spokes being changed |
+| **Upgrade** | a different immutable Foundation release | carried forward |
+
+This Installation has **one** live Foundation release, so both operations promote the *whole* Installation — all
+of its Spokes — as one candidate, and a failed candidate leaves the live revision untouched. The lifecycle
+records the kind explicitly and refuses a mislabelled operation (an `update` naming a different release, an
+`upgrade` naming the release already live), so a reader can tell an Update from an Upgrade in the history. The
+vocabulary (Installation, Spoke Hub, Spoke, Hub, Site) and the reasoning are in
+[`ARCHITECTURE.md`](../ARCHITECTURE.md); the full compendium — structures, strategies, ownership transfer and
+blast radius — is the programme documentation (`.documentation/`).
+
 ## How to work on this deployment
 
 The paths in this section are relative to this capsule.

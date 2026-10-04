@@ -101,34 +101,9 @@ description: When we are open, including public holidays.
 We are open Monday to Friday, 9am to 5pm.
 ```
 
-`title` and `description` are the only two simple settings, and **neither is required**. A
+`title` and `description` are the only two settings, and **neither is required**. A
 misspelled setting is reported as an error when the site is built, so a typo can never
 be silently ignored.
-
-### Closing links (optional)
-
-A page may also end with **one or two labelled links** — the "what next" pair. Each one
-is a `label` (the words a visitor sees) and an `href` (where it goes), written as a short
-list:
-
-```markdown
----
-title: About
-actions:
-  - label: Services
-    href: /services
-  - label: Examples
-    href: /examples
----
-```
-
-The first link reads as the page's **primary** action and the second as its
-**secondary** one. One link is fine; more than two is an error — the page's body is the
-place for a longer list. Every `href` goes through the same safety check as a link in the
-body, so `javascript:`-style destinations are refused when the site is built rather than
-silently dropped. **The list is indented with two spaces for each `-` item and four for
-its `label`/`href` lines** — anything deeper is reported as an error, because an
-ambiguous page is never guessed at.
 
 ## Headings, and the page's own title
 

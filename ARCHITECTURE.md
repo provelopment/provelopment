@@ -523,8 +523,86 @@ Constraints and rules:
   Spoke the Installation names in `"inspectionSpoke"` — an explicit policy, never a
   first-declared fallback; and every other hostname is refused with a 404. There is
   no wildcard rule, no Vercel API call at request time, and no provider mutation.
+- **Node.js**: the tested contract is the **22.x line**, and `package.json` pins
+  `"engines": { "node": "22.x" }`. Node 22 is what every CI job runs
+  (`.github/workflows/ci.yml`) and what the hosting platform's build image provides, so it is
+  the line Foundation certifies — a newer major is not adopted merely because it exists.
+- **Where to read more**: this file and the manuals in
+  [`instruction-manuals/`](instruction-manuals/README.md) are for anyone running a Foundation
+  site. The full Provelopment-level compendium — installation structures, upgrade strategies,
+  ownership transfer, cohorts and blast-radius choices — is the programme documentation
+  (`.documentation/`), which deliberately goes deeper than this public guide.
 
 See `DEPLOYMENT.md` for the operational runbook.
+
+## Installation, Spoke Hub, Spoke, Hub, Site
+
+The deployment vocabulary, from the outside in. The levels are never shortened, because they are different
+concepts:
+
+```text
+Foundation Application          the reusable open-source platform (this repository)
+        ↓
+Foundation Installation         one independently operable adoption of it
+        ↓
+Spoke Hub                       the installation's coordinator of its Spokes (no hostname of its own)
+        ↓
+1..* Spokes                     independently addressed public origins sharing this installation's lifecycle
+        ↓
+1..* Hubs                       internal groupings of Sites inside ONE Spoke (no hostname)
+        ↓
+1..* Sites                      a global/country/regional context inside a Hub (ww, de, ca, fr …)
+        ↓
+1..* Page Hubs                  the language-neutral identity and route of one page
+        ↓
+1..* localized Page representations   one language's authored representation of that page
+```
+
+- A **Spoke** is an independently addressed domain (`acme.com`), never a Site and never a Hub. A **Hub** groups
+  Sites inside one Spoke; a **Spoke Hub** groups Spokes inside one installation. Neither Hub nor Spoke Hub is a
+  hostname, and the two are not interchangeable.
+- **A Hub is not a lifecycle boundary and not an upgrade cohort.** Nothing is upgraded, rolled back or promoted
+  per Hub, and a Hub never spans Spokes.
+- A **Site** is a context inside a Spoke (a country, or the global one) — not a domain. Several Sites may live on
+  one domain, and one Site may be served in several languages.
+
+## The installation is the boundary
+
+**A Foundation installation is the smallest Foundation lifecycle unit.** One installation is:
+
+- the **ownership and transfer** boundary — it can be handed to someone else whole;
+- the **hosting, upgrade and rollback** boundary;
+- the **health and operational-state** boundary — one baseline and one operational record per installation;
+- the **blast-radius** boundary: one installation failing, updating, upgrading or rolling back never alters
+  another, and the runtime has no sibling-installation awareness at all.
+
+Choose the boundary by the smallest unit that may ever need to be owned, transferred, hosted, upgraded, rolled
+back or operated separately. **If two websites may need independent Foundation versions or owners, they belong
+in separate installations** — do not couple them merely because one organisation happens to run both today.
+Grouping similar websites (by risk, feature use or upgrade cadence) is done with *separate installations*, never
+with Hubs.
+
+## Update, Upgrade and rollback
+
+| Operation | Foundation release | Authored pages/assets | Scope |
+| --- | --- | --- | --- |
+| Install | established | established | the whole installation |
+| **Update** | **unchanged** | changed | one or more Spokes, promoted as ONE installation candidate |
+| **Upgrade** | **changed** (a different immutable release) | carried forward | the whole installation — every Spoke together |
+| Rollback | the previous live release — or the SAME release after an Update | restored with the revision | the whole installation |
+
+An installation has exactly **one live Foundation release**: there is no per-Spoke release field anywhere, and a
+Spoke never carries an upgrade state of its own (`src/core/foundation-installation/README.md`). Update and
+Upgrade are distinct lifecycle kinds, and an operation that contradicts the release it names is refused rather
+than recorded under the wrong name — a failed Update leaves the live revision exactly as it was, and the
+Foundation release unchanged.
+
+An Update's logical blast radius is the Spoke whose authored bytes changed, but its **promotion boundary is the
+whole installation**: nothing is half-promoted, and a failed candidate leaves the existing live revision
+untouched, every Spoke included. Upgrading happens **in place** (build, validate, stage and inspect a candidate
+on the new release, then promote the installation) or by standing up a **clean installation on the new release**
+and moving Spokes into it one at a time or in batches. Both are operational strategies; the platform ships no
+automatic fleet or migration executor, and independent installations are upgraded independently.
 
 ## Foundation releases
 
