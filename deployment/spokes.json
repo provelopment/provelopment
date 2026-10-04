@@ -8,5 +8,6 @@
       "id": "germany",
       "root": "spokes/germany"
     }
-  ]
+  ],
+  "inspectionSpoke": "foundation"
 }

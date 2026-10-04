@@ -101,7 +101,7 @@ async function runFoundationContract(harness, rows, port) {
   harness.check(
     rows,
     "Foundation serves its OWN About page, not Germany's",
-    englishAbout.body.includes("About this Foundation website") &&
+    englishAbout.body.includes("Who the service is for") &&
       !englishAbout.body.includes("About the Germany site"),
     "",
   );
@@ -215,7 +215,7 @@ async function runGermanyContract(harness, rows, port) {
     rows,
     "Germany serves its OWN About page, not the Foundation's",
     englishAbout.body.includes("About the Germany site") &&
-      !englishAbout.body.includes("About this Foundation website"),
+      !englishAbout.body.includes("Who the service is for"),
     "",
   );
   const berlin = await get("/de/de/berlin");
@@ -235,7 +235,7 @@ async function runGermanyContract(harness, rows, port) {
       rows,
       `Germany ${pathname} stays inside this Spoke and lands on no /ww Site path`,
       (target === null || (target.origin === GERMANY_ORIGIN && !target.pathname.startsWith("/ww/"))) &&
-        !response.body.includes("About this Foundation website"),
+        !response.body.includes("Who the service is for"),
       `location=${response.location || "(none)"}`,
     );
   }

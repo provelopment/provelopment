@@ -516,6 +516,13 @@ Constraints and rules:
   boundary.
 - No environment variables are required today; deployment-specific values
   (such as the production origin) are owned by `src/config`.
+- Hostnames resolve to Spokes in exactly three classes (FOUNDATION-MULTISITE-M20):
+  an exact authored Spoke hostname selects that Spoke; a hosting-platform
+  **inspection** hostname the platform itself reports for this build (Vercel's
+  `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) selects the
+  Spoke the Installation names in `"inspectionSpoke"` — an explicit policy, never a
+  first-declared fallback; and every other hostname is refused with a 404. There is
+  no wildcard rule, no Vercel API call at request time, and no provider mutation.
 
 See `DEPLOYMENT.md` for the operational runbook.
 

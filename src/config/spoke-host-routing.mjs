@@ -19,6 +19,9 @@
  *   id                the Spoke's identity, exactly as the manifest declares it
  *   segment           `runtimeSegmentForSpokeId(id)` — the internal route namespace token
  *   canonicalOrigin   that Spoke's own authored `site.url` — the ONE origin its claims derive from
+ *   inspection        the EXPLICIT inspection policy (M20 §29): the Spoke that represents this
+ *                     Installation on an accepted hosting-platform inspection hostname, plus the
+ *                     hostnames the PLATFORM ITSELF reports for this deployment
  *
  * It carries NO page content, NO dictionaries, NO filesystem path, NO Site or locale negotiation data and
  * NO duplicated `SiteConfig`: the request boundary needs to know WHICH Spoke answers a host and nothing
@@ -59,7 +62,52 @@ import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
  * @typedef {object} InstallationHostRouting
  * @property {HostRoutingMode} mode
  * @property {SpokeHostRoutingEntry[]} spokes
+ * @property {InstallationHostRoutingInspection | null} inspection
  */
+
+/**
+ * @typedef {object} InstallationHostRoutingInspection
+ * @property {string} spokeId the declared inspection Spoke (`inspectionSpoke` in the collection)
+ * @property {string[]} hostnames the hostnames the HOSTING PLATFORM reports for this deployment
+ */
+
+/**
+ * THE HOSTING PLATFORM'S OWN INSPECTION HOSTNAMES (M20 §20–§23), READ — NEVER INVENTED.
+ *
+ * The platform supplies these for the deployment it is BUILDING, so this build can recognise the
+ * addresses the platform itself publishes for it:
+ *
+ *   VERCEL_URL                     this deployment's own unique URL
+ *   VERCEL_BRANCH_URL              the branch URL that always points at the branch's latest deployment
+ *   VERCEL_PROJECT_PRODUCTION_URL  the project's production URL
+ *
+ * WHY THIS IS SAFE, AND WHY THERE IS NO WILDCARD
+ * ----------------------------------------------
+ *   · every value is IMMUTABLE provider data for the build in progress — no Vercel API is called, at
+ *     build time or at request time, and no provider setting is read or written;
+ *   · recognition is EXACT equality against those values, so `*.vercel.app` is NOT accepted: an
+ *     unrelated project's Vercel URL is a hostname this build was never told about;
+ *   · the values are published VERBATIM and normalized at the request boundary by the ONE pure
+ *     `origin → hostname` step, so no second hostname rule is declared here.
+ *
+ * A build with none of them set (a local build, a unit test) recognises no inspection hostname at all,
+ * which is why the policy is inert locally and precise on the platform.
+ *
+ * @param {Record<string, string | undefined>} env
+ * @returns {string[]}
+ */
+export function inspectionHostnamesFromPlatform(env) {
+  /** @type {string[]} */
+  const hostnames = [];
+  for (const name of ["VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL"]) {
+    const value = env[name];
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed === "" || hostnames.includes(trimmed)) continue;
+    hostnames.push(trimmed);
+  }
+  return hostnames;
+}
 
 /**
  * ONE Spoke root's authored canonical origin, or `""` when it authors none.
@@ -101,8 +149,21 @@ function canonicalOriginFor(spokeRoot, where) {
  * The routing description of ONE Installation root, in authored manifest order.
  *
  * `single` is the accepted ONE-Spoke runtime (legacy implicit, or an explicit manifest declaring exactly
- * one Spoke): the sole entry is the Spoke that answers. `multi` is hostname dispatch — and there is no
- * "first" entry to fall back to, because a request that claims no hostname answers NOTHING.
+ * one Spoke): the sole entry is the Spoke that answers, so no inspection policy is consulted or needed.
+ * `multi` is hostname dispatch — and there is no "first" entry to fall back to, because a request that
+ * claims no hostname answers NOTHING.
+ *
+ * THE INSPECTION POLICY (M20 §20–§32). A multi-Spoke Installation may be reached through the hosting
+ * platform's own deployment/branch URL, which the platform reports to the build
+ * (`inspectionHostnamesFromPlatform`). Such a hostname selects the Spoke the manifest EXPLICITLY nominates
+ * (`inspectionSpoke`) — never the first declared one, never a wildcard. Two consequences are enforced HERE,
+ * at build time, because both are configuration defects rather than request-time surprises:
+ *
+ *   · recognised inspection hostnames WITHOUT a declared policy → LOUD failure: nothing would say which
+ *     Spoke an operator is inspecting, and choosing one would be exactly the implicit default this
+ *     platform refuses;
+ *   · a policy naming a Spoke that is not declared → refused by `resolveSpokeDeclarations`, which knows
+ *     the declared set.
  *
  * @param {string} installationRoot the Installation root the build selected
  * @returns {InstallationHostRouting}
@@ -122,5 +183,24 @@ export function hostRoutingForInstallation(installationRoot) {
     canonicalOrigin: canonicalOriginFor(spoke.root, `Spoke "${spoke.id}"`),
   }));
 
-  return { mode: spokes.length > 1 ? "multi" : "single", spokes };
+  const mode = spokes.length > 1 ? "multi" : "single";
+  const inspectionHostnames = inspectionHostnamesFromPlatform(process.env);
+
+  if (mode === "multi" && inspectionHostnames.length > 0 && resolved.inspectionSpoke === null) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M20: this multi-Spoke Installation is being built on a hosting platform " +
+        `that reports its own inspection hostnames (${inspectionHostnames.join(", ")}), but the ` +
+        "collection declares no \"inspectionSpoke\". State which Spoke represents this Installation on " +
+        "such a hostname — there is no default, and no Spoke is ever chosen by manifest order.",
+    );
+  }
+
+  return {
+    mode,
+    spokes,
+    inspection:
+      resolved.inspectionSpoke === null
+        ? null
+        : { spokeId: resolved.inspectionSpoke, hostnames: inspectionHostnames },
+  };
 }

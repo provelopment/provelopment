@@ -60,7 +60,8 @@ const GERMANY = "de";
 const GERMAN_HOME_TITLE = "Deutschland: eine Website, zwei Sprachen, zwei Standorte.";
 const GERMANY_ENGLISH_HOME_TITLE = "Germany: one site, two languages, two locations.";
 const GERMAN_ABOUT_TITLE = "About the Germany site";
-const GLOBAL_ABOUT_TITLE = "About this Foundation website";
+/** The Foundation Spoke's English About is the owner's CANONICAL document (M20), so its title is `About`. */
+const GLOBAL_ABOUT_TITLE = "About";
 
 const FOUNDATION = foundationSpoke;
 const GERMANY_SPOKE = germanySpoke;

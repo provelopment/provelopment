@@ -11,12 +11,14 @@
  * authoring change cannot quietly undo the contract — a missing `README.md`, an edited canonical file, or
  * a page that starts advertising a Site control again all fail here, by name.
  */
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 import { createPageSources } from "@/adapters/content/page-sources";
+import { hostRoutingForInstallation } from "@/config/spoke-host-routing.mjs";
 import { foundationSpoke, germanySpoke, type DeploymentSpoke } from "../support/spoke-contexts";
 
 /** The intermediate authoring roots EVERY real Spoke must explain, per page mode and per Site. */
@@ -36,21 +38,28 @@ const SPOKE_DOCS: Record<string, readonly string[]> = {
 };
 
 /**
- * THE CANONICAL 01.web PAGE MATERIAL: STOPPED AND REPORTED (M20 §27/§29).
+ * THE CANONICAL ENGLISH ABOUT, INSTALLED BYTE-FOR-BYTE (M20 Part A §14/§15).
  *
- * The owner's canonical English source `01.web/sites/provelopment/config/pages/en/*.json` and
- * `…/config/pages-markdown/en/about.md` was inventoried (paths, sizes, sha256) and copied BYTE-FOR-BYTE —
- * identity proved file by file — and then WITHDRAWN, because the documents cannot be represented by the
- * platform's supported authoring modes and §27 forbids transforming them:
+ * `deployment/spokes/foundation/content/pages/markdown/ww/en/about.md` IS the owner's canonical
+ * `01.web/sites/provelopment/config/pages-markdown/en/about.md`: this many bytes, this digest. The file was
+ * COPIED, never authored — no reformatting, no re-flowing, no metadata removed — and its `actions:`
+ * frontmatter parses because the Markdown authoring mode gained that one optional key.
  *
- *   · the six JSON pages carry 01.web's own document shape (`{ meta, hero, service, … }`), while a
- *     Foundation JSON page is `{ schemaVersion, title, sections[] }` — the build refuses them;
- *   · the Markdown About's front matter uses a nested `actions:` list, which the Markdown format refuses
- *     ("a page's frontmatter holds simple `key: value` entries only").
+ * THE CANONICAL JSON PAGES REMAIN A REPORTED CONFLICT (M20 Part A §10).
  *
- * Nothing was rewritten, reformatted or "cleaned up": the owner must decide which artefact wins. The
- * inventory and the per-file identity proof are recorded in the PR body.
+ * The six canonical `config/pages/en/*.json` documents are COMPOSED, SITE-SCOPED composition declarations
+ * rather than page documents: their contract is Provelopment's own presentation components plus a
+ * four-namespace destination vocabulary (`route:` `foundation:` `repo:` `site:`) resolved against a registry
+ * of OTHER first-party sites, and their envelope deliberately carries a metadata title that is not the
+ * page's h1. This platform has no such vocabulary and no site-scoped component seam, so no faithful
+ * projection exists — and §10 forbids approximating one. They are therefore NOT installed; the full
+ * classification and the owner's decision are recorded in the PR body.
  */
+const CANONICAL_ABOUT = {
+  relativePath: "content/pages/markdown/ww/en/about.md",
+  bytes: 2815,
+  sha256: "a3c9917b4f15cc2fd921ca7152dc134d2c685973ff28ae6ff75003aa3ff2d759",
+} as const;
 
 /** The retired-control wording no authored page may offer any more (M20 §30). */
 const RETIRED_CLAIMS = [
@@ -105,7 +114,16 @@ describe("M20 — the real authoring tree is self-explanatory", () => {
   }
 });
 
-describe("M20 — the authoring copy offers no retired control", () => {
+describe("M20 — the canonical English About, and no retired-control copy", () => {
+  it("holds the canonical English About byte-for-byte", () => {
+    // The owner's canonical `01.web/sites/provelopment/config/pages-markdown/en/about.md`, installed
+    // unchanged: these two numbers ARE the identity proof (they were recorded from the source).
+    const absolute = path.join(foundationSpoke.spokeRoot, CANONICAL_ABOUT.relativePath);
+    const bytes = readFileSync(absolute);
+    expect(bytes.length).toBe(CANONICAL_ABOUT.bytes);
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(CANONICAL_ABOUT.sha256);
+  });
+
   it("has no authored page offering the retired Site control", () => {
     for (const spoke of [foundationSpoke, germanySpoke]) {
       for (const file of authoredContentFiles(spoke)) {
@@ -115,6 +133,42 @@ describe("M20 — the authoring copy offers no retired control", () => {
           expect(text.includes(claim), `${file.replace(spoke.spokeRoot, "")} claims: ${claim}`).toBe(false);
         }
       }
+    }
+  });
+});
+
+describe("M20 — this Installation's inspection policy (Part B)", () => {
+  it("names `foundation`, and the platform's own hostnames select it", () => {
+    const capsule = path.join(process.cwd(), "deployment");
+    const manifest = JSON.parse(readFileSync(path.join(capsule, "spokes.json"), "utf8")) as {
+      spokes: { id: string }[];
+      inspectionSpoke?: string;
+    };
+
+    // The declaration keeps its authored order, and the policy is stated BESIDE it — never derived from it.
+    expect(manifest.spokes.map((spoke) => spoke.id)).toEqual(["foundation", "germany"]);
+    expect(manifest.inspectionSpoke).toBe("foundation");
+
+    // The BUILD's own description is what the request boundary consumes: on the two URLs the owner
+    // reported, the nominated Spoke represents this Installation.
+    const before = { url: process.env["VERCEL_URL"], branch: process.env["VERCEL_BRANCH_URL"] };
+    process.env["VERCEL_URL"] = "provelopment-foundation-raoo2g20f-provelopment.vercel.app";
+    process.env["VERCEL_BRANCH_URL"] = "provelopment-foundation-git-main-provelopment.vercel.app";
+    try {
+      const routing = hostRoutingForInstallation(capsule);
+      expect(routing.mode).toBe("multi");
+      expect(routing.inspection).toEqual({
+        spokeId: "foundation",
+        hostnames: [
+          "provelopment-foundation-raoo2g20f-provelopment.vercel.app",
+          "provelopment-foundation-git-main-provelopment.vercel.app",
+        ],
+      });
+    } finally {
+      if (before.url === undefined) delete process.env["VERCEL_URL"];
+      else process.env["VERCEL_URL"] = before.url;
+      if (before.branch === undefined) delete process.env["VERCEL_BRANCH_URL"];
+      else process.env["VERCEL_BRANCH_URL"] = before.branch;
     }
   });
 });

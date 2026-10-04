@@ -62,6 +62,7 @@ import { ClientRoutingProvider } from "@/components/site/client-routing-context"
 import { buildClientRoutingContext, type ClientRoutingContext } from "@/components/site/client-routing";
 import { getSiteNavLinks, withSidebarNavIcons } from "@/components/site/nav-links";
 import { PageDocumentContent } from "@/components/site/page-document-content";
+import { ActionLinks } from "@/components/site/page-sections/section-support";
 import { ResolvedRegionBlock } from "@/components/site/region-block";
 import { RegionStructuredData } from "@/components/site/region-structured-data";
 import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
@@ -208,7 +209,14 @@ function entersRegionNamespace(
   return first !== undefined && regionsForLocale(bindings, locale).includes(first);
 }
 
-/** The authored page's frame: a Markdown body under its title, or a declarative document. */
+/**
+ * The authored page's frame: a Markdown body under its title, or a declarative document.
+ *
+ * An authored Markdown page may also declare a CLOSING ACTION PAIR (`actions:` in its
+ * frontmatter) — one or two labelled links, rendered through the SAME presentation a
+ * declarative document's `actions` section uses, so the platform has exactly one
+ * page-level link concept rather than two that could drift apart.
+ */
 function authoredContent(page: ResolvedPage, locale: string) {
   return page.kind === "markdown" ? (
     <>
@@ -218,6 +226,9 @@ function authoredContent(page: ResolvedPage, locale: string) {
       <div className="mt-6">
         <SafeMarkdownContent markdown={page.body} />
       </div>
+      {page.actions === undefined ? null : (
+        <ActionLinks actions={page.actions} locale={locale} className="mt-8" />
+      )}
     </>
   ) : (
     // The JSON authoring mode's ONE render entry: a validated declarative document becomes a

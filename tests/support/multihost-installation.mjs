@@ -37,6 +37,26 @@
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+/**
+ * THE INSTALLATION'S EXPLICIT INSPECTION POLICY (FOUNDATION-MULTISITE-M20)
+ *
+ * A hosting platform publishes deployment/branch URLs for the build it is running, and an operator uses
+ * them to check that the deployment actually renders. This Installation therefore NOMINATES one Spoke to
+ * represent it on such a hostname — `alpha` here, deliberately NOT the real Installation's `foundation`,
+ * so a proof cannot pass by relying on a hard-coded id.
+ *
+ * The hostnames are Vercel-shaped, and the scenario exports them to the build through the platform's own
+ * variables (`VERCEL_URL`, `VERCEL_BRANCH_URL`) — the real mechanism, not a test-only switch.
+ */
+export const MULTIHOST_INSPECTION = {
+  spokeId: "alpha",
+  /** The platform's unique-deployment URL for this build (`VERCEL_URL`). */
+  hostname: "foundation-multihost-4f2c9d1a-provelopment.vercel.app",
+  /** The platform's branch URL, which always points at the branch's latest deployment. */
+  branchHostname: "foundation-multihost-git-main-provelopment.vercel.app",
+};
+
+
 
 /** The two Spokes the Installation declares, in MANIFEST ORDER. */
 export const MULTIHOST_SPOKES = [
@@ -211,6 +231,7 @@ export function runtimeNamespaceFiles(spokeRoot, spokeId) {
  * @returns {{
  *   root: string,
  *   manifestFile: string,
+ *   inspection: { spokeId: string, hostname: string, branchHostname: string },
  *   spokes: { id: string, segment: string, hostname: string, canonicalOrigin: string, directory: string,
  *             root: string, onlyRoute: string, siteName: string, mark: string }[],
  *   cleanup: () => void,
@@ -222,7 +243,12 @@ export function materializeMultihostInstallation({ repositoryRoot }) {
   writeFileSync(
     path.join(root, "spokes.json"),
     `${JSON.stringify(
-      { spokes: MULTIHOST_SPOKES.map((spoke) => ({ id: spoke.id, root: spoke.directory })) },
+      {
+        spokes: MULTIHOST_SPOKES.map((spoke) => ({ id: spoke.id, root: spoke.directory })),
+        // The Installation's EXPLICIT inspection policy: on a hosting platform's own deployment/branch
+        // URL, `alpha` represents this Installation (M20 §29 — an explicit nomination, never a fallback).
+        inspectionSpoke: MULTIHOST_INSPECTION.spokeId,
+      },
       null,
       2,
     )}\n`,
@@ -234,6 +260,7 @@ export function materializeMultihostInstallation({ repositoryRoot }) {
   return {
     root,
     manifestFile: path.join(root, "spokes.json"),
+    inspection: { ...MULTIHOST_INSPECTION },
     spokes: MULTIHOST_SPOKES.map((spoke) => ({
       id: spoke.id,
       segment: segmentOf(spoke.id),

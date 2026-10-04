@@ -1,71 +1,57 @@
 ---
-title: About this Foundation website
-description: What this live reference site demonstrates, how its pages are created, what you can change, and how Foundation relates to optional Provelopment services.
+title: About
+description: "Provelopment builds, hosts and looks after websites for small businesses: first sites, modernisations, and websites kept hosted and updated for their owners."
+actions:
+  - label: Services
+    href: /en/services
+  - label: See examples
+    href: /en/examples
 ---
 
-This website is a live reference for the open-source Provelopment Foundation template. It is built from the publicly available Foundation code, which you can download, adapt to your needs and deploy from your own repository.
+Provelopment builds, hosts and looks after websites for small businesses. The service is for a
+business that needs its first website, one whose existing site needs modernising, or one that
+would rather somebody else hosted, maintained and updated the site for them.
 
-# What this site demonstrates
+## Who the service is for
 
-This is a Foundation reference site, not a client website. It uses a working website to show how the main parts of Foundation fit together:
+Provelopment focuses on small businesses: a trade, a clinic, a shop, a professional practice, or a
+local service that needs to be findable and credible online. Sometimes there is no website yet;
+sometimes there is one that has been left behind — out of date, awkward to update, or no longer
+matching what the business has become.
 
-- a Home page created with the declarative JSON page format
-- this About page created with Markdown
-- shared navigation and site configuration
-- two sites: this Global site and a demonstration Germany site
-- multiple languages, currently English and German
-- two demonstration locations inside the Germany site: Berlin and Frankfurt
-- Sidebar and Menu-bar layouts
-- controls for site, language, location and layout
+If you would rather not think about the technical side at all, we can host the site, keep it
+current and make the changes you ask for.
 
-The purpose is not simply to describe what Foundation can do. This site lets you see those capabilities working together and provides a practical starting point for understanding how your own site can be structured and extended.
+## What we do
 
-# A website you control
+We build new websites, rebuild existing ones, extend them as a business grows, and look after them
+afterwards — hosting, updates, changes and ongoing improvement.
 
-Foundation is designed so that you remain in control of your website.
+## How the sites are built
 
-Pages, images and other site content are stored as files in your repository. Site settings and behaviour are defined through configuration files. The website is built from those files rather than being held inside a closed website-building account.
+Every site is built on **Provelopment Foundation**, a free and open-source platform. It is public,
+it is licensed under Apache-2.0, and anyone may use it: a business, a developer or another agency
+can take it, set up a site on it and run that site without involving us.
 
-You can maintain the site yourself, ask another provider to maintain it, or use Provelopment services. The website and its content remain under your control.
+Provelopment is the service provider on that platform. We supply the part that cannot be
+downloaded — designing, building, setting up and looking after a website for one particular
+business. Using Foundation does not require working with us.
 
-# Two ways to create pages
+## What you keep
 
-Foundation provides two ways to create pages.
+- **Your content, branding and site-specific setup** — held with the site rather than trapped
+  inside a website builder you cannot take anywhere.
+- **The website itself** — which can be run by you, or handed to another developer or provider.
+- **The platform underneath it** — Apache-2.0, usable with no commercial relationship with
+  Provelopment, as the [open-source page](/en/open-source) sets out.
 
-**Markdown** is intended for straightforward content pages. It remains easy-to-read text, using simple notation for headings, lists, links and emphasis.
+Staying with Provelopment is a service choice, not a technical requirement, and nothing in the way
+the sites are built makes leaving difficult.
 
-**Declarative JSON** is intended for pages that need more structure. Instead of writing the entire page as prose, you define sections such as a hero, columns, cards, tables or question-and-answer sections.
+## Where to go next
 
-This page is the Markdown example. The Home page is the JSON example.
-
-Both are ordinary pages. The file contains the content, its location determines its route, and published pages are included in the site's sitemap automatically.
-
-# Sites, languages, locations and layout
-
-Foundation can support a simple website just as well as one serving several countries, languages, locations and markets. This reference deployment is configured so that the visitor dimensions can be seen working together:
-
-- **Language** chooses how this website is read. This website Global offers English and German, and the Germany website offers the same two languages, because languages belong to a website rather than to a single page.
-- **Location** chooses a physical or service context inside a website, without creating another page tree. This website Global has no locations of its own, so no Location control appears here; the Germany website demonstrates *Berlin* and *Frankfurt*.
-- **Layout** changes only how the interface is presented — Sidebar or Menu bar. It is a visitor preference that belongs to no website, so it survives a change of language or location.
-
-There is no **Site** control: which website you are reading is decided by its address, and the Germany website is reachable through an ordinary link in the footer. Every control appears only when the corresponding configuration exists, which is why this website Global shows two of them (**Layout** and **Language**) and the Germany website shows three (**Layout**, **Location** and **Language**).
-
-# This configuration is an example
-
-Sites, languages and locations are configuration. German, Berlin and Frankfurt are demonstration values — they are not statements about Provelopment's own offices, languages or markets.
-
-An adopter replaces them with their own information, and can add or remove sites, languages and locations as their website develops.
-
-# Open source as the foundation
-
-**Foundation is free and open source: download it, deploy it, modify it and make it your own.**
-
-Provelopment services are optional. Provelopment can build, extend or maintain a Foundation site, but you do not need those services to continue using the website.
-
-Your repository remains the source of your site. You can operate it yourself, have someone else maintain it, or deploy it on different infrastructure.
-
-# Learn more
-
-Visit [foundation.provelopment.com](https://foundation.provelopment.com/) to learn more about Provelopment Foundation and what the platform provides.
-
-The template source code, technical documentation and instruction manuals are available in the [public Provelopment Foundation repository](https://github.com/provelopment/provelopment-foundation).
+The [service paths](/en/services) set out the kinds of website work we do, and
+[how it works](/en/how-it-works) describes what happens from the first conversation to launch and
+beyond. The [examples](/en/examples) show sites running on the platform today. If you want to build
+a website business of your own, [make your own business](/en/make-your-own-business) covers both
+routes.

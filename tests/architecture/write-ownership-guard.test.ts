@@ -212,6 +212,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "OS temp seeds — byte-faithful copies of the real capsule, which is only ever read — and the disposable " +
     "target roots it establishes into (M20)",
   "tests/unit/page-authoring-directory-contract.test.ts": "OS temp authoring trees it creates (M20)",
+  // FOUNDATION-MULTISITE-M20 Part B — the inspection-policy proofs build DISPOSABLE capsules in OS temp
+  // (a manifest plus two Spoke roots that state an origin), and copy nothing out of this repository.
+  "tests/unit/spoke-inspection-hosts.test.ts":
+    "OS temp capsules it creates — a manifest and two Spoke roots with their own origins (M20)",
   "tests/unit/site-page-isolation.test.ts": "the synthetic deployment's page tree",
   "tests/unit/synthetic-deployment-lifecycle.test.ts":
     "the synthetic deployment copies it materialises and removes, plus the look-alike decoys proving the " +

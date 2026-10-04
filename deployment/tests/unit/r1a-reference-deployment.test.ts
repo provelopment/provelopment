@@ -55,11 +55,15 @@ import { runtimeAssetFile, runtimeAssetUrl } from "../../../tests/support/runtim
  */
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
 const REFERENCE_HOME_TITLE = "Build a website you own.";
-const REFERENCE_ABOUT_TITLE = "About this Foundation website";
+const REFERENCE_ABOUT_TITLE = "About";
 /**
  * R1A1 — the reference site's content is OWNER-AUTHORED and FINAL, so the assertions
  * below quote the owner's current files. If the owner edits the copy again, these
  * needles move with it: the content is never adjusted to satisfy a test.
+ *
+ * M20 — the English About is now the owner's CANONICAL document, installed byte-for-byte
+ * (`deployment/spokes/foundation/content/pages/markdown/ww/en/about.md`), so its title is
+ * the canonical one and its body is the canonical prose.
  */
 const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
@@ -170,7 +174,9 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const about = await pages.resolve(siteCode, "about", localePath);
     expect(about?.kind).toBe("markdown");
     expect(about?.title).toBe(REFERENCE_ABOUT_TITLE);
-    expect(about?.description).toContain("What this live reference site demonstrates");
+    expect(about?.description).toContain(
+      "Provelopment builds, hosts and looks after websites for small businesses",
+    );
   });
 
   it("publishes each page's own URL and never /home", async () => {
@@ -211,15 +217,16 @@ describe("the served reference pages", () => {
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(REFERENCE_ABOUT_TITLE);
-    // The owner-final open-source statement, exactly as authored.
-    expect(html).toContain(
-      "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
-    );
-    expect(html).toContain("https://foundation.provelopment.com/");
-    expect(html).toContain(REFERENCE_REPOSITORY_URL);
-    // The authored `# Heading` renders RELATIVE to the page title — an h2, never an h1.
-    expect(html).toContain('id="a-website-you-control"');
-    expect(html).toContain("<h2");
+    // The canonical document's own statement about the platform, exactly as authored.
+    expect(html).toContain("a free and open-source platform");
+    // The canonical body's OWN links, carried through unchanged.
+    expect(html).toContain("/en/open-source");
+    // …and the canonical `actions:` pair renders as the platform's closing action row (M20).
+    expect(html).toContain("/en/services");
+    expect(html).toContain("/en/examples");
+    // The authored `## Heading` renders RELATIVE to the page title — an h3, never an h1.
+    expect(html).toContain('id="who-the-service-is-for"');
+    expect(html).toContain("<h3");
   });
 });
 

@@ -15,7 +15,9 @@ import {
  */
 describe("the authoring page reader", () => {
   it("requires no metadata at all", () => {
-    expect(AUTHORING_METADATA_KEYS).toEqual(["title", "description"]);
+    // FOUNDATION-MULTISITE-M20 — `actions` is the third optional key: a labelled pair of
+    // closing links. It is as optional as the other two, and no key is ever required.
+    expect(AUTHORING_METADATA_KEYS).toEqual(["title", "description", "actions"]);
   });
 
   it("accepts a file that is nothing but prose", () => {

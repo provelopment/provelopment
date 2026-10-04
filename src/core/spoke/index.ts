@@ -32,4 +32,4 @@ export {
 export type { SiteHubAssignment } from "./hub-membership";
 
 export { resolveSpokeFromHost, spokeById } from "./resolve";
-export type { SpokeSelection, SpokeSelectionReason } from "./resolve";
+export type { SpokeInspectionPolicy, SpokeSelection, SpokeSelectionReason } from "./resolve";

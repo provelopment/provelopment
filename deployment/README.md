@@ -36,7 +36,7 @@ generated build output rather than deployment source: `pnpm assets:sync` writes 
 ```text
 Foundation Installation
 ├── Spoke Hub                     ← the one request boundary: the public Host header is its only input
-│   ├── foundation Spoke          → https://foundation-template.provelopment.com   (default Spoke)
+│   ├── foundation Spoke          → https://foundation-template.provelopment.com
 │   │   └── Site ww               (Global)
 │   └── germany Spoke             → https://foundation-template-germany.provelopment.com
 │       └── Site de               (Germany, with the Locations Berlin and Frankfurt)
@@ -53,6 +53,40 @@ the German-language representation of Site `de`, owned by the **Germany** Spoke,
 Spoke that binds the Berlin and Frankfurt locations. Nothing on either host serves the other Spoke's
 content: a Site-shaped coordinate addressed to the wrong Spoke is never answered with the other Spoke's
 pages, never redirects to the other hostname, and is ultimately refused.
+
+## Which hostname answers: the three kinds (M20 §20–§41)
+
+| Hostname | What it is | Which Spoke answers |
+| --- | --- | --- |
+| `foundation-template.provelopment.com` | the **Foundation** Spoke's own public domain | **Foundation** |
+| `foundation-template-germany.provelopment.com` | the **Germany** Spoke's own public domain | **Germany** |
+| a deployment or branch URL Vercel publishes for **this** project, e.g. `provelopment-foundation-git-main-provelopment.vercel.app` | Vercel's own **inspection URL** for the build it made — not a public domain | the **inspection Spoke**, which this Installation states explicitly: `foundation` |
+| anything else | no Spoke claims it | **404 Not Found** |
+
+`deployment/spokes.json` states the policy beside the declaration:
+
+```json
+"inspectionSpoke": "foundation"
+```
+
+That is the ONE Spoke which represents this Installation on an accepted Vercel inspection URL. It is
+**explicit**: it is never the first declared Spoke, never a manifest-order fallback, and a multi-Spoke
+Installation that is built on Vercel without stating it is refused at build time rather than guessed at.
+An Installation that states it must name a Spoke it actually declares.
+
+**A Vercel inspection URL is a viewing surface for operators, not a public-domain alias.** Vercel publishes
+those URLs for the deployment it built, and an operator uses them to check that the deployment actually
+renders. What they render is the Foundation Spoke's own website, and its metadata stays canonical to
+`https://foundation-template.provelopment.com/` — canonical link, `hreflang`, `og:url` and the sitemap all
+keep the authored origin, because a deployment URL is not this website's address. Such a URL is never
+advertised, never linked from a page and never added to a sitemap, and the cross-Spoke footer link still
+points at `https://foundation-template-germany.provelopment.com/` — never at another Vercel hostname.
+
+Recognition is **EXACT equality** against the hostnames Vercel's own build environment reports for the build
+it is running (`VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`). Nothing is fetched from
+Vercel at request time, no Vercel setting is read or written, and there is deliberately **no `*.vercel.app`
+rule**: an unrelated project's Vercel URL, a team URL, or a name that merely *contains* ours answers 404 like
+any other unknown host.
 
 ## How to work on this deployment
 
