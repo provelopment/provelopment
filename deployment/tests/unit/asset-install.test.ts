@@ -3,8 +3,6 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { deploymentPaths } from "@/config/deployment-root";
-
 import { checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
 import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
 import { foundationSpoke } from "../support/spoke-contexts";

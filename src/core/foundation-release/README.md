@@ -12,7 +12,7 @@ owning a private copy.
 ## One authority, two (soon three) consumers
 
 ```text
-                     release tooling (`scripts/release/**`)      ← constructs, publishes, verifies
+                     release tooling (`scripts/release/**`)      ← constructs, verifies
                                   ↑  consumes
              pure Foundation release contract (`src/core/foundation-release`)   ← THIS directory
                                   ↓  consumes
@@ -71,4 +71,9 @@ that tries to carry an acquisition field, so the two can never quietly merge.
 
 Constructing a release (reading `package.json`, the page-document schema and the deployment-layout vocabulary
 out of a payload), the content policy's RULES, the digest, Git access, verification orchestration, the clean
-room, publication and the CLI. The split is: **the contract is knowledge, the tooling is what does things.**
+room and the CLI. The split is: **the contract is knowledge, the tooling is what does things.**
+
+**Publication is NOT implemented here.** The tooling constructs and verifies, and stops; naming an identity
+from the real UTC publication minute, creating the tag, mirroring an archive and promoting a release belong to
+the release process (R1C) — `scripts/release/README.md` states the same and records the policy that a future
+publisher must implement. No publisher exists at this layer.

@@ -305,6 +305,32 @@ Do not write tests solely to increase a coverage number.
 
 Prefer tests that protect meaningful behavior and architectural boundaries.
 
+### Authored page prose is not a test contract
+
+Production page wording — titles, descriptions, headings, paragraphs, callout text, action labels, and
+the anchor IDs derived from headings — is DEPLOYMENT DATA. A deployment's acceptance tests must not pin
+it: a copy edit is not a defect, and a test that quotes today's wording fails for a reason that has
+nothing to do with the product (PR #237 was exactly that failure).
+
+Read the expectation out of the authored source at run time — `deployment/tests/support/authored-page-outline.mjs`
+does this for both authoring modes — and assert the invariants instead:
+
+- the authored source parses and validates (JSON document, Markdown frontmatter);
+- every authored heading, prose line and link destination reaches the rendered page;
+- the page belongs to the right Spoke / Site / locale (route identity, canonical origin);
+- no other Spoke's content is ever rendered in its place.
+
+Ownership and isolation are proved with structural state, route identity, configuration, canonical origin
+and runtime context — never with marketing prose as an ownership marker.
+
+Exact textual assertions remain correct in TEST-OWNED SYNTHETIC FIXTURES: a fixture that authors
+`"Authored fixture page"` may assert it, because the TEST created that input. The rule is:
+
+```text
+test-owned fixture text   → may be asserted exactly
+real deployment page prose → must not be an exact test contract
+```
+
 ---
 
 ## 15. Validation

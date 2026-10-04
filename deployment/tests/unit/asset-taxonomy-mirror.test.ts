@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { deploymentPaths } from "@/config/deployment-root";
 import { availableBannerPath, availableIconUrl, runtimeAssetUrl } from "@/config/assets";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -34,7 +33,7 @@ const ROOT = process.cwd();
 // authored pack it describes — the FOUNDATION Spoke, which authors the platform-owned trees
 // (`icon-library`, `platform-marks`) and the neutral role artwork. The GERMANY Spoke ships the same role
 // artwork byte-identically, and THAT is asserted in `./m18-germany-spoke.test.ts`.
-import { deploymentSpokes, foundationSpoke } from "../support/spoke-contexts";
+import { foundationSpoke } from "../support/spoke-contexts";
 
 const dir = (...segments: string[]) => path.join(foundationSpoke.assetSourceRoot, ...segments);
 const names = (...segments: string[]) =>

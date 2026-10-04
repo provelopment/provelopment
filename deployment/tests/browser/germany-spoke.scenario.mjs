@@ -34,6 +34,19 @@ import {
   requestWithHost,
   waitForHostReady,
 } from "../support/host-requests.mjs";
+// M21 — OWNERSHIP WITHOUT QUOTING COPY. Both Spokes' authored pages are read from their own trees at
+// run time, so an isolation check compares Spoke A's page with Spoke B's page instead of using
+// marketing prose as an ownership marker (the rule is recorded in `deployment/AGENTS.md`).
+import {
+  h1Texts,
+  includesAnyProse,
+  includesProse,
+  readAuthoredTitles,
+  readConfiguredRegionLabels,
+  readPageOutline,
+  readSpokeDictionary,
+  spokeDirectory,
+} from "../support/authored-page-outline.mjs";
 
 /** The scenario's id, used as the report's `presentation` label. */
 export const id = "germany-spoke";
@@ -63,13 +76,76 @@ async function startServer(harness) {
 }
 
 /**
+ * OWNERSHIP, PROVED FROM THE AUTHORED TREES (M21).
+ *
+ * A served page is the OWNING Spoke's own page when its h1 IS that page's authored title — and, when
+ * the two Spokes author distinguishable titles, when the OTHER Spoke's title appears nowhere in the
+ * response. Both titles are read out of the two authored page trees at run time, so no wording is
+ * pinned here and a title that no longer exists can never be offered as evidence of isolation.
+ */
+function ownsItsOwnPage(body, ownOutline, otherOutline) {
+  const own = ownOutline?.title ?? "";
+  const other = otherOutline?.title ?? "";
+  if (own === "") return false;
+  if (h1Texts(body)[0] !== own) return false;
+  // Not distinguishable → the positive proof above stands on its own; never assert a vacuous negative.
+  if (other === "" || other === own) return true;
+  return !includesProse(body, other);
+}
+
+/** The two Spokes' authored coordinates, read from the trees the harness resolved (M21). */
+async function authoredContext(spokeConfigFiles) {
+  const dirFor = (id) => {
+    const configFile = (spokeConfigFiles ?? []).find((spoke) => spoke.id === id)?.configFile ?? "";
+    return configFile === "" ? "" : spokeDirectory(configFile);
+  };
+  const foundation = dirFor("foundation");
+  const germany = dirFor("germany");
+  const about = (dir, site, locale) => readPageOutline(dir, { site, locale, slug: "about" });
+  const regionLabels = await readConfiguredRegionLabels(germany);
+  const germanyDictionary = {
+    de: await readSpokeDictionary(germany, "de"),
+    en: await readSpokeDictionary(germany, "en"),
+  };
+  return {
+    germanyDictionary,
+    /** The Location control's own choices: the neutral label, then the configured region labels. */
+    locationLabels: {
+      de: [germanyDictionary.de.location.unspecified, ...regionLabels],
+      en: [germanyDictionary.en.location.unspecified, ...regionLabels],
+    },
+    foundationAbout: {
+      en: await about(foundation, "ww", "en"),
+      de: await about(foundation, "ww", "de"),
+    },
+    germanyAbout: {
+      en: await about(germany, "de", "en"),
+      de: await about(germany, "de", "de"),
+    },
+    berlinLanding: await readPageOutline(germany, { site: "de", locale: "de", slug: "berlin" }),
+    foundationTitles: await readAuthoredTitles(foundation, [
+      { site: "ww", locale: "en", slug: "home" },
+      { site: "ww", locale: "de", slug: "home" },
+      { site: "ww", locale: "en", slug: "about" },
+      { site: "ww", locale: "de", slug: "about" },
+    ]),
+    germanyTitles: await readAuthoredTitles(germany, [
+      { site: "de", locale: "de", slug: "home" },
+      { site: "de", locale: "en", slug: "home" },
+      { site: "de", locale: "de", slug: "about" },
+      { site: "de", locale: "en", slug: "about" },
+    ]),
+  };
+}
+
+/**
  * THE FOUNDATION HOST'S PUBLIC CONTRACT, AT THE REAL HOSTNAME (§20).
  *
  * Every request carries `Host: foundation-template.provelopment.com`, and every assertion reads the
  * RENDERED document (or the served file) — never an internal API. The refusals are as important as the
  * successes: a Germany coordinate on this host must fail closed, and no Germany content may appear.
  */
-async function runFoundationContract(harness, rows, port) {
+async function runFoundationContract(harness, rows, port, context) {
   const get = (pathname) => requestWithHost(port, FOUNDATION_HOST, pathname);
   const root = await get("/");
 
@@ -101,16 +177,16 @@ async function runFoundationContract(harness, rows, port) {
   harness.check(
     rows,
     "Foundation serves its OWN About page, not Germany's",
-    englishAbout.body.includes("About this Foundation website") &&
-      !englishAbout.body.includes("About the Germany website"),
-    "",
+    ownsItsOwnPage(englishAbout.body, context.foundationAbout.en, context.germanyAbout.en),
+    `h1=${JSON.stringify(h1Texts(englishAbout.body))}`,
   );
   const germanAbout = await get("/ww/de/about");
   harness.check(
     rows,
     "Foundation's German About is the Global Site's own German page",
-    germanAbout.status === 200 && !germanAbout.body.includes("About the Germany website"),
-    `status=${germanAbout.status}`,
+    germanAbout.status === 200 &&
+      ownsItsOwnPage(germanAbout.body, context.foundationAbout.de, context.germanyAbout.de),
+    `status=${germanAbout.status} h1=${JSON.stringify(h1Texts(germanAbout.body))}`,
   );
 
   // ── the retired coordinates are NOT OWNED by this host (§22) ───────────────────────────────────────────
@@ -132,7 +208,7 @@ async function runFoundationContract(harness, rows, port) {
       rows,
       `Foundation ${pathname} stays inside this Spoke and lands on no /de Site path`,
       (target === null || (target.origin === FOUNDATION_ORIGIN && !target.pathname.startsWith("/de/"))) &&
-        !response.body.includes("About the Germany website"),
+        !includesAnyProse(response.body, context.germanyTitles),
       `location=${response.location || "(none)"}`,
     );
   }
@@ -178,7 +254,7 @@ async function runFoundationContract(harness, rows, port) {
 }
 
 /** THE GERMANY HOST'S PUBLIC CONTRACT, AT THE REAL HOSTNAME (§21). */
-async function runGermanyContract(harness, rows, port) {
+async function runGermanyContract(harness, rows, port, context) {
   const get = (pathname) => requestWithHost(port, GERMANY_HOST, pathname);
   const root = await get("/");
 
@@ -214,12 +290,17 @@ async function runGermanyContract(harness, rows, port) {
   harness.check(
     rows,
     "Germany serves its OWN About page, not the Foundation's",
-    englishAbout.body.includes("About the Germany website") &&
-      !englishAbout.body.includes("About this Foundation website"),
-    "",
+    ownsItsOwnPage(englishAbout.body, context.germanyAbout.en, context.foundationAbout.en),
+    `h1=${JSON.stringify(h1Texts(englishAbout.body))}`,
   );
   const berlin = await get("/de/de/berlin");
-  harness.check(rows, "Germany's Berlin landing names Berlin", berlin.body.includes("Berlin"), "");
+  harness.check(
+    rows,
+    "Germany's Berlin landing renders the authored Berlin page",
+    context.berlinLanding?.title !== undefined &&
+      h1Texts(berlin.body)[0] === context.berlinLanding?.title,
+    `h1=${JSON.stringify(h1Texts(berlin.body))}`,
+  );
 
   // ── the other Spoke's coordinates are NOT OWNED by this host (§21/§23) ─────────────────────────────────
   for (const pathname of ["/ww/en", "/ww/de"]) {
@@ -235,7 +316,7 @@ async function runGermanyContract(harness, rows, port) {
       rows,
       `Germany ${pathname} stays inside this Spoke and lands on no /ww Site path`,
       (target === null || (target.origin === GERMANY_ORIGIN && !target.pathname.startsWith("/ww/"))) &&
-        !response.body.includes("About this Foundation website"),
+        !includesAnyProse(response.body, context.foundationTitles),
       `location=${response.location || "(none)"}`,
     );
   }
@@ -313,7 +394,7 @@ const UI_PROBE = `(() => {
   };
 })()`;
 
-async function runBrowserProof(harness, rows, chrome, port) {
+async function runBrowserProof(harness, rows, chrome, port, context) {
   const cdp = await Cdp.connect(chrome, { hostResolverRules: HOST_RESOLVER_RULES });
   try {
     for (const [name, viewport] of Object.entries(harness.viewports)) {
@@ -343,14 +424,14 @@ async function runBrowserProof(harness, rows, chrome, port) {
         rows,
         `${name}: Germany's Location control offers Berlin and Frankfurt (§13)`,
         germany.locationPresent === true &&
-          JSON.stringify(germany.locationOptions) === JSON.stringify(["Alle Standorte", "Berlin", "Frankfurt"]),
+          JSON.stringify(germany.locationOptions) === JSON.stringify(context.locationLabels.de),
         JSON.stringify(germany.locationOptions),
       );
       harness.check(rows, `${name}: Germany offers its Language control on de`, germany.languagePresent === true && germany.languageValue === "de", String(germany.languageValue));
       harness.check(rows, `${name}: Germany renders no error overlay`, germany.hasErrorText === false, germany.text.slice(0, 80));
       harness.check(rows, `${name}: Germany leaks no internal Spoke prefix into ANY URL`, !germany.urls.some((url) => url.includes("~spoke")), "");
       harness.check(rows, `${name}: Germany never names the Foundation Spoke's asset namespace (§30)`, !germany.urls.some((url) => url.includes("/spokes/foundation/assets/")), "");
-      harness.check(rows, `${name}: Germany's navigation speaks German, never raw dictionary keys`, germany.navTexts.includes("Startseite") && !germany.text.includes("navigation.items"), JSON.stringify(germany.navTexts.slice(0, 4)));
+      harness.check(rows, `${name}: Germany's navigation speaks German, never raw dictionary keys`, germany.navTexts.includes(context.germanyDictionary.de.navigation.items["/"]) && !germany.text.includes("navigation.items"), JSON.stringify(germany.navTexts.slice(0, 4)));
 
       // ── GERMANY in ENGLISH: the same Site, its other language ─────────────────────────────────────────
       await cdp.navigate(`http://${GERMANY_HOST}:${port}/de/en/about`);
@@ -362,7 +443,7 @@ async function runBrowserProof(harness, rows, chrome, port) {
         rows,
         `${name}: Germany's English page keeps its Location control, in English`,
         germanyEnglish.locationPresent === true &&
-          JSON.stringify(germanyEnglish.locationOptions) === JSON.stringify(["All locations", "Berlin", "Frankfurt"]),
+          JSON.stringify(germanyEnglish.locationOptions) === JSON.stringify(context.locationLabels.en),
         JSON.stringify(germanyEnglish.locationOptions),
       );
       harness.check(rows, `${name}: Germany's English page names English`, germanyEnglish.languageValue === "en", String(germanyEnglish.languageValue));
@@ -487,9 +568,12 @@ export async function run(chrome, harness) {
   let started = null;
   try {
     started = await startServer(harness);
-    await runFoundationContract(harness, rows, started.port);
-    await runGermanyContract(harness, rows, started.port);
-    await runBrowserProof(harness, rows, chrome, started.port);
+    // The two Spokes' authored pages, read once: every ownership check below compares Spoke A's page
+    // with Spoke B's page instead of quoting either one (M21).
+    const context = await authoredContext(harness.spokeConfigFiles);
+    await runFoundationContract(harness, rows, started.port, context);
+    await runGermanyContract(harness, rows, started.port, context);
+    await runBrowserProof(harness, rows, chrome, started.port, context);
   } catch (error) {
     harness.check(
       rows,
@@ -507,4 +591,7 @@ export async function run(chrome, harness) {
   return rows;
 }
 
-export default { id, run };
+/** The scenario's ONE export contract: its report label, and its runner. */
+const scenario = { id, run };
+
+export default scenario;

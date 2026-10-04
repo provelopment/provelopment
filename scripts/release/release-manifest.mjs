@@ -89,7 +89,7 @@ export function readReleaseAuthorities(read) {
 
   const node = typeof packageJson.engines?.node === "string" ? packageJson.engines.node.trim() : "";
   if (node === "") {
-    authorityFailure("package.json", 'the supported Node range (`engines.node`)', '{ "engines": { "node": ">=22" } }');
+    authorityFailure("package.json", 'the supported Node range (`engines.node`)', '{ "engines": { "node": "22.x" } }');
   }
 
   const packageManager = typeof packageJson.packageManager === "string" ? packageJson.packageManager : "";
