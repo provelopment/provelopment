@@ -48,6 +48,14 @@
       "iconClosed": "icon-about.svg"
     }
   ],
+  "footerNavigation": {
+    "items": [
+      {
+        "label": "Germany",
+        "href": "https://foundation-template-germany.provelopment.com/"
+      }
+    ]
+  },
   "features": {
     "analytics": {
       "provider": "none"

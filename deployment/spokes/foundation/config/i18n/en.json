@@ -17,7 +17,8 @@
     "hideSidebar": "Hide navigation",
     "items": {
       "/": "Home",
-      "/about": "About"
+      "/about": "About",
+      "https://foundation-template-germany.provelopment.com/": "Germany"
     }
   },
   "notFound": {
