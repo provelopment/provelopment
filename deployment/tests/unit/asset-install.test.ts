@@ -7,6 +7,7 @@ import { deploymentPaths } from "@/config/deployment-root";
 
 import { checkMirrors } from "../../../scripts/sync-runtime-assets.mjs";
 import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
+import { foundationSpoke } from "../support/spoke-contexts";
 
 /**
  * THE INSTALLED DEPLOYMENT'S ASSET INSTALL (FOUNDATION-DEPLOYMENT-ISO-H2)
@@ -29,7 +30,13 @@ import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
  * mirror relationship) and `deployment/tests/unit/country-code-reference.test.ts` (the shipped
  * country-code document versus the platform's authority) for the same reason.
  */
-const deployment = deploymentPaths();
+// M18 — this deployment declares TWO Spokes and therefore has NO installation-wide authored root: the
+// runtime authority refuses that answer loudly (M16/M17), because "the" root of a two-Spoke Installation
+// would be the default-Spoke rule the runtime refuses. This suite describes the pack the FOUNDATION Spoke
+// authors (the platform-owned trees and the neutral role artwork), which is the pack the Installation
+// ships; the GERMANY Spoke's own pack — and the per-Spoke isolation of the two — is asserted in
+// `./m18-germany-spoke.test.ts`.
+const deployment = foundationSpoke;
 /**
  * A deployed file's generated path: whichever runtime NAMESPACE holds it (S3E1C — the platform tree at
  * `public/assets`, or the Spoke's own at `public/spokes/<segment>/assets`). The platform path is the

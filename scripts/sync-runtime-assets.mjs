@@ -164,9 +164,21 @@ export function resolveAssetDeployment(environment = process.env, repositoryRoot
     mode,
     /** The Installation root the plan's SOURCE paths are relative to. */
     deploymentRoot: root,
-    /** The root this deployment's RESOURCES live in (the sole Spoke's root in explicit mode). */
+    /**
+     * The root this deployment's RESOURCES live in (the sole Spoke's root in explicit mode), or `null`
+     * for a MULTI-Spoke Installation.
+     *
+     * `null` is the honest answer rather than a missing one: an Installation declaring several Spokes has
+     * no single resource root — that is exactly what "multi" means (see `./deployment-build.mjs`) — and the
+     * plan already reads each declared Spoke's OWN tree (`installationSpokes`). Reaching for "the first
+     * Spoke" here would invent the default/precedence rule the multi-Spoke runtime refuses.
+     */
     resourceRoot,
-    sourceRoot: path.join(resourceRoot, SOURCE_DIRECTORY),
+    /**
+     * Where this run reads its authored artwork from: the single resource root's `content/assets/**`, or
+     * `null` in multi mode, where the sources are PER SPOKE and the plan names each one itself.
+     */
+    sourceRoot: resourceRoot === null ? null : path.join(resourceRoot, SOURCE_DIRECTORY),
     runtimeRoot: path.join(repositoryRoot, RUNTIME_DIR),
   };
 }
@@ -845,7 +857,7 @@ if (isMain) {
     `runtime asset mirror — ${RUNTIME_DIR} (${noun(buildPlan().length)} declared in ` +
       `${namespaces.length} namespace${namespaces.length === 1 ? "" : "s"})`,
   );
-  console.log(`  source:   ${installation.sourceRoot}  (${installation.layout}/${installation.mode})`);
+  console.log(`  source:   ${installation.sourceRoot ?? installation.deploymentRoot}  (${installation.layout}/${installation.mode})`);
   console.log(`  target:   ${installation.runtimeRoot}`);
   for (const namespace of namespaces) {
     console.log(

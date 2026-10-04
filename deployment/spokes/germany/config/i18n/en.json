@@ -1,0 +1,101 @@
+{
+  "home": {
+    "tagline": "A configurable site foundation for your business",
+    "description": "This is the template's starter content. Replace it — and the site name in site.config.json — with your own, then add your pages under content/ and your graphics in assets/placeholders/."
+  },
+  "sections": {
+    "about": "About",
+    "contact": "Contact",
+    "connect": "Connect",
+    "navigate": "Navigate"
+  },
+  "navigation": {
+    "primaryLabel": "Primary navigation",
+    "footerLabel": "Footer navigation",
+    "moreMenu": "More",
+    "showSidebar": "Show navigation",
+    "hideSidebar": "Hide navigation",
+    "items": {
+      "/": "Home",
+      "/about": "About"
+    }
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "The page you are looking for does not exist.",
+    "returnHome": "Return home"
+  },
+  "error": {
+    "title": "Something went wrong",
+    "message": "We're sorry that happened. Please try again.",
+    "tryAgain": "Try again",
+    "returnHome": "Return home"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "site": {
+    "label": "Site"
+  },
+  "layout": {
+    "label": "Layout",
+    "sidebar": "Sidebar",
+    "menuBar": "Menu bar"
+  },
+  "location": {
+    "label": "Location",
+    "unspecified": "All locations"
+  },
+  "business": {
+    "open": "Open now",
+    "closed": "Closed",
+    "noHours": "Hours not available",
+    "hoursLabel": "Business hours",
+    "hoursTimeZoneLabel": "Time Zone"
+  },
+  "a11y": {
+    "skipToContent": "Skip to content"
+  },
+  "contact": {
+    "heading": "Contact us",
+    "nameLabel": "Name",
+    "emailLabel": "Email",
+    "subjectLabel": "Subject",
+    "messageLabel": "Message",
+    "submit": "Send inquiry",
+    "sending": "Sending…",
+    "honeypotLabel": "Website",
+    "success": "Your inquiry was submitted successfully.",
+    "demoNotice": "Demo mode: nothing was sent. Connect a webhook to receive inquiries.",
+    "unconfigured": "The contact form is not configured on this site yet.",
+    "configError": "The contact form is not configured correctly. Please contact the site owner directly.",
+    "sendError": "Your inquiry could not be submitted. Please try again.",
+    "errors": {
+      "name": "Please enter your name.",
+      "email": "Please enter a valid email address.",
+      "subject": "Please shorten the subject.",
+      "message": "Please enter a message (up to 5000 characters)."
+    }
+  },
+  "booking": {
+    "book": "Book now"
+  },
+  "legal": {
+    "heading": "Legal",
+    "labels": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "cookies": "Cookie Policy"
+    }
+  },
+  "connect": {
+    "heading": "Connect",
+    "demoNotice": "These connection options are template demonstrations. Nothing here is connected to a real business or service.",
+    "demoBadge": "Demo",
+    "methods": {
+      "message": "Message Us",
+      "email": "Email",
+      "phone": "Phone"
+    }
+  }
+}

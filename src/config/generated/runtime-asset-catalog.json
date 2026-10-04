@@ -404,6 +404,44 @@
         "width": 2,
         "height": 2
       }
+    },
+    "/spokes/germany/assets": {
+      "favicon.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "footer-graphic.svg": {
+        "width": 2048,
+        "height": 2048
+      },
+      "header-graphic.svg": {
+        "width": 4096,
+        "height": 512
+      },
+      "logo-footer.svg": {
+        "width": 240,
+        "height": 64
+      },
+      "logo-header.svg": {
+        "width": 240,
+        "height": 64
+      },
+      "sidebar-close.svg": {
+        "width": 2,
+        "height": 2
+      },
+      "sidebar-default-icon-closed.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "sidebar-default-icon-open.svg": {
+        "width": 64,
+        "height": 64
+      },
+      "sidebar-open.svg": {
+        "width": 2,
+        "height": 2
+      }
     }
   }
 }

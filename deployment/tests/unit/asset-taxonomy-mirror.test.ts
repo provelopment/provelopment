@@ -29,7 +29,14 @@ import { runtimeAssetFile } from "../../../tests/support/runtime-assets";
  */
 
 const ROOT = process.cwd();
-const dir = (...segments: string[]) => path.join(deploymentPaths().assetSourceRoot, ...segments);
+// M18 — a multi-Spoke Installation declares TWO Spokes and has NO installation-wide authored root: the
+// runtime authority refuses that answer loudly (M16/M17). This suite therefore names the Spoke whose
+// authored pack it describes — the FOUNDATION Spoke, which authors the platform-owned trees
+// (`icon-library`, `platform-marks`) and the neutral role artwork. The GERMANY Spoke ships the same role
+// artwork byte-identically, and THAT is asserted in `./m18-germany-spoke.test.ts`.
+import { deploymentSpokes, foundationSpoke } from "../support/spoke-contexts";
+
+const dir = (...segments: string[]) => path.join(foundationSpoke.assetSourceRoot, ...segments);
 const names = (...segments: string[]) =>
   readdirSync(dir(...segments), { withFileTypes: true })
     .filter((entry) => entry.isFile())
@@ -212,9 +219,9 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
   it("takes authored assets from content/assets, beside the rest of the content", () => {
     // The human-facing rule: everything a normal user authors as website content has
     // one obvious home under `content/`.
-    expect(existsSync(path.join(deploymentPaths().assetSourceRoot, "placeholders"))).toBe(true);
+    expect(existsSync(path.join(foundationSpoke.assetSourceRoot, "placeholders"))).toBe(true);
     expect(names("placeholders").length).toBeGreaterThan(0);
-    expect(existsSync(path.join(deploymentPaths().assetSourceRoot, "README.md"))).toBe(true);
+    expect(existsSync(path.join(foundationSpoke.assetSourceRoot, "README.md"))).toBe(true);
   });
 
   it("leaves NO second user-editable asset authority at the repository root", () => {
@@ -231,7 +238,7 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     expect(script).toContain("content/assets/**");
     expect(script).toContain("the SOURCE OF TRUTH");
 
-    const readme = readFileSync(path.join(deploymentPaths().assetSourceRoot, "README.md"), "utf8");
+    const readme = readFileSync(path.join(foundationSpoke.assetSourceRoot, "README.md"), "utf8");
     // S3E1C/S3F1 — the generated tree is NAMESPACED, so the instruction is stricter than it was and names
     // no single hand-edit target: NOTHING under `public/` (either namespace) is ever edited by hand.
     expect(readme).toContain("public/assets");
@@ -274,7 +281,8 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
  */
 describe("S3F2A2-R4 — the production asset API resolves through this deployment's namespaces", () => {
   it("serves platform artwork from /assets and the declared Spoke's artwork from its own namespace", () => {
-    expect(deploymentPaths().runtimeAssetNamespaces.map((namespace) => namespace.urlBase)).toEqual([
+    const namespaces = foundationSpoke.runtimeAssetNamespaces.map((namespace) => namespace.urlBase);
+    expect(namespaces).toEqual([
       "/assets",
       "/spokes/foundation/assets",
     ]);
