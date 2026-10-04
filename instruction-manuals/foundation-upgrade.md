@@ -97,8 +97,9 @@ up byte-faithful — a fidelity/divergence check enforces this.
 
 Business and site identity. The Foundation must never write here.
 
-- business content (pages under `content/pages/`, and the artwork under `content/assets/`)
-- site configuration (`site.config.json`)
+- business content (each Spoke root's own `content/pages/`, and the artwork under `content/assets/`)
+- site configuration (each Spoke root's own `site.config.json`; a legacy implicit Installation has one, at
+  its root, while an explicit one has one per declared Spoke root — `deployment/spokes/<spoke>/`)
 - business imagery and artwork
 - customer branding decisions
 - business-specific copy in the adopter's own locale dictionaries

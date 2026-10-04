@@ -78,11 +78,17 @@ export interface InstallationSeedRequirement {
 }
 
 /**
- * The authored surfaces every Foundation installation needs.
+ * The authored surfaces ONE SPOKE ROOT must carry (FOUNDATION-MULTISITE-M20).
  *
  * Deliberately SHORT and structural: what the platform reads at runtime, and nothing about how an owner
  * organises the rest. A seed may carry any additional authored material — a capsule README, an agent
  * contract, its own acceptance tests, documentation, generated content documents — copied verbatim.
+ *
+ * RELATIVE TO ONE SPOKE ROOT, WHICH IS THE WHOLE POINT SINCE M20. An Installation authoring ONE implicit
+ * Spoke carries these at its root; an Installation authoring an explicit Spoke collection carries them
+ * INSIDE EACH declared Spoke root. The paths are therefore stated once, relative to a Spoke root, and
+ * `installationSeedTopologyRefusals` applies them to whatever roots the seed's own mode declares — so the
+ * legacy shape is not a special case and the explicit shape is not a second rule.
  */
 export const INSTALLATION_SEED_REQUIREMENTS: readonly InstallationSeedRequirement[] = Object.freeze([
   {
@@ -106,6 +112,103 @@ export const INSTALLATION_SEED_REQUIREMENTS: readonly InstallationSeedRequiremen
     reason: "the authored artwork the runtime asset mirror is generated from",
   },
 ]);
+
+/**
+ * WHICH AUTHORING MODE A SEED IS AUTHORED IN, AND WHERE ITS SPOKE ROOTS ARE (FOUNDATION-MULTISITE-M20)
+ * ==================================================================================================
+ *
+ * An Installation is authored ONE way — and the ONE declaration authority decides which, refusing both
+ * authored at once and neither authored at all (`@/config/spoke-declarations.mjs`, whose rules are NOT
+ * restated here):
+ *
+ *   legacy implicit   no `spokes.json`: the Installation root IS the one implicit Spoke root, and the
+ *                     authored surfaces sit directly in the seed
+ *   explicit          a `spokes.json` manifest declaring 1..* Spoke roots beneath the dedicated `spokes/`
+ *                     namespace, each of which carries its OWN authored surfaces
+ *
+ * This is PURE DATA about a seed's SHAPE — ids and locators, nothing else: no filesystem, no manifest
+ * parsing, no manifest schema, no locator rules and no containment checks, all of which belong to that ONE
+ * authority. Establishment's adapter resolves a real seed through it and passes the answer inward as this
+ * value, so the rules below can speak about "every declared Spoke root" without knowing how one is
+ * discovered, validated or located.
+ */
+export type InstallationSeedTopology =
+  | { readonly mode: "legacy" }
+  | { readonly mode: "explicit"; readonly spokes: readonly InstallationSeedSpoke[] };
+
+/** ONE Spoke a seed's manifest declares: the authored id, and the locator of its root. */
+export interface InstallationSeedSpoke {
+  /** The identity the manifest declares (`foundation`, `germany`, …). */
+  readonly id: string;
+  /**
+   * The Spoke root's Installation-relative POSIX locator, e.g. `spokes/germany`.
+   *
+   * An opaque spelling here: which spellings are acceptable is the declaration authority's rule, applied
+   * before this value ever exists.
+   */
+  readonly locator: string;
+}
+
+/** The seed-relative prefix ONE Spoke root's surfaces live under (`""` for the legacy implicit Spoke). */
+function spokeRootPrefix(locator: string): string {
+  const trimmed = locator.replace(/\/+$/, "");
+  return trimmed === "" ? "" : `${trimmed}/`;
+}
+
+/**
+ * WHY THIS SEED CANNOT BECOME A COMPLETE INSTALLATION, given the authoring mode it is authored in.
+ *
+ * ONE rule, applied to every Spoke root the mode declares: the legacy implicit Installation applies it to
+ * its root, an explicit Installation applies it to each DECLARED Spoke root — so the real two-Spoke
+ * capsule is accepted for exactly the reason the legacy capsule is, and neither shape is a special case.
+ *
+ * MEMBERSHIP IS THE MANIFEST'S, NEVER A DIRECTORY'S. Nothing here enumerates a `spokes/` directory: a root
+ * that the manifest does not declare cannot make this function demand anything of it, and an undeclared
+ * directory therefore creates no Spoke and no requirement. That is why this function takes the topology as
+ * DATA rather than discovering roots itself.
+ *
+ * Pure: paths and kinds only. Every refusal names the path that is missing and whose Spoke root it belongs
+ * to, because an operator establishing a multi-Spoke Installation must be told WHICH Spoke is incomplete.
+ */
+export function installationSeedTopologyRefusals(
+  topology: InstallationSeedTopology,
+  files: readonly { readonly path: string }[],
+): string[] {
+  if (topology.mode === "explicit" && topology.spokes.length === 0) {
+    return [
+      "the seed declares an explicit Spoke collection that names no Spoke — an Installation is authored " +
+        "either implicitly (its root is its one Spoke) or with at least one declared Spoke root",
+    ];
+  }
+
+  const paths = files.map((file) => file.path);
+  const single: readonly (InstallationSeedSpoke | null)[] =
+    topology.mode === "legacy" ? [null] : topology.spokes;
+  const refusals: string[] = [];
+
+  for (const spoke of single) {
+    if (spoke !== null && spoke.locator.trim() === "") {
+      refusals.push(
+        `declared Spoke "${spoke.id}" names no root locator — a declared Spoke root must say where it is ` +
+          "authored inside the Installation",
+      );
+      continue;
+    }
+    const prefix = spoke === null ? "" : spokeRootPrefix(spoke.locator);
+    const where = spoke === null ? "" : ` (declared Spoke "${spoke.id}", under "${prefix}")`;
+
+    for (const requirement of INSTALLATION_SEED_REQUIREMENTS) {
+      const path = `${prefix}${requirement.path}`;
+      const present =
+        requirement.kind === "file"
+          ? paths.includes(path)
+          : paths.some((candidate) => candidate.startsWith(`${path}/`));
+      if (!present) refusals.push(`the seed has no ${path} — ${requirement.reason}${where}`);
+    }
+  }
+
+  return refusals;
+}
 
 /**
  * Generated state a seed may NEVER contain, with the reason each is refused.

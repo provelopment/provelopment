@@ -315,7 +315,10 @@ describe("establishing an installation in a disposable target root", () => {
     const release = constructSyntheticRelease();
     const workspace = disposableTree("foundation-b4b-bad-seeds-");
 
-    // A seed without the configuration its installation must read.
+    // A seed authored NEITHER way: it carries neither a root `site.config.json` (legacy implicit) nor a
+    // `spokes.json` manifest (explicit). Since M20 that contradiction is refused by the ONE declaration
+    // authority before any authored surface is looked for — there is no precedence rule and no implicit
+    // Spoke to fall back to.
     const noConfig = syntheticSeed();
     rmSync(path.join(noConfig, "site.config.json"), { force: true });
     // A seed carrying GENERATED state, which would give the new installation a history it never had.
@@ -328,7 +331,7 @@ describe("establishing an installation in a disposable target root", () => {
     writeFileSync(path.join(invalidConfig, "site.config.json"), '{ "site": { "name": 42 } }\n', "utf8");
 
     const cases: { label: string; seed: string; expected: RegExp }[] = [
-      { label: "no configuration", seed: noConfig, expected: /the seed has no site\.config\.json/ },
+      { label: "authored neither way", seed: noConfig, expected: /authored NEITHER way/ },
       { label: "carrying generated state", seed: withRecord, expected: /the seed contains operational-state\.json/ },
       { label: "no generated-state ignore rule", seed: noIgnore, expected: /does not ignore operational-state\.json/ },
       { label: "an invalid configuration", seed: invalidConfig, expected: /not a valid Foundation configuration/ },

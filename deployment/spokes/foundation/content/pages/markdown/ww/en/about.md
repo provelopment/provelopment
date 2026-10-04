@@ -42,14 +42,13 @@ Both are ordinary pages. The file contains the content, its location determines 
 
 # Sites, languages, locations and layout
 
-Foundation can support a simple website just as well as one serving several countries, languages, locations and markets. This reference deployment is configured so that the four visitor dimensions can be seen working together:
+Foundation can support a simple website just as well as one serving several countries, languages, locations and markets. This reference deployment is configured so that the visitor dimensions can be seen working together:
 
-- **Site** chooses an independent website context. This deployment has two: *Global*, which you are reading, and *Germany*, a demonstration country site with its own page tree.
-- **Language** chooses how the active site is read. Global offers English and German, and the Germany site offers the same two languages, because languages belong to a site rather than to a single page.
-- **Location** chooses a physical or service context inside a site, without creating another page tree. Global has no locations of its own, so no Location control appears on this site; the Germany site demonstrates *Berlin* and *Frankfurt*.
-- **Layout** changes only how the interface is presented — Sidebar or Menu bar. It is a visitor preference that belongs to no site, so it survives a change of site, language or location.
+- **Language** chooses how this website is read. This website Global offers English and German, and the Germany website offers the same two languages, because languages belong to a website rather than to a single page.
+- **Location** chooses a physical or service context inside a website, without creating another page tree. This website Global has no locations of its own, so no Location control appears here; the Germany website demonstrates *Berlin* and *Frankfurt*.
+- **Layout** changes only how the interface is presented — Sidebar or Menu bar. It is a visitor preference that belongs to no website, so it survives a change of language or location.
 
-Every control appears only when the corresponding configuration exists, which is why this site shows three of them and the Germany site shows four.
+There is no **Site** control: which website you are reading is decided by its address, and the Germany website is reachable through an ordinary link in the footer. Every control appears only when the corresponding configuration exists, which is why this website Global shows two of them (**Layout** and **Language**) and the Germany website shows three (**Layout**, **Location** and **Language**).
 
 # This configuration is an example
 

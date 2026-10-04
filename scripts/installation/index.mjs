@@ -153,6 +153,16 @@ export async function runEstablish(options) {
   console.log(`  platform content:   ${result.release.content.fileCount} file(s), ${result.release.content.digest}`);
   console.log(`  acquired from:      ${result.acquiredFrom}`);
   console.log(`  authored from:      ${result.seedFrom}`);
+  // WHICH AUTHORING MODE THE SEED WAS READ IN (FOUNDATION-MULTISITE-M20): an operator establishing a
+  // multi-Spoke Installation must see that the capsule was understood as a Spoke collection rather than as
+  // one implicit Spoke, because that is what decided which authored surfaces had to exist.
+  console.log(
+    `  authoring mode:     ${
+      result.seedMode === "legacy"
+        ? "implicit — one Spoke, the installation root itself"
+        : `explicit Spoke collection — ${result.seedSpokes.length} declared Spoke(s): ${result.seedSpokes.join(", ")}`
+    }`,
+  );
   console.log(`  installation root:  ${result.targetRoot}`);
   console.log(`  candidate:          release ${result.candidate.release}`);
   console.log(`                      authored      ${result.candidate.authored}`);

@@ -205,6 +205,13 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "disposable target roots it establishes into, and the seeded capsule whose ignore rule it proves (B4B)",
   "tests/integration/foundation-installation-cli.test.ts":
     "disposable target roots it establishes into through the command line (B4B)",
+  // FOUNDATION-MULTISITE-M20 — the multi-Spoke establishment proof and the authoring-directory contract
+  // write only disposable trees of their own. The REAL capsule is COPIED into OS temp and only ever READ
+  // (the copy is what establishment is given), and the authoring contract builds its own throwaway tree.
+  "tests/integration/foundation-installation-multispoke.test.ts":
+    "OS temp seeds — byte-faithful copies of the real capsule, which is only ever read — and the disposable " +
+    "target roots it establishes into (M20)",
+  "tests/unit/page-authoring-directory-contract.test.ts": "OS temp authoring trees it creates (M20)",
   "tests/unit/site-page-isolation.test.ts": "the synthetic deployment's page tree",
   "tests/unit/synthetic-deployment-lifecycle.test.ts":
     "the synthetic deployment copies it materialises and removes, plus the look-alike decoys proving the " +

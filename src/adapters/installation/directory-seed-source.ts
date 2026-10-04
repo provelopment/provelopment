@@ -15,6 +15,8 @@
 import path from "node:path";
 
 import type { FoundationContentFile, FoundationInstallationSeedSource } from "@/application/foundation-establishment-ports";
+import type { InstallationSeedTopology } from "@/core/foundation-installation";
+import { resolveInstallationSpokeRoots } from "@/config/spoke-roots";
 
 import { readContentFiles } from "./node-content-files";
 
@@ -37,5 +39,40 @@ export class DirectorySeedSource implements FoundationInstallationSeedSource {
   /** The authored material, verbatim, root-relative and byte-wise ordered. */
   async files(): Promise<readonly FoundationContentFile[]> {
     return readContentFiles(this.seedDirectory);
+  }
+
+  /**
+   * WHICH AUTHORING MODE THIS SEED IS AUTHORED IN, AND WHERE ITS SPOKE ROOTS ARE (FOUNDATION-MULTISITE-M20).
+   *
+   * The DIRECTORY is the only thing that can answer this, so the answer is resolved HERE, at the adapter
+   * boundary, and passed inward as PURE DATA — the pure establishment rules then speak about "every declared
+   * Spoke root" without touching a filesystem, and the use case stays free of `node:fs` and of any concrete
+   * adapter.
+   *
+   * THE AUTHORITY IS NOT RESTATED: `resolveInstallationSpokeRoots` is the platform's ONE Spoke-declaration
+   * and root contract (the same call the build selection seam makes), so:
+   *
+   *   no manifest            legacy implicit — the root IS the one Spoke, and the authored surfaces sit in it
+   *   1..* declared roots    explicit — each root carries its OWN authored surfaces
+   *   both ways              REFUSED by the authority, and the refusal reaches the operator through the use
+   *   neither way            case as an unusable seed
+   *
+   * No precedence rule, no default Spoke, no directory scan and no manifest parsing are added here: a
+   * directory under `spokes/` that no entry declares is inert, exactly as the accepted contract says.
+   */
+  async topology(): Promise<InstallationSeedTopology> {
+    const roots = resolveInstallationSpokeRoots(this.seedDirectory);
+    if (roots.mode === "legacy") return { mode: "legacy" };
+
+    return {
+      mode: "explicit",
+      spokes: roots.descriptors.map((descriptor) => ({
+        id: descriptor.id,
+        // SEED-relative, because the pure rules address authored surfaces by seed-relative path. Which
+        // spellings a locator may have was already decided by the authority above — this converts its
+        // resolved answer, it does not judge it.
+        locator: path.relative(this.seedDirectory, descriptor.root).split(path.sep).join("/"),
+      })),
+    };
   }
 }

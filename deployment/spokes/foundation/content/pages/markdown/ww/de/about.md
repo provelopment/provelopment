@@ -42,14 +42,13 @@ In beiden Fällen handelt es sich um normale Seiten. Die Datei enthält den Inha
 
 # Sites, Sprachen, Standorte und Layout
 
-Foundation kann eine einzelne Website ebenso abbilden wie eine Website für mehrere Länder, Sprachen, Standorte und Märkte. Diese Referenzinstallation ist so eingerichtet, dass die vier Besucher-Dimensionen im Zusammenspiel sichtbar werden:
+Foundation kann eine einzelne Website ebenso abbilden wie eine Website für mehrere Länder, Sprachen, Standorte und Märkte. Diese Referenzinstallation ist so eingerichtet, dass die Besucher-Dimensionen im Zusammenspiel sichtbar werden:
 
-- **Site** wählt einen eigenständigen Website-Kontext. In dieser Installation gibt es zwei: *Global*, die Sie gerade lesen, und *Germany*, eine Demonstrations-Website für Deutschland mit eigenem Seitenbaum.
-- **Sprache** wählt, in welcher Sprache die aktive Website gelesen wird. Global bietet Deutsch und Englisch, die Website für Deutschland dieselben zwei Sprachen — Sprachen gehören zu einer Website und nicht zu einer einzelnen Seite.
-- **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb einer Website, ohne einen zweiten Seitenbaum zu erzeugen. Global besitzt keine eigenen Standorte, deshalb erscheint auf dieser Website kein Standort-Bedienelement; die Website für Deutschland zeigt die Standorte *Berlin* und *Frankfurt*.
-- **Layout** ändert nur die Darstellung der Oberfläche — Seitenleiste oder Menüleiste. Es ist eine Einstellung des Besuchers und gehört zu keiner Website; sie bleibt daher bei einem Wechsel von Website, Sprache oder Standort erhalten.
+- **Sprache** wählt, in welcher Sprache die aktive Website gelesen wird. Diese Website Global bietet Deutsch und Englisch, die Website für Deutschland dieselben zwei Sprachen — Sprachen gehören zu einer Website und nicht zu einer einzelnen Seite.
+- **Standort** wählt einen physischen oder organisatorischen Kontext innerhalb einer Website, ohne einen zweiten Seitenbaum zu erzeugen. Diese Website Global besitzt keine eigenen Standorte, deshalb erscheint hier kein Standort-Bedienelement; die Website für Deutschland zeigt die Standorte *Berlin* und *Frankfurt*.
+- **Layout** ändert nur die Darstellung der Oberfläche — Seitenleiste oder Menüleiste. Es ist eine Einstellung des Besuchers und gehört zu keiner Website; sie bleibt daher bei einem Wechsel von Sprache oder Standort erhalten.
 
-Jedes Bedienelement erscheint nur, wenn die entsprechende Konfiguration vorhanden ist. Deshalb zeigt diese Website drei davon und die Website für Deutschland vier.
+Ein **Site**-Bedienelement gibt es nicht: welche Website Sie lesen, entscheidet die Adresse, und die Website für Deutschland ist über einen gewöhnlichen Link in der Fußzeile erreichbar. Jedes Bedienelement erscheint nur, wenn die entsprechende Konfiguration vorhanden ist: Diese Website Global zeigt deshalb zwei davon (**Layout** und **Sprache**), die Website für Deutschland drei (**Layout**, **Standort** und **Sprache**).
 
 # Diese Konfiguration ist ein Beispiel
 
