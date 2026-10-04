@@ -1,17 +1,19 @@
 ---
 title: Berlin
-description: Berlin ist ein Demonstrations-Standort der Website für Deutschland in dieser Foundation-Referenzinstallation — keine Angabe zu einer tatsächlichen Geschäftsadresse.
+description: Berlin ist ein Demonstrations-Standort der Deutschland-Website und keine tatsächliche Geschäftsadresse von Provelopment.
 ---
 
-Diese Seite gehört zur Website **Germany** (der Website für Deutschland) in dieser Foundation-Referenzinstallation. Berlin ist einer von zwei Demonstrations-Standorten neben Frankfurt.
+Berlin ist neben Frankfurt einer von zwei Demonstrations-Standorten auf der Deutschland-Website.
 
-# Was ein Standort hier bedeutet
+# Was ein Standort bedeutet
 
-Ein Standort ist ein physischer oder organisatorischer Kontext *innerhalb* einer Website. Er erzeugt keinen zweiten Seitenbaum: Diese Berliner Seiten gehören zur Website für Deutschland, und beim Wechsel zwischen Berlin, Frankfurt und **Alle Standorte** verlassen Sie weder diese Website noch die Sprache, in der Sie gerade lesen.
+Ein Standort ermöglicht es einer Website, Informationen für einen bestimmten Ort oder ein bestimmtes Einsatzgebiet anzuzeigen.
 
-Die auf dieser Seite angezeigte Zeitzone und Adresse sind Demonstrationsdaten. Ersetzen Sie sie durch Ihre eigenen Standortangaben, wenn Sie Foundation für Ihr Unternehmen einrichten.
+Wenn Sie zwischen **Berlin**, **Frankfurt** und **Alle Standorte** wechseln, bleiben Sie auf derselben Deutschland-Website und in derselben Sprache. Nur die standortbezogenen Informationen ändern sich.
+
+Die hier angezeigte Adresse und Zeitzone sind Demonstrationsdaten. Ersetzen Sie sie durch die Angaben, die für Ihre eigene Organisation gelten.
 
 # Wie es weitergeht
 
-- **Startseite** führt zurück zur Startseite der Website für Deutschland.
-- **Über uns** erklärt, was diese Referenzinstallation zeigt.
+- **Startseite** führt zurück zur Startseite der Deutschland-Website.
+- **Über diese Website** erklärt, was diese Demonstrations-Website zeigt.

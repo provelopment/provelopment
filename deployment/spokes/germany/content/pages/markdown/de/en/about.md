@@ -1,45 +1,51 @@
 ---
-title: About the Germany site
-description: What the Germany site in this Foundation reference deployment demonstrates — an independent page tree, German and English, the demonstration locations Berlin and Frankfurt, and a Layout choice that stays independent.
+title: About the Germany website
+description: What the Germany demonstration website shows, including multiple languages, locations and its relationship to the wider Foundation reference installation.
 ---
 
-This page belongs to the **Germany** site in this Foundation reference deployment. Germany is the reference example of a country that keeps its own website inside one Foundation installation.
+This is the Germany demonstration website in the Foundation reference installation. It has its own address and content while sharing the same Foundation installation as the Global demonstration website.
 
-# What this site demonstrates
+# What this website demonstrates
 
-- an **independent page tree** for Germany, separate from the Global site
-- the site is available in **German and English**
-- two demonstration **locations**, Berlin and Frankfurt
-- the **Location**, **Language** and **Layout** controls working together
+The Germany example shows:
 
-The Global site and this site are independent: neither reads pages from the other. That is deliberate — a country site can grow its own structure without changing what the Global site says.
+- a separate website with its own content
+- German and English versions
+- two demonstration locations: Berlin and Frankfurt
+- Language, Location and Layout working together
 
-# Sites, languages and locations
+It is designed to show how a website can support several languages and locations without becoming unnecessarily complicated.
 
-The controls in the header describe three different aspects of this website:
+# Languages and locations
 
-- **Language** chooses how the site is read — German or English.
-- **Location** chooses a physical or service context inside the site — Berlin or Frankfurt, or **All locations** for the whole site.
-- **Layout** changes only how the interface is presented — Sidebar or Menu bar. It is a visitor preference and belongs to no site.
+The Germany website is available in **German** and **English**.
 
-A location does not create a second page tree. Berlin and Frankfurt share the pages of this Germany site, which is what makes them locations rather than further sites.
+Use **Language** to switch between them while remaining on the corresponding page.
 
-# Languages belong to the site
+**Berlin** and **Frankfurt** are locations within the same website. Choosing a location keeps the website and language unchanged while showing the information that applies to that location.
 
-Languages are configured for the site as a whole. This site offers German and English to all of its locations, so Berlin and Frankfurt are read in the same two languages. Locations do not carry their own language restrictions in this model.
+You can also choose **All locations** when you want information for the Germany website as a whole.
 
-# The layout choice is yours
+# Layout is independent
 
-The **Layout** control in the header switches between the Sidebar and Menu-bar presentations without changing the page, its address, its site, its language or its location. Your choice stays in your browser and is remembered the next time you visit.
+The **Layout** control changes only how the website is presented — Sidebar or Menu bar.
+
+Changing the layout does not change the page, language or location you are viewing, and your preference is remembered in your browser.
 
 # Berlin and Frankfurt are demonstration data
 
-Berlin and Frankfurt are part of the reference configuration. They are not statements about real Provelopment offices, addresses, phone numbers or opening hours, and the address shown is a placeholder.
+Berlin and Frankfurt are included only to demonstrate how locations work. They are not real Provelopment offices, addresses, phone numbers or opening hours.
 
-An adopter replaces this demonstration configuration with their own sites, languages and locations. Germany exists here so you can see the capability working, not because the template knows anything about Germany.
+When you use Foundation, replace these examples with the locations and information that belong to your own organisation.
+
+# Part of the same Foundation installation
+
+The Germany and Global demonstration websites have separate addresses and separate content, but they run within the same Foundation installation.
+
+This shows how one organisation can operate several related websites together while keeping each website's content distinct.
 
 # Learn more
 
-Visit [foundation.provelopment.com](https://foundation.provelopment.com/) to learn more about Provelopment Foundation and what the platform provides.
+Visit [foundation.provelopment.com](https://foundation.provelopment.com/) to learn more about Provelopment Foundation.
 
 The template source code, technical documentation and instruction manuals are available in the [public Provelopment Foundation repository](https://github.com/provelopment/provelopment-foundation).

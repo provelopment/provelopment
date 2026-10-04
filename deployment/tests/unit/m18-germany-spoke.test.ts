@@ -123,10 +123,10 @@ describe("§20 — A/B/A/B: the two real contexts never cross", () => {
     expect(await pagesFor(foundationSpoke).resolve("ww", "frankfurt", "en")).toBeNull();
     // Germany's own Home IS Germany's, in both of its languages.
     expect((await pagesFor(germanySpoke).resolve("de", HOME_CONTENT_SLUG, "de"))?.title).toBe(
-      "Deutschland: eine Website, zwei Sprachen, zwei Standorte.",
+      "Deutschland: zwei Sprachen, zwei Standorte.",
     );
     expect((await pagesFor(germanySpoke).resolve("de", HOME_CONTENT_SLUG, "en"))?.title).toBe(
-      "Germany: one site, two languages, two locations.",
+      "Germany: two languages, two locations.",
     );
   });
 });

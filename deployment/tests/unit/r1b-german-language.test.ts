@@ -221,7 +221,7 @@ describe("the served German pages", () => {
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(GERMAN_HOME_TITLE);
-    expect(html).toContain("Zwei Arten, Seiten zu erstellen");
+    expect(html).toContain("Zwei Wege, eine Seite zu erstellen");
     expect(html).toContain("Ihre Website gehört Ihnen");
     // The authored action states its own site (`/ww/de/about`): `de` is both a locale key and the
     // Germany site's code, so the site-scoped form is the unambiguous one. The external link is
@@ -238,7 +238,7 @@ describe("the served German pages", () => {
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
     expect(html).toContain(GERMAN_ABOUT_TITLE);
     expect(html).toContain("Was diese Website zeigt");
-    expect(html).toContain("Zwei Arten, Seiten zu erstellen");
+    expect(html).toContain("Zwei Wege, Seiten zu erstellen");
     // A translated `# Heading` still renders RELATIVE to the page title: an h2, never an h1.
     expect(html).toContain("<h2");
     expect(html).toContain('id="eine-website-unter-ihrer-kontrolle"');

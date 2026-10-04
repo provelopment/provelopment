@@ -57,9 +57,9 @@ import { foundationSpoke, germanySpoke, type DeploymentSpoke } from "../support/
 /** The two authored coordinates of the reference deployment, and the Spoke each one belongs to. */
 const GLOBAL = "ww";
 const GERMANY = "de";
-const GERMAN_HOME_TITLE = "Deutschland: eine Website, zwei Sprachen, zwei Standorte.";
-const GERMANY_ENGLISH_HOME_TITLE = "Germany: one site, two languages, two locations.";
-const GERMAN_ABOUT_TITLE = "About the Germany site";
+const GERMAN_HOME_TITLE = "Deutschland: zwei Sprachen, zwei Standorte.";
+const GERMANY_ENGLISH_HOME_TITLE = "Germany: two languages, two locations.";
+const GERMAN_ABOUT_TITLE = "About the Germany website";
 const GLOBAL_ABOUT_TITLE = "About this Foundation website";
 
 const FOUNDATION = foundationSpoke;

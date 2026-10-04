@@ -102,14 +102,14 @@ async function runFoundationContract(harness, rows, port) {
     rows,
     "Foundation serves its OWN About page, not Germany's",
     englishAbout.body.includes("About this Foundation website") &&
-      !englishAbout.body.includes("About the Germany site"),
+      !englishAbout.body.includes("About the Germany website"),
     "",
   );
   const germanAbout = await get("/ww/de/about");
   harness.check(
     rows,
     "Foundation's German About is the Global Site's own German page",
-    germanAbout.status === 200 && !germanAbout.body.includes("About the Germany site"),
+    germanAbout.status === 200 && !germanAbout.body.includes("About the Germany website"),
     `status=${germanAbout.status}`,
   );
 
@@ -132,7 +132,7 @@ async function runFoundationContract(harness, rows, port) {
       rows,
       `Foundation ${pathname} stays inside this Spoke and lands on no /de Site path`,
       (target === null || (target.origin === FOUNDATION_ORIGIN && !target.pathname.startsWith("/de/"))) &&
-        !response.body.includes("About the Germany site"),
+        !response.body.includes("About the Germany website"),
       `location=${response.location || "(none)"}`,
     );
   }
@@ -214,7 +214,7 @@ async function runGermanyContract(harness, rows, port) {
   harness.check(
     rows,
     "Germany serves its OWN About page, not the Foundation's",
-    englishAbout.body.includes("About the Germany site") &&
+    englishAbout.body.includes("About the Germany website") &&
       !englishAbout.body.includes("About this Foundation website"),
     "",
   );
