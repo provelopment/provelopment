@@ -57,10 +57,6 @@ import { foundationSpoke, germanySpoke, type DeploymentSpoke } from "../support/
 /** The two authored coordinates of the reference deployment, and the Spoke each one belongs to. */
 const GLOBAL = "ww";
 const GERMANY = "de";
-const GERMAN_HOME_TITLE = "Deutschland: zwei Sprachen, zwei Standorte.";
-const GERMANY_ENGLISH_HOME_TITLE = "Germany: two languages, two locations.";
-const GERMAN_ABOUT_TITLE = "About the Germany website";
-const GLOBAL_ABOUT_TITLE = "About this Foundation website";
 
 const FOUNDATION = foundationSpoke;
 const GERMANY_SPOKE = germanySpoke;
@@ -155,7 +151,6 @@ describe("Foundation Spoke — the `ww` Site alone, with its own page tree", () 
     const germanHome = await pages.resolve(GLOBAL, HOME_CONTENT_SLUG, "de");
     const germanAbout = await pages.resolve(GLOBAL, "about", "de");
 
-    expect(englishAbout?.title).toBe(GLOBAL_ABOUT_TITLE);
     // `de` on this Spoke is a LANGUAGE, not a Site: Global's German pages are Global's own, authored in
     // its own tree (foundation/content/pages/**/ww/de/**), and each one answers rather than falling back.
     for (const [label, page] of [
@@ -166,10 +161,19 @@ describe("Foundation Spoke — the `ww` Site alone, with its own page tree", () 
     ] as const) {
       expect(page, label).not.toBeNull();
       expect(page?.fallback, `${label} is authored, not a fallback`).toBe(false);
+      expect(page?.title.trim(), `${label} carries its own authored title`).not.toBe("");
     }
-    // …and Global's German About is NOT the Germany Spoke's About page.
-    expect(germanAbout?.title).not.toBe(GERMAN_ABOUT_TITLE);
-    expect(germanHome?.title).not.toBe(GERMAN_HOME_TITLE);
+    // Each language authors its OWN copy: a German page is never the English page served twice.
+    expect(germanAbout?.title).not.toBe(englishAbout?.title);
+    expect(germanHome?.title).not.toBe(englishHome?.title);
+    // …and Global's German About is NOT the Germany Spoke's About page. The two Spokes' authored
+    // trees are compared with each other, so the guarantee holds without quoting any wording (M21).
+    expect(germanAbout?.title).not.toBe(
+      (await pagesFor(GERMANY_SPOKE).resolve(GERMANY, "about", "en"))?.title,
+    );
+    expect(germanHome?.title).not.toBe(
+      (await pagesFor(GERMANY_SPOKE).resolve(GERMANY, HOME_CONTENT_SLUG, GERMANY))?.title,
+    );
   });
 
   it("cannot resolve ANY Germany Spoke coordinate, in either of its languages (§10)", async () => {
@@ -264,24 +268,29 @@ describe("Germany Spoke — the `de` Site alone, with its own page tree and Loca
   it("resolves EVERY Germany coordinate from its OWN roots (§10)", async () => {
     const pages = pagesFor(GERMANY_SPOKE);
     const expected = [
-      [GERMANY, HOME_CONTENT_SLUG, GERMAN_HOME_TITLE],
-      [GERMANY, "about", ""],
-      [GERMANY, "berlin", "Berlin"],
-      [GERMANY, "frankfurt", ""],
-      ["en", HOME_CONTENT_SLUG, GERMANY_ENGLISH_HOME_TITLE],
-      ["en", "about", GERMAN_ABOUT_TITLE],
-      ["en", "berlin", ""],
-      ["en", "frankfurt", "Frankfurt"],
+      [GERMANY, HOME_CONTENT_SLUG],
+      [GERMANY, "about"],
+      [GERMANY, "berlin"],
+      [GERMANY, "frankfurt"],
+      ["en", HOME_CONTENT_SLUG],
+      ["en", "about"],
+      ["en", "berlin"],
+      ["en", "frankfurt"],
     ] as const;
 
-    for (const [locale, slug, title] of expected) {
+    for (const [locale, slug] of expected) {
       const page = await pages.resolve(GERMANY, slug, locale);
       expect(page, `/de/${locale}/${slug}`).not.toBeNull();
       expect(page?.fallback, `/de/${locale}/${slug} is authored`).toBe(false);
-      if (title !== "") expect(page?.title, `${locale}/${slug}`).toBe(title);
+      // Every Germany coordinate is an AUTHORED page: it carries its own title and, below, renders it
+      // as the served h1. The wording is the owner's, so the value is read, never quoted (M21).
+      expect(page?.title.trim(), `${locale}/${slug} carries its own authored title`).not.toBe("");
     }
-    // `/de/en` is Germany's OWN English Home, never Global's English Home.
-    expect((await pages.resolve(GERMANY, HOME_CONTENT_SLUG, "en"))?.title).toBe(GERMANY_ENGLISH_HOME_TITLE);
+    // `/de/en` is Germany's OWN English Home, never Global's English Home: the two Spokes' authored
+    // trees are compared with each other, which is the guarantee the wording used to stand for.
+    const germanyEnglishHome = await pages.resolve(GERMANY, HOME_CONTENT_SLUG, "en");
+    const globalEnglishHome = await pagesFor(FOUNDATION).resolve(GLOBAL, HOME_CONTENT_SLUG, "en");
+    expect(germanyEnglishHome?.title).not.toBe(globalEnglishHome?.title);
   });
 });
 

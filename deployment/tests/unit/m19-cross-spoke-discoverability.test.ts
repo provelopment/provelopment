@@ -42,7 +42,6 @@ vi.mock("next/navigation", () => ({
 
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createDirectionLinkResolver } from "@/adapters/maps";
-import { sitemapForContext } from "@/app/sitemap-context";
 import { SiteFooter } from "@/components/site/site-footer";
 import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";

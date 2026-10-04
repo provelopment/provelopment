@@ -13,7 +13,7 @@ its identity and naming semantics, its canonical provenance, the manifest format
 identity and the manifest's validators — is pure release knowledge and lives in
 `src/core/foundation-release/`. This tooling imports it and re-exports it, because `src/core/**` must never
 depend on `scripts/**`: the dependency points at the contract, from both sides. What remains here is what
-does things: construction, the policy's rules, the digest, Git access, verification, publication, the CLI.
+does things: construction, the policy's rules, the digest, Git access, verification, the CLI.
 
 | File | Owns |
 | --- | --- |
@@ -160,7 +160,7 @@ cannot be mistaken for a finished release):
     "tree": "<40-character tree SHA>"
   },
   "content": { "policy": "foundation-source-v1", "digest": "sha256:<digest>", "fileCount": 305 },
-  "requirements": { "node": ">=22", "pnpm": "11.6.0" },
+  "requirements": { "node": "22.x", "pnpm": "11.6.0" },
   "compatibility": { "pageDocumentSchema": 1, "deploymentLayouts": ["capsule", "repository", "override"] }
 }
 ```
@@ -255,7 +255,7 @@ resolve to the recorded commit — the check the release process (R1C) makes bef
 
 ## Consuming a release
 
-- Install with `pnpm install --frozen-lockfile` (Node 22+, pnpm 11.6.0). The `postinstall` asset step is
+- Install with `pnpm install --frozen-lockfile` (Node 22.x, pnpm 11.6.0). The `postinstall` asset step is
   tolerant when no deployment is installed, so a bare extraction installs cleanly.
 - The release contains **no deployment**. Point the platform at your own deployment root — a capsule at
   `deployment/` (the supported layout) or your repository root. With no deployment selected the build

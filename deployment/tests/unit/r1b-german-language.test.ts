@@ -14,6 +14,18 @@ import { createPageSources } from "@/adapters/content/page-sources";
 // dictionary access, never the one-Spoke compatibility global.
 import { foundationConfig as siteConfig, foundationSpoke } from "../support/spoke-contexts";
 import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
+// M21 — a page's title, headings, prose and destinations are read from the authored page itself:
+// the German suite proves German IS German by comparing the German source with the English one,
+// never by quoting either (authored prose is deployment data, not a test contract).
+import {
+  h1Texts,
+  headingTags,
+  includesProse,
+  jsonOutline,
+  markdownHeadings,
+  markdownLinks,
+  markdownProse,
+} from "../support/authored-page-outline.mjs";
 
 const dictionaries = dictionaryAccessForRuntimeContext(foundationSpoke.context);
 // M18 — the public route and its metadata resolve the Spoke from the REQUEST BOUNDARY private selection
@@ -56,8 +68,6 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 const SITE = "ww";
 const GERMAN = "de";
 const ENGLISH = "en";
-const GERMAN_HOME_TITLE = "Eine Website, die Ihnen gehört.";
-const GERMAN_ABOUT_TITLE = "Über diese Foundation-Website";
 const REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
 const pages = () => createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
@@ -140,22 +150,26 @@ describe("the German pages are real German sources, not English answers", () => 
   it("resolves the authored German Home document at the reserved home slug", async () => {
     const home = await pages().resolve(SITE, HOME_CONTENT_SLUG, GERMAN);
     expect(home?.kind).toBe("json");
-    expect(home?.title).toBe(GERMAN_HOME_TITLE);
     // The German URL is answered by the GERMAN source — no fallback to English.
     expect(home?.locale).toBe(GERMAN);
     expect(home?.fallback).toBe(false);
+    // It carries its own authored title, and it is a DIFFERENT source from the English Home — the
+    // comparison proves the translation is real without pinning either page's wording (M21).
+    expect(home?.title.trim()).not.toBe("");
+    expect(home?.title).not.toBe((await pages().resolve(SITE, HOME_CONTENT_SLUG, ENGLISH))?.title);
   });
 
   it("resolves the authored German About page", async () => {
     const about = await pages().resolve(SITE, "about", GERMAN);
     expect(about?.kind).toBe("markdown");
-    expect(about?.title).toBe(GERMAN_ABOUT_TITLE);
     expect(about?.locale).toBe(GERMAN);
     expect(about?.fallback).toBe(false);
     // …and its own summary is the German one, so `/ww/de/about` advertises German metadata.
     const english = await pages().resolve(SITE, "about", ENGLISH);
     expect(about?.description).toBeTruthy();
     expect(about?.description).not.toBe(english?.description);
+    expect(about?.title.trim()).not.toBe("");
+    expect(about?.title).not.toBe(english?.title);
   });
 
   it("publishes the same route under the German locale", async () => {
@@ -217,12 +231,20 @@ describe("the German Home keeps the English page's structure", () => {
 
 describe("the served German pages", () => {
   it("renders German Home at `/ww/de`: one h1 and the German sections it declares", async () => {
+    const home = await pages().resolve(SITE, HOME_CONTENT_SLUG, GERMAN);
+    const outline = home?.kind === "json" ? jsonOutline(home.document) : null;
     const html = renderToStaticMarkup(await PageRoute(params(SITE, GERMAN)));
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(html).toContain(GERMAN_HOME_TITLE);
-    expect(html).toContain("Zwei Wege, eine Seite zu erstellen");
-    expect(html).toContain("Ihre Website gehört Ihnen");
+    expect(h1Texts(html)).toEqual([home?.title]);
+    // Every German section heading and body the document declares is what renders (read from the
+    // authored document, so the copy is never a test contract).
+    for (const heading of outline?.headings ?? []) {
+      expect(includesProse(html, heading), heading).toBe(true);
+    }
+    for (const body of outline?.prose ?? []) {
+      expect(includesProse(html, body), body.slice(0, 60)).toBe(true);
+    }
     // The authored action states its own site (`/ww/de/about`): `de` is both a locale key and the
     // Germany site's code, so the site-scoped form is the unambiguous one. The external link is
     // untouched.
@@ -233,16 +255,25 @@ describe("the served German pages", () => {
   });
 
   it("renders German About at `/ww/de/about`: one h1 and German `#` sections as h2", async () => {
+    const about = await pages().resolve(SITE, "about", GERMAN);
+    const body = about?.kind === "markdown" ? about.body : "";
     const html = renderToStaticMarkup(await PageRoute(params(SITE, GERMAN, "about")));
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(html).toContain(GERMAN_ABOUT_TITLE);
-    expect(html).toContain("Was diese Website zeigt");
-    expect(html).toContain("Zwei Wege, Seiten zu erstellen");
-    // A translated `# Heading` still renders RELATIVE to the page title: an h2, never an h1.
-    expect(html).toContain("<h2");
-    expect(html).toContain('id="eine-website-unter-ihrer-kontrolle"');
-    expect(html).toContain("https://foundation.provelopment.com/");
+    expect(h1Texts(html)).toEqual([about?.title]);
+    // A translated `# Heading` still renders RELATIVE to the page title: an h2, never an h1, each
+    // with its own anchor — and every German section and paragraph it authors reaches the page.
+    const headings = markdownHeadings(body);
+    expect(headings).toHaveLength((html.match(/<h2\b/g) ?? []).length);
+    for (const tag of headingTags(html).filter((heading) => heading.startsWith("<h2"))) {
+      expect(tag, "each rendered section heading carries an anchor").toMatch(/id="[^"]+"/);
+    }
+    for (const line of markdownProse(body)) {
+      expect(includesProse(html, line), line.slice(0, 60)).toBe(true);
+    }
+    for (const href of markdownLinks(body)) {
+      expect(html, href).toContain(href);
+    }
     expect(html).toContain(REPOSITORY_URL);
   });
 });
@@ -279,7 +310,7 @@ describe("German locale metadata", () => {
     const metadata = await generateMetadata(params(SITE, GERMAN, "about"));
     const about = await pages().resolve(SITE, "about", GERMAN);
 
-    expect(metadata.title).toBe(GERMAN_ABOUT_TITLE);
+    expect(metadata.title).toBe(about?.title);
     expect(metadata.description).toBe(about?.description);
     expect(metadata.alternates?.canonical).toBe(`${siteConfig.url}/ww/de/about`);
     expect(metadata.alternates?.languages).toMatchObject({

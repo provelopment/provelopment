@@ -9,6 +9,10 @@ import {
   productionStateDrift,
 } from "../../../tests/support/production-state-manifest";
 import { selectDisposableDeploymentCopy } from "../../../tests/support/disposable-deployment";
+// M21 — the authored page is the expectation: this suite proves the LOCALE ROOT is served
+// content-first by rendering the headings the authored JSON home itself declares, instead of
+// quoting the copy (authored prose is deployment data, not a test contract).
+import { includesProse, jsonOutline } from "../support/authored-page-outline.mjs";
 
 // DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so it
 // lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in the
@@ -69,6 +73,21 @@ const { createPageSources } = await import("@/adapters/content/page-sources");
 const { foundationConfig: siteConfig, foundationSpoke } = await import("../support/spoke-contexts");
 const { HOME_CONTENT_SLUG } = await import("@/core/page-content");
 const { resolveSites } = await import("@/core/site");
+
+/**
+ * THE AUTHORED HOME'S OUTLINE, THROUGH THE REAL COMPOSITION (M21).
+ *
+ * The locale root is proved content-first by rendering what the AUTHORED home document declares, so
+ * the expectation is read from the deployment's own page at run time. Neither the heading text nor
+ * the section vocabulary is quoted here: a copy edit can never invalidate this suite, while a home
+ * page that fails to render still does.
+ */
+async function authoredHomeHeadings(): Promise<readonly string[]> {
+  const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
+  const home = await pages.resolve(SITE, HOME_CONTENT_SLUG, "en");
+  if (home?.kind !== "json") throw new Error("the reference Home is authored in the JSON mode");
+  return jsonOutline(home.document).headings;
+}
 
 /**
  * THE POSTCONDITION, TAKEN TWICE (FOUNDATION-DEPLOYMENT-ISO-B3C2B)
@@ -495,8 +514,14 @@ describe("the one page model, through the real application", () => {
       await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
     );
     expect(html).not.toContain("home-hero");
-    // A section only the DECLARATIVE vocabulary can produce (the starter has none).
-    expect(html).toContain("Two ways to create a page");
+    // A section only the DECLARATIVE vocabulary can produce (the starter has none): every heading the
+    // AUTHORED home document declares is rendered. The expectation is read from that document, so the
+    // rendering contract is proved without pinning the copy (M21).
+    const authoredHeadings = await authoredHomeHeadings();
+    expect(authoredHeadings.length).toBeGreaterThan(0);
+    for (const heading of authoredHeadings) {
+      expect(includesProse(html, heading), heading).toBe(true);
+    }
     // …and the reserved home slug never becomes its own URL.
     const paths = (await publicRouteInventory()).map((route) => route.segments.join("/"));
     expect(paths).not.toContain(`${SITE}/en/${HOME_CONTENT_SLUG}`);
@@ -515,7 +540,10 @@ describe("the one page model, through the real application", () => {
       );
       expect(html).not.toContain("Markdown home fixture");
       expect(html).not.toContain("home-hero");
-      expect(html).toContain("Two ways to create a page");
+      // The JSON home page is still the one that rendered: every heading it authors is present.
+      for (const heading of await authoredHomeHeadings()) {
+        expect(includesProse(html, heading), heading).toBe(true);
+      }
     } finally {
       cleanUp(fixture);
     }

@@ -44,6 +44,19 @@ own tree — `tests/browser/` inside the root the deployment authority selected,
 discovers every `*.scenario.mjs` there and runs it, so a deployment ships expectations rather than a
 second browser framework, and adding a deployment edits no list.
 
+### Expected, not pinned: authored page prose
+
+A scenario owns EXPECTATIONS about a deployment, and the deployment's authored pages are its data — so a
+content-facing check DERIVES what a page must show from that page's own source at run time
+(`deployment/tests/support/authored-page-outline.mjs` reads both authoring modes) instead of quoting copy.
+The checks prove the invariants: the source parses, every authored heading, prose line and destination
+renders, the owning Spoke/Site/locale serves the route, and no other Spoke's content appears. Wording is
+never approved by a test, so an owner's copy edit cannot invalidate the suite, and a routing or isolation
+guarantee is never proved with marketing prose as its marker.
+
+Exact strings remain correct where the TEST authored the text — a planted fixture page may assert its own
+`"Authored fixture page"`. The same rule is recorded in `AGENTS.md` and `deployment/AGENTS.md`.
+
 ### What the harness may write
 
 That isolation is MECHANICAL, not conventional. Every MUTATING filesystem call this harness makes —

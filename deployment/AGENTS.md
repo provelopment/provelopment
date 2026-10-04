@@ -94,9 +94,18 @@ another deployment
 4. **Never copy a generic Foundation test into `deployment/tests/**`,** and never restate a platform
    contract here. Platform behaviour is proved once, by the Foundation. A deployment test that merely
    repeats a generic assertion adds maintenance, not confidence.
-5. **Author content in the content system; never change production content to satisfy a stale test.**
+5. **Author content in the content system; never change production content to satisfy a stale test, and
+   never pin the owner's prose as a test expectation.**
    When an assertion and the owner's file disagree, the file wins: update the assertion. Copy is
    never adjusted so that a check passes.
+   **Production page wording is deployment data, not a test contract (M21).** A title, description,
+   heading, paragraph, callout, action label or heading-derived anchor is READ from the authored page at
+   run time (`deployment/tests/support/authored-page-outline.mjs`) and asserted as an INVARIANT: the
+   source parses and validates, every authored heading, prose line and destination renders, the right
+   Spoke/Site/locale owns the route, and no other Spoke's content appears. Ownership and isolation use
+   structural state, route identity, configuration and canonical origin — never marketing prose as a
+   marker. Exact strings stay correct for TEST-OWNED SYNTHETIC FIXTURES, whose text the test itself
+   authored; real deployment page prose must never become an exact expectation.
 6. **A change to this deployment must not require editing Foundation.** Configuration, dictionaries,
    content and this capsule's tests are the levers.
 7. **If you find a genuine Foundation defect, STOP and report it.** Name the file, the behaviour and

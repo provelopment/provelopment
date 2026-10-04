@@ -24,6 +24,13 @@ on:
     branches: [main, staging]
   pull_request:
 
+# ── PERMISSIONS (RELEASE-CANDIDATE HARDENING, M21) ──────────────────────────────────────────────────
+# This workflow VALIDATES, and nothing else: it reads the repository, runs the routed gate and reports
+# ONE required result on `main`. It never writes, comments or pushes, so it is granted the minimum a
+# workflow token can carry — and every checkout below additionally refuses to persist its credential.
+permissions:
+  contents: read
+
 jobs:
   # ── WHO OWNS THIS CHANGE ────────────────────────────────────────────────────
   classify:
@@ -34,11 +41,12 @@ jobs:
       base: ${{ steps.scope.outputs.base }}
       head: ${{ steps.scope.outputs.head }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Both endpoints of the change must be present for the classifier to answer at all; a
           # shallow checkout could not, and would force the complete gate on every single run.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Classify the change
         id: scope
@@ -53,9 +61,10 @@ jobs:
     if: needs.classify.outputs.scope == 'documentation'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Repository hygiene — whitespace errors and conflict markers
         # The range comes from the classifier. A FALLBACK reports none at all, in which case this step
@@ -76,11 +85,13 @@ jobs:
     if: needs.classify.outputs.scope == 'deployment'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -116,11 +127,13 @@ jobs:
     if: needs.classify.outputs.scope == 'foundation'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm
@@ -159,13 +172,14 @@ jobs:
     if: needs.classify.outputs.scope == 'full'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: pnpm

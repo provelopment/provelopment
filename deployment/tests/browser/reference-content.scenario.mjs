@@ -34,6 +34,14 @@ import {
   HOST_RESOLVER_RULES,
   waitForHostReady,
 } from "../support/host-requests.mjs";
+// M21 — THE AUTHORED PAGES ARE THE TEST'S EXPECTATIONS (see `../support/authored-page-outline.mjs`).
+import {
+  includesAnyProse,
+  includesProse,
+  readAuthoredTitles,
+  readPageOutline,
+  spokeDirectory,
+} from "../support/authored-page-outline.mjs";
 
 /** The dev server THIS scenario started, as a visitor addresses it (set below, per run). */
 let BASE_URL = "";
@@ -55,13 +63,17 @@ export const id = "reference-content";
  * transparent with no border (no pill) while keeping its hit target, its
  * accessible name and the shared keyboard focus ring.
  */
-const REFERENCE_HOME_TITLE = "Build a website you own.";
-const REFERENCE_ABOUT_TITLE = "About this Foundation website";
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
 /**
- * R1A1 — the reference site's copy is OWNER-AUTHORED and FINAL, so the expectations
- * below quote the owner's current files. The content is never adjusted to satisfy a
- * check; a copy-dependent expectation moves when the owner edits the page.
+ * M21 — THE AUTHORED PAGES ARE THE EXPECTATIONS.
+ *
+ * Every content-facing check in this scenario DERIVES what a page must show from the deployment's own
+ * authored page — its title, its headings, its prose, its destinations — read at run time through
+ * `../support/authored-page-outline.mjs`, and the German UI vocabulary is read from the dictionary
+ * that carries it. The scenario therefore proves that the shipped pages parse and render, that the
+ * right Spoke owns each route, and that no other Spoke's content leaks — it does NOT approve wording,
+ * so an owner's copy edit can no longer invalidate it. The rule is recorded in `AGENTS.md`,
+ * `deployment/AGENTS.md` and `tests/browser/README.md`.
  */
 const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
@@ -154,11 +166,6 @@ const LAYOUT_STATE_PROBE = `(() => {
     topRowBottom: topRow ? Math.round(topRow.getBoundingClientRect().bottom) : null,
   });
 })()`;
-
-/** Any fully-transparent colour spelling the browser may serialise. */
-const isTransparent = (value) =>
-  typeof value === "string" &&
-  (value === "transparent" || /^rgba?\(0, 0, 0, 0\)$/.test(value) || /,\s*0\)$/.test(value));
 
 /** One authored page's rendered facts: outline, copy, links, metadata, nav. */
 const REFERENCE_PROBE = `(() => {
@@ -257,7 +264,6 @@ export async function run(chrome, harness) {
     stopServer,
     waitReady,
     chooseLayout,
-    configFile: SHIPPED_CONFIG_PATH,
     spokeConfigFiles,
   } = harness;
 
@@ -269,13 +275,44 @@ export async function run(chrome, harness) {
   // configuration the repository does not ship.
   // M18 — this deployment declares TWO Spokes, so there is no installation-wide configuration file to read:
   // the scenario reads the FOUNDATION Spoke's OWN authored configuration, by identity, from the list the
-  // harness resolved through the deployment authority. (`SHIPPED_CONFIG_PATH` stays the one-Spoke
-  // compatibility value, which is empty in this form.)
+  // harness resolved through the deployment authority. (That one-Spoke compatibility value is empty for a
+  // multi-Spoke Installation, which is exactly why it is not bound here at all.)
   const foundationConfigFile = spokeConfigFiles.find((spoke) => spoke.id === "foundation")?.configFile ?? "";
   const germanyConfigFile = spokeConfigFiles.find((spoke) => spoke.id === "germany")?.configFile ?? "";
   const reference = JSON.parse(await readFile(foundationConfigFile, "utf8"));
   /** The GERMANY Spoke's own host, as a visitor addresses it locally. */
   const GERMANY_BASE_URL = `http://${GERMANY_HOST}:${port}`;
+
+  // ── THE AUTHORED PAGES AND DICTIONARIES, READ ONCE (M21) ─────────────────────────────────────────
+  // Every content-facing check below reads from here. Nothing is quoted: the expectations are the
+  // deployment's own files, so the suite proves the shipped pages PARSE and RENDER, that the owning
+  // Spoke serves them, and that no other Spoke's content leaks — never that some wording is approved.
+  const foundationDir = spokeDirectory(foundationConfigFile);
+  const germanyDir = spokeDirectory(germanyConfigFile);
+  const authoredPage = (dir, site, locale, slug) => readPageOutline(dir, { site, locale, slug });
+  const authoredHome = await authoredPage(foundationDir, "ww", "en", "home");
+  const authoredAbout = await authoredPage(foundationDir, "ww", "en", "about");
+  const authoredGermanHome = await authoredPage(foundationDir, "ww", "de", "home");
+  const authoredGermanAbout = await authoredPage(foundationDir, "ww", "de", "about");
+  const authoredGermanyBerlin = await authoredPage(germanyDir, "de", "de", "berlin");
+  /** The Germany Spoke's authored titles: the markers a leak of ITS content would carry. */
+  const germanyTitles = await readAuthoredTitles(germanyDir, [
+    { site: "de", locale: "de", slug: "home" },
+    { site: "de", locale: "en", slug: "home" },
+    { site: "de", locale: "de", slug: "about" },
+    { site: "de", locale: "en", slug: "about" },
+  ]);
+  /** The UI vocabulary each Spoke's own dictionaries declare — configuration, read, never quoted. */
+  const dictionary = async (dir, locale) =>
+    JSON.parse(await readFile(`${dir}/config/i18n/${locale}.json`, "utf8"));
+  const foundationDictionary = {
+    en: await dictionary(foundationDir, "en"),
+    de: await dictionary(foundationDir, "de"),
+  };
+  const germanyDictionary = {
+    en: await dictionary(germanyDir, "en"),
+    de: await dictionary(germanyDir, "de"),
+  };
   check(rows, "reference.config.siteUrl", reference.site?.url === REFERENCE_ORIGIN, String(reference.site?.url));
   check(
     rows,
@@ -314,7 +351,9 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.layout.exactVocabulary",
-      (initial.controlOptions ?? []).join(" | ") === "Sidebar | Menu bar",
+      // The control's own vocabulary, read from the English dictionary that declares it.
+      (initial.controlOptions ?? []).join(" | ") ===
+        [foundationDictionary.en.layout.sidebar, foundationDictionary.en.layout.menuBar].join(" | "),
       String(initial.controlOptions),
     );
     check(
@@ -596,26 +635,24 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.home.oneH1AuthoredTitle",
-      home.h1s.length === 1 && home.h1s[0] === REFERENCE_HOME_TITLE,
+      home.h1s.length === 1 && home.h1s[0] === authoredHome.title,
       JSON.stringify(home.h1s),
     );
     check(
       rows,
       "reference.home.jsonSectionsRender",
-      [
-        "Two ways to create a page",
-        "You own your website",
-        "About this website",
-        "Built for different needs",
-        "The complete site is public",
-      ].every((heading) => home.headings.includes(heading)),
+      // The AUTHORED document is the assertion: every heading it declares must be rendered.
+      authoredHome.headings.length > 0 &&
+        authoredHome.headings.every((heading) => home.headings.includes(heading)),
       JSON.stringify(home.headings),
     );
     check(
       rows,
       "reference.home.ownershipPrinciple",
-      home.text.includes("Provelopment services are optional."),
-      "the portability statement is delivered on Home",
+      // …and so is every prose line it declares — the portability statement among them.
+      authoredHome.prose.length > 0 &&
+        authoredHome.prose.every((line) => includesProse(home.text, line)),
+      "the authored Home prose is delivered",
     );
     check(
       rows,
@@ -669,30 +706,24 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.about.oneH1AuthoredTitle",
-      about.h1s.length === 1 && about.h1s[0] === REFERENCE_ABOUT_TITLE,
+      about.h1s.length === 1 && about.h1s[0] === authoredAbout.title,
       JSON.stringify(about.h1s),
     );
     check(
       rows,
       "reference.about.markdownSectionsRender",
-      [
-        "What this site demonstrates",
-        "A website you control",
-        "Two ways to create pages",
-        "Websites, languages and locations",
-        "This configuration is only an example",
-        "Open source as the foundation",
-        "Learn more",
-      ].every((heading) => about.headings.includes(heading)),
+      // The AUTHORED Markdown page is the assertion: every `#` heading it declares is rendered.
+      authoredAbout.headings.length > 0 &&
+        authoredAbout.headings.every((heading) => about.headings.includes(heading)),
       JSON.stringify(about.headings),
     );
     check(
       rows,
       "reference.about.deliversThePrinciples",
-      about.text.includes(
-        "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
-      ) && about.text.includes("Provelopment services are optional."),
-      "the owner-final open-source and optional-services statements are delivered",
+      // …and every authored paragraph and list item reaches the page.
+      authoredAbout.prose.length > 0 &&
+        authoredAbout.prose.every((line) => includesProse(about.text, line)),
+      "the authored About prose is delivered",
     );
     check(
       rows,
@@ -831,9 +862,11 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.sites.noCrossSiteContent",
+      // Identity, then isolation: the served h1 IS Global's own German About title, and none of the
+      // Germany Spoke's authored pages is rendered here. Both sides are read from the two trees.
       backOnGlobal.path === "/ww/de/about" &&
-        backOnGlobal.text.includes("Zwei Wege, Seiten zu erstellen") &&
-        !backOnGlobal.text.includes("Berlin und Frankfurt sind Demonstrationsdaten"),
+        backOnGlobal.h1s[0] === authoredGermanAbout.title &&
+        !includesAnyProse(backOnGlobal.text, germanyTitles),
       "Global's German About is Global's own page, not Germany's",
     );
 
@@ -864,32 +897,31 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.german.aboutOneH1AuthoredTitle",
-      germanAbout.h1s.length === 1 && germanAbout.h1s[0] === "Über diese Foundation-Website",
+      germanAbout.h1s.length === 1 && germanAbout.h1s[0] === authoredGermanAbout.title,
       JSON.stringify(germanAbout.h1s),
     );
     check(
       rows,
       "reference.german.aboutSectionsRender",
-      [
-        "Was diese Website zeigt",
-        "Eine Website unter Ihrer Kontrolle",
-        "Zwei Wege, Seiten zu erstellen",
-        "Websites, Sprachen und Standorte",
-        "Diese Konfiguration ist nur ein Beispiel",
-        "Mehr erfahren",
-      ].every((heading) => germanAbout.headings.includes(heading)),
+      // The AUTHORED German page is the assertion: every `#` heading it declares is rendered.
+      authoredGermanAbout.headings.length > 0 &&
+        authoredGermanAbout.headings.every((heading) => germanAbout.headings.includes(heading)),
       JSON.stringify(germanAbout.headings),
     );
     check(
       rows,
       "reference.german.dictionaryIsGerman",
-      germanSelectors.languageLabel === "Sprache" && germanSelectors.languageValue === "de",
+      // The control's vocabulary, read from the Spoke's own German dictionary.
+      germanSelectors.languageLabel === foundationDictionary.de.language.label &&
+        germanSelectors.languageValue === "de",
       JSON.stringify(germanSelectors),
     );
     check(
       rows,
       "reference.german.navigationIsGerman",
-      germanAbout.navTexts.includes("Startseite") && germanAbout.navTexts.includes("Über uns"),
+      // Every configured destination carries the label the German dictionary declares for it.
+      germanAbout.navTexts.includes(foundationDictionary.de.navigation.items["/"]) &&
+        germanAbout.navTexts.includes(foundationDictionary.de.navigation.items["/about"]),
       JSON.stringify(germanAbout.navTexts),
     );
     check(
@@ -957,19 +989,15 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.german.homeOneH1AuthoredTitle",
-      germanHome.h1s.length === 1 && germanHome.h1s[0] === "Eine Website, die Ihnen gehört.",
+      germanHome.h1s.length === 1 && germanHome.h1s[0] === authoredGermanHome.title,
       JSON.stringify(germanHome.h1s),
     );
     check(
       rows,
       "reference.german.homeSectionsRender",
-      [
-        "Zwei Wege, eine Seite zu erstellen",
-        "Ihre Website gehört Ihnen",
-        "Über diese Website",
-        "Für unterschiedliche Anforderungen",
-        "Die vollständige Website ist öffentlich",
-      ].every((heading) => germanHome.headings.includes(heading)),
+      // The AUTHORED German home document is the assertion.
+      authoredGermanHome.headings.length > 0 &&
+        authoredGermanHome.headings.every((heading) => germanHome.headings.includes(heading)),
       JSON.stringify(germanHome.headings),
     );
     check(
@@ -1042,8 +1070,13 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.germany.locationVocabulary",
+      // The neutral choice and the two region labels, read from the Germany Spoke's own dictionary and
+      // configuration (never quoted here).
       JSON.stringify(germanyHomeSelectors.locationOptions ?? null) ===
-        JSON.stringify(["Alle Standorte", "Berlin", "Frankfurt"]),
+        JSON.stringify([
+          germanyDictionary.de.location.unspecified,
+          ...Object.values(germanConfig.business.regions).map((region) => region.label),
+        ]),
       JSON.stringify(germanyHomeSelectors.locationOptions ?? null),
     );
     // M18 — RETIRED, with reason: this check existed only to read the OLD Site selector's vocabulary, and a
@@ -1088,7 +1121,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.germany.locationRendersItsOwnPage",
-      inBerlin.h1s.length === 1 && inBerlin.h1s[0] === "Berlin",
+      inBerlin.h1s.length === 1 && inBerlin.h1s[0] === authoredGermanyBerlin.title,
       JSON.stringify(inBerlin.h1s),
     );
 
@@ -1134,7 +1167,7 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.germany.allLocationsUsesTheNeutralWording",
-      (backToAllLocations.locationOptions ?? [])[0] === "Alle Standorte",
+      (backToAllLocations.locationOptions ?? [])[0] === germanyDictionary.de.location.unspecified,
       String((backToAllLocations.locationOptions ?? [])[0]),
     );
 
@@ -1149,7 +1182,10 @@ export async function run(chrome, harness) {
       englishBerlin.locationValue === "berlin" &&
         englishBerlin.languageValue === "en" &&
         JSON.stringify(englishBerlin.locationOptions ?? null) ===
-          JSON.stringify(["All locations", "Berlin", "Frankfurt"]),
+          JSON.stringify([
+            germanyDictionary.en.location.unspecified,
+            ...Object.values(germanConfig.business.regions).map((region) => region.label),
+          ]),
       JSON.stringify(englishBerlin),
     );
     // The neutral choice leaves the REGION, never the Spoke.

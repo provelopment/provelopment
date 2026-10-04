@@ -8,13 +8,22 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { deploymentPaths } from "@/config/deployment-root";
-
 import PageRoute from "@/app/[[...segments]]/page";
 import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
+// M21 — the deployment's authored page sources ARE the test's expectations: titles, headings, prose
+// and destinations are read from the page files the owner authored, never pinned as copy.
+import {
+  h1Texts,
+  headingTags,
+  includesProse,
+  jsonOutline,
+  markdownHeadings,
+  markdownLinks,
+  markdownProse,
+} from "../support/authored-page-outline.mjs";
 // M18 — the deployment declares TWO Spokes, so this suite binds the FOUNDATION Spoke explicitly (the
 // accepted runtime authorities refuse an installation-wide answer for a multi-Spoke Installation, and
 // "the" configuration would be the default-Spoke rule the runtime refuses). The reference `ww` Site,
@@ -54,14 +63,6 @@ import { runtimeAssetFile, runtimeAssetUrl } from "../../../tests/support/runtim
  * browser against the shipped configuration.
  */
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
-const REFERENCE_HOME_TITLE = "Build a website you own.";
-const REFERENCE_ABOUT_TITLE = "About this Foundation website";
-/**
- * R1A1 — the reference site's content is OWNER-AUTHORED and FINAL, so the assertions
- * below quote the owner's current files. If the owner edits the copy again, these
- * needles move with it: the content is never adjusted to satisfy a test.
- */
-const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
 
 /**
  * WHERE THIS TEST'S FILES COME FROM (FOUNDATION-DEPLOYMENT-ISO-B2A)
@@ -152,7 +153,9 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
     const home = await pages.resolve(siteCode, HOME_CONTENT_SLUG, localePath);
     expect(home?.kind).toBe("json");
-    expect(home?.title).toBe(REFERENCE_HOME_TITLE);
+    // The page declares an authored title, and it is the one it renders (asserted below) — the
+    // WORDING itself is the owner's, so the test reads it instead of quoting it (M21).
+    expect(home?.title.trim()).not.toBe("");
     // The declarative vocabulary the page uses, in authoring order.
     const document = home?.kind === "json" ? home.document : null;
     expect(document?.sections.map((section) => section.type)).toEqual([
@@ -169,8 +172,10 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
     const about = await pages.resolve(siteCode, "about", localePath);
     expect(about?.kind).toBe("markdown");
-    expect(about?.title).toBe(REFERENCE_ABOUT_TITLE);
-    expect(about?.description).toContain("What this live Foundation reference site demonstrates");
+    // An authored page: a title, a summary and a body whose headings drive the rendered page.
+    expect(about?.title.trim()).not.toBe("");
+    expect(about?.kind === "markdown" ? about.description?.trim() : "").not.toBe("");
+    expect(about?.kind === "markdown" ? markdownHeadings(about.body).length : 0).toBeGreaterThan(0);
   });
 
   it("publishes each page's own URL and never /home", async () => {
@@ -185,41 +190,56 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
 
 describe("the served reference pages", () => {
   it("renders the authored Home document: one h1, its sections, and its real destinations", async () => {
+    const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
+    const home = await pages.resolve(siteCode, HOME_CONTENT_SLUG, localePath);
+    const outline = home?.kind === "json" ? jsonOutline(home.document) : null;
     const html = renderToStaticMarkup(
       await PageRoute({ params: Promise.resolve({ segments: [siteCode, localePath] }) }),
     );
 
-    // The document title is the page's ONLY level-1 heading (both modes share it).
+    // The authored title is the page's ONLY level-1 heading (both modes share the h1 contract),
+    // and every section heading and body the document declares is what renders. Nothing here pins
+    // wording: the expectations ARE the authored source, read at run time (M21).
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(html).toContain(REFERENCE_HOME_TITLE);
-    // The declarative sections the file declares are the sections that render.
-    expect(html).toContain("You own your website");
-    expect(html).toContain("Two ways to create a page");
-    // The hero action that names the About page, and the owner's external destination
-    // (the public repository, per the owner-final copy).
-    expect(html).toContain("See how this site works");
-    expect(html).toContain("/about");
-    expect(html).toContain(REFERENCE_REPOSITORY_URL);
+    expect(h1Texts(html)).toEqual([home?.title]);
+    for (const heading of outline?.headings ?? []) {
+      expect(includesProse(html, heading), heading).toBe(true);
+    }
+    for (const body of outline?.prose ?? []) {
+      expect(includesProse(html, body), body.slice(0, 60)).toBe(true);
+    }
+    // Every destination the document declares reaches the served anchors.
+    for (const href of outline?.links ?? []) {
+      expect(html, href).toContain(href);
+    }
     // An authored home page REPLACES the configuration-driven starter homepage.
     expect(html).not.toContain("home-hero");
   });
 
   it("renders the authored About page: one h1 and the Markdown body's own sections", async () => {
+    const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
+    const about = await pages.resolve(siteCode, "about", localePath);
+    const body = about?.kind === "markdown" ? about.body : "";
     const html = renderToStaticMarkup(
       await PageRoute({ params: Promise.resolve({ segments: [siteCode, localePath, "about"] }) }),
     );
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(html).toContain(REFERENCE_ABOUT_TITLE);
-    // The owner-final open-source statement, exactly as authored.
-    expect(html).toContain(
-      "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
-    );
-    expect(html).toContain("https://foundation.provelopment.com/");
-    expect(html).toContain(REFERENCE_REPOSITORY_URL);
-    // The authored `# Heading` renders RELATIVE to the page title — an h2, never an h1.
-    expect(html).toContain('id="a-website-you-control"');
-    expect(html).toContain("<h2");
+    expect(h1Texts(html)).toEqual([about?.title]);
+    // Every authored `# Heading` renders RELATIVE to the page title — an h2, never an h1 — and each
+    // one carries its own anchor. The heading TEXT is the owner's, so it is read, never quoted.
+    const headings = markdownHeadings(body);
+    expect(headings).toHaveLength((html.match(/<h2\b/g) ?? []).length);
+    for (const tag of headingTags(html).filter((heading) => heading.startsWith("<h2"))) {
+      expect(tag, "each rendered section heading carries an anchor").toMatch(/id="[^"]+"/);
+    }
+    // …and the authored body, its prose and its destinations all reach the page.
+    for (const line of markdownProse(body)) {
+      expect(includesProse(html, line), line.slice(0, 60)).toBe(true);
+    }
+    for (const href of markdownLinks(body)) {
+      expect(html, href).toContain(href);
+    }
   });
 });
 
