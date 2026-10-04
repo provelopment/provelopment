@@ -57,6 +57,39 @@ procedure, what establishment refuses, and how to prove the installation you jus
 [`instruction-manuals/adoption.md`](instruction-manuals/adoption.md).
 
 
+## One website, or several
+
+**Most people need one Foundation installation for one website.** One organisation, one website, one address:
+you download Foundation, configure your site, author your pages and artwork, deploy it, and own it. That is the
+whole story, and nothing below is required to get there:
+
+```text
+Foundation Installation
+└── one website (example.com)
+    └── one or more Site contexts (country / global) and their languages
+```
+
+**An installation can also serve several related addresses.** One organisation that *intentionally* runs
+several domains as a single operation may give them one Foundation installation, so they share one Foundation
+release and move together:
+
+```text
+Acme Installation
+├── acme.com
+├── acme.de
+└── acme-services.com
+```
+
+Each address keeps its **own** configuration, dictionaries, pages, artwork, metadata, sitemap and domain — they
+simply share the platform release and the lifecycle it lives in.
+
+> **If two websites may ever need independent ownership, transfer, hosting or upgrade timing, give them
+> separate installations.** A Foundation installation is the smallest unit that is owned, transferred, upgraded,
+> rolled back and operated as one, so it is also the unit in which a problem is contained.
+
+`ARCHITECTURE.md` states the vocabulary (installation, Spoke, Hub, Site) and the reasoning; adoption,
+customization and upgrade are covered by [`instruction-manuals/`](instruction-manuals/README.md).
+
 ## Repository structure
 
 ```
@@ -336,10 +369,21 @@ build.
 > GitHub remains its distribution and documentation surface and CI its gate; a merge
 > to `main` reaches that URL.
 
-## Upgrade
+## Update, and Upgrade
 
-Keep your clone connected to the template repository and absorb new revisions the
-documented way:
+Two different operations, named for what they change:
+
+| Operation | Foundation release | Your pages and artwork |
+| --- | --- | --- |
+| **Update** | unchanged | changed |
+| **Upgrade** | a different immutable release | carried forward |
+
+An **Update** edits your own material — `site.config.json`, dictionaries, pages, artwork — and leaves the
+Foundation code exactly as it is. An **Upgrade** adopts a different Foundation release and moves the whole
+installation to it, all of its websites together. Rolling back returns the installation to its previous live
+state, which after an Update means the same release and the earlier pages.
+
+Keep your clone connected to the template repository and absorb new revisions the documented way:
 
 ```bash
 git remote add upstream https://github.com/provelopment/provelopment-foundation.git

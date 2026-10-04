@@ -286,7 +286,9 @@ describe("an attempt that contradicts the live state is refused", () => {
     ).toMatch(/must leave the installation unestablished/);
   });
 
-  it("refuses a previous live state that names the live release itself", () => {
+  it("accepts a previous live state that shares the live release but is a DIFFERENT revision (an Update)", () => {
+    // M20 — an Update changes the authored pages/assets while the release stays live, so its rollback
+    // provenance legitimately carries the SAME release and a different revision.
     expect(
       reported(
         issuesAfter((record) => {
@@ -297,7 +299,21 @@ describe("an attempt that contradicts the live state is refused", () => {
           };
         }),
       ),
-    ).toMatch(/can never be the state that is live now/);
+    ).toBe("");
+  });
+
+  it("refuses a previous live state that IS the live state", () => {
+    expect(
+      reported(
+        issuesAfter((record) => {
+          record.current.live!.previous = {
+            release: record.current.live!.release,
+            revision: record.current.live!.revision,
+            retiredAt: "2026-10-01T08:00:00Z",
+          };
+        }),
+      ),
+    ).toMatch(/always a different one/);
   });
 });
 

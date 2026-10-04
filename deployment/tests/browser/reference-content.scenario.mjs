@@ -56,7 +56,7 @@ export const id = "reference-content";
  * accessible name and the shared keyboard focus ring.
  */
 const REFERENCE_HOME_TITLE = "Build a website you own.";
-const REFERENCE_ABOUT_TITLE = "About";
+const REFERENCE_ABOUT_TITLE = "About this Foundation website";
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
 /**
  * R1A1 — the reference site's copy is OWNER-AUTHORED and FINAL, so the expectations
@@ -174,9 +174,6 @@ const REFERENCE_PROBE = `(() => {
     text,
     aboutAnchors: [...document.querySelectorAll('main a[href*="about"]')].map((a) => (a.getAttribute('href') || '') + ' :: ' + a.textContent.trim()),
     repositoryLink: !!document.querySelector('main a[href*="${REFERENCE_REPOSITORY_URL}"]'),
-  // M20 — every destination the canonical About's own body and actions pair declare, as rendered:
-  // the assertion is that they are carried through UNCHANGED.
-  actionLinks: [...document.querySelectorAll('main a[href^="/en/"]')].map((a) => (a.getAttribute('href') || '') + ' :: ' + (a.textContent || '').trim()),
     canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
     ogUrl: (document.querySelector('meta[property="og:url"]') || {}).content || null,
     visibleNav: [...document.querySelectorAll('nav a')]
@@ -679,30 +676,29 @@ export async function run(chrome, harness) {
       rows,
       "reference.about.markdownSectionsRender",
       [
-        // The canonical English About's OWN sections, rendered as authored (M20): its `##` headings
-        // become h3 under the page's single h1.
-        "Who the service is for",
-        "What we do",
-        "How the sites are built",
-        "What you keep",
-        "Where to go next",
+        "What this site demonstrates",
+        "A website you control",
+        "Two ways to create pages",
+        "Sites, languages, locations and layout",
+        "This configuration is an example",
+        "Open source as the foundation",
+        "Learn more",
       ].every((heading) => about.headings.includes(heading)),
       JSON.stringify(about.headings),
     );
     check(
       rows,
       "reference.about.deliversThePrinciples",
-      about.text.includes("a free and open-source platform") &&
-        about.text.includes("Using Foundation does not require working with us."),
-      "the canonical open-source and optional-services statements are delivered",
+      about.text.includes(
+        "Foundation is free and open source: download it, deploy it, modify it and make it your own.",
+      ) && about.text.includes("Provelopment services are optional."),
+      "the owner-final open-source and optional-services statements are delivered",
     );
     check(
       rows,
-      "reference.about.carriesTheCanonicalDestinations",
-      ["/en/open-source", "/en/services", "/en/examples"].every((href) =>
-        about.actionLinks.some((entry) => entry.startsWith(`${href} :: `)),
-      ),
-      JSON.stringify(about.actionLinks),
+      "reference.about.linksTheRepository",
+      about.repositoryLink === true,
+      "About links the public repository",
     );
     check(
       rows,

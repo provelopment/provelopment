@@ -61,7 +61,7 @@ import {
 import { parseAuthoringPageFile } from "./authoring-page";
 import { parseJsonPageFile } from "./json-page";
 import { resolvePageSource } from "@/application/page-source-resolution";
-import type { PageAction, PageDocument } from "@/core/page-document";
+import type { PageDocument } from "@/core/page-document";
 import type { Locale } from "@/core/locale";
 import type { PageAuthoringMode } from "@/core/page-source";
 import type { SiteCode } from "@/core/site-code";
@@ -88,14 +88,6 @@ export interface ResolvedMarkdownPage {
   readonly body: string;
   /** An author-supplied summary, when the page declared one. */
   readonly description?: string;
-  /**
-   * The author-declared closing action pair, when the page declared one.
-   *
-   * Typed exactly as the declarative vocabulary's actions are (`@/core/page-document`), so
-   * an authored page renders its pair through the SAME presentation every page's actions
-   * use — one page-level link concept, not two.
-   */
-  readonly actions?: readonly PageAction[];
 }
 
 export interface ResolvedJsonPage {
@@ -232,7 +224,6 @@ export function createPageSources(options: PageSourcesOptions): PageSources {
         title: page.title,
         body: page.body,
         ...(page.description === undefined ? {} : { description: page.description }),
-        ...(page.actions === undefined ? {} : { actions: page.actions }),
       };
     },
 

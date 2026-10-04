@@ -205,17 +205,31 @@ export interface InstallationCandidateIdentity {
 
 /** The ONE digest shape a candidate identity field may take. */
 
-/** WHY a lifecycle attempt was started. The kind decides which preconditions must hold (see `transitions.ts`). */
+/**
+ * WHY a lifecycle attempt was started. The kind decides which preconditions must hold (see `transitions.ts`).
+ *
+ * `update` and `upgrade` are DIFFERENT OPERATIONS and are named by what they change:
+ *
+ *   install   nothing is live yet — establish this installation
+ *   update    the Foundation release is UNCHANGED; the Spokes' authored pages and assets change
+ *   upgrade   the Foundation release CHANGES; the authored state is carried forward
+ *   rollback  return to the previously known-good live state
+ *
+ * An installation has exactly ONE live Foundation release (there is no per-Spoke release field anywhere in
+ * this model), so an upgrade moves EVERY Spoke of the installation together, exactly as an update does.
+ */
 export const INSTALLATION_ATTEMPT_KINDS = [
   /** Establish an installation that has nothing live yet. */
   "install",
-  /** Move a LIVE installation to the desired release. */
+  /** Change the authored pages/assets of a live installation, leaving its Foundation release unchanged. */
+  "update",
+  /** Move a LIVE installation to a DIFFERENT immutable Foundation release. */
   "upgrade",
   /** Return a live installation to the previously known-good live state. */
   "rollback",
 ] as const;
 
-/** `install`, `upgrade` or `rollback`. */
+/** `install`, `update`, `upgrade` or `rollback`. */
 export type InstallationAttemptKind = (typeof INSTALLATION_ATTEMPT_KINDS)[number];
 
 /**

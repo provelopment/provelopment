@@ -125,18 +125,31 @@ function candidateIssues(value: unknown, targetTag: unknown): string[] {
   return issues;
 }
 
-/** The issues of ONE previous live state (rollback provenance). */
-function previousIssues(value: unknown, liveTag: unknown): string[] {
+/**
+ * The issues of ONE previous live state (rollback provenance).
+ *
+ * A PREVIOUS state is the state a rollback returns to, so it is ALWAYS a different state from the one live
+ * now — and M20 defines "different" as a different REVISION, not necessarily a different release: an UPDATE
+ * changes the Spokes' authored pages and assets while the Foundation release stays live, so its rollback
+ * provenance legitimately carries the same release, and a rollback then restores the earlier revision of that
+ * release (adopting a DIFFERENT release is an upgrade). What can never happen is a previous state that IS the
+ * live state.
+ */
+function previousIssues(
+  value: unknown,
+  live: { readonly tag: unknown; readonly revision: unknown },
+): string[] {
   const issues = keySetIssues(value, PREVIOUS_KEYS, "current.live.previous");
   if (!isPlainObject(value)) return issues;
   const previous = value as Partial<PreviousLiveInstallation>;
   issues.push(...releaseIssues(previous.release, "current.live.previous.release"));
   if (!isDigest(previous.revision)) issues.push("current.live.previous.revision is not a sha256: digest");
   if (!isUtcInstant(previous.retiredAt)) issues.push("current.live.previous.retiredAt is not a UTC instant");
-  if (isPlainObject(previous.release) && previous.release.tag === liveTag) {
+  const sameRelease = isPlainObject(previous.release) && previous.release.tag === live.tag;
+  if (sameRelease && previous.revision === live.revision) {
     issues.push(
-      `current.live.previous names the live release "${String(liveTag)}" itself — a previous state is the ` +
-        "state a rollback returns to, so it can never be the state that is live now",
+      `current.live.previous names the state that is live now (release "${String(live.tag)}", the same ` +
+        "revision) — a previous state is the state a rollback returns to, so it is always a different one",
     );
   }
   return issues;
@@ -153,8 +166,14 @@ function liveIssues(value: unknown): string[] {
   if (!isDigest(live.revision)) issues.push("current.live.revision is not a sha256: digest");
   if (!isUtcInstant(live.activatedAt)) issues.push("current.live.activatedAt is not a UTC instant");
   if (live.previous !== null) {
-    // `null` is a first activation; anything else must be a complete previous state.
-    issues.push(...previousIssues(live.previous, isPlainObject(live.release) ? live.release.tag : undefined));
+    // `null` is a first activation; anything else must be a complete previous state — a DIFFERENT revision
+    // of the live release (an Update's rollback provenance) or the state of another release (an Upgrade's).
+    issues.push(
+      ...previousIssues(live.previous, {
+        tag: isPlainObject(live.release) ? live.release.tag : undefined,
+        revision: live.revision,
+      }),
+    );
   }
   return issues;
 }
