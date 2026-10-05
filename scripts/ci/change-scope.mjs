@@ -35,8 +35,9 @@
  *
  * THE FOUR OWNERS
  * ---------------
- *   documentation  a file whose only effect is on a human reader: the platform's own manuals and the
- *                  author-facing maps. Nothing is built, installed or executed for these.
+ *   documentation  a file whose only effect is on a human reader: the platform's own manuals, the
+ *                  author-facing maps, and a human-facing README beside executable code (`src/**`,
+ *                  `scripts/**`). Nothing is built, installed or executed for these.
  *   content        ordinary AUTHORED website data inside the deployment: a Spoke's pages, its authored
  *                  artwork sources and its dictionaries. Data a reader or a renderer consumes, and
  *                  nothing that changes how the deployment behaves.
@@ -243,6 +244,23 @@ const DOCUMENTATION_DIRECTORIES = ["instruction-manuals/"];
  */
 const DOCUMENTATION_README_DIRECTORY = "deployment/content/";
 
+/**
+ * THE CODE-ADJACENT README RULE.
+ *
+ * `src/**` and `scripts/**` are EXECUTABLE surfaces: the TypeScript there is compiled, type-checked, linted,
+ * tested and built, and the tooling is executed by CI, by a release construction and by an establishment. A
+ * `README.md` beside that code is read by a human and consumed by nothing — prose that cannot change
+ * behaviour — so it takes the documentation route, which is what verification proportional to blast radius
+ * means in practice (see `AGENTS.md` §15: a README wording correction needs the documentation checks for its
+ * delta, not a thousand runtime and browser assertions).
+ *
+ * The rule is STRUCTURAL and SHALLOW, and deliberately not a Markdown semantic classifier: the file must be
+ * named exactly `README.md`, and it must sit beneath one of these trees. Nothing about its CONTENT is
+ * inspected, no other Markdown file inherits documentation ownership from it, and a Markdown path elsewhere
+ * that no rule claims keeps the fail-safe answer — the complete gate.
+ */
+const CODE_ADJACENT_DOCUMENTATION_TREES = ["src/", "scripts/"];
+
 /** The deployment capsule. Everything it owns that no documentation rule claimed first. */
 const DEPLOYMENT_DIRECTORY = "deployment/";
 
@@ -288,6 +306,17 @@ function authoredContentTree(path) {
 }
 
 /**
+ * The executable tree a human-facing README belongs to, for the code-adjacent rule — or `null`.
+ *
+ * Shallow on purpose: exactly `README.md`, exactly beneath `src/` or `scripts/`. A README at a tree's own
+ * root (`src/README.md`) and one nested several levels deep (`src/core/spoke/README.md`) are the same case.
+ */
+function codeAdjacentReadmeTree(path) {
+  if (!path.endsWith("/README.md")) return null;
+  return CODE_ADJACENT_DOCUMENTATION_TREES.find((directory) => path.startsWith(directory)) ?? null;
+}
+
+/**
  * A changed path as Git reports it, normalised to the repository's own spelling: forward slashes and
  * no leading `./`. A human may pass a Windows path on the command line, and both spellings must
  * classify identically.
@@ -305,7 +334,10 @@ export function normalisePath(file) {
  * The rule order IS the policy — first match wins — and it is what makes the exceptions above
  * meaningful: a README inside `deployment/content/` is claimed by the documentation rule BEFORE the
  * capsule rule sees it, while `deployment/content/COUNTRY-CODES.md` is not a README and therefore
- * stays deployment-owned.
+ * stays deployment-owned. The same shape applies to the executable trees: a `README.md` beneath `src/`
+ * or `scripts/` is claimed by the code-adjacent documentation rule BEFORE the `scripts/` (shared) and
+ * `src/` (foundation) directory rules see it, while every other file in those trees keeps the stronger
+ * owner — so documentation can never narrow an executable change.
  *
  * @param {string} file a repository-relative path
  * @returns {{ path: string, owner: string, reason: string, retired: boolean }}
@@ -332,6 +364,20 @@ export function classifyPath(file) {
       owner: "shared",
       retired: false,
       reason: "a manifest or a build/test authority both owners depend on",
+    };
+  }
+
+  // A human-facing README beside EXECUTABLE code is documentation, and this rule is evaluated BEFORE the
+  // broad `scripts/` and `src/` directory rules below can consume it — rule order IS the policy. It sits
+  // AFTER the explicit shared files so a file the repository declared shared by name (the harness's own
+  // `tests/browser/README.md`) keeps the owner it was given, and it claims nothing but `README.md`.
+  const readmeTree = codeAdjacentReadmeTree(path);
+  if (readmeTree !== null) {
+    return {
+      path,
+      owner: "documentation",
+      retired: false,
+      reason: `a human-facing README inside an executable tree (${readmeTree}) — read by a person, consumed by no build, test or runtime`,
     };
   }
   if (SHARED_DIRECTORIES.some((directory) => path.startsWith(directory))) {
