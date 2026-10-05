@@ -147,12 +147,11 @@ own root in the explicit form this repository uses — write
 blog article, a portfolio project, a privacy policy and "About" are all pages: they
 differ only in where you put the file, and a page's address comes from its folders.
 
-```text
 ## Your folder is your address
 
 A page's address is built from the folders it lives in: **mode → site → language → page**.
 
-```
+```text
 content/pages/markdown/ww/en/services.md               →  /ww/en/services
 content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
 content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
@@ -166,11 +165,6 @@ content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
 
 If you have only one website and one language, your folders are `ww/en/…` — the site
 folder is still there, because every address carries it.
-
-
-content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
-content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
-```
 
 Content that only ever appears *inside* another page — customer quotes, cards,
 statistics, FAQ rows — is written in that page. It needs no file of its own.

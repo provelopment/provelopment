@@ -53,13 +53,11 @@ you never have to "register" a page anywhere.
 
 Any page **inside** your site gets its address from where you put the file:
 
+**How an address is built: mode → site → language → page.** **Choose your site, choose its
+language, then create the page.** The folders are the address — nothing else needs
+configuring.
+
 ```text
-## How an address is built: mode → site → language → page
-
-**Choose your site, choose its language, then create the page.** The folders are the
-address — nothing else needs configuring.
-
-```
 content/pages/markdown/ca/en/about.md   →   /ca/en/about
 content/pages/markdown/ca/fr/about.md   →   /ca/fr/about
 content/pages/markdown/fr/fr/about.md   →   /fr/fr/about

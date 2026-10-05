@@ -519,4 +519,3 @@ describe("the commitless work-tree self-proof", () => {
     ).toThrow(/is NOT the release/);
   });
 });
-
