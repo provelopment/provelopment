@@ -16,7 +16,7 @@
  *     that context's teardown (`cleanupSyntheticDeployment()`), because the copy belongs to exactly one
  *     test-file context. Removal is deliberately NOT left to a `process.on("exit")` hook: a Vitest worker
  *     is terminated without running one, so the hook never fired and every executed generic test file left
- *     a full deployment copy in OS temp (measured: 91 directories per run — ISO-B3C2B-A1).
+ *     a full deployment copy in OS temp, per run (ISO-B3C2B-A1).
  *   · `syntheticDeploymentPaths()` in the exact shape `@/config/deployment-root` publishes, for the
  *     few suites that assert the authority's answer;
  *   · `selectSyntheticDeployment()` — the one call that makes the synthetic deployment THE deployment

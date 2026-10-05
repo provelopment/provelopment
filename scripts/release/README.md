@@ -205,11 +205,11 @@ path, instead of silently releasing a file whose meaning depends on metadata nob
 
 `build` reads `<commit>:<path>` **Git objects**, in one `git cat-file --batch` process for the whole
 payload. It never copies the working tree, which matters concretely rather than theoretically: on a
-Windows checkout with `core.autocrlf=true`, 321 of this repository's 440 tracked files exist on disk
-with CRLF where the committed blob has LF. A tree-copy builder would therefore produce a
-machine-dependent release. It also means a dirty, generated or ignored working tree cannot contaminate
-a release at all — an untracked file, a modified file and an ignored `public/assets/**` probe are proved
-harmless in `tests/unit/release-construction.test.ts`.
+Windows checkout whose Git configuration converts line endings, tracked files exist on disk with CRLF
+where the committed blob has LF, so a tree-copy builder would produce a machine-dependent release. It
+also means a dirty, generated or ignored working tree cannot contaminate a release at all — an untracked
+file, a modified file and an ignored `public/assets/**` probe are proved harmless in
+`tests/unit/release-construction.test.ts`.
 
 The remaining determinism comes from fixed ordering (byte-wise sorted paths), a manifest with no
 timestamp, and a digest over paths + exact bytes. Two constructions of the same commit into two empty

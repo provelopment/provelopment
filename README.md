@@ -100,17 +100,28 @@ src/core        # Framework-independent domain concepts and the UI engine
 src/application # Use-case ports and services
 src/adapters    # Concrete integrations (filesystem content, analytics, booking, maps)
 src/config      # Site configuration schema and loaders
-deployment      # THE DEPLOYMENT CAPSULE — everything one website owns (see deployment/README.md)
-  site.config.json # This deployment's settings — identity, languages, navigation, features
-  config/i18n   #   Localized JSON dictionaries (en and de are shipped in this deployment)
-  content       #   EVERYTHING you author lives here — start at content/README.md
-    pages/markdown # Safe Markdown pages — content/pages/markdown/<site>/<locale>/<route>.md  (see its README)
-    pages/json  #   Declarative JSON pages — content/pages/json/<site>/<locale>/<route>.json  (see its README)
-    assets      #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
-public/assets   # GENERATED mirror of the deployment's content/assets/** (git-ignored; installed by pnpm install/dev/build — never edit by hand)
+deployment      # THE DEPLOYMENT CAPSULE — the Installation this repository ships (see deployment/README.md)
+  spokes.json   #   WHICH Spokes it declares; it also states its inspection policy
+  spokes/
+    foundation/ #   ONE SPOKE = ONE complete website (its own configuration, dictionaries, pages and assets)
+      site.config.json
+      config/i18n   # Localized JSON dictionaries (this Spoke ships en and de)
+      content       # EVERYTHING you author lives here — start at content/README.md
+        pages/markdown # Safe Markdown pages — <site>/<locale>/<route>.md  (see its README)
+        pages/json  #   Declarative JSON pages — <site>/<locale>/<route>.json  (see its README)
+        assets      #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
+    germany/    #   A SECOND Spoke of the same Installation — the same shape, its own everything
+public/assets   # GENERATED mirror of the selected deployment's content/assets/** (git-ignored; installed by pnpm install/dev/build — never edit by hand)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
 tests           # Architecture-boundary, unit, integration and CDP browser-matrix tests
 ```
+
+**Two authoring forms are supported, and this repository ships one of them.** An Installation may author a
+single implicit Spoke at its own root (a `site.config.json` beside its `content/`), or — as here — declare
+one or more Spokes in `deployment/spokes.json`, each a complete website of its own beneath
+`deployment/spokes/`. The capsule above is that second, explicit form: it owns **two** Spokes, so its
+`content/` is per-Spoke rather than one website's. A one-Spoke Installation is equally valid and the
+platform serves it the same way.
 
 ## Where your content lives
 
