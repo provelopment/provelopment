@@ -1797,7 +1797,9 @@ repository instructions and existing implementation.
 
 ## S1 — sites, languages and the four visitor dimensions
 
-The Foundation serves **one independent website per SITE**, and every public URL names it.
+The request hostname selects the **Spoke**. Within that Spoke, every public page URL names its
+**Site**, language and page route — and the Site is the country/global context **inside** the
+already-selected Spoke, never a website of its own.
 
 ### Page identity
 
@@ -1807,7 +1809,7 @@ The Foundation serves **one independent website per SITE**, and every public URL
 
 | Part | Meaning | Example |
 | --- | --- | --- |
-| `site` | one independent website: a recognized lowercase country code, or `ww` (Worldwide / Global, Foundation-defined, not a country) | `ca` |
+| `site` | the country/global Site context **inside the active Spoke** (the Spoke is selected by hostname, never by a URL segment): a recognized lowercase country code, or `ww` (Worldwide / Global, Foundation-defined, not a country) | `ca` |
 | `locale` | the language, addressed by a lowercase **path key** | `fr`, `fr-ca`, `zh-hant` |
 | `route` | the page's own path inside that site + locale | `about`, `services/web-design` |
 
@@ -1856,34 +1858,42 @@ Two locale keys of ONE site that resolve to the same canonical tag (`en` and `en
 
 | Dimension | What it changes | Where it lives |
 | --- | --- | --- |
-| **Site** | which independent website (own pages, chrome, languages, locations) | the first URL segment |
-| **Language** | the locale used *inside* the active site | the second URL segment |
-| **Location** | the office/city/region context *inside* the active site | `business.regions` + that site's `business.pages` bindings |
+| **Site** | the country/global context *inside* the active website/Spoke (own pages, languages, locations) | the first URL segment |
+| **Language** | the locale used *inside* the active Site | the second URL segment |
+| **Location** | the office/city/region context *inside* the active Site | `business.regions` + that Site's `business.pages` bindings |
 | **Layout** | presentation only (Sidebar / Menu bar) | the visitor's own preference, never part of a URL |
 
-A control that has nothing to choose disappears: one site → no Site selector; the active site
-serving one language → no Language selector; no locations bound to the ACTIVE site → no Location
+The four dimensions are the visitor's **inside the selected Spoke**; the hostname-selected Spoke is
+not a visitor selector and is never a UI control. A control that has nothing to choose disappears:
+the active Spoke declaring one Site → no Site selector; the active Site
+serving one language → no Language selector; no locations bound to the ACTIVE Site → no Location
 selector; the Layout switcher disabled → no Layout control. The Location inventory is **the active
-site's** (`regionsForSite`): a location belongs to one site's page tree, so a site that binds none
-never offers another site's locations — and never a destination that does not exist.
+site's** (`regionsForSite`): a location belongs to one Site's page tree, so a Site that binds none
+never offers another Site's locations — and never a destination that does not exist.
 
 ### The reference deployment demonstrates the full model
 
 The public reference deployment is configured as the worked example, so the architecture above has a
-running counterpart:
+running counterpart. It is **two Spokes**, each a complete website with its own hostname:
 
 ```text
-Global  (ww)  English + Deutsch, no locations, its own Home/About
-Germany (de)  Deutsch + English, Locations Berlin and Frankfurt,
-              an INDEPENDENT page tree (never a Global fallback)
+Foundation Spoke   foundation-template.provelopment.com
+  Site ww (Global)    languages en, de — no locations, its own Home/About
+
+Germany Spoke      foundation-template-germany.provelopment.com
+  Site de (Germany)   languages de, en — Locations Berlin and Frankfurt,
+                      an INDEPENDENT page tree (never a Global fallback)
 ```
 
-Consequences it makes visible: the Site selector appears because two sites exist; Germany's
-`de`/`en` path keys derive the canonical tags `de-DE`/`en-DE` because it is a COUNTRY site; the
-Location control appears only on Germany and its neutral choice is *All locations* / *Alle
-Standorte* (never the word used for a Site); Location switches stay inside Germany and change
-neither the site nor the language; and Layout is untouched by all of them. **Germany, Berlin and
-Frankfurt are demonstration data** — placeholders an adopter replaces, not claims about Provelopment.
+Consequences it makes visible: **each Spoke currently carries exactly one Site, so NO Site selector
+is rendered on either reference website**; the two websites are reached only through ordinary
+authored reciprocal links, and there is no cross-Spoke Site control. Germany's
+`de`/`en` path keys derive the canonical tags `de-DE`/`en-DE` because `de` is a COUNTRY Site; the
+Location control appears only inside the Germany Spoke's Site `de`, and its neutral choice is *All
+locations* / *Alle Standorte* (never the word used for a Site); Location switches stay inside that
+Site and change neither the Site nor the language; and Layout is untouched by all of them. **Germany,
+Berlin and Frankfurt are demonstration data** — placeholders an adopter replaces, not claims about
+Provelopment.
 
 ### Site-scoped configuration and dictionaries
 

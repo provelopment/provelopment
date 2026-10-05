@@ -8,7 +8,7 @@ a file is a page only when it sits in a complete Site / locale / page coordinate
 ```text
 Foundation Installation
   → this Spoke (germany)             its own site.config.json, dictionaries and content
-    → Site  de  (Germany)            the website a visitor is reading
+    → Site  de  (Germany)            the country context inside that website
       → Page Hub  berlin             ONE page concept, addressed by ONE route
         → localized representation   one file per language (de, en, …)
 ```
@@ -20,7 +20,7 @@ Foundation Installation
   `de/en/berlin.md` are the German and English representations of the same Berlin page.
 - **A Location is not a Site and not a Page Hub.** Berlin and Frankfurt are *locations*
   inside this Site: choosing one keeps the site and the language and reuses these same
-  pages, which is exactly what makes them locations rather than further websites.
+  pages, which is exactly what makes them locations rather than further Sites.
 - **Page Hub is never shortened to "Hub"** here: a *Spoke Hub* is the group of Spokes an
   Installation declares, which is a different thing entirely.
 

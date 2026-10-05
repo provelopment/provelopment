@@ -12,9 +12,9 @@ content/
 ├── README.md            ← this file: the map
 ├── pages/               ← every page of your website
 │   ├── markdown/        ←   the simple way: text files
-│   │   └── <language>/<page>.md
+│   │   └── <site>/<language>/<page>.md
 │   └── json/            ←   the advanced way: structured data
-│       └── <language>/<page>.json
+│       └── <site>/<language>/<page>.json
 └── assets/              ← your logo, favicon, images and icons
 ```
 
@@ -25,8 +25,9 @@ are no other places to author website content, and nothing else to learn.
 
 | I want to… | Go to | Read |
 | --- | --- | --- |
-| Add or edit a **page** in plain Markdown (the usual choice) | `pages/markdown/<language>/<page>.md` | [`pages/markdown/README.md`](pages/markdown/README.md) |
-| Build an **advanced page** from structured data | `pages/json/<language>/<page>.json` | [`pages/json/README.md`](pages/json/README.md) |
+| Add or edit a **page** in plain Markdown (the usual choice) | `pages/markdown/<site>/<language>/<page>.md` | [`pages/markdown/README.md`](pages/markdown/README.md) |
+| Build an **advanced page** from structured data | `pages/json/<site>/<language>/<page>.json` | [`pages/json/README.md`](pages/json/README.md) |
+| Add a **logo, favicon, icon or image** | `assets/` | [`assets/README.md`](assets/README.md) |
 
 Both modes give a page exactly **one** top-level heading — its **page title**. A heading you
 write inside a page sits below that title automatically (`# Services` becomes the first level
@@ -34,7 +35,6 @@ under it, `## …` the second), so you write headings naturally and never set a 
 
 > **Where do I edit my website?** — the page files above, and your pictures in
 > [`assets/`](assets/README.md). Everything else is configuration, not content.
-| Add a **logo, favicon, icon or image** | `assets/` | [`assets/README.md`](assets/README.md) |
 
 ## Pages: two ways to author, one obvious choice
 
@@ -58,15 +58,15 @@ language, then create the page.** The folders are the address — nothing else n
 configuring.
 
 ```text
-content/pages/markdown/ca/en/about.md   →   /ca/en/about
-content/pages/markdown/ca/fr/about.md   →   /ca/fr/about
-content/pages/markdown/fr/fr/about.md   →   /fr/fr/about
+content/pages/markdown/ww/en/about.md    →   /ww/en/about
+content/pages/markdown/ww/de/about.md    →   /ww/de/about
 ```
 
 - **mode** — which authoring mode the page is written in: `markdown/` (simple, safe) or
   `json/` (advanced). You choose one per page.
-- **site** — which website the page belongs to: a recognized two-letter country code
-  (`ca`, `fr`, `ch`…) or `ww` for a worldwide/global site. See
+- **site** — which Site the page belongs to: the country/global context inside this Spoke,
+  written as a recognized two-letter country code (`ca`, `fr`, `ch`…) or `ww` for the
+  worldwide/global Site. See
   [`COUNTRY-CODES.md`](COUNTRY-CODES.md) for the complete list.
 - **language** — the language, written as a lowercase path key (`en`, `fr`, `fr-ca`).
 - **page** — the page's own path: one name (`about`) or a folder plus a name
