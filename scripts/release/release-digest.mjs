@@ -26,9 +26,10 @@
  * DELIMITERS ARE DELIBERATE: NUL cannot appear in a path, and `assertReleasePathIsEncodable` refuses
  * a path containing a newline, so a record boundary can never be ambiguous.
  *
- * NO MODE METADATA: every tracked path in this platform is mode 100644 (measured: 440/440) — no
- * symlinks, no executables — so file mode carries no meaning here and is deliberately NOT invented
- * into the digest. Construction refuses a source revision containing any other mode instead.
+ * NO MODE METADATA: every tracked path in this platform is mode 100644 — no symlinks, no executables,
+ * no submodules — so file mode carries no meaning here and is deliberately NOT invented into the digest.
+ * Construction refuses a source revision containing any other mode, naming each path, rather than
+ * recording metadata the digest does not carry.
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -135,83 +136,33 @@ export function digestReleaseEntries(entries, options = {}) {
 }
 
 /**
- * The TOP-LEVEL names the release's OWN generated-state policy marks as generated, plus `.git`.
- *
- * A release is a content set, and a materialised release is a GIT WORK TREE whose consumer runs
- * `pnpm install`, `pnpm dev`, `pnpm build` or `pnpm assets:sync` inside it — all of which CREATE state
- * (`node_modules`, `.next`, `public/assets`, …) and a Git work tree also carries `.git`. None of that is
- * release content, and the policy that says so is the release's own shipped `.gitignore`, so this reads
- * THAT file instead of inventing a second list. Only TOP-LEVEL entries are considered, and only the
- * simple shapes that file uses (an exact name, a `prefix*` or a `*suffix`); a pattern this does not
- * understand is simply not skipped, so an unnoticed entry is REPORTED by the digest rather than
- * silently excluded.
- *
- * @param {string} root the payload directory
- * @returns {Set<string>} the generated top-level names
- */
-function generatedTopLevelNames(root) {
-  /** @type {Set<string>} */ const names = new Set([".git"]);
-  /** @type {string[]} */ const patterns = [];
-  try {
-    for (const line of readFileSync(path.join(root, ".gitignore"), "utf8").split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (trimmed === "" || trimmed.startsWith("#") || trimmed.startsWith("!")) continue;
-      const pattern = trimmed.replace(/^\/+/, "").replace(/\/+$/, "");
-      if (pattern === "" || pattern.includes("/")) continue;
-      patterns.push(pattern);
-    }
-  } catch {
-    // No shipped policy (or an unreadable one): nothing is skipped beyond `.git`, and the digest reports
-    // whatever else the directory holds — which is exactly what a content-set proof should do.
-    return names;
-  }
-
-  /** @param {string} name @returns {boolean} */
-  const matches = (name) => {
-    for (const pattern of patterns) {
-      if (pattern.includes("*")) {
-        const star = pattern.indexOf("*");
-        const prefix = pattern.slice(0, star);
-        const suffix = pattern.slice(star + 1);
-        if (suffix.includes("*")) continue; // two wildcards: not a shape this rule claims to know
-        if (name.startsWith(prefix) && name.endsWith(suffix) && name.length >= prefix.length + suffix.length) {
-          return true;
-        }
-        continue;
-      }
-      if (name === pattern) return true;
-    }
-    return false;
-  };
-
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (matches(entry.name)) names.add(entry.name);
-  }
-  return names;
-}
-
-/**
  * Every payload file beneath a directory, as payload-relative POSIX paths.
  *
- * A symlink is REFUSED rather than followed: a release is a content set, and a link would make its
- * bytes depend on something outside it.
+ * STRICT BY DESIGN: a BARE release payload contains EXACTLY the release content — apart from the release
+ * metadata `isReleasePayloadPath` defines (the manifest itself, and a governed `.sha256` sidecar) — so
+ * everything else the directory holds is digested and reported. `.gitignore` is NOT an authority here and
+ * never was meant to be: ignored names include environment, credential and local-machine state
+ * (`.env*`, `*.pem`, `.vercel`, `build/`, …), and a verifier that skipped them would report an exact
+ * release while an injected `.env.production` or `private.pem` sat inside it. A file nobody planned is a
+ * failed verification, whatever Git would have ignored.
  *
- * GENERATED STATE IS NOT RELEASE CONTENT: a TOP-LEVEL entry the release's own `.gitignore` marks as
- * generated (and `.git`, which Git owns) is skipped, because a release is consumed inside a Git work tree
- * where `pnpm install` creates `node_modules` before anybody can verify anything. The skip is exactly as
- * wide as the shipped policy and no wider — every other file is still digested, and a link anywhere else
- * is still refused.
+ * A symlink is REFUSED rather than followed: a release is a content set, and a link would make its bytes
+ * depend on something outside it.
+ *
+ * A MATERIALISED WORK TREE IS A DIFFERENT SUBJECT, and deliberately not served by this function: a
+ * consumer's `git init && git add -A` work tree holds `.git`, generated state from `pnpm install` and
+ * whatever else the consumer produced, and its content authority is the Git INDEX
+ * (`release-construction.mjs`'s `listIndexEntries`/`constructReleaseFromWorkTree`). One walker is not
+ * made ambiguous to serve both.
  *
  * @param {string} root the directory to walk
  * @returns {string[]} the payload-relative paths, byte-wise sorted
  */
 export function listPayloadFiles(root) {
   /** @type {string[]} */ const found = [];
-  const generated = generatedTopLevelNames(root);
 
   const walk = (directory, prefix) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      if (prefix === "" && generated.has(entry.name)) continue;
       const absolute = path.join(directory, entry.name);
       const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
       if (entry.isDirectory()) {
