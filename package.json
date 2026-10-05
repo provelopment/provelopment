@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^22",
+    "@types/node": "^24",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
@@ -46,6 +46,6 @@
   },
   "packageManager": "pnpm@11.6.0",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   }
 }

@@ -38,8 +38,9 @@
  * An Installation is authored ONE of two ways, and this module is the ONE place that decides which:
  *
  *   legacy    `<root>/site.config.json`                the INSTALLATION ROOT is the one implicit Spoke
- *                                                      (every deployment today), and the runtime
- *                                                      resource paths are the root's own.
+ *                                                      (the form an Installation authored at its root
+ *                                                      uses), and the runtime resource paths are the
+ *                                                      root's own.
  *   explicit  `<root>/spokes.json`                     the root DECLARES its Spokes; each one is
  *                                                      authored beneath `spokes/` and owns its own
  *                                                      `site.config.json`, configuration, content and
@@ -47,13 +48,13 @@
  *
  *   BOTH authored  REFUSED (never a precedence rule).  NEITHER authored  REFUSED.
  *
- * S3F1 ACTIVATES EXACTLY ONE SPOKE, AND INVENTS NO DEFAULT
- * -------------------------------------------------------
- * An explicit Installation whose manifest declares MORE THAN ONE Spoke is REFUSED here, loudly: the
- * running Foundation serves one Spoke's Sites through the existing single-runtime model, so running a
- * multi-Spoke Installation needs the per-request Spoke selection S3F2 owns. There is deliberately NO
- * "first Spoke", no "default Spoke" and no manifest-order rule — the activation is legitimate because
- * the CARDINALITY is one, not because something chose for us.
+ * SEVERAL SPOKES ARE SERVED BY HOSTNAME DISPATCH, AND NOTHING INVENTS A DEFAULT
+ * ----------------------------------------------------------------------------
+ * An explicit Installation may declare several Spokes. The build then inlines NO single configuration
+ * and claims NO single resource root: the request boundary answers a request with the Spoke whose
+ * EXACT hostname claims match it (`./spoke-host-routing.mjs` gives it that description, and a host no
+ * Spoke claims answers nothing). There is deliberately NO "first Spoke", no "default Spoke" and no
+ * manifest-order rule — nothing is ever chosen for a caller who did not say which Spoke they meant.
  *
  * WHAT THIS MODULE DOES NOT DO: it resolves DECLARED ROOTS and reads the sole Spoke's configuration so the
  * build can INLINE it. It composes no Spoke, builds no Hub, resolves no Site and validates no cross-Spoke
@@ -211,7 +212,7 @@ export function installationSpokes(installationRoot) {
  *
  *   override    `FOUNDATION_DEPLOYMENT_ROOT` is set (dev/test) → that directory owns it
  *   capsule     `<repo>/deployment/` is authored (either form) → the capsule owns it
- *   repository  otherwise → `<repo>` itself, the CURRENT layout
+ *   repository  otherwise → `<repo>` itself, the ROOT layout
  *
  * …and then, inside whichever root was selected, the AUTHORING MODE decides what the runtime reads:
  *
@@ -219,8 +220,8 @@ export function installationSpokes(installationRoot) {
  *   explicit    the SOLE declared Spoke's `site.config.json` and its resource trees, while the
  *               INSTALLATION root keeps its own lifecycle records
  *
- * An explicit Installation declaring 2+ Spokes is REFUSED: S3F1 activates exactly one, and there is no
- * default, no first and no manifest-order rule. A missing configuration is a LOUD failure — the build
+ * An explicit Installation declaring 2+ Spokes is served by hostname dispatch: it inlines no single
+ * configuration and no single resource root. A missing configuration is a LOUD failure — the build
  * must never silently fall back to a different deployment than the one selected.
  *
  * @param {Record<string, string | undefined>} [environment] the environment the build reads

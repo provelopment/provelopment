@@ -14,7 +14,7 @@ Site        the EXISTING Foundation `sites[]` context     (unchanged; owned by `
 
 | Module | Contract |
 | --- | --- |
-| `hostname.ts` | the normalized hostname value and its pure normalization rule |
+| `hostname.mjs` + `hostname.ts` | the normalized hostname value and its pure rules — the ONE implementation, consumed by the typed surface here and by the build seam, which runs where TypeScript cannot |
 | `model.ts` | the container types: `SpokeHub`, `Spoke`, `Hub` and their identities |
 | `coherence.ts` | the pure rules that make `hostname → Spoke` total and unambiguous |
 | `resolve.ts` | the pure decision: a raw request host → exactly one Spoke, or none |
@@ -61,18 +61,18 @@ module's: no path type and no filesystem concern enters `@/core/spoke`.
 
 ## What is deliberately NOT here
 
-The domain vocabulary itself stays pure: no request is dispatched through it and no root selects a
-Spoke. The ONE authorised consumer so far is CONFIGURATION (S3B) — `@/config/hub-membership` reads
-`hubMembershipIssues`/`partitionSitesIntoHubs`, so the authored `sites[].hub` leaves become
-`SiteConfig.hubs` — which keeps the direction `config → core`, never `core → config`.
+The domain vocabulary stays pure — and that is what lets the REQUEST BOUNDARY use it: the proxy
+consumes the pure hostname decision (`@/config/spoke-routing` → this module) over a routing description
+the build inlined, so a request is dispatched THROUGH this decision without a framework type, a request
+object or a file ever entering `@/core`.
 
 - no filesystem roots, no `node:*`, no Next.js, no provider concept (`tests/architecture/boundaries.test.ts`);
 - no filesystem or routing knowledge in the adapter: it maps authored leaves to `SiteHubAssignment[]`
   and nothing else, and the configuration file itself gained only the optional `sites[].hub` leaf;
-- no request-boundary wiring: `src/proxy.ts` is untouched;
+- no configuration parse at the boundary: `src/proxy.ts` reads the build's inlined routing description,
+  and the decisions here are pure functions of it;
 - no asset, page, locale, navigation, business or theme concerns. A `Hub` carries an identity and the
-  EXISTING Foundation Sites it owns (`ResolvedSite`, `@/core/site`) — and nothing else. Assets, Page
-  Hubs, configuration and filesystem roots remain later slices.
+  EXISTING Foundation Sites it owns (`ResolvedSite`, `@/core/site`) — and nothing else.
 
 ## Terminology note
 

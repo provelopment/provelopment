@@ -40,6 +40,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { IMPLICIT_SPOKE_ID } from "../core/spoke/spoke-id.mjs";
+import { hostnameFromOrigin } from "../core/spoke/hostname.mjs";
 
 import { resolveSpokeDeclarations, SPOKE_CONFIG_FILE_NAME } from "./spoke-declarations.mjs";
 import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
@@ -59,10 +60,35 @@ import { runtimeSegmentForSpokeId } from "./spoke-runtime-segment.mjs";
 
 /**
  * The Installation's immutable routing description.
+ *
+ * Its `inspection` block is the ONLY place the three classes of hostname stay distinguishable, because
+ * they are decided by three different rules and only one of them is authored material:
+ *
+ *   authored Spoke hostnames   a Spoke's own `site.url` (in `spokes`, above) — tested FIRST, so nothing
+ *                              here can ever take a real Spoke's own hostname away from it;
+ *   `platformHostnames`       what the HOSTING PLATFORM reported for THIS build (Vercel's deployment,
+ *                              branch and production values) — different in every deployment and short
+ *                              lived;
+ *   `authoredHostnames`       the deployment-owned aliases the Installation declares — permanent,
+ *                              first-party hosts that no Spoke owns publicly.
+ *
+ * `hostnames` is their UNION, deduplicated in that order: the one list the request boundary matches a
+ * request host against, exactly.
+ *
  * @typedef {object} InstallationHostRouting
  * @property {HostRoutingMode} mode
  * @property {SpokeHostRoutingEntry[]} spokes
  * @property {InstallationHostRoutingInspection | null} inspection
+ */
+
+/**
+ * The Installation's explicit inspection policy as the build resolved it, or `null`.
+ *
+ * @typedef {object} InstallationHostRoutingInspection
+ * @property {string} spokeId the Spoke the collection nominates for inspection hostnames
+ * @property {string[]} hostnames platform-reported ∪ authored aliases, deduplicated — what is matched
+ * @property {string[]} platformHostnames the hostnames the platform reported for THIS build
+ * @property {string[]} authoredHostnames the deployment-owned aliases the Installation declared
  */
 
 /**
@@ -153,17 +179,23 @@ function canonicalOriginFor(spokeRoot, where) {
  * `multi` is hostname dispatch — and there is no "first" entry to fall back to, because a request that
  * claims no hostname answers NOTHING.
  *
- * THE INSPECTION POLICY (M20 §20–§32). A multi-Spoke Installation may be reached through the hosting
- * platform's own deployment/branch URL, which the platform reports to the build
- * (`inspectionHostnamesFromPlatform`). Such a hostname selects the Spoke the manifest EXPLICITLY nominates
- * (`inspectionSpoke`) — never the first declared one, never a wildcard. Two consequences are enforced HERE,
- * at build time, because both are configuration defects rather than request-time surprises:
+ * THE INSPECTION POLICY (M20 §20–§41, M22 correction). An Installation may be reached through hosts that
+ * no Spoke owns publicly, and they come from TWO sources — the hosting platform's own deployment/branch
+ * URL, which the platform reports to the build (`inspectionHostnamesFromPlatform`), and the
+ * deployment-owned ALIASES the Installation declares in its manifest (`inspectionHosts`, the permanent
+ * project alias a provider keeps for this project, for instance). Every such hostname selects the Spoke
+ * the manifest EXPLICITLY nominates (`inspectionSpoke`) — never the first declared one, never a wildcard,
+ * never a provider-wide rule. Three consequences are enforced HERE, at build time, because all three are
+ * configuration defects rather than request-time surprises:
  *
- *   · recognised inspection hostnames WITHOUT a declared policy → LOUD failure: nothing would say which
- *     Spoke an operator is inspecting, and choosing one would be exactly the implicit default this
+ *   · platform-reported inspection hostnames WITHOUT a declared policy → LOUD failure: nothing would say
+ *     which Spoke an operator is inspecting, and choosing one would be exactly the implicit default this
  *     platform refuses;
  *   · a policy naming a Spoke that is not declared → refused by `resolveSpokeDeclarations`, which knows
- *     the declared set.
+ *     the declared set — and so is an authored alias list with no nominated Spoke, which could only ever
+ *     be a silent no-op;
+ *   · an authored alias that restates a Spoke's OWN hostname → refused here, because an authored claim
+ *     always wins and the alias would quietly mean nothing while reading as if it meant something.
  *
  * @param {string} installationRoot the Installation root the build selected
  * @returns {InstallationHostRouting}
@@ -184,15 +216,43 @@ export function hostRoutingForInstallation(installationRoot) {
   }));
 
   const mode = spokes.length > 1 ? "multi" : "single";
-  const inspectionHostnames = inspectionHostnamesFromPlatform(process.env);
+  const platformHostnames = inspectionHostnamesFromPlatform(process.env);
+  const authoredHostnames = resolved.inspectionHosts;
 
-  if (mode === "multi" && inspectionHostnames.length > 0 && resolved.inspectionSpoke === null) {
+  if (mode === "multi" && platformHostnames.length > 0 && resolved.inspectionSpoke === null) {
     throw new Error(
       "FOUNDATION-MULTISITE-M20: this multi-Spoke Installation is being built on a hosting platform " +
-        `that reports its own inspection hostnames (${inspectionHostnames.join(", ")}), but the ` +
+        `that reports its own inspection hostnames (${platformHostnames.join(", ")}), but the ` +
         "collection declares no \"inspectionSpoke\". State which Spoke represents this Installation on " +
         "such a hostname — there is no default, and no Spoke is ever chosen by manifest order.",
     );
+  }
+
+  // AN AUTHORED ALIAS MAY NEVER RESTATE A SPOKE'S OWN HOSTNAME (M22 correction). The request boundary
+  // already tests authored claims FIRST, so an alias can never actually take a Spoke's hostname away from
+  // it — which is exactly why declaring one is a configuration defect rather than a harmless duplicate:
+  // the alias would silently do nothing while reading as if it did something. The comparison uses the ONE
+  // `origin → hostname` rule (`../core/spoke/hostname.mjs`), the same rule the request boundary applies,
+  // so the build cannot accept an alias the runtime would resolve differently.
+  for (const alias of authoredHostnames) {
+    const owner = spokes.find((spoke) => hostnameFromOrigin(spoke.canonicalOrigin) === alias);
+    if (owner !== undefined) {
+      throw new Error(
+        `FOUNDATION-MULTISITE-M22: the inspection alias "${alias}" is already the authored hostname of ` +
+          `Spoke "${owner.id}". A Spoke's own hostname always selects that Spoke, so an inspection alias ` +
+          "may never restate or shadow one — remove the alias, or declare a hostname that Spoke does not " +
+          "already answer for.",
+      );
+    }
+  }
+
+  // THE ONE LIST THE BOUNDARY MATCHES: platform-reported first, then the authored aliases, deduplicated —
+  // a provider value that happens to equal an authored alias (the project's production URL, say) is ONE
+  // hostname, and order is deterministic either way.
+  /** @type {string[]} */
+  const hostnames = [];
+  for (const value of [...platformHostnames, ...authoredHostnames]) {
+    if (!hostnames.includes(value)) hostnames.push(value);
   }
 
   return {
@@ -201,6 +261,11 @@ export function hostRoutingForInstallation(installationRoot) {
     inspection:
       resolved.inspectionSpoke === null
         ? null
-        : { spokeId: resolved.inspectionSpoke, hostnames: inspectionHostnames },
+        : {
+            spokeId: resolved.inspectionSpoke,
+            hostnames,
+            platformHostnames,
+            authoredHostnames,
+          },
   };
 }

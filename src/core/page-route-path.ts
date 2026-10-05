@@ -3,10 +3,11 @@
  * ============================
  *
  * If authored content has its own website URL, it is a page — and a page's URL is
- * built from FOLDERS as well as files:
+ * built from FOLDERS as well as files, with the SITE code first
+ * (`@/core/page-source`: the address is site + locale + route path):
  *
- *     content/pages/markdown/en/offerings.md                 →  /en/offerings
- *     content/pages/markdown/en/offerings/website-design.md  →  /en/offerings/website-design
+ *     content/pages/markdown/ww/en/offerings.md                 →  /ww/en/offerings
+ *     content/pages/markdown/ww/en/offerings/website-design.md  →  /ww/en/offerings/website-design
  *
  * A **page route path** is the part between the locale and the extension: the
  * relative path of the page inside its locale directory, using `/` and carrying no

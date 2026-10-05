@@ -22,10 +22,9 @@ idea: plain text in, a real web page out.
 
 ## Where a page file goes
 
-```text
-## Which folder does my page go in?
+**Which folder does my page go in?**
 
-```
+```text
 content/pages/markdown/<site>/<language>/<page-name>.md
 ```
 
@@ -33,13 +32,6 @@ content/pages/markdown/<site>/<language>/<page-name>.md
   worldwide/global site. The complete list is
   [`content/COUNTRY-CODES.md`](../../COUNTRY-CODES.md). A folder that is not one of those
   codes defines no site, and pages inside it are never published.
-- **`<language>`** — `en`, `fr`, `fr-ca`… (lowercase).
-- **`<page-name>`** — one name (`about`) or a folder plus a name
-  (`services/web-design`) for a nested page.
-
-
-```
-
 - **`<language>`** is a folder named with the language code you publish in — `en`
   for English, `de` for German. Use the codes your site is configured with.
 - **`<page-name>`** is the file name and becomes the end of the web address. Use

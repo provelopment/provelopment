@@ -1,9 +1,9 @@
 # Provelopment Foundation Instruction Manuals
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-10-04.1`
+> **Manual revision:** `2026-10-04.2`
 > **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language. It also states the lifecycle contract: **Update** = authored pages and/or assets change while the Foundation release does not; **Upgrade** = a different immutable Foundation release is adopted, Installation-wide; one Installation therefore runs one Foundation release
-> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists. **No procedure-validation run was performed for revision `2026-10-04.1`**: it aligns this manual set's Update/Upgrade lifecycle terminology with the accepted Foundation model and executed no procedure. No release tag is claimed.
+> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. At the 2026-09-30 procedure-validation run, the only immutable Foundation release then published was `v2026.09.30-foundation-release-initial`; later immutable Foundation releases have been published since, and this set does not enumerate them because that inventory changes with every release. **No procedure-validation run was performed for revision `2026-10-04.2`**: it corrects the procedure-validation statement so it is historically scoped rather than a present-tense release inventory, aligns the Site/Spoke domain vocabulary across the set so the distributed manuals teach the accepted model, and executes no procedure. No release tag is claimed.
 > **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
@@ -157,6 +157,16 @@ project is adopted.
 
 | Manual revision | Procedure validation | Commit | Date |
 | --- | --- | --- | --- |
+| `2026-10-04.2` | **No procedure-validation run was performed for this revision.** It serves two
+reconciliation purposes and changes no procedure: (1) it corrects the
+procedure-validation statement so it is historically scoped rather than a present-tense release
+inventory (the set previously asserted that no immutable Foundation release other than
+`v2026.09.30-foundation-release-initial` existed, which the later canonical releases falsified);
+(2) it aligns the **Site/Spoke domain vocabulary** across the whole set, so the distributed manuals
+teach the accepted model — a **Spoke** is the website/domain context selected by hostname, a
+**Site** is the country/global context inside it, and a **Location** is an office/city/region inside
+a Site. Site-scoped rules are unchanged. It
+executes no procedure. | — (documentation-only; names no Foundation revision) | 2026-10-04 |
 | `2026-10-04.1` | **No procedure-validation run was performed for this revision.** It is a terminology/lifecycle documentation alignment with the accepted Foundation model — Update vs Upgrade, one Foundation release per Installation, the Installation as the lifecycle and blast-radius boundary. The last end-to-end validation remains the 2026-09-30 run recorded in the row below. | `313c59c6` (product) | 2026-10-04 |
 | `2026-09-30.1` | the public Foundation product at `3698c318` — repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable release existed to be validated against, and the header says so. | `3698c318` (product) | 2026-09-30 |
 | `2026-09-27.3` | Foundation template release `v2026.09.17-foundation-generic-template` + the current public/private topology (public product + private downstream application) | `b9f7a18` (template) | 2026-09-27 |
@@ -172,6 +182,19 @@ project is adopted.
 | `2026-09-15.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-15 |
 | `2026-09-11.1` | `v2026.09.11-foundation-p6-3c-banner-sidebar-cta` | `f5c94da` | 2026-09-11 |
 
+> `2026-10-04.2` is a **truthfulness correction + domain-vocabulary reconciliation**, not a procedure
+> change. The shared header used to
+> assert, in the present tense, that no immutable Foundation release other than
+> `v2026.09.30-foundation-release-initial` existed. Later canonical Foundation releases were published,
+> so that sentence became false as written; it is now scoped to the 2026-09-30 validation run, where it
+> is true, and the set states plainly that later immutable releases exist without enumerating an
+> inventory that changes with every release. The same revision aligns the **Site/Spoke vocabulary** in
+> the manuals that describe the content and configuration model: a **Spoke** is the website/domain
+> context (selected by hostname), a **Site** is the country/global context inside it, and a
+> **Location** is an office/city/region inside a Site. Site-scoped rules are unchanged — no cross-Site
+> page fallback, Site codes are recognized country codes or `ww`, and language fallback and Locations
+> stay inside their Site. **The last formal procedure-validation run remains
+> 2026-09-30** — this revision exercised no procedure — and the set claims no release tag.
 > `2026-10-04.1` is a **terminology and lifecycle alignment** revision, and it changes no procedure:
 > where an operator meets the lifecycle, every manual now states the same two operations and the two
 > rules that follow from them. **Update** — authored pages and/or assets change, the Foundation

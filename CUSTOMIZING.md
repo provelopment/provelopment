@@ -15,8 +15,23 @@ There are **two distinct artifacts**, and they are not the same repository:
 
 | Artifact | Repository | Role |
 | --- | --- | --- |
-| **Foundation template** | [`provelopment/provelopment-foundation`](https://github.com/provelopment/provelopment-foundation) | **This repository** — the reusable generic product: minimal starter, one default locale, neutral placeholder identity, **no deployment of its own**. This is what you clone. |
+| **Foundation source repository** | [`provelopment/provelopment-foundation`](https://github.com/provelopment/provelopment-foundation) | **This repository** — the source of the reusable platform, and also the home of a **concrete reference Installation** (`deployment/spokes.json` with the `foundation` and `germany` Spokes) used for demonstration, acceptance and authoring examples. This is what you clone. |
 | **The live Foundation site** | `provelopment/provelopment-web` (private) | The Provelopment Foundation's own website, deployed at `foundation.provelopment.com`. It is one **site profile** in a private multi-site application that derives from this template. Its source is not part of the public template distribution. |
+
+Three artifacts must not be confused:
+
+```text
+SOURCE REPOSITORY (this one)   the platform source together with the concrete
+                              reference deployment used for demonstration,
+                              acceptance and authoring examples
+IMMUTABLE FOUNDATION RELEASE  platform-only; built from this source and EXCLUDES
+                              deployment/**
+INDEPENDENT INSTALLATION      that platform release combined with its own authored
+                              capsule/seed
+```
+
+The reference deployment is therefore a property of **this repository**, never of the
+immutable Foundation release: a release carries no `deployment/**` at all.
 
 The dependency direction is **template → adopting site**: a site adopts the template, it
 does not define it. The live Foundation site is a useful real-world example to compare
@@ -2514,10 +2529,11 @@ pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build
 
 ---
 
-## Serving more than one country (sites)
+## Serving more than one country (Spokes and Sites)
 
-One Foundation repository can serve several **independent websites**. Each site is named by a
-recognized lowercase country code (or `ww` for a worldwide site — see
+One Foundation repository can serve several **independent websites** — each is a **Spoke**, selected by
+hostname. Inside a Spoke, a **Site** is the country/global context: it is named by a
+recognized lowercase country code (or `ww` for a worldwide Site — see
 [`content/COUNTRY-CODES.md`](deployment/spokes/foundation/content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
 
 ```json
@@ -2530,14 +2546,26 @@ recognized lowercase country code (or `ww` for a worldwide site — see
 }
 ```
 
-**Do you need another site?** Only when you have an independent website:
+**Do you need another site?** Only when you have another country/global context *inside the same website*:
 
 ```
-independent page tree              →  another SITE      (a different country/business)
-same page tree, another office     →  another LOCATION  (a city/region inside that site)
+another independent domain/website       →  another SPOKE     (its own site.config.json, dictionaries, pages, assets)
+another country/global context
+inside the SAME website                  →  another SITE      (e.g. ww and ca in one Spoke)
+another office/city/region inside a Site →  another LOCATION  (a city/region inside that Site)
 ```
 
-Toronto, Montreal and Vancouver are Locations inside the Canada site, not sites of their own:
+```text
+example.com                     →  one Spoke
+inside that Spoke: ww and ca    →  two Sites, if that website intentionally carries both contexts
+Toronto / Montreal              →  Locations inside Site ca
+```
+
+**A Spoke may carry exactly one Site — as both reference Spokes do.** A second Site is a genuine
+business decision (another country or global context in the *same* website), never a default; and a
+second country that is really a separate website belongs to a **Spoke**, not to a Site of this one.
+
+Toronto, Montreal and Vancouver are Locations inside the Canada Site, not sites of their own:
 
 ```json
 {
@@ -2548,15 +2576,15 @@ Toronto, Montreal and Vancouver are Locations inside the Canada site, not sites 
 }
 ```
 
-### What a site may change — and what stays shared
+### What a Site may change — and what stays shared
 
-| A site may override | Deliberately shared |
+| A Site may override | Deliberately shared |
 | --- | --- |
 | `navigation` and `footerNavigation` | theme and design tokens |
 | `legal` page destinations | assets (logos, icons, backgrounds) |
 | `connect` (contact methods) | the component vocabulary |
 | the page CTA destination (`ctaHref`) | the shell/layout system |
-| its `locales`, `defaultLocale`, `fallback` | UI dictionaries, unless a site refines them |
+| its `locales`, `defaultLocale`, `fallback` | UI dictionaries, unless a Site refines them |
 | its region/page bindings | |
 
 You do **not** duplicate the configuration file per country — you add only what differs:

@@ -8,7 +8,7 @@ clone) from repository to a live production website on Vercel.
 - Admin access to the GitHub repository.
 - A Vercel account (the free Hobby tier suffices for most small businesses).
 - Access to the domain's DNS settings.
-- Node.js 22+ and pnpm installed locally for verification builds.
+- Node.js 24.x and pnpm 11.6.0 installed locally for verification builds.
 
 ## First Deployment
 

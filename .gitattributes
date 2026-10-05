@@ -1,5 +1,14 @@
 # Line-ending policy.
 #
+# TEXT IS STORED AND CHECKED OUT AS LF, on every machine, by committed rule rather than by the machine's
+# `core.autocrlf`. That matters for a release: a materialised release is consumed inside a Git work tree
+# whose `git add` applies THIS file, and the platform's own self-proof compares what the work tree records
+# with the manifest. Without a committed rule, a consumer on a machine that defaults to
+# `core.autocrlf=true` records DIFFERENT bytes from the same files, so the same release would prove itself
+# on one machine and fail on another. The specific rules BELOW override this one (the last matching
+# pattern wins), which is how the byte-fidelity trees stay verbatim.
+* text=auto eol=lf
+
 # `instruction-manuals/` holds the DISTRIBUTED copies of the master instruction
 # manuals published by the upstream project. They must stay byte-identical to
 # their master source and are verified with SHA-256 (procedure in that

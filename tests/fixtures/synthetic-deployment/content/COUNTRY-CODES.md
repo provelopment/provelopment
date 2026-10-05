@@ -1,8 +1,8 @@
 # Country codes (site codes) — synthetic fixture
 
-A **site** is one independent website inside one Foundation repository: its own pages, its own
-languages, its own navigation and, when it needs them, its own regional offices. Every site is named
-by a **site code**, and that code is the *first* piece of every address the site serves.
+A **Site** is a country/global context **inside a Spoke**: its own pages, its own languages, its own
+navigation and, when it needs them, its own regional offices. A Spoke owns one or more Sites, and its
+site code is the **first public page-path segment** of every address that Site serves.
 
 This document belongs to the **synthetic test deployment** (`tests/fixtures/synthetic-deployment`).
 It is not a real site's documentation: it exists so the generic Foundation suite can exercise the

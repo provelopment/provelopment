@@ -261,7 +261,7 @@ A page is authored in exactly ONE of two first-class modes:
 | Mode | Root | What it is |
 | --- | --- | --- |
 | **safe Markdown** | `content/pages/markdown/<site>/<locale>/<slug>.md` | ordinary Markdown for a non-technical author; the recommended mode |
-| **safe declarative JSON** | `content/pages/json/<site>/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (its vocabulary is delivered by a later increment) |
+| **safe declarative JSON** | `content/pages/json/<site>/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (`@/core/page-document` is the schema; a document that does not satisfy it fails the build loudly, naming its file) |
 
 Both modes are CONTENT and DATA, never executable code. The Markdown mode's policy
 is enforced in TWO independent layers: the renderer
@@ -298,9 +298,10 @@ default-locale JSON      →  default-locale Markdown     (only when fallback ap
 
 The default-locale steps apply only when fallback is permitted. **JSON wins over
 Markdown within one locale**, and **an exact-locale page always beats a
-fallback-locale page**, whatever the format. A JSON source that would be served
-currently fails the build loudly, naming its file, rather than being silently
-ignored — its interpreter does not exist yet.
+fallback-locale page**, whatever the format. Both modes are served through the same route,
+static-param generation and sitemap; a JSON document is validated against the ONE
+page-document schema (`@/core/page-document`), and one that does not satisfy it fails the
+build loudly, naming its file, rather than being silently ignored or partially rendered.
 
 Rules that hold for both roots:
 
@@ -516,17 +517,23 @@ Constraints and rules:
   boundary.
 - No environment variables are required today; deployment-specific values
   (such as the production origin) are owned by `src/config`.
-- Hostnames resolve to Spokes in exactly three classes (FOUNDATION-MULTISITE-M20):
-  an exact authored Spoke hostname selects that Spoke; a hosting-platform
-  **inspection** hostname the platform itself reports for this build (Vercel's
-  `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) selects the
-  Spoke the Installation names in `"inspectionSpoke"` — an explicit policy, never a
-  first-declared fallback; and every other hostname is refused with a 404. There is
-  no wildcard rule, no Vercel API call at request time, and no provider mutation.
-- **Node.js**: the tested contract is the **22.x line**, and `package.json` pins
-  `"engines": { "node": "22.x" }`. Node 22 is what every CI job runs
-  (`.github/workflows/ci.yml`) and what the hosting platform's build image provides, so it is
-  the line Foundation certifies — a newer major is not adopted merely because it exists.
+- Hostnames resolve to Spokes in exactly three accepted kinds, and nothing else
+  (FOUNDATION-MULTISITE-M20, extended M22): an exact authored Spoke hostname selects that
+  Spoke; a hosting-platform **inspection** hostname the platform itself reports for this build
+  (Vercel's `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) selects the Spoke
+  the Installation names in `"inspectionSpoke"`; and a deployment-owned **inspection alias** the
+  Installation authored (`"inspectionHosts"` — a permanent provider project alias, which no build
+  variable reliably carries) selects that same Spoke. Every other hostname is refused with a 404.
+  Both halves of the policy are explicit — never a first-declared fallback — and the authored
+  aliases are exact normalized hostnames that may not restate a Spoke's own hostname, may not be
+  declared without a nominated Spoke, and may not contain a wildcard: there is no suffix rule, no
+  Vercel API call at request time and no provider mutation.
+- **Node.js**: the tested contract is the **24.x line**, and `package.json` pins
+  `"engines": { "node": "24.x" }`. Node 24 is what every CI job runs
+  (`.github/workflows/ci.yml`), what the hosting platform's build image is configured to provide, and
+  what the release's own `requirements.node` names (`package.json` → `engines.node`, carried into every
+  release manifest) — ONE deliberate baseline, so no build overrides it and no warning is left
+  unexplained. A newer major is not adopted merely because it exists.
 - **Where to read more**: this file and the manuals in
   [`instruction-manuals/`](instruction-manuals/README.md) are for anyone running a Foundation
   site. The full Provelopment-level compendium — installation structures, upgrade strategies,
@@ -1790,7 +1797,9 @@ repository instructions and existing implementation.
 
 ## S1 — sites, languages and the four visitor dimensions
 
-The Foundation serves **one independent website per SITE**, and every public URL names it.
+The request hostname selects the **Spoke**. Within that Spoke, every public page URL names its
+**Site**, language and page route — and the Site is the country/global context **inside** the
+already-selected Spoke, never a website of its own.
 
 ### Page identity
 
@@ -1800,7 +1809,7 @@ The Foundation serves **one independent website per SITE**, and every public URL
 
 | Part | Meaning | Example |
 | --- | --- | --- |
-| `site` | one independent website: a recognized lowercase country code, or `ww` (Worldwide / Global, Foundation-defined, not a country) | `ca` |
+| `site` | the country/global Site context **inside the active Spoke** (the Spoke is selected by hostname, never by a URL segment): a recognized lowercase country code, or `ww` (Worldwide / Global, Foundation-defined, not a country) | `ca` |
 | `locale` | the language, addressed by a lowercase **path key** | `fr`, `fr-ca`, `zh-hant` |
 | `route` | the page's own path inside that site + locale | `about`, `services/web-design` |
 
@@ -1849,34 +1858,42 @@ Two locale keys of ONE site that resolve to the same canonical tag (`en` and `en
 
 | Dimension | What it changes | Where it lives |
 | --- | --- | --- |
-| **Site** | which independent website (own pages, chrome, languages, locations) | the first URL segment |
-| **Language** | the locale used *inside* the active site | the second URL segment |
-| **Location** | the office/city/region context *inside* the active site | `business.regions` + that site's `business.pages` bindings |
+| **Site** | the country/global context *inside* the active website/Spoke (own pages, languages, locations) | the first URL segment |
+| **Language** | the locale used *inside* the active Site | the second URL segment |
+| **Location** | the office/city/region context *inside* the active Site | `business.regions` + that Site's `business.pages` bindings |
 | **Layout** | presentation only (Sidebar / Menu bar) | the visitor's own preference, never part of a URL |
 
-A control that has nothing to choose disappears: one site → no Site selector; the active site
-serving one language → no Language selector; no locations bound to the ACTIVE site → no Location
+The four dimensions are the visitor's **inside the selected Spoke**; the hostname-selected Spoke is
+not a visitor selector and is never a UI control. A control that has nothing to choose disappears:
+the active Spoke declaring one Site → no Site selector; the active Site
+serving one language → no Language selector; no locations bound to the ACTIVE Site → no Location
 selector; the Layout switcher disabled → no Layout control. The Location inventory is **the active
-site's** (`regionsForSite`): a location belongs to one site's page tree, so a site that binds none
-never offers another site's locations — and never a destination that does not exist.
+site's** (`regionsForSite`): a location belongs to one Site's page tree, so a Site that binds none
+never offers another Site's locations — and never a destination that does not exist.
 
 ### The reference deployment demonstrates the full model
 
 The public reference deployment is configured as the worked example, so the architecture above has a
-running counterpart:
+running counterpart. It is **two Spokes**, each a complete website with its own hostname:
 
 ```text
-Global  (ww)  English + Deutsch, no locations, its own Home/About
-Germany (de)  Deutsch + English, Locations Berlin and Frankfurt,
-              an INDEPENDENT page tree (never a Global fallback)
+Foundation Spoke   foundation-template.provelopment.com
+  Site ww (Global)    languages en, de — no locations, its own Home/About
+
+Germany Spoke      foundation-template-germany.provelopment.com
+  Site de (Germany)   languages de, en — Locations Berlin and Frankfurt,
+                      an INDEPENDENT page tree (never a Global fallback)
 ```
 
-Consequences it makes visible: the Site selector appears because two sites exist; Germany's
-`de`/`en` path keys derive the canonical tags `de-DE`/`en-DE` because it is a COUNTRY site; the
-Location control appears only on Germany and its neutral choice is *All locations* / *Alle
-Standorte* (never the word used for a Site); Location switches stay inside Germany and change
-neither the site nor the language; and Layout is untouched by all of them. **Germany, Berlin and
-Frankfurt are demonstration data** — placeholders an adopter replaces, not claims about Provelopment.
+Consequences it makes visible: **each Spoke currently carries exactly one Site, so NO Site selector
+is rendered on either reference website**; the two websites are reached only through ordinary
+authored reciprocal links, and there is no cross-Spoke Site control. Germany's
+`de`/`en` path keys derive the canonical tags `de-DE`/`en-DE` because `de` is a COUNTRY Site; the
+Location control appears only inside the Germany Spoke's Site `de`, and its neutral choice is *All
+locations* / *Alle Standorte* (never the word used for a Site); Location switches stay inside that
+Site and change neither the Site nor the language; and Layout is untouched by all of them. **Germany,
+Berlin and Frankfurt are demonstration data** — placeholders an adopter replaces, not claims about
+Provelopment.
 
 ### Site-scoped configuration and dictionaries
 
@@ -1940,9 +1957,9 @@ Host  →  src/proxy.ts  →  exact hostname claim  →  PRIVATE upstream header
   path (a bare Site, an unknown second segment, no Site at all) is completed with a **public** redirect inside
   the selected Spoke only.
 
-**Recorded for Milestone 18 (nothing created).** The owner-provisioned hostname for the future Germany Spoke is
-`foundation-template-germany.provelopment.com`. No Germany Spoke exists, no Germany content moved, the hostname
-is not activated, and the current production topology is unchanged.
+`inspectionSpoke: foundation` is an explicit **inspection-host policy** — it names the Spoke that
+answers the owner's inspection hostname — and it is **not** a default Spoke: it is no fallback for
+other hosts, and a request on a host no Spoke answers is still refused.
 
 
 ## Establishment: making ONE complete installation (FOUNDATION-B4B)
@@ -2000,7 +2017,7 @@ installation root.
 
 | Spoke | Public origin (its own `site.url`) | Site | Owns |
 | --- | --- | --- | --- |
-| `foundation` (default) | https://foundation-template.provelopment.com | `ww` (Global) | the Global page tree, in English and German |
+| `foundation` | https://foundation-template.provelopment.com | `ww` (Global) | the Global page tree, in English and German |
 | `germany` | https://foundation-template-germany.provelopment.com | `de` (Germany) | the Germany page tree and the Locations Berlin and Frankfurt |
 
 The request boundary is hostname-dispatched: the public `Host` header is the ONLY input, it selects at

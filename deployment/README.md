@@ -13,7 +13,7 @@ each other.
 | Path | What it is |
 | --- | --- |
 | `spokes.json` | The Installation's Spoke collection. It declares the two Spokes this Installation serves: `[{ "id": "foundation", "root": "spokes/foundation" }, { "id": "germany", "root": "spokes/germany" }]`. Its presence makes this an EXPLICIT Installation — the form where the website material lives in the declared Spokes beneath `spokes/`, and the installation root keeps only the lifecycle records below. |
-| `spokes/foundation/` | **The FOUNDATION Spoke, and the Installation's default Spoke.** It carries: |
+| `spokes/foundation/` | **The FOUNDATION Spoke, and the Installation's INSPECTION Spoke** — the one that answers on the hostnames no Spoke owns publicly. It carries: |
 | ↳ `spokes/foundation/site.config.json` | The Foundation Spoke's configuration: its one Site (`ww`), its languages, contact details, social links, navigation and feature flags. |
 | ↳ `spokes/foundation/config/i18n/` | The Foundation Spoke's user-visible interface strings, one file per locale. |
 | ↳ `spokes/foundation/content/` | The Foundation Spoke's authored content: its pages — Markdown, or the declarative JSON mode — and the artwork sources in `content/assets/`. `content/README.md` is the map of what to edit. |
@@ -61,20 +61,29 @@ pages, never redirects to the other hostname, and is ultimately refused.
 | `foundation-template.provelopment.com` | the **Foundation** Spoke's own public domain | **Foundation** |
 | `foundation-template-germany.provelopment.com` | the **Germany** Spoke's own public domain | **Germany** |
 | a deployment or branch URL Vercel publishes for **this** project, e.g. `provelopment-foundation-git-main-provelopment.vercel.app` | Vercel's own **inspection URL** for the build it made — not a public domain | the **inspection Spoke**, which this Installation states explicitly: `foundation` |
+| `provelopment-foundation.vercel.app` | the project's **PERMANENT Vercel alias**, authored here as a deployment-owned inspection alias — Vercel's build variables carry the deployment- and branch-specific URLs but not reliably this one | the **inspection Spoke**: `foundation` |
 | anything else | no Spoke claims it | **404 Not Found** |
 
 `deployment/spokes.json` states the policy beside the declaration:
 
 ```json
-"inspectionSpoke": "foundation"
+"inspectionSpoke": "foundation",
+"inspectionHosts": ["provelopment-foundation.vercel.app"]
 ```
 
-That is the ONE Spoke which represents this Installation on an accepted Vercel inspection URL. It is
-**explicit**: it is never the first declared Spoke, never a manifest-order fallback, and a multi-Spoke
+`inspectionSpoke` is the ONE Spoke which represents this Installation on an accepted inspection hostname.
+It is **explicit**: never the first declared Spoke, never a manifest-order fallback, and a multi-Spoke
 Installation that is built on Vercel without stating it is refused at build time rather than guessed at.
 An Installation that states it must name a Spoke it actually declares.
 
-**A Vercel inspection URL is a viewing surface for operators, not a public-domain alias.** Vercel publishes
+`inspectionHosts` names the hosts this Installation answers for that **no Spoke owns publicly** — here the
+project's permanent Vercel alias. Each one is an EXACT hostname: a wildcard (`*.vercel.app`), a URL, a path
+and a second spelling are all refused at build time, an alias may not restate a Spoke's own hostname, and
+declaring aliases without `inspectionSpoke` is refused too, because then nothing could ever answer on them.
+The two lists are kept apart in the build's routing description: what the PLATFORM reported for this build,
+and what this Installation AUTHORED.
+
+**A Vercel hostname is a viewing surface for operators, not a public-domain alias.** Vercel publishes
 those URLs for the deployment it built, and an operator uses them to check that the deployment actually
 renders. What they render is the Foundation Spoke's own website, and its metadata stays canonical to
 `https://foundation-template.provelopment.com/` — canonical link, `hreflang`, `og:url` and the sitemap all
@@ -83,10 +92,10 @@ advertised, never linked from a page and never added to a sitemap, and the cross
 points at `https://foundation-template-germany.provelopment.com/` — never at another Vercel hostname.
 
 Recognition is **EXACT equality** against the hostnames Vercel's own build environment reports for the build
-it is running (`VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`). Nothing is fetched from
-Vercel at request time, no Vercel setting is read or written, and there is deliberately **no `*.vercel.app`
-rule**: an unrelated project's Vercel URL, a team URL, or a name that merely *contains* ours answers 404 like
-any other unknown host.
+it is running (`VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) plus the aliases authored
+above. Nothing is fetched from Vercel at request time, no Vercel setting is read or written, and there is
+deliberately **no `*.vercel.app` rule**: an unrelated project's Vercel URL, a team URL, or a name that merely
+*contains* ours answers 404 like any other unknown host.
 
 ## Update, and Upgrade (M20)
 

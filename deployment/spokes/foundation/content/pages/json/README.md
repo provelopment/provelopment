@@ -17,10 +17,9 @@ Every example below is complete and copyable.
 
 ## Where a page goes
 
-```text
-## Which folder does my page go in?
+**Which folder does my page go in?**
 
-```
+```text
 content/pages/json/<site>/<language>/<page-name>.json
 ```
 
@@ -32,16 +31,13 @@ content/pages/json/<site>/<language>/<page-name>.json
 - **`<page-name>`** — one name (`services`) or a folder plus a name
   (`services/web-design`).
 
-
-```
-
 For example:
 
 ```text
 content/pages/json/ww/en/services.json                →   /ww/en/services
 content/pages/json/ww/en/services/web-design.json     →   /ww/en/services/web-design
 content/pages/json/ww/en/legal/privacy.json           →   /ww/en/legal/privacy
-content/pages/json/ww/en/home.json                    →   /en   (the home page)
+content/pages/json/ww/en/home.json                    →   /ww/en   (the home page)
 ```
 
 - `<language>` is a language your site is configured to serve (`en`, `de`, …).

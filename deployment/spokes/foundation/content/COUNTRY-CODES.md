@@ -1,9 +1,8 @@
 # Country codes (site codes)
 
-A **site** is one independent website inside this one Foundation repository: its own
-pages, its own languages, its own navigation and, when you need it, its own regional
-offices. Every site is named by a **site code**, and that code is the *first* piece of
-every address the site serves.
+A **Site** is a country/global context **inside a Spoke**: its own pages, its own languages, its
+own navigation and, when you need it, its own regional offices. A Spoke owns one or more Sites, and
+each Site is named by a **site code** — the *first* piece of every address that Site serves.
 
 ```
 https://your-site.example/ca/en/about

@@ -55,10 +55,14 @@ export interface InstallationHostRouting {
   readonly mode: HostRoutingMode;
   readonly spokes: readonly SpokeHostRoutingEntry[];
   /**
-   * The Installation's EXPLICIT inspection policy (M20 §29), or `null` when it declares none.
+   * The Installation's EXPLICIT inspection policy (M20 §29, extended M22), or `null` when it declares
+   * none.
    *
-   * Its hostnames are the hosting platform's own, normalized through the ONE pure step — never a suffix
-   * rule and never a wildcard — and its Spoke id is the one the collection names.
+   * Three classes of hostname exist and only the first is authored *about a Spoke*: a Spoke's own
+   * canonical hostname (its claims, above), a hostname the HOSTING PLATFORM reported for this build, and
+   * a deployment-owned ALIAS the Installation authored. The build keeps the last two apart in its
+   * description; the decision consumes only their union, normalized through the ONE pure step — never a
+   * suffix rule and never a wildcard — together with the Spoke id the collection names.
    */
   readonly inspection: SpokeInspectionPolicy | null;
 }
@@ -79,11 +83,17 @@ function claimsFor(origin: string, where: string): readonly Hostname[] {
 /**
  * The build's published inspection block, normalized into the pure policy — or `null` when none.
  *
- * The hostnames arrive VERBATIM from the build (the hosting platform's own values for the deployment
- * being built), and this is the ONE place they become hostnames: the pure `normalizeHostname` step. A
- * value the provider reported that is not a usable hostname is a build defect, so it is REFUSED rather
- * than silently dropped — a policy that quietly recognises nothing would look identical to one that
- * works, and an operator would be told nothing.
+ * The hostnames arrive VERBATIM from the build (the platform's own values for the deployment being built
+ * plus the aliases the Installation authored), and this is the ONE place they become hostnames: the pure
+ * `normalizeHostname` step. A value that is not a usable hostname is a build defect, so it is REFUSED
+ * rather than silently dropped — a policy that quietly recognises nothing would look identical to one
+ * that works, and an operator would be told nothing.
+ *
+ * The build keeps the three classes APART in the description (`platformHostnames`, `authoredHostnames`
+ * and their union `hostnames`, M22). The decision needs only the union, so that is what the pure policy
+ * carries — but the artifact must not be able to claim provenance it does not have: when the build
+ * publishes the two lists, they must add up to exactly the union, or the description is malformed and is
+ * refused here.
  */
 function inspectionOf(raw: unknown): SpokeInspectionPolicy | null {
   if (raw === null || raw === undefined) return null;
@@ -94,7 +104,12 @@ function inspectionOf(raw: unknown): SpokeInspectionPolicy | null {
     );
   }
 
-  const entry = raw as { spokeId?: unknown; hostnames?: unknown };
+  const entry = raw as {
+    spokeId?: unknown;
+    hostnames?: unknown;
+    platformHostnames?: unknown;
+    authoredHostnames?: unknown;
+  };
   if (typeof entry.spokeId !== "string" || entry.spokeId.trim() === "") {
     throw new Error(
       "FOUNDATION-MULTISITE-M20: the build's inspection policy names no Spoke, so it could never " +
@@ -102,26 +117,54 @@ function inspectionOf(raw: unknown): SpokeInspectionPolicy | null {
     );
   }
 
-  const rawHostnames = Array.isArray(entry.hostnames) ? entry.hostnames : [];
+  const hostnames = normalizeInspectionValues(entry.hostnames, "an inspection hostname");
+
+  if (entry.platformHostnames !== undefined || entry.authoredHostnames !== undefined) {
+    const platform = normalizeInspectionValues(entry.platformHostnames, "a platform inspection hostname");
+    const authored = normalizeInspectionValues(entry.authoredHostnames, "an authored inspection alias");
+    const expected = [...platform, ...authored].filter((value, index, all) => all.indexOf(value) === index);
+    const same =
+      expected.length === hostnames.length && expected.every((value) => hostnames.includes(value));
+    if (!same) {
+      throw new Error(
+        "FOUNDATION-MULTISITE-M20: the build's inspection policy does not add up — the hostnames it " +
+          `matches (${hostnames.join(", ") || "none"}) are not exactly the platform-reported and ` +
+          `authored aliases it declares (${expected.join(", ") || "none"}). The description is built by ` +
+          "the build, so a disagreement here means it was not.",
+      );
+    }
+  }
+
+  return Object.freeze({ spokeId: entry.spokeId, hostnames: Object.freeze(hostnames) });
+}
+
+/** One list of inspection hostname values, normalized through the ONE step — refusing an unusable one. */
+function normalizeInspectionValues(raw: unknown, what: string): Hostname[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `FOUNDATION-MULTISITE-M20: the build's inspection policy carries ${what}s as something other ` +
+        "than a list.",
+    );
+  }
+
   const hostnames: Hostname[] = [];
-  for (const value of rawHostnames) {
+  for (const value of raw) {
     if (typeof value !== "string") {
       throw new Error(
-        "FOUNDATION-MULTISITE-M20: the build's inspection policy carries a hostname that is not text.",
+        `FOUNDATION-MULTISITE-M20: the build's inspection policy carries ${what} that is not text.`,
       );
     }
     const hostname = normalizeHostname(value);
     if (hostname === null) {
       throw new Error(
-        `FOUNDATION-MULTISITE-M20: the hosting platform reported "${value}" as an inspection hostname ` +
-          "for this deployment, and it is not a usable hostname. Recognition is exact, so an unusable " +
-          "value must be reported rather than ignored.",
+        `FOUNDATION-MULTISITE-M20: ${what} "${value}" is not a usable hostname. Recognition is exact, ` +
+          "so an unusable value must be reported rather than ignored.",
       );
     }
     if (!hostnames.includes(hostname)) hostnames.push(hostname);
   }
-
-  return Object.freeze({ spokeId: entry.spokeId, hostnames: Object.freeze(hostnames) });
+  return hostnames;
 }
 
 let cached: InstallationHostRouting | null = null;

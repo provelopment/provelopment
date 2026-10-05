@@ -5,10 +5,17 @@ An **open-source**, re-brandable web platform template for small businesses: a
 complete, accessible, multilingual website. Starts frontend-only, architected to
 grow into full-stack without a rewrite.
 
-This repository is the **reusable product**. It ships **no brand of its own** — a
-starter page, neutral placeholder graphics, one default language and a complete,
-reusable architecture. You make it yours by editing **configuration, content and
-assets only**; platform code does not need to change.
+This repository is the **source repository of the reusable platform**. It ships the
+platform and, alongside it, a **concrete reference Installation** used for
+demonstration, acceptance and authoring examples: it declares more than one Spoke,
+each a complete website with its own `site.config.json`, languages, pages and
+artwork, and neutral placeholder identity throughout. You make your own website by
+editing **configuration, content and assets only**; platform code does not need to
+change.
+
+The **immutable Foundation release** is platform-only: it is built from this source
+and excludes the reference Installation (`deployment/**`). An independent
+Installation combines that platform release with its own authored capsule.
 
 ## Why it exists
 
@@ -19,22 +26,22 @@ so a new site starts from a working baseline instead of an empty folder.
 
 ## Quick start
 
-Tested from a fresh clone (Node.js 22+, pnpm):
+Tested from a fresh clone (Node.js 24.x, pnpm 11.6.0):
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you are redirected to the
-default locale. The starter renders immediately: no content or artwork has to be
-deleted first.
+Open [http://localhost:3000](http://localhost:3000) — you are redirected into a
+configured Site and language of the Spoke your host resolves to. The reference
+Installation renders immediately: no content or artwork has to be deleted first.
 
 Before production, **replace the placeholder values**: `site.url`, `site.name`,
 `site.tagline` and `site.description` in the deployment's `site.config.json` (in this
 repository that file belongs to the Foundation Spoke, at
 `deployment/spokes/foundation/site.config.json`), the
-starter copy in its `config/i18n/en.json`, and the graphics in its
+interface copy in its `config/i18n/en.json`, and the graphics in its
 `content/assets/placeholders/`.
 
 ### Establishing a Foundation installation of your own
@@ -100,23 +107,36 @@ src/core        # Framework-independent domain concepts and the UI engine
 src/application # Use-case ports and services
 src/adapters    # Concrete integrations (filesystem content, analytics, booking, maps)
 src/config      # Site configuration schema and loaders
-deployment      # THE DEPLOYMENT CAPSULE — everything one website owns (see deployment/README.md)
-  site.config.json # This deployment's settings — identity, languages, navigation, features
-  config/i18n   #   Localized JSON dictionaries (one shipped locale: en)
-  content       #   EVERYTHING you author lives here — start at content/README.md
-    pages/markdown # Safe Markdown pages — content/pages/markdown/<site>/<locale>/<route>.md  (see its README)
-    pages/json  #   Declarative JSON pages — content/pages/json/<site>/<locale>/<route>.json  (see its README)
-    assets      #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
-public/assets   # GENERATED mirror of the deployment's content/assets/** (git-ignored; installed by pnpm install/dev/build — never edit by hand)
+deployment      # THE DEPLOYMENT CAPSULE — the Installation this repository ships (see deployment/README.md)
+  spokes.json   #   WHICH Spokes it declares; it also states its inspection policy
+  spokes/
+    foundation/ #   ONE SPOKE = ONE complete website (its own configuration, dictionaries, pages and assets)
+      site.config.json
+      config/i18n   # Localized JSON dictionaries (this Spoke ships en and de)
+      content       # EVERYTHING you author lives here — start at content/README.md
+        pages/markdown # Safe Markdown pages — <site>/<locale>/<route>.md  (see its README)
+        pages/json  #   Declarative JSON pages — <site>/<locale>/<route>.json  (see its README)
+        assets      #   YOUR artwork: logos, favicons, icons, graphics  (see assets/README.md)
+    germany/    #   A SECOND Spoke of the same Installation — the same shape, its own everything
+public/assets   # GENERATED mirror of the selected deployment's content/assets/** (git-ignored; installed by pnpm install/dev/build — never edit by hand)
 scripts         # Deterministic asset mirror (assets:sync / assets:check)
 tests           # Architecture-boundary, unit, integration and CDP browser-matrix tests
 ```
 
+**Two authoring forms are supported, and this repository ships one of them.** An Installation may author a
+single implicit Spoke at its own root (a `site.config.json` beside its `content/`), or — as here — declare
+one or more Spokes in `deployment/spokes.json`, each a complete website of its own beneath
+`deployment/spokes/`. The capsule above is that second, explicit form: it owns more
+than one Spoke, so its `content/` is per-Spoke rather than one website's. A
+one-Spoke Installation is equally valid and the platform serves it the same way.
+
 ## Where your content lives
 
-**One folder holds everything you write or upload:** the deployment's
-[`content/`](deployment/spokes/foundation/content/README.md) — in this repository that folder is
-`deployment/spokes/foundation/content/`. Pages and the artwork they use — all of it.
+**Within each Spoke, one `content/` folder owns that Spoke's authored pages and
+assets.** In this repository the Foundation Spoke's authored content root is
+[`deployment/spokes/foundation/content/`](deployment/spokes/foundation/content/README.md) — pages
+and the artwork they use, all of it. The Germany Spoke has its own separate authored root,
+`deployment/spokes/germany/content/`. There is no Installation-wide shared `content/`.
 
 ```text
 content/                 (this repository: deployment/spokes/foundation/content/)
@@ -136,12 +156,11 @@ own root in the explicit form this repository uses — write
 blog article, a portfolio project, a privacy policy and "About" are all pages: they
 differ only in where you put the file, and a page's address comes from its folders.
 
-```text
 ## Your folder is your address
 
 A page's address is built from the folders it lives in: **mode → site → language → page**.
 
-```
+```text
 content/pages/markdown/ww/en/services.md               →  /ww/en/services
 content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
 content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
@@ -155,11 +174,6 @@ content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
 
 If you have only one website and one language, your folders are `ww/en/…` — the site
 folder is still there, because every address carries it.
-
-
-content/pages/markdown/ww/en/services/web-design.md    →  /ww/en/services/web-design
-content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
-```
 
 Content that only ever appears *inside* another page — customer quotes, cards,
 statistics, FAQ rows — is written in that page. It needs no file of its own.
@@ -211,37 +225,28 @@ file under the deployment's `content/` tree (`deployment/spokes/foundation/conte
 > merged to `main` updates that same live site. Nothing is added to make it work —
 > the public repository is the deployment.
 >
-> What is live today is the **first reference increment**: the deployment has its own
-> name, description and origin (`site.url`), a Home page authored in the JSON mode, an
-> About page authored in Markdown, and the visitor Layout control enabled. The rest of
-> the reference site — further pages, more languages, Locations, and the link back to
-> `https://foundation.provelopment.com/` — is the next body of work and has **not**
-> landed yet; this note changes when it does rather than describing it in advance.
+> **What is live today** is a two-Spoke reference installation. `deployment/spokes.json` declares
+> two Spokes: **Foundation** (`https://foundation-template.provelopment.com/`, Site `ww`) and
+> **Germany** (`https://foundation-template-germany.provelopment.com/`, Site `de`, with pages for its
+> two locations, Berlin and Frankfurt). Each Spoke is a complete website of its own — configuration,
+> dictionaries, content tree, sitemap, `robots.txt`, OpenGraph image and asset namespaces — and answers
+> for the hostnames it claims: the hostname selects ONE Spoke, and nothing on either host serves the
+> other Spoke's content.
 >
-> Two things are already decided for that reference site and are recorded here so no
-> increment invents its own answer:
+> Both Spokes are authored in **English and German**, and both demonstrate **both authoring modes**: a
+> Home page in the advanced JSON mode plus About pages in the simple Markdown mode (Germany adds its
+> Berlin and Frankfurt pages). Each Spoke's footer links to the other — ordinary authored navigation.
+> The visitor **layout switcher** (Sidebar ↔ Menu-bar) is enabled in this deployment: it is **off by
+> default**, an adopter enables it with one configuration block (`ui.layoutSwitcher` — see
+> CUSTOMIZING.md), and this reference site ships with it on.
 >
-> 1. **An unobtrusive, configurable link to `https://foundation.provelopment.com/`**
->    will appear in the shipped reference pages/site chrome. It is a
->    reference-site/configuration concern — generic platform runtime logic must not
->    hard-code it — and the starter content that carries it lands with the reference
->    work, not before.
-> 2. **A shell layout switcher (available now).** A Foundation site can optionally let a
->    visitor switch between the **Sidebar** and **Menu-bar** layouts from a simple
->    dropdown, without changing the page, the locale or the content: same content
->    authority, same current route, presentation only. It is **off by default**, an
->    adopter enables it with one configuration block (`ui.layoutSwitcher` — see
->    CUSTOMIZING.md), and the reference deployment **ships with it enabled** — the header
->    control is live on this site today. The capability itself is generic platform
->    behaviour; the reference site's own choice to enable it is reference configuration.
-
-The repository also authors its own **two reference pages** — Home
-(`deployment/spokes/foundation/content/pages/json/ww/en/home.json`, the advanced JSON mode) and About
-(`deployment/spokes/foundation/content/pages/markdown/ww/en/about.md`, the simple Markdown mode) — so both authoring
-modes are demonstrated by the live site. A site that authors no home page still gets the
-configuration-driven starter landing page, and the two authoring roots' own documentation
-is never content. Technical routes (`/sitemap.xml`, `/robots.txt`) and generated metadata
-are not content pages.
+> One intentional boundary: the reference pages' prose links to
+> **`https://foundation.provelopment.com/`** — the commercial Provelopment site, which is a separate
+> product built ON this template rather than part of it.
+>
+> A site that authors no home page still gets the configuration-driven starter landing page, and the
+> authoring roots' own documentation is never content. Technical routes (`/sitemap.xml`, `/robots.txt`)
+> and generated metadata are not content pages.
 
 ## Customize identity
 
@@ -284,7 +289,7 @@ content/pages/markdown/ww/en/services/web-design.md   →  /ww/en/services/web-d
 
 Ordinary Markdown is enough — frontmatter is optional, and a file that is nothing
 but prose is a complete page (the title comes from frontmatter, then the first
-`# heading`, then the filename). The page is served at `/<locale>/<page>` and
+`# heading`, then the filename). The page is served at `/<site>/<locale>/<route>` and
 listed in the sitemap as soon as the file exists for a configured language; no
 configuration change is needed to publish the route — only committing and pushing it
 (see [Publishing your changes](#publishing-your-changes)).
@@ -295,8 +300,8 @@ element/attribute allowlist. `## Opening hours` also gains the predictable fragm
 `#opening-hours`, so an author can link to their own sections — at any depth. The
 author-facing guide is [`content/pages/markdown/README.md`](deployment/spokes/foundation/content/pages/markdown/README.md);
 the advanced mode is [`content/pages/json/README.md`](deployment/spokes/foundation/content/pages/json/README.md) (a
-JSON page file currently stops the build with an error naming the file rather than
-being ignored, because nothing yet interprets it).
+JSON page is validated against the page-document schema at build time, so an invalid one
+stops the build with an error naming the file rather than being served or ignored).
 
 ## Sections, listings and embedded content
 

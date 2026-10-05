@@ -5,12 +5,12 @@
  * Barrel for the pure Spoke Hub / Spoke / Hub vocabulary and the `hostname → Spoke` decision. Import
  * from `@/core/spoke`; the inner modules are not a consumer surface.
  *
- * WIRING: the pure membership partition is read by the CONFIGURATION layer alone (S3B,
- * `@/config/hub-membership`), and the identity vocabulary below by the Installation's Spoke
- * collection resolver (`@/config/spoke-roots`, S3C1 — deliberately not wired into the build or the
- * request boundary yet), so the direction is `config → core` and never the reverse. Filesystem roots,
- * assets, pages and the request boundary are all LATER slices, and this one deliberately holds no
- * opinion about any of them.
+ * WIRING: the identity vocabulary (`spoke-id`), the hostname rules (`hostname`) and the coherence /
+ * membership rules are consumed by CONFIGURATION (`@/config/spoke-roots`, `@/config/spoke-composition`,
+ * `@/config/hub-membership`) and — through the build's inlined routing description — by the BUILD seam
+ * (`@/config/spoke-host-routing.mjs`) and the REQUEST BOUNDARY (`@/config/spoke-routing`, `src/proxy.ts`),
+ * so the direction is `config → core` and never the reverse. The decision itself is pure and stays here:
+ * which host resolves to which Spoke is one equality over normalized values, and no module re-decides it.
  */
 export { normalizeHostname, hostnameFromOrigin } from "./hostname";
 export type { Hostname } from "./hostname";

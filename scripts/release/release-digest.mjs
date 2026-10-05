@@ -26,9 +26,10 @@
  * DELIMITERS ARE DELIBERATE: NUL cannot appear in a path, and `assertReleasePathIsEncodable` refuses
  * a path containing a newline, so a record boundary can never be ambiguous.
  *
- * NO MODE METADATA: every tracked path in this platform is mode 100644 (measured: 440/440) — no
- * symlinks, no executables — so file mode carries no meaning here and is deliberately NOT invented
- * into the digest. Construction refuses a source revision containing any other mode instead.
+ * NO MODE METADATA: every tracked path in this platform is mode 100644 — no symlinks, no executables,
+ * no submodules — so file mode carries no meaning here and is deliberately NOT invented into the digest.
+ * Construction refuses a source revision containing any other mode, naming each path, rather than
+ * recording metadata the digest does not carry.
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -137,8 +138,22 @@ export function digestReleaseEntries(entries, options = {}) {
 /**
  * Every payload file beneath a directory, as payload-relative POSIX paths.
  *
- * A symlink is REFUSED rather than followed: a release is a content set, and a link would make its
- * bytes depend on something outside it.
+ * STRICT BY DESIGN: a BARE release payload contains EXACTLY the release content — apart from the release
+ * metadata `isReleasePayloadPath` defines (the manifest itself, and a governed `.sha256` sidecar) — so
+ * everything else the directory holds is digested and reported. `.gitignore` is NOT an authority here and
+ * never was meant to be: ignored names include environment, credential and local-machine state
+ * (`.env*`, `*.pem`, `.vercel`, `build/`, …), and a verifier that skipped them would report an exact
+ * release while an injected `.env.production` or `private.pem` sat inside it. A file nobody planned is a
+ * failed verification, whatever Git would have ignored.
+ *
+ * A symlink is REFUSED rather than followed: a release is a content set, and a link would make its bytes
+ * depend on something outside it.
+ *
+ * A MATERIALISED WORK TREE IS A DIFFERENT SUBJECT, and deliberately not served by this function: a
+ * consumer's `git init && git add -A` work tree holds `.git`, generated state from `pnpm install` and
+ * whatever else the consumer produced, and its content authority is the Git INDEX
+ * (`release-construction.mjs`'s `listIndexEntries`/`constructReleaseFromWorkTree`). One walker is not
+ * made ambiguous to serve both.
  *
  * @param {string} root the directory to walk
  * @returns {string[]} the payload-relative paths, byte-wise sorted

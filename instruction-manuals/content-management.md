@@ -1,9 +1,9 @@
 # Content Management — business content ownership
 
 > **Manual system:** Provelopment Foundation Instruction Manuals
-> **Manual revision:** `2026-10-04.1`
+> **Manual revision:** `2026-10-04.2`
 > **Content model described:** the **Foundation installation model** — one immutable Foundation release (`provelopment-foundation-vYYYYMMDD.HHMM`; the grandfathered first release is `v2026.09.30-foundation-release-initial`) established into one autonomous **Foundation installation** that owns its own authored capsule, its own adoption record (`deployment/foundation-baseline.json`) and its own generated operational state, and serves its own **spokes**, each with **Site** contexts — together with the delivered authoring model those installations serve: two page modes (safe Markdown and declarative JSON), the page title as a page's only level-1 heading, and pages addressed per site and language. It also states the lifecycle contract: **Update** = authored pages and/or assets change while the Foundation release does not; **Upgrade** = a different immutable Foundation release is adopted, Installation-wide; one Installation therefore runs one Foundation release
-> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. No immutable Foundation release other than `v2026.09.30-foundation-release-initial` exists. **No procedure-validation run was performed for revision `2026-10-04.1`**: it aligns this manual set's Update/Upgrade lifecycle terminology with the accepted Foundation model and executed no procedure. No release tag is claimed.
+> **Procedure validation:** the procedures were last exercised end to end on 2026-09-30 against the public Foundation product at `3698c318779d9695f98edc803854a5af6bb01b5f`: the repository gate, a deterministic release construction (`provelopment-foundation-v20990101.0000`, 368 files, digest `sha256:c29845a3…`), a disposable establishment from the real `deployment/` capsule, and the installation-owned gate. At the 2026-09-30 procedure-validation run, the only immutable Foundation release then published was `v2026.09.30-foundation-release-initial`; later immutable Foundation releases have been published since, and this set does not enumerate them because that inventory changes with every release. **No procedure-validation run was performed for revision `2026-10-04.2`**: it corrects the procedure-validation statement so it is historically scoped rather than a present-tense release inventory, and executes no procedure. No release tag is claimed.
 > **Adopter baseline:** the installation's own adoption record — `deployment/foundation-baseline.json` inside the installation's capsule. An adopter's own governance record is the adopter's; it is never the Foundation's adoption record.
 > **Master authority:** maintained in the Provelopment governance repository (private; not part of this product)
 >
@@ -86,10 +86,11 @@ An **empty language folder publishes nothing** — it prepares a language and cr
 route; and a page with no translation in the visitor's language falls back to **that site's**
 default language rather than erroring. Fallback never crosses sites.
 
-### Sites: one independent page tree each
+### Sites: one country/global context each
 
-A **site** is an independent country/global context with its **own page tree, its own
-languages and its own page-facing configuration** (see `site-customization.md`, *Per-site configuration*). A site folder name is a **recognized
+A **Spoke** is the website/domain context — selected by hostname, owning its own `site.config.json`,
+dictionaries, content tree and assets. Inside it, a **Site** is the country/global context with its **own page tree, its own
+languages and its own page-facing configuration** (see `site-customization.md`, *Per-site configuration*). A Site folder name is a **recognized
 lowercase two-letter country code** (`ca`, `fr`, `ch`, `de`, …). Foundation validates it, and
 arbitrary names such as `main`, `canada` or `my-office` are **not** valid site codes.
 
@@ -102,21 +103,24 @@ The maintained, validated list of every country code ships with the product:
 `content/COUNTRY-CODES.md`. Use that file as the reference — this manual states the concept
 and the examples, it does not keep a second list.
 
-> **A missing page in one site is NEVER satisfied from another site**, merely because the
-> language or the route matches. Canada French and France French are different websites:
+> **A missing page in one Site is NEVER satisfied from another Site**, merely because the
+> language or the route matches. Canada French and France French belong to different Sites:
 > each answers only from its own tree, so one country can never publish another's page.
 
-### Sites and locations are different things
+### Spokes, Sites and Locations are different things
 
 ```text
-an independent page tree                        →  another SITE
+another independent website/domain              →  another SPOKE
+another country/global context in that website  →  another SITE
 the same page tree, another office/city/region  →  another LOCATION
 ```
 
-Canada and France may be independent **sites**; **Toronto, Montreal and Vancouver are
-locations inside one of them**. Another physical office is not a reason to create a site: a
-site is for a genuinely separate website with its own pages, and a location changes context
-*inside* one site.
+Canada and France may be **Sites inside one Spoke** when one website intentionally exposes both
+country contexts — and each is a **Spoke** (or a separate Installation, per lifecycle ownership) when
+it is a separately hosted, owned or upgraded website. **Toronto, Montreal and Vancouver are
+Locations inside one of those Sites**. Another physical office is not a reason to create a Site: a
+Site is another country/global context **inside** the same website, and a Location changes context
+*inside* one Site.
 
 
 ### Which page answers a request
@@ -135,16 +139,18 @@ and 4 can only ever read that site's own default language.
 
 ### The four independent visitor dimensions
 
-| Dimension | What it selects | Changes the site? |
+| Dimension | What it selects | Changes the Site? |
 | --- | --- | --- |
-| **Site** | an independent country/global page and configuration context | yes — a different website |
-| **Language** | the locale **inside** the current site | no |
-| **Location** | a physical/regional context inside the site (office, city, region) | no |
+| **Site** | the country/global context **inside the active website/Spoke** (its own pages, languages, locations) | yes — a different Site |
+| **Language** | the locale **inside** the current Site | no |
+| **Location** | a physical/regional context inside the Site (office, city, region) | no |
 | **Layout** | Sidebar or Menu-bar presentation | no — presentation only |
 
-The four are independent: changing language never changes site, and changing location or
+The hostname-selected **Spoke** is not one of these controls: it is the website the visitor reached,
+and a Site control appears only when that Spoke itself declares more than one Site.
+The four are independent: changing language never changes Site, and changing location or
 layout never changes which pages exist. A control a deployment does not need simply **does
-not appear** — a single-language, single-location site shows no language or location
+not appear** — a single-language, single-location Site shows no language or location
 control at all.
 
 ### Authoring modes — simple and advanced
@@ -476,5 +482,7 @@ edit
   `ca/en-ca`, both meaning `en-CA`): Foundation refuses it — choose one form.
 - Naming a site folder something that is not a recognized lowercase country code, or `ww`:
   `main`, `canada` and `my-office` are not sites, and their pages are never published.
-- Creating a **site** because a business opened another office: an office is a **location**
-  inside the existing site. A site is for a genuinely separate website with its own pages.- Treating a content-length failure as a styling problem instead of a real content input.
+- Creating a **Site** because a business opened another office: an office is a **Location**
+  inside the existing Site. A Site is another country/global context inside the *same* website —
+  a genuinely separate website is a **Spoke**.
+- Treating a content-length failure as a styling problem instead of a real content input.

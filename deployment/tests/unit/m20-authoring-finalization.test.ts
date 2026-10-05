@@ -146,17 +146,23 @@ describe("M20 — the authored page material is Foundation's own", () => {
   });
 });
 
-describe("M20 — this Installation's inspection policy", () => {
+describe("M20/M22 — this Installation's inspection policy", () => {
+  /** The PERMANENT Vercel project alias the owner reported as returning "Not Found" before M22. */
+  const PROJECT_ALIAS = "provelopment-foundation.vercel.app";
+
   it("names `foundation` beside the declaration, and the platform's own hostnames select it", () => {
     const capsule = path.join(process.cwd(), "deployment");
     const manifest = JSON.parse(readFileSync(path.join(capsule, "spokes.json"), "utf8")) as {
       spokes: { id: string }[];
       inspectionSpoke?: string;
+      inspectionHosts?: string[];
     };
 
     // The declaration keeps its authored order, and the policy is stated BESIDE it — never derived from it.
     expect(manifest.spokes.map((spoke) => spoke.id)).toEqual(["foundation", "germany"]);
     expect(manifest.inspectionSpoke).toBe("foundation");
+    // …and the PERMANENT project alias is authored here, because NO build variable reliably carries it.
+    expect(manifest.inspectionHosts).toEqual([PROJECT_ALIAS]);
 
     const before = { url: process.env["VERCEL_URL"], branch: process.env["VERCEL_BRANCH_URL"] };
     process.env["VERCEL_URL"] = "provelopment-foundation-raoo2g20f-provelopment.vercel.app";
@@ -169,13 +175,53 @@ describe("M20 — this Installation's inspection policy", () => {
         hostnames: [
           "provelopment-foundation-raoo2g20f-provelopment.vercel.app",
           "provelopment-foundation-git-main-provelopment.vercel.app",
+          PROJECT_ALIAS,
         ],
+        platformHostnames: [
+          "provelopment-foundation-raoo2g20f-provelopment.vercel.app",
+          "provelopment-foundation-git-main-provelopment.vercel.app",
+        ],
+        authoredHostnames: [PROJECT_ALIAS],
       });
     } finally {
       if (before.url === undefined) delete process.env["VERCEL_URL"];
       else process.env["VERCEL_URL"] = before.url;
       if (before.branch === undefined) delete process.env["VERCEL_BRANCH_URL"];
       else process.env["VERCEL_BRANCH_URL"] = before.branch;
+    }
+  });
+
+  it("answers the PERMANENT project alias with no platform variable involved at all", () => {
+    // THE DEFECT (M22). `provelopment-foundation.vercel.app` is the project's permanent alias: Vercel's
+    // build variables carry the deployment- and branch-specific URLs, and NOT reliably this one — so a
+    // build that reports none of them still has to answer it. Declared in the capsule, matched by EXACT
+    // equality, and independent of every VERCEL_* value.
+    const capsule = path.join(process.cwd(), "deployment");
+    const before = {
+      url: process.env["VERCEL_URL"],
+      branch: process.env["VERCEL_BRANCH_URL"],
+      production: process.env["VERCEL_PROJECT_PRODUCTION_URL"],
+    };
+    delete process.env["VERCEL_URL"];
+    delete process.env["VERCEL_BRANCH_URL"];
+    delete process.env["VERCEL_PROJECT_PRODUCTION_URL"];
+    try {
+      const routing = hostRoutingForInstallation(capsule);
+
+      expect(routing.mode).toBe("multi");
+      expect(routing.inspection).toEqual({
+        spokeId: "foundation",
+        hostnames: [PROJECT_ALIAS],
+        platformHostnames: [],
+        authoredHostnames: [PROJECT_ALIAS],
+      });
+    } finally {
+      if (before.url === undefined) delete process.env["VERCEL_URL"];
+      else process.env["VERCEL_URL"] = before.url;
+      if (before.branch === undefined) delete process.env["VERCEL_BRANCH_URL"];
+      else process.env["VERCEL_BRANCH_URL"] = before.branch;
+      if (before.production === undefined) delete process.env["VERCEL_PROJECT_PRODUCTION_URL"];
+      else process.env["VERCEL_PROJECT_PRODUCTION_URL"] = before.production;
     }
   });
 });

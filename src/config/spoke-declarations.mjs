@@ -43,6 +43,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 
 import { IMPLICIT_SPOKE_ID, spokeCollectionIssues } from "../core/spoke/spoke-id.mjs";
+import { normalizeHostname } from "../core/spoke/hostname.mjs";
 
 /** The authored manifest an Installation may carry at its own root. */
 export const INSTALLATION_SPOKE_COLLECTION_FILE_NAME = "spokes.json";
@@ -64,7 +65,7 @@ export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
 /**
  * THE MANIFEST'S STRUCTURAL CONTRACT — STRICT, and exactly the leaves a declaration may author.
  *
- * TWO kinds of leaf, and no others:
+ * THREE kinds of leaf, and no others:
  *
  *   `spokes`           the declared Spoke roots, each an `id` and a `root` locator;
  *   `inspectionSpoke`  OPTIONAL: the ONE Spoke that represents this Installation when it is
@@ -72,11 +73,23 @@ export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
  *                      (a Vercel deployment/branch URL). It is an EXPLICIT policy, never a
  *                      first-declared or manifest-order fallback — which is why it is stated
  *                      here, beside the declaration, instead of being derived from it.
+ *   `inspectionHosts`  OPTIONAL: the deployment-owned INSPECTION ALIASES — exact hostnames this
+ *                      Installation answers for even though no Spoke owns them as a public domain
+ *                      (a hosting provider's PERMANENT project alias, for instance, which is a
+ *                      first-party surface of this project but is not one of the deployment-specific
+ *                      hostnames the provider reports to a build). Each one selects the Spoke the
+ *                      `inspectionSpoke` policy nominates. NEVER a wildcard, a suffix or a
+ *                      provider-wide rule: an unrelated project's hostname, a team hostname and a
+ *                      name that merely CONTAINS ours stay unclaimed, and the request boundary
+ *                      answers them with nothing.
  *
  * Identity semantics (non-blank, the reserved id, uniqueness) are NOT restated here — they belong to the
- * pure domain (`../core/spoke/spoke-id.mjs`), so configuration and the domain cannot drift apart. This
- * validator does STRUCTURAL typing only, exactly as the zod schema it replaces did; that the policy NAMES
- * a declared Spoke is a semantic check the resolver makes, where the declared set is known.
+ * pure domain (`../core/spoke/spoke-id.mjs`), so configuration and the domain cannot drift apart. The
+ * HOSTNAME rules are not restated either: they belong to `../core/spoke/hostname.mjs`, which this seam
+ * consumes and which the request boundary consumes too. This validator does STRUCTURAL typing only,
+ * exactly as the zod schema it replaces did; that the policy NAMES a declared Spoke, that the aliases
+ * are exact normalized hostnames and that a policy without a nominated Spoke means nothing are semantic
+ * checks the resolver makes, where the declared set and the hostname authority are at hand.
  *
  * WHY IT IS HAND-ROLLED, NOT ZOD: this seam is loaded by the platform's own Node tooling, and a
  * RELEASE must run that tooling in an installation with NO third-party packages at all
@@ -86,7 +99,7 @@ export const SPOKE_CONFIG_FILE_NAME = "site.config.json";
  * package. The `{ success, data, error: { issues } }` surface is the minimal one its callers use (this
  * module's own resolver and the S3C1 acceptance suite), with `issues` shaped like a zod issue list.
  *
- * @type {{ safeParse: (raw: unknown) => { success: true, data: { spokes: { id: string, root: string }[], inspectionSpoke: string | null } } |
+ * @type {{ safeParse: (raw: unknown) => { success: true, data: { spokes: { id: string, root: string }[], inspectionSpoke: string | null, inspectionHosts: string[] } } |
  *   { success: false, error: { issues: { path: (string|number)[], message: string }[] } } }}
  */
 export const installationSpokeCollectionSchema = {
@@ -106,7 +119,7 @@ export const installationSpokeCollectionSchema = {
       };
     }
 
-    unrecognized(raw, ["spokes", "inspectionSpoke"], []);
+    unrecognized(raw, ["spokes", "inspectionSpoke", "inspectionHosts"], []);
     if (!Array.isArray(raw.spokes)) {
       issues.push({ path: ["spokes"], message: "Invalid input: expected array" });
       return { success: false, error: { issues } };
@@ -120,6 +133,26 @@ export const installationSpokeCollectionSchema = {
         issues.push({ path: ["inspectionSpoke"], message: "Invalid input: expected string" });
       } else {
         inspectionSpoke = raw.inspectionSpoke;
+      }
+    }
+
+    // OPTIONAL, and structural only — exactly like `inspectionSpoke`: the deployment-owned inspection
+    // ALIASES this Installation answers for on hosts no Spoke owns publicly. WHETHER each value is an
+    // exact hostname, and whether a policy with no nominated Spoke can mean anything, are semantic
+    // checks the resolver makes below.
+    /** @type {string[]} */
+    const inspectionHosts = [];
+    if (raw.inspectionHosts !== undefined && raw.inspectionHosts !== null) {
+      if (!Array.isArray(raw.inspectionHosts)) {
+        issues.push({ path: ["inspectionHosts"], message: "Invalid input: expected array" });
+      } else {
+        raw.inspectionHosts.forEach((value, index) => {
+          if (typeof value !== "string") {
+            issues.push({ path: ["inspectionHosts", index], message: "Invalid input: expected string" });
+          } else {
+            inspectionHosts.push(value);
+          }
+        });
       }
     }
 
@@ -141,7 +174,7 @@ export const installationSpokeCollectionSchema = {
 
     return issues.length > 0
       ? { success: false, error: { issues } }
-      : { success: true, data: { spokes: declared, inspectionSpoke } };
+      : { success: true, data: { spokes: declared, inspectionSpoke, inspectionHosts } };
   },
 };
 
@@ -241,6 +274,7 @@ export function resolveSpokeDeclarations(installationRoot) {
       manifestFile: null,
       // A legacy implicit Spoke has no manifest to declare a policy in, and one Spoke answers every host.
       inspectionSpoke: null,
+      inspectionHosts: [],
       declarations: [{ id: IMPLICIT_SPOKE_ID, locator: null, root }],
     };
   }
@@ -365,11 +399,85 @@ function resolveExplicitSpokeDeclarations(root, manifestFile) {
     ]);
   }
 
+  // THE POLICY'S ALIASES (M22 correction). `inspectionHosts` names hosts that no Spoke owns publicly but
+  // that ARE first-party surfaces of this project — a hosting provider's PERMANENT project alias, for
+  // example, which is not one of the deployment-specific hostnames the provider reports to a build. Two
+  // consequences are semantic, and both are refused HERE, at build time, rather than becoming a
+  // request-time surprise:
+  //
+  //   · aliases with no nominated Spoke could never select anything — a silent no-op, so they are
+  //     refused instead of authored hopefully;
+  //   · each alias must be an EXACT hostname in the ONE normalized spelling. The rule comes from the pure
+  //     domain (`../core/spoke/hostname.mjs`), never a copy of it, and it is why a wildcard (`*.x`), a
+  //     URL, a path or a differently spelled hostname cannot be declared: recognition is exact, so a
+  //     second spelling would be a SECOND hostname that no request ever carries.
+  const inspectionHosts = [];
+  const authoredHosts = parsed.data.inspectionHosts;
+
+  if (authoredHosts.length > 0 && inspectionSpoke === null) {
+    throw invalid([
+      `inspectionHosts: ${authoredHosts.length} inspection alias hostname(s) are declared, but the ` +
+        "collection declares no \"inspectionSpoke\" — an alias selects the Spoke the policy nominates, " +
+        "so without one nothing could ever answer on it. State which Spoke represents this Installation " +
+        "there, or remove the aliases.",
+    ]);
+  }
+
+  for (const value of authoredHosts) {
+    const issue = inspectionAliasIssue(value);
+    if (issue !== null) {
+      issues.push(issue);
+      continue;
+    }
+    if (inspectionHosts.includes(value)) {
+      issues.push(`inspectionHosts: the hostname "${value}" is stated more than once`);
+      continue;
+    }
+    inspectionHosts.push(value);
+  }
+
+  if (issues.length > 0) throw invalid(issues);
+
   return {
     mode: "explicit",
     installationRoot: root,
     manifestFile,
     inspectionSpoke,
+    inspectionHosts,
     declarations: declared,
   };
+}
+
+/**
+ * The ONE rule set an authored inspection alias must satisfy, or `null` when it does.
+ *
+ * The hostname authority itself is NOT restated: `normalizeHostname` decides what a usable hostname is
+ * and what its one spelling is. What is added here is the DECLARATION rule — an alias names ONE exact
+ * host, so pattern syntax (`*`, `?`), URL syntax, a path or any other non-hostname spelling is refused
+ * loudly rather than accepted as a rule nobody meant to write.
+ *
+ * @param {string} value the authored alias
+ * @returns {string|null} the issue, or `null`
+ */
+function inspectionAliasIssue(value) {
+  if (value.trim() === "") {
+    return "inspectionHosts: a hostname must not be blank";
+  }
+  if (/[*?/#@\s]/.test(value) || value.includes("://")) {
+    return (
+      `inspectionHosts: "${value}" is not an exact hostname — a wildcard, a URL or a path can never name ` +
+      "one host, and recognition here is exact equality against the host of a request"
+    );
+  }
+  const normalized = normalizeHostname(value);
+  if (normalized === null) {
+    return `inspectionHosts: "${value}" is not a usable hostname`;
+  }
+  if (normalized !== value) {
+    return (
+      `inspectionHosts: "${value}" must be spelled the normalized way, "${normalized}" — recognition is ` +
+      "exact equality, so two spellings would be two different hostnames"
+    );
+  }
+  return null;
 }

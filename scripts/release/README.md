@@ -160,7 +160,7 @@ cannot be mistaken for a finished release):
     "tree": "<40-character tree SHA>"
   },
   "content": { "policy": "foundation-source-v1", "digest": "sha256:<digest>", "fileCount": 305 },
-  "requirements": { "node": "22.x", "pnpm": "11.6.0" },
+  "requirements": { "node": "24.x", "pnpm": "11.6.0" },
   "compatibility": { "pageDocumentSchema": 1, "deploymentLayouts": ["capsule", "repository", "override"] }
 }
 ```
@@ -196,7 +196,7 @@ of the content it describes without the digest depending on the file that carrie
 unambiguous: NUL cannot appear in a path, and a path containing a line break is refused outright rather
 than encoded.
 
-**No file-mode metadata.** Every tracked entry in this platform is mode `100644` (measured: 440/440 —
+**No file-mode metadata.** Every tracked entry in this platform is mode `100644` (the policy refuses any
 no symlinks, no executables), so mode carries no meaning here and is deliberately not invented into the
 digest. Construction refuses a revision that introduces a link, an executable or a submodule, naming the
 path, instead of silently releasing a file whose meaning depends on metadata nobody recorded.
@@ -205,11 +205,11 @@ path, instead of silently releasing a file whose meaning depends on metadata nob
 
 `build` reads `<commit>:<path>` **Git objects**, in one `git cat-file --batch` process for the whole
 payload. It never copies the working tree, which matters concretely rather than theoretically: on a
-Windows checkout with `core.autocrlf=true`, 321 of this repository's 440 tracked files exist on disk
-with CRLF where the committed blob has LF. A tree-copy builder would therefore produce a
-machine-dependent release. It also means a dirty, generated or ignored working tree cannot contaminate
-a release at all — an untracked file, a modified file and an ignored `public/assets/**` probe are proved
-harmless in `tests/unit/release-construction.test.ts`.
+Windows checkout whose Git configuration converts line endings, tracked files exist on disk with CRLF
+where the committed blob has LF, so a tree-copy builder would produce a machine-dependent release. It
+also means a dirty, generated or ignored working tree cannot contaminate a release at all — an untracked
+file, a modified file and an ignored `public/assets/**` probe are proved harmless in
+`tests/unit/release-construction.test.ts`.
 
 The remaining determinism comes from fixed ordering (byte-wise sorted paths), a manifest with no
 timestamp, and a digest over paths + exact bytes. Two constructions of the same commit into two empty
@@ -255,13 +255,17 @@ resolve to the recorded commit — the check the release process (R1C) makes bef
 
 ## Consuming a release
 
-- Install with `pnpm install --frozen-lockfile` (Node 22.x, pnpm 11.6.0). The `postinstall` asset step is
+- Install with `pnpm install --frozen-lockfile` (Node 24.x, pnpm 11.6.0). The `postinstall` asset step is
   tolerant when no deployment is installed, so a bare extraction installs cleanly.
 - The release contains **no deployment**. Point the platform at your own deployment root — a capsule at
   `deployment/` (the supported layout) or your repository root. With no deployment selected the build
   **fails loudly** rather than serving a different site; that contract is unchanged and deliberate.
 - Two architecture guards in the generic test tree use `git ls-files`, so a materialised release must be
-  a **Git work tree**: run `git init && git add -A` inside it. Never copy this repository's `.git`.
+  a **Git work tree**: run `git init && git add -A` inside it. Never copy this repository's `.git`. **No
+  commit is needed**: the suite's own self-proof re-constructs the release from that work tree's INDEX
+  and takes the source identity from the carried `foundation-release.json`
+  (`constructReleaseFromWorkTree`), so nothing depends on inherited history — and a release whose content
+  no longer matches its manifest is refused, with both digests named.
 - Generated state is output, not release content: `pnpm assets:sync` creates `public/assets/**` from the
   selected deployment's sources and `pnpm assets:check` proves it byte-identical.
 - A deployment's own acceptance suite runs from its own capsule; a release proves the **generic**

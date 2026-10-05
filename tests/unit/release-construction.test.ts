@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { constructRelease, verifyRelease } from "../../scripts/release/release-construction.mjs";
+import { constructRelease, constructReleaseFromWorkTree, verifyRelease } from "../../scripts/release/release-construction.mjs";
 import { RELEASE_MANIFEST_FILE, digestReleaseEntries } from "../../scripts/release/release-digest.mjs";
 import { parseReleaseManifest } from "../../scripts/release/release-manifest.mjs";
 
@@ -340,5 +340,182 @@ describe("the normalized content digest", () => {
     expect(() => digestReleaseEntries([{ path: RELEASE_MANIFEST_FILE, sha256: "00".repeat(32) }])).toThrow(
       /not part of the digested payload/,
     );
+  });
+});
+
+/**
+ * THE PAYLOAD BOUNDARY (M23 review correction)
+ * ===========================================
+ *
+ * ONE rule, and it is the reason the walker is strict: **Git-ignored does not mean release-integrity
+ * ignored.** A bare payload must contain EXACTLY its release content, so an injected `.env.production`,
+ * `private.pem`, `coverage/**`, `.vercel/**` or `build/**` — every one of which the repository's own
+ * `.gitignore` would hide from Git — must be REPORTED and must fail verification.
+ */
+const IGNORED_BY_GIT_BUT_NOT_BY_VERIFICATION = [
+  ".env.production",
+  "private.pem",
+  "coverage/unexpected.txt",
+  ".vercel/project.json",
+  "build/unexpected.txt",
+];
+
+/** A `.gitignore` that ignores EXACTLY the names above, so "Git would hide it" is literally true. */
+const IGNORING_POLICY = [
+  "# synthetic: names Git ignores and a release verifier must NOT",
+  "/node_modules",
+  "/coverage",
+  "/build",
+  ".vercel",
+  "*.pem",
+  ".env*",
+  "*.tsbuildinfo",
+  "next-env.d.ts",
+  "",
+].join("\n");
+
+describe("the bare-payload boundary", () => {
+  it("rejects an injected file whose name Git would ignore", () => {
+    const source = createSourceRepository({ ".gitignore": IGNORING_POLICY });
+    const payload = path.join(temporaryDirectory("foundation-review-bare-"), "payload");
+    constructRelease({
+      sourceRepository: source.root,
+      revision: source.commit,
+      release: IDENTITY,
+      destination: payload,
+    });
+
+    // The untouched payload is exact.
+    expect(verifyRelease({ payload }).ok).toBe(true);
+
+    for (const name of IGNORED_BY_GIT_BUT_NOT_BY_VERIFICATION) {
+      const absolute = path.join(payload, ...name.split("/"));
+      mkdirSync(path.dirname(absolute), { recursive: true });
+      writeFileSync(absolute, "injected\n", "utf8");
+
+      // …and the synthetic source repository REALLY ignores it, so the proof cannot pass merely because
+      // the name is unusual.
+      expect(git(source.root, ["check-ignore", "--", name]), name).not.toBe("");
+
+      const verification = verifyRelease({ payload });
+      expect(verification.ok, name).toBe(false);
+      expect(verification.problems.join("\n"), name).toContain(name);
+
+      rmSync(absolute, { force: true });
+    }
+
+    // Removing every injected file restores the exact answer: the failures were about the extras.
+    expect(verifyRelease({ payload }).ok).toBe(true);
+  });
+
+  it("still refuses a payload that holds state the release policy excludes", () => {
+    const source = createSourceRepository({ ".gitignore": IGNORING_POLICY });
+    const payload = path.join(temporaryDirectory("foundation-review-excluded-"), "payload");
+    constructRelease({
+      sourceRepository: source.root,
+      revision: source.commit,
+      release: IDENTITY,
+      destination: payload,
+    });
+
+    // `deployment/**` is excluded release content, not merely an unexpected file.
+    const excluded = path.join(payload, "deployment", "spokes.json");
+    mkdirSync(path.dirname(excluded), { recursive: true });
+    writeFileSync(excluded, "{}\n", "utf8");
+
+    const verification = verifyRelease({ payload });
+    expect(verification.ok).toBe(false);
+    expect(verification.problems.join("\n")).toContain("deployment/spokes.json");
+  });
+});
+
+
+/**
+ * THE COMMITLESS WORK-TREE SELF-PROOF (M23 review correction)
+ * ==========================================================
+ *
+ * The second subject: a consumer materialises the release with `git init && git add -A` and therefore has
+ * NO commit. Its content authority is the Git INDEX — which `constructReleaseFromWorkTree` reads — so the
+ * self-proof succeeds without depending on `HEAD`, and refuses content that no longer matches the record
+ * the release carries.
+ */
+describe("the commitless work-tree self-proof", () => {
+  /** Materialise a payload into a disposable directory and index it, exactly as the recipe does. */
+  function materialiseWorkTree(payload: string): string {
+    const workTree = temporaryDirectory("foundation-review-worktree-");
+    for (const [file, bytes] of readTree(payload)) {
+      const absolute = path.join(workTree, ...file.split("/"));
+      mkdirSync(path.dirname(absolute), { recursive: true });
+      writeFileSync(absolute, bytes);
+    }
+    git(workTree, ["init", "-q"]);
+    git(workTree, ["add", "-A"]);
+    return workTree;
+  }
+
+  it("re-constructs a release from the INDEX of a work tree that has no commit", () => {
+    const source = createSourceRepository();
+    const firstPayload = path.join(temporaryDirectory("foundation-review-a-"), "payload");
+    const released = constructRelease({
+      sourceRepository: source.root,
+      revision: source.commit,
+      release: IDENTITY,
+      destination: firstPayload,
+    });
+
+    const workTree = materialiseWorkTree(firstPayload);
+
+    // THERE IS NO COMMIT, and the proof must not need one.
+    expect(() => git(workTree, ["rev-parse", "HEAD"])).toThrow();
+
+    const secondPayload = path.join(temporaryDirectory("foundation-review-b-"), "payload");
+    const reconstructed = constructReleaseFromWorkTree({
+      sourceRepository: workTree,
+      release: IDENTITY,
+      destination: secondPayload,
+    });
+
+    expect(reconstructed.digest).toBe(released.digest);
+    expect(reconstructed.fileCount).toBe(released.fileCount);
+    expect(reconstructed.commit).toBe(source.commit);
+    expect(reconstructed.tree).toBe(source.tree);
+
+    // Byte for byte, not merely by digest.
+    expect(readTree(secondPayload)).toEqual(readTree(firstPayload));
+  });
+
+  it("refuses a work tree whose content no longer matches the manifest it carries", () => {
+    const source = createSourceRepository();
+    const payload = path.join(temporaryDirectory("foundation-review-c-"), "payload");
+    constructRelease({
+      sourceRepository: source.root,
+      revision: source.commit,
+      release: IDENTITY,
+      destination: payload,
+    });
+
+    // (a) A path nobody planned is refused as soon as it is TRACKED: the policy does not classify it.
+    const withExtra = materialiseWorkTree(payload);
+    writeFileSync(path.join(withExtra, "smuggled.txt"), "not in the release\n", "utf8");
+    git(withExtra, ["add", "-A"]);
+    expect(() =>
+      constructReleaseFromWorkTree({
+        sourceRepository: withExtra,
+        release: IDENTITY,
+        destination: path.join(temporaryDirectory("foundation-review-e-"), "payload"),
+      }),
+    ).toThrow(/smuggled\.txt/);
+
+    // (b) A path that IS release content, with different bytes, is refused by the self-proof itself.
+    const withEdited = materialiseWorkTree(payload);
+    writeFileSync(path.join(withEdited, "ARCHITECTURE.md"), "# Edited after release\n", "utf8");
+    git(withEdited, ["add", "-A"]);
+    expect(() =>
+      constructReleaseFromWorkTree({
+        sourceRepository: withEdited,
+        release: IDENTITY,
+        destination: path.join(temporaryDirectory("foundation-review-f-"), "payload"),
+      }),
+    ).toThrow(/is NOT the release/);
   });
 });

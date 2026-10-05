@@ -8,7 +8,7 @@ a file is a page only when it sits in a complete Site / locale / page coordinate
 ```text
 Foundation Installation
   → this Spoke (foundation)          its own site.config.json, dictionaries and content
-    → Site  ww  (Global)             the website a visitor is reading
+    → Site  ww  (Global)             the country/global context inside that website
       → Page Hub  about              ONE page concept, addressed by ONE route
         → localized representation   one file per language (en, de, …)
 ```

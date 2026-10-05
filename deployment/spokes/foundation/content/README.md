@@ -12,9 +12,9 @@ content/
 ├── README.md            ← this file: the map
 ├── pages/               ← every page of your website
 │   ├── markdown/        ←   the simple way: text files
-│   │   └── <language>/<page>.md
+│   │   └── <site>/<language>/<page>.md
 │   └── json/            ←   the advanced way: structured data
-│       └── <language>/<page>.json
+│       └── <site>/<language>/<page>.json
 └── assets/              ← your logo, favicon, images and icons
 ```
 
@@ -25,8 +25,9 @@ are no other places to author website content, and nothing else to learn.
 
 | I want to… | Go to | Read |
 | --- | --- | --- |
-| Add or edit a **page** in plain Markdown (the usual choice) | `pages/markdown/<language>/<page>.md` | [`pages/markdown/README.md`](pages/markdown/README.md) |
-| Build an **advanced page** from structured data | `pages/json/<language>/<page>.json` | [`pages/json/README.md`](pages/json/README.md) |
+| Add or edit a **page** in plain Markdown (the usual choice) | `pages/markdown/<site>/<language>/<page>.md` | [`pages/markdown/README.md`](pages/markdown/README.md) |
+| Build an **advanced page** from structured data | `pages/json/<site>/<language>/<page>.json` | [`pages/json/README.md`](pages/json/README.md) |
+| Add a **logo, favicon, icon or image** | `assets/` | [`assets/README.md`](assets/README.md) |
 
 Both modes give a page exactly **one** top-level heading — its **page title**. A heading you
 write inside a page sits below that title automatically (`# Services` becomes the first level
@@ -34,7 +35,6 @@ under it, `## …` the second), so you write headings naturally and never set a 
 
 > **Where do I edit my website?** — the page files above, and your pictures in
 > [`assets/`](assets/README.md). Everything else is configuration, not content.
-| Add a **logo, favicon, icon or image** | `assets/` | [`assets/README.md`](assets/README.md) |
 
 ## Pages: two ways to author, one obvious choice
 
@@ -53,37 +53,41 @@ you never have to "register" a page anywhere.
 
 Any page **inside** your site gets its address from where you put the file:
 
+**How an address is built: mode → site → language → page.** **Choose your site, choose its
+language, then create the page.** The folders are the address — nothing else needs
+configuring.
+
 ```text
-## How an address is built: mode → site → language → page
-
-**Choose your site, choose its language, then create the page.** The folders are the
-address — nothing else needs configuring.
-
-```
-content/pages/markdown/ca/en/about.md   →   /ca/en/about
-content/pages/markdown/ca/fr/about.md   →   /ca/fr/about
-content/pages/markdown/fr/fr/about.md   →   /fr/fr/about
+content/pages/markdown/ww/en/about.md    →   /ww/en/about
+content/pages/markdown/ww/de/about.md    →   /ww/de/about
 ```
 
 - **mode** — which authoring mode the page is written in: `markdown/` (simple, safe) or
   `json/` (advanced). You choose one per page.
-- **site** — which website the page belongs to: a recognized two-letter country code
-  (`ca`, `fr`, `ch`…) or `ww` for a worldwide/global site. See
+- **site** — which Site the page belongs to: the country/global context inside this Spoke,
+  written as a recognized two-letter country code (`ca`, `fr`, `ch`…) or `ww` for the
+  worldwide/global Site. See
   [`COUNTRY-CODES.md`](COUNTRY-CODES.md) for the complete list.
 - **language** — the language, written as a lowercase path key (`en`, `fr`, `fr-ca`).
 - **page** — the page's own path: one name (`about`) or a folder plus a name
   (`services/web-design`).
 
-A language you did not name is simply not offered on that site, and pages of one site are
-never served by another — each site is an independent website inside this one repository.
+A language you did not name is simply not offered in that Site, and pages belonging to one Site are
+never served as pages of another. Both Sites would still belong to the **same Spoke** — the Spoke is
+the complete website (its own `site.config.json`, dictionaries, pages and artwork), and a Site is the
+country or global context inside it.
 
-Sites can also use an **explicit** language when the exact dialect matters:
+A Site can also use an **explicit** language when the exact dialect matters:
 
+```text
+content/pages/markdown/ww/en-gb/about.md   →   /ww/en-gb/about
 ```
-content/pages/markdown/ca/fr-fr/about.md   →   /ca/fr-fr/about
-```
 
+### A section is a folder
 
+Its own page and the pages inside it live side by side, and both are addresses:
+
+```text
 content/pages/markdown/ww/en/services.md                 →  /ww/en/services
 content/pages/markdown/ww/en/services/web-design.md      →  /ww/en/services/web-design
 content/pages/markdown/ww/en/blog/choosing-a-domain.md   →  /ww/en/blog/choosing-a-domain
@@ -123,14 +127,14 @@ language is the default, and what appears in the navigation — in
 
 ## Sites and locations
 
-A **site** is an independent website: its own pages, its own languages, its own locations. The
-folder directly under `pages/<mode>/` is the site code, so `ww` (Global) and `de` (Germany) are
-two separate page trees in this repository — nothing is shared between them, and neither one
-answers for the other.
+A **Site** is the country or global context inside a Spoke: its own pages, its own languages, its
+own locations. The folder directly under `pages/<mode>/` is the Site code, so this Spoke's Site is
+`ww` (Global). A Site is not an independent website of its own — it belongs to the Spoke that owns
+it, and pages of one Site are never served as pages of another.
 
-A **location** is a physical or service place *inside* one site. It shares that site's page tree:
+A **location** is a physical or service place *inside* one Site. It shares that Site's page tree:
 its landing page is authored exactly like any other page, with the location's name as the file
-name and folder:
+name and folder. The Germany Spoke's Site ships two locations as the reference example:
 
 ```text
 content/pages/markdown/de/de/berlin.md          →  /de/de/berlin

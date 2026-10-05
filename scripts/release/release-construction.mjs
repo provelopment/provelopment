@@ -8,20 +8,28 @@
  * same bytes, because nothing about the caller or the machine can reach the output:
  *
  *   · THE BYTES COME FROM GIT OBJECTS AT THE COMMIT, never from a working tree. This is not
- *     theoretical: on a Windows checkout with `core.autocrlf=true`, 321 of this repository's 440
- *     tracked files exist on disk with CRLF where the committed blob has LF, so a tree-copy builder
- *     would produce a machine-dependent release. Reading `<commit>:<path>` blobs makes the content
- *     set identical on every machine, and it means a dirty, generated or ignored working tree cannot
- *     contaminate a release at all.
+ *     theoretical: on a Windows checkout with `core.autocrlf=true`, tracked text files exist on disk
+ *     with CRLF where the committed blob has LF, so a tree-copy builder would produce a
+ *     machine-dependent release. Reading `<commit>:<path>` blobs makes the content set identical on
+ *     every machine, and it means a dirty, generated or ignored working tree cannot contaminate a
+ *     release at all.
  *   · THE FILE SET COMES FROM THE POLICY (`release-content-policy.mjs`), which fails closed on any
  *     tracked path nobody has classified.
  *   · THE ORDER IS FIXED (byte-wise sorted paths) and the manifest carries no timestamp, so two
  *     constructions of the same commit produce identical files and an identical manifest.
  *
  * FILE MODES ARE REFUSED, NOT IGNORED: this platform has no symlinks and no executable tracked files
- * (measured: 440/440 entries are mode 100644), and the digest deliberately carries no mode metadata.
- * A source revision that introduces a link or an executable therefore fails construction with the
- * path named, instead of silently releasing a file whose meaning depends on metadata nobody recorded.
+ * (the release policy refuses any other mode, naming each path), and the digest deliberately carries no
+ * mode metadata. A source revision that introduces a link or an executable therefore fails construction
+ * with the path named, instead of silently releasing a file whose meaning depends on metadata nobody
+ * recorded.
+ *
+ * A MATERIALISED RELEASE HAS NO COMMIT, AND ITS OWN SELF-PROOF MUST NOT NEED ONE: `constructRelease`
+ * reads a COMMIT, which a release work tree created with `git init && git add -A` does not have. The
+ * same content set is therefore also constructible from that work tree's INDEX
+ * (`constructReleaseFromWorkTree`), with the source identity read from the release's OWN manifest — the
+ * content's own record of the commit and tree it was built from. Nothing is invented: with no manifest
+ * there is no authority that could name a source revision, and the call is refused.
  *
  * THE MANIFEST IS WRITTEN LAST, so a construction that fails part-way leaves a directory with no
  * manifest — visibly incomplete, never mistakable for a finished release.
@@ -31,6 +39,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import path from "node:path";
 
 import {
+  RELEASE_CONTENT_POLICY_ID,
   RELEASE_INCLUSION,
   assertReleaseInventoryClassified,
   assertRequiredPlatformPaths,
@@ -142,6 +151,31 @@ export function listTrackedEntries(sourceRepository, commit) {
 }
 
 /**
+ * Every tracked entry in a WORK TREE'S INDEX, with its mode — the inventory of a work tree that has NO
+ * commit. A materialised release was created with `git init && git add -A`, so its index carries exactly
+ * the content Git recorded, and `git ls-files -s` reports each entry's mode and blob object.
+ *
+ * @param {string} sourceRepository the repository to read
+ * @returns {{ path: string, mode: string, object: string }[]} the index entries, sorted by path
+ */
+export function listIndexEntries(sourceRepository) {
+  const root = assertGitRepository(sourceRepository);
+  const raw = /** @type {Buffer} */ (git(root, ["ls-files", "-s", "-z"], { binary: true }));
+  /** @type {{ path: string, mode: string, object: string }[]} */ const entries = [];
+
+  for (const record of raw.toString("utf8").split("\0")) {
+    if (record === "") continue;
+    const match = /^(\d{6}) ([0-9a-f]+) \d+\t([\s\S]+)$/.exec(record);
+    if (match === null) {
+      throw new Error(`FOUNDATION-R1B: could not read the index entry ${JSON.stringify(record)}.`);
+    }
+    entries.push({ path: match[3], mode: match[1], object: match[2] });
+  }
+
+  return entries.sort((left, right) => (left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
+}
+
+/**
  * Fail unless every tracked entry has the one mode this platform's content uses.
  *
  * @param {{ path: string, mode: string }[]} entries the tracked entries
@@ -201,37 +235,59 @@ export function readSourceBlob(sourceRepository, commit, file) {
  * @returns {Map<string, Buffer>} the committed bytes, by path
  */
 export function readSourceBlobs(sourceRepository, commit, files) {
-  /** @type {Map<string, Buffer>} */ const blobs = new Map();
-  if (files.length === 0) return blobs;
-
   const root = assertGitRepository(sourceRepository);
+  return readBatchObjects(
+    root,
+    files.map((file) => ({ key: file, spec: `${commit}:${file}` })),
+    `at ${commit}`,
+  );
+}
+
+/**
+ * The exact bytes of MANY Git objects, in ONE `git cat-file --batch` process, keyed by the caller's own
+ * labels.
+ *
+ * ONE parser for both ways a content set is read — a commit's paths (`<commit>:<path>`) and a work tree's
+ * index objects (a blob id) — because Git answers both in the same `<oid> blob <size>` framing. A spec
+ * Git cannot resolve makes it answer `missing` instead of a blob, which is a loud failure here: the plan
+ * says the object exists, so a missing object means the plan and the repository disagree.
+ *
+ * @param {string} root the repository to read
+ * @param {{ key: string, spec: string }[]} requests what to read, and what to call it
+ * @param {string} where a description of the source, for failure messages
+ * @returns {Map<string, Buffer>} the bytes, by key
+ */
+function readBatchObjects(root, requests, where) {
+  /** @type {Map<string, Buffer>} */ const objects = new Map();
+  if (requests.length === 0) return objects;
+
   const output = /** @type {Buffer} */ (
     execFileSync("git", ["cat-file", "--batch"], {
       cwd: root,
-      input: `${files.map((file) => `${commit}:${file}`).join("\n")}\n`,
+      input: `${requests.map((request) => request.spec).join("\n")}\n`,
       maxBuffer: 512 * 1024 * 1024,
       stdio: ["pipe", "pipe", "pipe"],
     })
   );
 
   let offset = 0;
-  for (const file of files) {
+  for (const request of requests) {
     const newline = output.indexOf(0x0a, offset);
     const header = newline === -1 ? output.subarray(offset).toString("utf8") : output.subarray(offset, newline).toString("utf8");
     const match = /^([0-9a-f]{40}) (\w+) (\d+)$/.exec(header);
     if (match === null) {
       throw new Error(
-        `FOUNDATION-R1B: Git did not return ${file} as a blob at ${commit} ("${header.trim()}"). The ` +
-          "release plan and the source tree disagree, so nothing can be released from this revision.",
+        `FOUNDATION-R1B: Git did not return ${request.spec} as a blob ${where} ("${header.trim()}"). The ` +
+          "release plan and the source disagree, so nothing can be released from it.",
       );
     }
     const size = Number(match[3]);
     const start = newline + 1;
-    blobs.set(file, Buffer.from(output.subarray(start, start + size)));
+    objects.set(request.key, Buffer.from(output.subarray(start, start + size)));
     offset = start + size + 1; // the object's own trailing newline
   }
 
-  return blobs;
+  return objects;
 }
 
 /**
@@ -359,6 +415,140 @@ export function constructRelease(input) {
     manifestPath,
     platform: [...plan.platform].sort(compareReleasePaths),
     excluded: [...plan.excluded].sort(compareReleasePaths),
+  };
+}
+
+/**
+ * Construct a release FROM A WORK TREE THAT HAS NO COMMIT — a materialised release proving itself.
+ *
+ * A consumer materialises a release with `git init && git add -A` (the documented recipe, which needs no
+ * history), so the content set exists in Git's INDEX while no commit names it. Cutting a release from
+ * that state needs exactly two authorities, and both already exist:
+ *
+ *   · the CONTENT comes from the index (`listIndexEntries` + `readBatchObjects`), which is the same Git
+ *     authority `constructRelease` uses — `git add` applied the repository's own filters once, so the
+ *     bytes are the bytes a commit would carry;
+ *   · the SOURCE IDENTITY comes from the release's OWN manifest, because that is this content's record
+ *     of the commit and tree it was constructed from. It is the same record `release:verify --expect-tag`
+ *     reads, so nothing new is invented.
+ *
+ * The construction is also a SELF-PROOF: the digest and file count it computes must equal the ones the
+ * carried manifest states, so a work tree whose content has been edited, truncated or added to is refused
+ * with both digests named, instead of producing a release that quietly differs from the one it claims to
+ * be.
+ *
+ * @param {{ sourceRepository: string, release: string, destination: string }} input
+ * @returns {{ destination: string, release: string, commit: string, tree: string, digest: string,
+ *           fileCount: number, manifest: Record<string, unknown>, manifestPath: string,
+ *           platform: string[], excluded: string[] }}
+ */
+export function constructReleaseFromWorkTree(input) {
+  const release = assertReleaseIdentity(input.release);
+  const root = assertGitRepository(input.sourceRepository);
+
+  const carriedFile = path.join(root, RELEASE_MANIFEST_FILE);
+  if (!existsSync(carriedFile)) {
+    throw new Error(
+      `FOUNDATION-R1B: ${root} carries no "${RELEASE_MANIFEST_FILE}", so it is not a materialised release ` +
+        "and nothing there could legitimately name the source commit its content came from. Construct " +
+        "from a commit instead (`constructRelease`).",
+    );
+  }
+
+  const carried = parseReleaseManifest(readFileSync(carriedFile, "utf8"));
+  if (carried.content.policy !== RELEASE_CONTENT_POLICY_ID) {
+    throw new Error(
+      `FOUNDATION-R1B: ${carriedFile} was constructed under the content policy ` +
+        `"${carried.content.policy}", and this tooling implements "${RELEASE_CONTENT_POLICY_ID}". A ` +
+        "release is re-constructed by the policy that made it, so this refuses rather than classifying " +
+        "the content differently.",
+    );
+  }
+  const commit = String(carried.source.commit);
+  const tree = String(carried.source.tree);
+
+  const entries = listIndexEntries(root);
+  assertReleaseSourceModes(entries);
+  const inventory = assertReleaseInventoryClassified(entries.map((entry) => entry.path));
+  assertRequiredPlatformPaths(inventory.platform);
+  // THE-WORK-TREE-CONSTRUCTION-CONTINUES-HERE
+  const destination = path.resolve(input.destination);
+  if (existsSync(destination) && readdirSync(destination).length > 0) {
+    throw new Error(
+      `FOUNDATION-R1B: the destination ${destination} is not empty. A release is constructed into a ` +
+        "fresh directory, so nothing from a previous construction, an unrelated checkout or a partial run " +
+        "can mix into the content set being released.",
+    );
+  }
+  mkdirSync(destination, { recursive: true });
+
+  const ordered = [...inventory.platform].sort(compareReleasePaths);
+  const objectByPath = new Map(entries.map((entry) => [entry.path, entry.object]));
+  const blobs = readBatchObjects(
+    root,
+    ordered.map((file) => {
+      const object = objectByPath.get(file);
+      if (object === undefined) {
+        throw new Error(
+          `FOUNDATION-R1B: ${file} is in the release plan but not in ${root}'s index. The work tree and ` +
+            "the release plan disagree, so nothing can be released from it.",
+        );
+      }
+      return { key: file, spec: object };
+    }),
+    `from the index at ${root}`,
+  );
+  /** The bytes of one planned file, or a loud failure — never an empty placeholder. */
+  const bytesOf = (/** @type {string} */ file) => {
+    const bytes = blobs.get(file);
+    if (bytes === undefined) {
+      throw new Error(`FOUNDATION-R1B: ${file} is in the release plan but no bytes were read for it.`);
+    }
+    return bytes;
+  };
+
+  /** @type {{ path: string, sha256: string }[]} */ const written = [];
+  for (const file of ordered) {
+    const bytes = bytesOf(file);
+    const absolute = path.join(destination, ...file.split("/"));
+    mkdirSync(path.dirname(absolute), { recursive: true });
+    writeFileSync(absolute, bytes);
+    written.push({ path: file, sha256: sha256Hex(bytes) });
+  }
+
+  assertReleasePayloadImportsResolve({
+    platformPaths: ordered,
+    excludedPaths: inventory.excluded,
+    readText: (file) => bytesOf(file).toString("utf8"),
+  });
+
+  const { digest, fileCount } = digestReleaseEntries(written);
+  // THE SELF-PROOF: this content set must still be the release its own manifest describes.
+  if (digest !== carried.content.digest || fileCount !== carried.content.fileCount) {
+    throw new Error(
+      `FOUNDATION-R1B: this work tree's content is NOT the release "${carriedFile}" describes. The ` +
+        `manifest states ${carried.content.fileCount} file(s) with digest ${carried.content.digest}; the ` +
+        `content here is ${fileCount} file(s) with digest ${digest}. A materialised release is expected ` +
+        "to be the content it came with, byte for byte.",
+    );
+  }
+
+  const authorities = readReleaseAuthorities(bytesOf);
+  const manifest = buildReleaseManifest({ release, commit, tree, digest, fileCount, authorities });
+  const manifestPath = path.join(destination, RELEASE_MANIFEST_FILE);
+  writeFileSync(manifestPath, serialiseReleaseManifest(manifest));
+
+  return {
+    destination,
+    release,
+    commit,
+    tree,
+    digest,
+    fileCount,
+    manifest,
+    manifestPath,
+    platform: [...ordered],
+    excluded: [...inventory.excluded].sort(compareReleasePaths),
   };
 }
 

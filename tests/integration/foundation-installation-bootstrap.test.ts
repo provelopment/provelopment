@@ -42,7 +42,7 @@ import {
 } from "@/core/foundation-installation/establishment";
 import { RELEASE_MANIFEST_FILE_NAME } from "@/core/foundation-release/manifest.mjs";
 
-import { constructRelease } from "../../scripts/release/release-construction.mjs";
+import { constructRelease, constructReleaseFromWorkTree } from "../../scripts/release/release-construction.mjs";
 import {
   INSTALLATION_CAPSULE_RELATIVE_PATH,
   constructSyntheticRelease,
@@ -435,14 +435,30 @@ describe("establishing an installation in a disposable target root", () => {
 
   it("is SELF-CONTAINED: an installation of the REAL platform runs its own tooling and names no source", async () => {
     const repositoryRoot = process.cwd();
-    const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
     const payloadDirectory = path.join(disposableTree("foundation-b4b-real-release-"), "payload");
-    constructRelease({
-      sourceRepository: repositoryRoot,
-      revision: commit,
-      release: SYNTHETIC_RELEASE_IDENTITY,
-      destination: payloadDirectory,
-    });
+
+    // TWO CONTEXTS, ONE SUBJECT (M22 §6.5). This work tree is either a SOURCE checkout — where the
+    // accepted revision is HEAD and a release is cut from it — or a MATERIALISED RELEASE, created with
+    // `git init && git add -A` (the documented consumer recipe), which has an index but NO commit. The
+    // release proves itself there without inventing history: its own manifest names the source commit and
+    // tree its content came from, so the release is re-constructed FROM ITS INDEX and its content must
+    // still match the digest the manifest states. A release that carries no manifest is refused loudly by
+    // that call rather than silently falling back to a commit that does not exist.
+    if (existsSync(path.join(repositoryRoot, RELEASE_MANIFEST_FILE_NAME))) {
+      constructReleaseFromWorkTree({
+        sourceRepository: repositoryRoot,
+        release: SYNTHETIC_RELEASE_IDENTITY,
+        destination: payloadDirectory,
+      });
+    } else {
+      const commit = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repositoryRoot, encoding: "utf8" }).trim();
+      constructRelease({
+        sourceRepository: repositoryRoot,
+        revision: commit,
+        release: SYNTHETIC_RELEASE_IDENTITY,
+        destination: payloadDirectory,
+      });
+    }
     const seed = syntheticSeed();
     const workspace = disposableTree("foundation-b4b-real-");
     const targetRoot = path.join(workspace, "target");
