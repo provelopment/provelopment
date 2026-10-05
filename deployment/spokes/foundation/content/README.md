@@ -72,16 +72,22 @@ content/pages/markdown/fr/fr/about.md   →   /fr/fr/about
 - **page** — the page's own path: one name (`about`) or a folder plus a name
   (`services/web-design`).
 
-A language you did not name is simply not offered on that site, and pages of one site are
-never served by another — each site is an independent website inside this one repository.
+A language you did not name is simply not offered in that Site, and pages belonging to one Site are
+never served as pages of another. Both Sites would still belong to the **same Spoke** — the Spoke is
+the complete website (its own `site.config.json`, dictionaries, pages and artwork), and a Site is the
+country or global context inside it.
 
-Sites can also use an **explicit** language when the exact dialect matters:
+A Site can also use an **explicit** language when the exact dialect matters:
 
+```text
+content/pages/markdown/ww/en-gb/about.md   →   /ww/en-gb/about
 ```
-content/pages/markdown/ca/fr-fr/about.md   →   /ca/fr-fr/about
-```
 
+### A section is a folder
 
+Its own page and the pages inside it live side by side, and both are addresses:
+
+```text
 content/pages/markdown/ww/en/services.md                 →  /ww/en/services
 content/pages/markdown/ww/en/services/web-design.md      →  /ww/en/services/web-design
 content/pages/markdown/ww/en/blog/choosing-a-domain.md   →  /ww/en/blog/choosing-a-domain
@@ -121,14 +127,14 @@ language is the default, and what appears in the navigation — in
 
 ## Sites and locations
 
-A **site** is an independent website: its own pages, its own languages, its own locations. The
-folder directly under `pages/<mode>/` is the site code, so `ww` (Global) and `de` (Germany) are
-two separate page trees in this repository — nothing is shared between them, and neither one
-answers for the other.
+A **Site** is the country or global context inside a Spoke: its own pages, its own languages, its
+own locations. The folder directly under `pages/<mode>/` is the Site code, so this Spoke's Site is
+`ww` (Global). A Site is not an independent website of its own — it belongs to the Spoke that owns
+it, and pages of one Site are never served as pages of another.
 
-A **location** is a physical or service place *inside* one site. It shares that site's page tree:
+A **location** is a physical or service place *inside* one Site. It shares that Site's page tree:
 its landing page is authored exactly like any other page, with the location's name as the file
-name and folder:
+name and folder. The Germany Spoke's Site ships two locations as the reference example:
 
 ```text
 content/pages/markdown/de/de/berlin.md          →  /de/de/berlin

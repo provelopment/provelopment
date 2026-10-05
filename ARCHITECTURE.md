@@ -1947,9 +1947,9 @@ Host  →  src/proxy.ts  →  exact hostname claim  →  PRIVATE upstream header
   path (a bare Site, an unknown second segment, no Site at all) is completed with a **public** redirect inside
   the selected Spoke only.
 
-**Recorded for Milestone 18 (nothing created).** The owner-provisioned hostname for the future Germany Spoke is
-`foundation-template-germany.provelopment.com`. No Germany Spoke exists, no Germany content moved, the hostname
-is not activated, and the current production topology is unchanged.
+`inspectionSpoke: foundation` is an explicit **inspection-host policy** — it names the Spoke that
+answers the owner's inspection hostname — and it is **not** a default Spoke: it is no fallback for
+other hosts, and a request on a host no Spoke answers is still refused.
 
 
 ## Establishment: making ONE complete installation (FOUNDATION-B4B)
@@ -2007,7 +2007,7 @@ installation root.
 
 | Spoke | Public origin (its own `site.url`) | Site | Owns |
 | --- | --- | --- | --- |
-| `foundation` (default) | https://foundation-template.provelopment.com | `ww` (Global) | the Global page tree, in English and German |
+| `foundation` | https://foundation-template.provelopment.com | `ww` (Global) | the Global page tree, in English and German |
 | `germany` | https://foundation-template-germany.provelopment.com | `de` (Germany) | the Germany page tree and the Locations Berlin and Frankfurt |
 
 The request boundary is hostname-dispatched: the public `Host` header is the ONLY input, it selects at

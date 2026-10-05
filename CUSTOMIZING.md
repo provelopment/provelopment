@@ -15,8 +15,23 @@ There are **two distinct artifacts**, and they are not the same repository:
 
 | Artifact | Repository | Role |
 | --- | --- | --- |
-| **Foundation template** | [`provelopment/provelopment-foundation`](https://github.com/provelopment/provelopment-foundation) | **This repository** — the reusable generic product: minimal starter, one default locale, neutral placeholder identity, **no deployment of its own**. This is what you clone. |
+| **Foundation source repository** | [`provelopment/provelopment-foundation`](https://github.com/provelopment/provelopment-foundation) | **This repository** — the source of the reusable platform, and also the home of a **concrete reference Installation** (`deployment/spokes.json` with the `foundation` and `germany` Spokes) used for demonstration, acceptance and authoring examples. This is what you clone. |
 | **The live Foundation site** | `provelopment/provelopment-web` (private) | The Provelopment Foundation's own website, deployed at `foundation.provelopment.com`. It is one **site profile** in a private multi-site application that derives from this template. Its source is not part of the public template distribution. |
+
+Three artifacts must not be confused:
+
+```text
+SOURCE REPOSITORY (this one)   the platform source together with the concrete
+                              reference deployment used for demonstration,
+                              acceptance and authoring examples
+IMMUTABLE FOUNDATION RELEASE  platform-only; built from this source and EXCLUDES
+                              deployment/**
+INDEPENDENT INSTALLATION      that platform release combined with its own authored
+                              capsule/seed
+```
+
+The reference deployment is therefore a property of **this repository**, never of the
+immutable Foundation release: a release carries no `deployment/**` at all.
 
 The dependency direction is **template → adopting site**: a site adopts the template, it
 does not define it. The live Foundation site is a useful real-world example to compare

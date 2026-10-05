@@ -5,10 +5,17 @@ An **open-source**, re-brandable web platform template for small businesses: a
 complete, accessible, multilingual website. Starts frontend-only, architected to
 grow into full-stack without a rewrite.
 
-This repository is the **reusable product**. It ships **no brand of its own** — a
-starter page, neutral placeholder graphics, one default language and a complete,
-reusable architecture. You make it yours by editing **configuration, content and
-assets only**; platform code does not need to change.
+This repository is the **source repository of the reusable platform**. It ships the
+platform and, alongside it, a **concrete reference Installation** used for
+demonstration, acceptance and authoring examples: it declares more than one Spoke,
+each a complete website with its own `site.config.json`, languages, pages and
+artwork, and neutral placeholder identity throughout. You make your own website by
+editing **configuration, content and assets only**; platform code does not need to
+change.
+
+The **immutable Foundation release** is platform-only: it is built from this source
+and excludes the reference Installation (`deployment/**`). An independent
+Installation combines that platform release with its own authored capsule.
 
 ## Why it exists
 
@@ -19,22 +26,22 @@ so a new site starts from a working baseline instead of an empty folder.
 
 ## Quick start
 
-Tested from a fresh clone (Node.js 22+, pnpm):
+Tested from a fresh clone (Node.js 24.x, pnpm 11.6.0):
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) — you are redirected to the
-default locale. The starter renders immediately: no content or artwork has to be
-deleted first.
+Open [http://localhost:3000](http://localhost:3000) — you are redirected into a
+configured Site and language of the Spoke your host resolves to. The reference
+Installation renders immediately: no content or artwork has to be deleted first.
 
 Before production, **replace the placeholder values**: `site.url`, `site.name`,
 `site.tagline` and `site.description` in the deployment's `site.config.json` (in this
 repository that file belongs to the Foundation Spoke, at
 `deployment/spokes/foundation/site.config.json`), the
-starter copy in its `config/i18n/en.json`, and the graphics in its
+interface copy in its `config/i18n/en.json`, and the graphics in its
 `content/assets/placeholders/`.
 
 ### Establishing a Foundation installation of your own
@@ -119,15 +126,17 @@ tests           # Architecture-boundary, unit, integration and CDP browser-matri
 **Two authoring forms are supported, and this repository ships one of them.** An Installation may author a
 single implicit Spoke at its own root (a `site.config.json` beside its `content/`), or — as here — declare
 one or more Spokes in `deployment/spokes.json`, each a complete website of its own beneath
-`deployment/spokes/`. The capsule above is that second, explicit form: it owns **two** Spokes, so its
-`content/` is per-Spoke rather than one website's. A one-Spoke Installation is equally valid and the
-platform serves it the same way.
+`deployment/spokes/`. The capsule above is that second, explicit form: it owns more
+than one Spoke, so its `content/` is per-Spoke rather than one website's. A
+one-Spoke Installation is equally valid and the platform serves it the same way.
 
 ## Where your content lives
 
-**One folder holds everything you write or upload:** the deployment's
-[`content/`](deployment/spokes/foundation/content/README.md) — in this repository that folder is
-`deployment/spokes/foundation/content/`. Pages and the artwork they use — all of it.
+**Within each Spoke, one `content/` folder owns that Spoke's authored pages and
+assets.** In this repository the Foundation Spoke's authored content root is
+[`deployment/spokes/foundation/content/`](deployment/spokes/foundation/content/README.md) — pages
+and the artwork they use, all of it. The Germany Spoke has its own separate authored root,
+`deployment/spokes/germany/content/`. There is no Installation-wide shared `content/`.
 
 ```text
 content/                 (this repository: deployment/spokes/foundation/content/)
