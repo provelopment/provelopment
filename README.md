@@ -102,7 +102,7 @@ src/adapters    # Concrete integrations (filesystem content, analytics, booking,
 src/config      # Site configuration schema and loaders
 deployment      # THE DEPLOYMENT CAPSULE — everything one website owns (see deployment/README.md)
   site.config.json # This deployment's settings — identity, languages, navigation, features
-  config/i18n   #   Localized JSON dictionaries (one shipped locale: en)
+  config/i18n   #   Localized JSON dictionaries (en and de are shipped in this deployment)
   content       #   EVERYTHING you author lives here — start at content/README.md
     pages/markdown # Safe Markdown pages — content/pages/markdown/<site>/<locale>/<route>.md  (see its README)
     pages/json  #   Declarative JSON pages — content/pages/json/<site>/<locale>/<route>.json  (see its README)
@@ -211,37 +211,28 @@ file under the deployment's `content/` tree (`deployment/spokes/foundation/conte
 > merged to `main` updates that same live site. Nothing is added to make it work —
 > the public repository is the deployment.
 >
-> What is live today is the **first reference increment**: the deployment has its own
-> name, description and origin (`site.url`), a Home page authored in the JSON mode, an
-> About page authored in Markdown, and the visitor Layout control enabled. The rest of
-> the reference site — further pages, more languages, Locations, and the link back to
-> `https://foundation.provelopment.com/` — is the next body of work and has **not**
-> landed yet; this note changes when it does rather than describing it in advance.
+> **What is live today** is a two-Spoke reference installation. `deployment/spokes.json` declares
+> two Spokes: **Foundation** (`https://foundation-template.provelopment.com/`, Site `ww`) and
+> **Germany** (`https://foundation-template-germany.provelopment.com/`, Site `de`, with pages for its
+> two locations, Berlin and Frankfurt). Each Spoke is a complete website of its own — configuration,
+> dictionaries, content tree, sitemap, `robots.txt`, OpenGraph image and asset namespaces — and answers
+> for the hostnames it claims: the hostname selects ONE Spoke, and nothing on either host serves the
+> other Spoke's content.
 >
-> Two things are already decided for that reference site and are recorded here so no
-> increment invents its own answer:
+> Both Spokes are authored in **English and German**, and both demonstrate **both authoring modes**: a
+> Home page in the advanced JSON mode plus About pages in the simple Markdown mode (Germany adds its
+> Berlin and Frankfurt pages). Each Spoke's footer links to the other — ordinary authored navigation.
+> The visitor **layout switcher** (Sidebar ↔ Menu-bar) is enabled in this deployment: it is **off by
+> default**, an adopter enables it with one configuration block (`ui.layoutSwitcher` — see
+> CUSTOMIZING.md), and this reference site ships with it on.
 >
-> 1. **An unobtrusive, configurable link to `https://foundation.provelopment.com/`**
->    will appear in the shipped reference pages/site chrome. It is a
->    reference-site/configuration concern — generic platform runtime logic must not
->    hard-code it — and the starter content that carries it lands with the reference
->    work, not before.
-> 2. **A shell layout switcher (available now).** A Foundation site can optionally let a
->    visitor switch between the **Sidebar** and **Menu-bar** layouts from a simple
->    dropdown, without changing the page, the locale or the content: same content
->    authority, same current route, presentation only. It is **off by default**, an
->    adopter enables it with one configuration block (`ui.layoutSwitcher` — see
->    CUSTOMIZING.md), and the reference deployment **ships with it enabled** — the header
->    control is live on this site today. The capability itself is generic platform
->    behaviour; the reference site's own choice to enable it is reference configuration.
-
-The repository also authors its own **two reference pages** — Home
-(`deployment/spokes/foundation/content/pages/json/ww/en/home.json`, the advanced JSON mode) and About
-(`deployment/spokes/foundation/content/pages/markdown/ww/en/about.md`, the simple Markdown mode) — so both authoring
-modes are demonstrated by the live site. A site that authors no home page still gets the
-configuration-driven starter landing page, and the two authoring roots' own documentation
-is never content. Technical routes (`/sitemap.xml`, `/robots.txt`) and generated metadata
-are not content pages.
+> One intentional boundary: the reference pages' prose links to
+> **`https://foundation.provelopment.com/`** — the commercial Provelopment site, which is a separate
+> product built ON this template rather than part of it.
+>
+> A site that authors no home page still gets the configuration-driven starter landing page, and the
+> authoring roots' own documentation is never content. Technical routes (`/sitemap.xml`, `/robots.txt`)
+> and generated metadata are not content pages.
 
 ## Customize identity
 
@@ -284,7 +275,7 @@ content/pages/markdown/ww/en/services/web-design.md   →  /ww/en/services/web-d
 
 Ordinary Markdown is enough — frontmatter is optional, and a file that is nothing
 but prose is a complete page (the title comes from frontmatter, then the first
-`# heading`, then the filename). The page is served at `/<locale>/<page>` and
+`# heading`, then the filename). The page is served at `/<site>/<locale>/<route>` and
 listed in the sitemap as soon as the file exists for a configured language; no
 configuration change is needed to publish the route — only committing and pushing it
 (see [Publishing your changes](#publishing-your-changes)).
@@ -295,8 +286,8 @@ element/attribute allowlist. `## Opening hours` also gains the predictable fragm
 `#opening-hours`, so an author can link to their own sections — at any depth. The
 author-facing guide is [`content/pages/markdown/README.md`](deployment/spokes/foundation/content/pages/markdown/README.md);
 the advanced mode is [`content/pages/json/README.md`](deployment/spokes/foundation/content/pages/json/README.md) (a
-JSON page file currently stops the build with an error naming the file rather than
-being ignored, because nothing yet interprets it).
+JSON page is validated against the page-document schema at build time, so an invalid one
+stops the build with an error naming the file rather than being served or ignored).
 
 ## Sections, listings and embedded content
 

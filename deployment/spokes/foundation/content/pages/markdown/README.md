@@ -44,7 +44,7 @@ content/pages/markdown/<site>/<language>/<page-name>.md
   for English, `de` for German. Use the codes your site is configured with.
 - **`<page-name>`** is the file name and becomes the end of the web address. Use
   lowercase words joined by hyphens: `opening-hours.md` becomes
-  `/en/opening-hours`.
+  `/ww/en/opening-hours`.
 
 So this file:
 
@@ -52,7 +52,8 @@ So this file:
 content/pages/markdown/ww/en/opening-hours.md
 ```
 
-is served at `/en/opening-hours`. You do not register the page anywhere else, you do
+is served at `/ww/en/opening-hours` — the address is `/<site>/<language>/<page>`, so the site code
+(`ww` here) is part of every URL. You do not register the page anywhere else, you do
 not add it to a list, and you do not change any configuration: the file existing
 *is* the page, and it appears in the site's sitemap automatically.
 

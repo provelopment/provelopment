@@ -83,10 +83,14 @@ Sites can also use an **explicit** language when the exact dialect matters:
 content/pages/markdown/ca/fr-fr/about.md   →   /ca/fr-fr/about
 ```
 
+### A section is a folder
 
-content/pages/markdown/ww/en/services.md                 →  /ww/en/services
-content/pages/markdown/ww/en/services/web-design.md      →  /ww/en/services/web-design
-content/pages/markdown/ww/en/blog/choosing-a-domain.md   →  /ww/en/blog/choosing-a-domain
+Its own page and the pages inside it live side by side, and both are addresses:
+
+```text
+content/pages/markdown/de/de/services.md                 →  /de/de/services
+content/pages/markdown/de/de/services/web-design.md      →  /de/de/services/web-design
+content/pages/markdown/de/de/blog/choosing-a-domain.md   →  /de/de/blog/choosing-a-domain
 ```
 
 So a section with its own pages is just a folder. Nothing needs configuring, and the
@@ -99,11 +103,11 @@ Pages are organised by language: the folder name is a language code such as `en`
 (English) or `de` (German). Another language mirrors the same structure exactly:
 
 ```text
-content/pages/markdown/ww/en/services.md                  →  /ww/en/services
-content/pages/markdown/ww/en/services/web-design.md       →  /ww/en/services/web-design
+content/pages/markdown/de/de/services.md                  →  /de/de/services
+content/pages/markdown/de/de/services/web-design.md       →  /de/de/services/web-design
 
-content/pages/markdown/ww/de/services.md                  →  /ww/de/services
-content/pages/markdown/ww/de/services/web-design.md       →  /ww/de/services/web-design
+content/pages/markdown/de/en/services.md                  →  /de/en/services
+content/pages/markdown/de/en/services/web-design.md       →  /de/en/services/web-design
 ```
 
 The languages your site serves are configured in `site.config.json`; a language

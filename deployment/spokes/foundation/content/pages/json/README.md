@@ -41,7 +41,7 @@ For example:
 content/pages/json/ww/en/services.json                →   /ww/en/services
 content/pages/json/ww/en/services/web-design.json     →   /ww/en/services/web-design
 content/pages/json/ww/en/legal/privacy.json           →   /ww/en/legal/privacy
-content/pages/json/ww/en/home.json                    →   /en   (the home page)
+content/pages/json/ww/en/home.json                    →   /ww/en   (the home page)
 ```
 
 - `<language>` is a language your site is configured to serve (`en`, `de`, …).

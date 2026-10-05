@@ -261,7 +261,7 @@ A page is authored in exactly ONE of two first-class modes:
 | Mode | Root | What it is |
 | --- | --- | --- |
 | **safe Markdown** | `content/pages/markdown/<site>/<locale>/<slug>.md` | ordinary Markdown for a non-technical author; the recommended mode |
-| **safe declarative JSON** | `content/pages/json/<site>/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (its vocabulary is delivered by a later increment) |
+| **safe declarative JSON** | `content/pages/json/<site>/<locale>/<slug>.json` | validated data for a page needing presentation Markdown cannot express (`@/core/page-document` is the schema; a document that does not satisfy it fails the build loudly, naming its file) |
 
 Both modes are CONTENT and DATA, never executable code. The Markdown mode's policy
 is enforced in TWO independent layers: the renderer
@@ -298,9 +298,10 @@ default-locale JSON      →  default-locale Markdown     (only when fallback ap
 
 The default-locale steps apply only when fallback is permitted. **JSON wins over
 Markdown within one locale**, and **an exact-locale page always beats a
-fallback-locale page**, whatever the format. A JSON source that would be served
-currently fails the build loudly, naming its file, rather than being silently
-ignored — its interpreter does not exist yet.
+fallback-locale page**, whatever the format. Both modes are served through the same route,
+static-param generation and sitemap; a JSON document is validated against the ONE
+page-document schema (`@/core/page-document`), and one that does not satisfy it fails the
+build loudly, naming its file, rather than being silently ignored or partially rendered.
 
 Rules that hold for both roots:
 
@@ -516,17 +517,23 @@ Constraints and rules:
   boundary.
 - No environment variables are required today; deployment-specific values
   (such as the production origin) are owned by `src/config`.
-- Hostnames resolve to Spokes in exactly three classes (FOUNDATION-MULTISITE-M20):
-  an exact authored Spoke hostname selects that Spoke; a hosting-platform
-  **inspection** hostname the platform itself reports for this build (Vercel's
-  `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) selects the
-  Spoke the Installation names in `"inspectionSpoke"` — an explicit policy, never a
-  first-declared fallback; and every other hostname is refused with a 404. There is
-  no wildcard rule, no Vercel API call at request time, and no provider mutation.
-- **Node.js**: the tested contract is the **22.x line**, and `package.json` pins
-  `"engines": { "node": "22.x" }`. Node 22 is what every CI job runs
-  (`.github/workflows/ci.yml`) and what the hosting platform's build image provides, so it is
-  the line Foundation certifies — a newer major is not adopted merely because it exists.
+- Hostnames resolve to Spokes in exactly three accepted kinds, and nothing else
+  (FOUNDATION-MULTISITE-M20, extended M22): an exact authored Spoke hostname selects that
+  Spoke; a hosting-platform **inspection** hostname the platform itself reports for this build
+  (Vercel's `VERCEL_URL`, `VERCEL_BRANCH_URL`, `VERCEL_PROJECT_PRODUCTION_URL`) selects the Spoke
+  the Installation names in `"inspectionSpoke"`; and a deployment-owned **inspection alias** the
+  Installation authored (`"inspectionHosts"` — a permanent provider project alias, which no build
+  variable reliably carries) selects that same Spoke. Every other hostname is refused with a 404.
+  Both halves of the policy are explicit — never a first-declared fallback — and the authored
+  aliases are exact normalized hostnames that may not restate a Spoke's own hostname, may not be
+  declared without a nominated Spoke, and may not contain a wildcard: there is no suffix rule, no
+  Vercel API call at request time and no provider mutation.
+- **Node.js**: the tested contract is the **24.x line**, and `package.json` pins
+  `"engines": { "node": "24.x" }`. Node 24 is what every CI job runs
+  (`.github/workflows/ci.yml`), what the hosting platform's build image is configured to provide, and
+  what the release's own `requirements.node` names (`package.json` → `engines.node`, carried into every
+  release manifest) — ONE deliberate baseline, so no build overrides it and no warning is left
+  unexplained. A newer major is not adopted merely because it exists.
 - **Where to read more**: this file and the manuals in
   [`instruction-manuals/`](instruction-manuals/README.md) are for anyone running a Foundation
   site. The full Provelopment-level compendium — installation structures, upgrade strategies,
