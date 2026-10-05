@@ -22,9 +22,8 @@
  * refuse to build the app endpoint, and `process.cwd()` does not exist in a browser. Therefore:
  *
  *   · `deploymentLayout()` / `readDeploymentConfig()` are pure — they read BUILD-TIME values the
- *     build itself resolved and inlined (`next.config.ts` → Next's `env`, inlined into BOTH bundles).
- *     The repository layout needs nothing at all: it keeps the bundled `site.config.json` import,
- *     exactly as before.
+ *     build itself resolved and inlined (`next.config.ts` → Next's `env`, inlined into BOTH bundles),
+ *     so no application module imports a configuration file, whichever layout was selected.
  *   · `deploymentPaths()` is SERVER-ONLY: it computes absolute paths (and may therefore use
  *     `process.cwd()`), and only server modules call it — the i18n registry, authoring discovery and
  *     asset screening. A client module must never call it.
@@ -34,9 +33,9 @@
  *   `capsule`     a real deployment capsule at `<repo>/deployment/` — the accepted long-term source
  *                 write boundary for one deployment (its `site.config.json`, `config/i18n/`,
  *                 `content/pages/` and asset sources).
- *   `repository`  the CURRENT layout, where those locations sit at the repository root. This is the
- *                 transitional compatibility stage: the reference deployment has not moved yet (B2),
- *                 so today's resolution is exactly what it was.
+ *   `repository`  the ROOT layout: those locations sit at the repository root, which is what an
+ *                 adopter who authors their website at their own repository root uses. It stays a
+ *                 supported layout; the deployment in THIS repository is a `capsule`.
  *   `override`    `FOUNDATION_DEPLOYMENT_ROOT` — the DEV/TEST BUILD-TIME escape hatch that lets a
  *                 generic test point a dev server at a synthetic deployment (see
  *                 `tests/support/synthetic-deployment.ts`). Never a production mechanism.
@@ -195,8 +194,8 @@ export const DEPLOYMENT_RESOURCE_PATHS = Object.freeze({
 
 /**
  * The layout this BUILD resolved. Pure: the value is a build-time string, inlined by Next into both
- * bundles, so it is safe to read at module load from client code. An unset value means the
- * repository layout — the behaviour of every deployment today.
+ * bundles, so it is safe to read at module load from client code. An unset value means the root layout:
+ * the build found no authored capsule and no override.
  */
 export function deploymentLayout(): DeploymentLayout {
   const layout = process.env[LAYOUT_ENV];
@@ -207,7 +206,7 @@ export function deploymentLayout(): DeploymentLayout {
  * How the SELECTED Installation is authored, as the BUILD resolved it.
  *
  * Pure and client-safe (the value is inlined by the build), and deliberately NOT a discovery: an
- * unset value means the legacy form — the behaviour of every deployment that exists today — while
+ * unset value means the LEGACY form — the Installation root IS its one implicit Spoke — while
  * `explicit` states that the Installation declares its Spokes and the runtime must read the sole
  * Spoke's resources. The RULES that make an Installation runnable (exactly one Spoke, no default
  * Spoke) live in the build authority (`./deployment-build.mjs`), never here.

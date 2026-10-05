@@ -9,5 +9,8 @@
       "root": "spokes/germany"
     }
   ],
-  "inspectionSpoke": "foundation"
+  "inspectionSpoke": "foundation",
+  "inspectionHosts": [
+    "provelopment-foundation.vercel.app"
+  ]
 }

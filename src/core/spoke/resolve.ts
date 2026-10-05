@@ -18,10 +18,12 @@
  *
  * WHY THERE IS NO DEVELOPMENT/PREVIEW BRANCH
  * ------------------------------------------
- * Whether a development or a preview host should resolve to a particular Spoke is a POLICY decision
- * that a later slice owns (this repository's existing `FOUNDATION_DEPLOYMENT_ROOT` build-time override
- * is the current, build-time mechanism). This slice implements the pure MECHANISM only, so a selection
- * carries the single reason it can actually justify today.
+ * Whether a development, preview or deployment host should resolve to a particular Spoke is a POLICY
+ * decision, and the accepted policy is the Installation's own: a multi-Spoke Installation nominates the
+ * Spoke that represents it on hosts no Spoke owns publicly (`inspectionSpoke`, with the hostnames the
+ * platform reported for the build plus any aliases the Installation authored). THIS module implements the
+ * pure MECHANISM only — it takes that policy as an argument and never reads an environment, so the same
+ * function is valid at a request boundary, in a test and at build time.
  *
  * The decision is PURE: no filesystem, no request object, no configuration import — so the same
  * function is valid at a request boundary, in a test and at build time.
@@ -40,8 +42,9 @@ import type { Spoke, SpokeHub, SpokeId } from "./model";
  *   `inspection-hostname`  the host is one the HOSTING PLATFORM reported for this deployment, and the
  *                          Installation explicitly nominated a Spoke to represent it there.
  *
- * A development/preview reason is still deliberately absent: a preview host resolves to nothing UNLESS
- * the platform itself reported it, because "any host we do not know" is not a policy.
+ * A development/preview reason is still deliberately absent: a preview or deployment host resolves to
+ * nothing UNLESS the platform itself reported it for this build or the Installation authored it as an
+ * alias, because "any host we do not know" is not a policy.
  */
 export type SpokeSelectionReason = "registered-hostname" | "inspection-hostname";
 
