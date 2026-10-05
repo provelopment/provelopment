@@ -27,7 +27,7 @@ Full schema reference: the Foundation's `CUSTOMIZING.md`. This manual is the
 ## What you may change (adopter-owned)
 
 - site configuration (identity, URL, contact, navigation, features, CTA, theme), including the
-  per-site overrides a deployment needs when it serves independent sites
+  per-Site overrides a deployment needs when its website serves more than one Site
 - per-site interface wording (`config/i18n/sites/<site>/<language>.json`), which refines the
   shared language dictionary
 - business content
@@ -48,15 +48,15 @@ is an escalation — see `agent-operating-rules.md` — not a licence to fork th
 
 ## Procedure
 
-### Site identity
+### Website identity (the Spoke)
 
 Set the business name, tagline and description. These drive page titles, metadata,
 structured data and the visible brand text. Keep them consistent across content,
 dictionaries and metadata.
 
-### Site URL
+### Website URL
 
-Set the site's canonical URL to the **actual production hostname** before deploying.
+Set the website's canonical URL to the **actual production hostname** before deploying.
 
 > **Configured canonical URL and actual production hostname must agree.** A
 > mismatch silently publishes wrong canonical/OpenGraph/sitemap/robots URLs — a
@@ -98,18 +98,19 @@ Current platform behaviour — treat as the contract:
 - Disabled, or missing a label/destination, renders **nothing** — the platform
   never invents a destination or an accessible name.
 
-### Sites, and per-site configuration
+### Spokes, Sites, and per-Site configuration
 
-A deployment may serve **independent sites** — a country, or `ww` for Worldwide/Global. Each
-site owns its own page tree, its own languages and its own **page-facing** configuration, and
-any of these may differ per site:
+A deployment serves a website — the **Spoke**, selected by hostname — and inside it one or more
+**Sites**: a country, or `ww` for Worldwide/Global. Each
+Site owns its own page tree, its own languages and its own **page-facing** configuration, and
+any of these may differ per Site:
 
 - navigation items, and the secondary footer navigation group;
 - the legal destinations the footer surfaces;
 - the Connect configuration;
 - the shell CTA''s page destination;
 - the site''s locale and fallback configuration;
-- the pages and locations bound to the site.
+- the pages and locations bound to the Site.
 
 Everything generic stays **shared** unless it genuinely differs: theme and design tokens,
 business artwork (`content/assets/` is one shared tree), the component vocabulary, and the
@@ -118,20 +119,24 @@ country — configure once at the top level and override only the part that diff
 
 The full schema for site-scoped keys is the Foundation''s `CUSTOMIZING.md`.
 
-### Sites and locations are different things
+### Spokes, Sites and Locations are different things
 
-A **site is not a location.** Another office, city or region inside the same website is a
-**location** within the site — Canada and France may be sites, while Toronto, Montreal and
-Vancouver are locations inside one of them. **Do not create a site because a business opened
-another office.** See `content-management.md`, *Sites and locations are different things*.
+A **Site is not a Location.** Another office, city or region inside the same website is a
+**Location** within the Site — Canada and France may be **Sites inside one Spoke** when one website
+exposes both country contexts, while Toronto, Montreal and Vancouver are Locations inside one of
+them. **Do not create a Site because a business opened another office**, and do not create a Site
+for an independent website: that website is a **Spoke**. See `content-management.md`, *Spokes, Sites
+and Locations are different things*.
 
 ### The four dimensions, and their controls
 
-**Site**, **Language**, **Location** and **Layout** are independent: site selects the website,
-language the locale inside it, location a physical/regional context inside it, and layout only
-the Sidebar/Menu-bar presentation. Switching one never changes another, and a control a
-deployment does not need **does not appear** — a single-language, single-location site renders
-no language or location selector at all.
+**Site**, **Language**, **Location** and **Layout** are independent: **Site** selects the
+country/global context **inside the current website**, **Language** the locale inside that Site,
+**Location** a physical/regional context inside that Site, and **Layout** only the Sidebar/Menu-bar
+presentation. Switching one never changes another, and a control a
+deployment does not need **does not appear** — a single-language, single-location Site renders
+no language or location selector at all. The website itself is the **Spoke**: it is selected by
+hostname and is never one of these visitor controls.
 
 ### Contact information
 
@@ -169,8 +174,8 @@ never work around it by editing the schema.
 - Publishing a canonical URL that does not match the live hostname.
 - Removing a navigation item while leaving the route reachable (or vice versa).
 - Configuring a language or location control the deployment does not need, or adding one by
-  hand: a single-language or single-location site renders no such selector.
-- Treating another office as another site — an office is a location inside a site.
+  hand: a single-language or single-location Site renders no such selector.
+- Treating another office as another Site — an office is a Location inside a Site.
 - Duplicating a complete configuration file per country instead of overriding only what
   differs.
 - Configuring two language folders that mean the same locale (`ca/en` together with

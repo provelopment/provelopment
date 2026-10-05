@@ -209,7 +209,7 @@ installation has its release.
 
 Create the directory outside every existing repository, then initialise it as its
 own Git repository with its own remote. One project = one repository = one
-deployable unit (plus, if the project hosts several sites, one directory per site).
+deployable unit (plus, if the project serves several Spokes — separate websites — one directory per Spoke).
 
 ### 2. Adopt the Foundation release
 
@@ -434,7 +434,8 @@ superseded by the consolidated downstream application, 2026-09):
 Dependency direction is **template -> downstream application** (historical, repository-shaped
 material; see *Repository-shaped adoption shapes* above). A downstream application is an ordinary
 downstream clone whose `origin` is its own private repository and whose `foundation` remote is the
-template. One downstream application may implement **several** sites as separate site profiles;
+template. One downstream application may serve **several Spokes** — several complete website/domain
+contexts, each with its own Site contexts — as separate site profiles;
 that is a property of the downstream application, not of Foundation. The public template remains
 fully and independently usable without any downstream application: adopting it never requires one.
 
