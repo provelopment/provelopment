@@ -98,12 +98,21 @@ Run these **inside** the installation root — it needs nothing from the install
 ```bash
 pnpm install --frozen-lockfile
 pnpm exec tsc --noEmit
+pnpm lint
 pnpm build
-pnpm test:foundation        # the platform contract suite
+pnpm test:deployment        # the deployment's own acceptance tests, where the capsule supplies them
 ```
 
-An installation whose capsule ships its own acceptance tests runs them too (`pnpm test:deployment`). A
-capsule that ships none has none to run — that is the owner's material, not the platform's.
+Where the change touches authored artwork, or a site or locale code, add `pnpm assets:check` and
+`pnpm country-codes:check`; where browser acceptance is required, add `pnpm test:browser:deployment`. A
+capsule that ships no acceptance tests has none to run — that is the owner's material, not the platform's.
+This is the same gate `instruction-manuals/validation.md` states for an independent installation: every
+command in it belongs to the installation.
+
+**This repository's proofs and an installation's proofs are different things.** Release provenance is proved
+where the release is constructed — `pnpm release:classify`, `pnpm release:build`, `pnpm release:verify`
+(`scripts/release/README.md`) — and the platform's own contract is proved in the platform's source/release
+worktree. Neither is an installation's acceptance gate.
 
 Two things are worth knowing about that list, and both are properties of the platform rather than of your
 installation:
@@ -112,14 +121,11 @@ installation:
   commit it if you want version control — that is your decision, and establishment deliberately does not
   make it for you. The generated `public/assets/**` mirror and `operational-state.json` are already excluded
   by the policies the release ships, so they cannot become commits.
-* **The platform's generic test suite contains repository-shaped suites.** Several of them describe the
-  FOUNDATION PROJECT's own repository — its git history, its release tags and its tracked inventory — rather
-  than any installation, so `pnpm test:foundation` inside an installation reports those suites as failures
-  while everything the installation actually runs (install, typecheck, lint, build, its own tooling, its own
-  capsule's acceptance) is green. Separating "the platform contract" from "this project's repository" is
-  recorded as a Foundation freeze-audit item; until it is done, treat `pnpm test:foundation` in an
-  installation as informative rather than conclusive, and use the list above as the installation's own
-  verification.
+* **`pnpm test:foundation` is repository-owned, not installation-owned.** Its suites prove the platform's
+  own repository — release provenance, its tracked inventory, and the generic architecture that assumes the
+  project's Git worktree — so where the installation is a different repository they are informative rather
+  than conclusive, and they are deliberately NOT an ordinary Installation acceptance gate. Prove an
+  installation with the list above, whose every command the installation owns and runs green.
 
 The record of what the installation runs is in its capsule: `foundation-baseline.json` names the immutable
 release it adopted, and `operational-state.json` names the exact revision that became live.

@@ -107,6 +107,25 @@ describe("every repository surface has ONE owner", () => {
     ["deployment/content/pages/markdown/README.md", "documentation"],
     ["deployment/content/pages/json/README.md", "documentation"],
     ["deployment/content/assets/icon-library/icons/README.md", "documentation"],
+    // …and a human-facing README beside EXECUTABLE code, where the broad `scripts/**` and `src/**` rules
+    // would otherwise let prose select an executable gate. The PATH is the contract — nothing about the
+    // README's wording is inspected — and the rule is claimed BEFORE those directory rules see the path.
+    ["scripts/installation/README.md", "documentation"],
+    ["scripts/release/README.md", "documentation"],
+    ["scripts/ci/README.md", "documentation"],
+    ["src/README.md", "documentation"],
+    ["src/core/foundation-release/README.md", "documentation"],
+    ["src/core/foundation-installation/README.md", "documentation"],
+    ["src/adapters/installation/README.md", "documentation"],
+    ["src/core/spoke/README.md", "documentation"],
+    // …while the executable files BESIDE those READMEs keep their existing, stronger owner:
+    ["scripts/release/index.mjs", "shared"],
+    ["scripts/installation/platform-typescript.mjs", "shared"],
+    ["scripts/ci/change-scope.mjs", "shared"],
+    ["src/core/foundation-release/README.mdx", "foundation"],
+    ["src/core/page-document.ts", "foundation"],
+    ["src/core/foundation-installation/establishment.ts", "foundation"],
+    ["src/adapters/installation/README.schema.json", "foundation"],
     // …while nothing else in the deployment's content tree is documentation. ORDINARY AUTHORED DATA is
     // the `content` owner, in every supported layout: an explicit Spoke's own root, and a legacy
     // implicit Installation that names the same trees at its root.
@@ -169,6 +188,23 @@ describe("every repository surface has ONE owner", () => {
     expect(ownerOf(file)).toBe(owner);
   });
 
+  it("claims a code-adjacent README by PATH, and by nothing else", () => {
+    // The rule is structural and shallow: exactly `README.md`, exactly beneath `src/` or `scripts/`. A
+    // differently-named Markdown file beside it inherits nothing and keeps the owner its tree gives it…
+    expect(ownerOf("src/core/spoke/README.mdx")).toBe("foundation");
+    expect(ownerOf("scripts/release/README.txt")).toBe("shared");
+    expect(ownerOf("scripts/release/readme.md")).toBe("shared");
+    // …and a README in a tree NO rule owns is not documentation either: unknown Markdown stays fail-safe,
+    // which is the same answer `docs/guide.md` already gets, and it is never a trusted documentation route.
+    expect(ownerOf("docs/README.md")).toBe("shared");
+    expect(ownerOf("architecture/notes/README.md")).toBe("shared");
+    expect(routeOf(["docs/README.md"])).toBe("full");
+    // The exemption is claimed by the documentation rule BEFORE `scripts/` (shared) and `src/`
+    // (foundation) — which is what makes the README documentation rather than an executable change.
+    expect(classifyPath("scripts/release/README.md").reason).toMatch(/executable tree/);
+    expect(classifyPath("src/core/spoke/README.md").reason).toMatch(/executable tree/);
+  });
+
   it("never classifies a path merely because it ends in .md", () => {
     // The rule that keeps authored content and generated documents out of the documentation route.
     expect(ownerOf("content/pages/markdown/ww/en/about.md")).not.toBe("documentation");
@@ -209,6 +245,8 @@ describe("the route follows the ownership of the WHOLE change", () => {
     ["the deployment's baseline", ["deployment/foundation-baseline.json"], "deployment"],
     ["the deployment README alone", ["deployment/README.md"], "documentation"],
     ["several deployment READMEs", ["deployment/README.md", "deployment/content/README.md"], "documentation"],
+    ["code-adjacent READMEs alone", ["scripts/installation/README.md", "scripts/release/README.md"], "documentation"],
+    ["a Foundation README alone", ["src/core/foundation-release/README.md"], "documentation"],
     ["a Foundation source file", ["src/core/page-route-path.ts"], "foundation"],
     ["a generic test file", ["tests/unit/page-sources.test.ts"], "foundation"],
     ["Foundation source and its test", ["src/core/site-code.ts", "tests/unit/site-code.test.ts"], "foundation"],
@@ -232,6 +270,15 @@ describe("the route follows the ownership of the WHOLE change", () => {
     ["documentation + an authored page", ["README.md", "deployment/spokes/foundation/content/pages/markdown/ww/en/about.md"], "content"],
     ["documentation + a legacy authored page", ["README.md", "deployment/content/pages/markdown/ww/en/about.md"], "content"],
     ["documentation + Foundation", ["CUSTOMIZING.md", "src/core/site-code.ts"], "foundation"],
+    // A code-adjacent README is documentation ALONE, and escalates with whatever it sits beside:
+    // documentation never narrows an executable change, in either executable tree.
+    ["a scripts README + the script beside it", ["scripts/release/README.md", "scripts/release/index.mjs"], "full"],
+    ["a Foundation README + Foundation source", ["src/core/foundation-release/README.md", "src/core/page-document.ts"], "foundation"],
+    ["a scripts README + Foundation source", ["scripts/installation/README.md", "src/core/page-document.ts"], "foundation"],
+    ["a code-adjacent README + a workflow", ["src/adapters/installation/README.md", ".github/workflows/ci.yml"], "full"],
+    ["a code-adjacent README + the manifest", ["scripts/installation/README.md", "package.json"], "full"],
+    ["a Foundation README + an authored page", ["src/core/spoke/README.md", "deployment/spokes/germany/content/pages/json/de/de/home.json"], "content"],
+    ["a code-adjacent README + an unknown Markdown path", ["scripts/release/README.md", "docs/plan.md"], "full"],
     // A change that MIXES authored data with anything executable escalates to the stronger scope: the
     // `content` route applies only when every non-documentation changed path is eligible authored data.
     ["authored page + its Spoke configuration", ["deployment/spokes/germany/content/pages/json/de/de/home.json", "deployment/spokes/germany/site.config.json"], "deployment"],
