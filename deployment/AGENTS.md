@@ -116,6 +116,17 @@ another deployment
    a shared module).
 8. **Record nothing outside your boundary.** Provenance, decisions and notes about this deployment
    belong in this capsule.
+9. **Verification is proportional to blast radius** (`AGENTS.md` §15 — the ONE authority). For work in
+   this capsule, in one line each:
+   - an authored PAGE, DICTIONARY or ordinary artwork edit proves the authored-data contract: the
+     deployment's own structural tests, the generated checks and a production build. Not the browser
+     acceptance matrix — prose and artwork do not change shell or runtime behaviour.
+   - a CONFIGURATION, manifest, hostname, locale/site/location or asset-role change proves the full
+     deployment gate, including deployment browser acceptance.
+   - a change that mixes authored data with configuration, or that leaves any path unclassifiable,
+     escalates to the stronger scope. `content` never applies to a mixed change.
+   CI applies exactly this: `scripts/ci/change-scope.mjs` routes an authored-data-only change to the
+   bounded `content` route, which is deliberately narrower than `deployment`.
 
 ## Provenance
 

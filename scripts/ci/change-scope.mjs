@@ -37,16 +37,23 @@
  * ---------------
  *   documentation  a file whose only effect is on a human reader: the platform's own manuals and the
  *                  author-facing maps. Nothing is built, installed or executed for these.
- *   deployment     the capsule's production state and its acceptance contract: configuration,
- *                  dictionaries, content, assets and the deployment's OWN tests.
+ *   content        ordinary AUTHORED website data inside the deployment: a Spoke's pages, its authored
+ *                  artwork sources and its dictionaries. Data a reader or a renderer consumes, and
+ *                  nothing that changes how the deployment behaves.
+ *   deployment     the capsule's executable production state and its acceptance contract:
+ *                  configuration, the Installation manifest, operational lifecycle state, the
+ *                  deployment's OWN tests, and anything else the capsule owns.
  *   foundation     the generic platform: application code and the generic test tree.
  *   shared         consumed by BOTH owners, or part of the build/test orchestration itself:
  *                  manifests, lockfiles, build/CI configuration, platform scripts, the generated
  *                  runtime mirror, the shared test harness and the deployment-root/build authority.
  *
- * THE FOUR ROUTES (and why each is the safe answer for its class)
- * --------------------------------------------------------------
+ * THE FIVE ROUTES (and why each is the safe answer for its class)
+ * ---------------------------------------------------------------
  *   documentation  documentation + repository hygiene only.
+ *   content        authored data: hygiene, the generated checks, the deployment's own tests and a
+ *                  production build — the smallest gate that proves authored material is consumable.
+ *                  NO browser acceptance: prose and artwork do not change shell or runtime behaviour.
  *   deployment     the deployment's own contract: deterministic generated checks, typecheck, lint,
  *                  deployment tests, deployment build, deployment browser acceptance. It runs ZERO
  *                  Foundation Vitest files and ZERO Foundation browser scenarios.
@@ -68,14 +75,23 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /** The ownership classes a single changed path can have. */
-export const OWNERS = ["documentation", "deployment", "foundation", "shared"];
+export const OWNERS = ["documentation", "content", "deployment", "foundation", "shared"];
 
-/** The routes CI can select. `full` is the shared/mixed route: the complete gate. */
-export const SCOPES = ["documentation", "deployment", "foundation", "full"];
+/**
+ * The routes CI can select. `full` is the shared/mixed route: the complete gate.
+ *
+ * `content` is a NARROWER route than `deployment`: ordinary authored website data changed, while the
+ * executable deployment behaviour and configuration did not. It exists because a normal page edit used
+ * to buy the whole deployment route, including the deployment browser acceptance — verification effort
+ * proportional to the plausible blast radius (see `AGENTS.md`, the verification SOP).
+ */
+export const SCOPES = ["documentation", "content", "deployment", "foundation", "full"];
 
 /** What each route means, in the words the CI log should use. */
 export const SCOPE_ROUTES = {
   documentation: "documentation and repository hygiene only — nothing is installed, built or run",
+  content:
+    "authored website data only — the deployment's own contract, without browser acceptance",
   deployment: "the selected deployment's own contract, and none of the Foundation's test surfaces",
   foundation: "the generic Foundation contract, plus a bounded reference-deployment canary",
   full: "the complete repository gate (the conservative route for shared, mixed or unknown changes)",
@@ -103,6 +119,14 @@ export const ROUTE_SETUP_COMMAND = "pnpm install --frozen-lockfile";
  */
 export const ROUTE_COMMANDS = {
   documentation: ["git diff --check"],
+  content: [
+    "git diff --check",
+    ROUTE_SETUP_COMMAND,
+    "pnpm assets:check",
+    "pnpm country-codes:check",
+    "pnpm test:deployment",
+    "pnpm build",
+  ],
   deployment: [
     ROUTE_SETUP_COMMAND,
     "pnpm assets:check",
@@ -226,6 +250,44 @@ const DEPLOYMENT_DIRECTORY = "deployment/";
 const FOUNDATION_DIRECTORIES = ["src/", "tests/"];
 
 /**
+ * THE AUTHORED RESOURCE TREES — the deployment-owned data a reader or a renderer consumes
+ * (FOUNDATION-MULTISITE-M21).
+ *
+ * DERIVED from the path authority's own vocabulary (`src/config/deployment-root.ts`,
+ * `DEPLOYMENT_RESOURCE_PATHS`), and `tests/architecture/ci-routing-contract.test.ts` asserts that these
+ * values still MATCH it — so this plain-ESM module never restates a shape that authority has changed.
+ *
+ * A Spoke names these trees beneath ITS OWN root; a legacy IMPLICIT installation names them at its root.
+ * Both layouts are supported, and neither is spelled with a particular Spoke id: "which Spokes exist" is
+ * answered by the Installation manifest, never by this classifier.
+ */
+export const AUTHORED_CONTENT_TREES = Object.freeze([
+  "config/i18n/",
+  "content/pages/",
+  "content/assets/",
+]);
+
+/** The Installation root the capsule spells; every supported layout lives beneath it. */
+const INSTALLATION_DIRECTORY = "deployment/";
+
+/**
+ * The authored tree a path belongs to, for the layouts this platform carries — or `null`.
+ *
+ *   deployment/spokes/<spoke>/<tree>   an explicit Spoke's own authored data
+ *   deployment/<tree>                  a legacy IMPLICIT installation's authored data
+ *
+ * `spokes.json` (the manifest), `site.config.json`, operational lifecycle state and the deployment's own
+ * tests are deliberately NOT matched: they can change BEHAVIOUR, so they keep the stronger scope.
+ */
+function authoredContentTree(path) {
+  if (!path.startsWith(INSTALLATION_DIRECTORY)) return null;
+  const segments = path.slice(INSTALLATION_DIRECTORY.length).split("/");
+  const relative =
+    segments[0] === "spokes" && segments.length > 2 ? segments.slice(2).join("/") : segments.join("/");
+  return AUTHORED_CONTENT_TREES.find((tree) => relative.startsWith(tree)) ?? null;
+}
+
+/**
  * A changed path as Git reports it, normalised to the repository's own spelling: forward slashes and
  * no leading `./`. A human may pass a Windows path on the command line, and both spellings must
  * classify identically.
@@ -299,6 +361,27 @@ export function classifyPath(file) {
     };
   }
 
+  // An author-facing README inside ANY authored content tree is documentation, in every supported
+  // layout: a reader consults it, and nothing derives from it (§8 of the M21 mandate, and the same test
+  // that keeps a generated lifecycle file like COUNTRY-CODES.md out of this rule).
+  const authoredTree = authoredContentTree(path);
+  if (authoredTree !== null && path.endsWith("/README.md")) {
+    return {
+      path,
+      owner: "documentation",
+      retired: false,
+      reason: "an author-facing README inside an authored content tree",
+    };
+  }
+  if (authoredTree !== null) {
+    return {
+      path,
+      owner: "content",
+      retired: false,
+      reason: `authored website data (${authoredTree}) — a page, a dictionary or an artwork source`,
+    };
+  }
+
   if (path.startsWith(DEPLOYMENT_DIRECTORY)) {
     return {
       path,
@@ -349,10 +432,11 @@ function routeFor(owners, changedCount) {
       reason: "the change includes a path owned by the whole repository, so every contract must be proved",
     };
   }
-  if (owners.has("deployment") && owners.has("foundation")) {
+  if (owners.has("foundation") && (owners.has("deployment") || owners.has("content"))) {
     return {
       scope: "full",
-      reason: "the change spans BOTH owners (deployment and foundation) — a shared/mixed change",
+      reason:
+        "the change spans BOTH owners (foundation, and deployment-authored state) — a shared/mixed change",
     };
   }
   if (owners.has("foundation")) {
@@ -369,6 +453,14 @@ function routeFor(owners, changedCount) {
       reason: owners.has("documentation")
         ? "deployment-owned path(s), with documentation alongside them"
         : "deployment-owned path(s) only",
+    };
+  }
+  if (owners.has("content")) {
+    return {
+      scope: "content",
+      reason: owners.has("documentation")
+        ? "authored website data, with documentation alongside it"
+        : "authored website data only — no executable deployment surface changed",
     };
   }
   return { scope: "documentation", reason: "documentation-owned path(s) only" };
@@ -423,7 +515,7 @@ export function classifyChange(files) {
   const conservative =
     routed.scope === "full" &&
     (entries.length === 0 ||
-      (owners.has("deployment") && owners.has("foundation")) ||
+      (owners.has("foundation") && (owners.has("deployment") || owners.has("content"))) ||
       entries.some((entry) => entry.retired || entry.reason.startsWith("UNRECOGNISED")));
 
   return {

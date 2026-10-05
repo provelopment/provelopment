@@ -46,7 +46,9 @@ The major application boundaries are:
 - `src/application`
 - `src/adapters`
 - `src/config`
-- `content` (deployment-owned: the capsule's `deployment/content/**` in this repository)
+- `content` (deployment-owned: the AUTHORING ROOT's content tree — a Spoke's own root in this
+  repository's capsule (`deployment/spokes/<spoke>/content/**`), or a single `content/` tree at the
+  Installation root in a legacy implicit installation)
 - `public`
 - `tests`
 
@@ -142,11 +144,15 @@ Keep those concerns separate.
 Human-authored content should remain separate from application implementation.
 
 **One human-facing content area.** Everything a normal user authors as website
-content lives in the deployment's content tree (`content/`, relative to the deployment
-root — the capsule's `deployment/content/` in this repository): pages
-(`content/pages/markdown`, `content/pages/json`) and the artwork a site owner replaces
-(`content/assets`) — and `content/README.md` is the map that answers
-"where do I edit my website?". Authored
+content lives in the deployment's content tree: `content/` relative to the AUTHORING
+ROOT that owns it — the Installation root in a legacy implicit installation, or a
+SPOKE's own root in the explicit form this repository uses
+(`deployment/spokes/foundation/content/` and `deployment/spokes/germany/content/`
+here). Inside it live the pages (`content/pages/markdown`, `content/pages/json`) and
+the artwork a site owner replaces (`content/assets`), and `content/README.md` is the
+map that answers "where do I edit my website?". Every supported asset-source layout
+is byte-protected (`.gitattributes`), so authored artwork is stored verbatim wherever
+it is authored. Authored
 content is never placed under `config/`: configuration changes how the site *behaves*,
 content is what it *says*. Equally, unrelated technical configuration is not moved into
 `content/` merely to make the tree uniform.
@@ -368,6 +374,46 @@ When tests exist, run the relevant test suite as well.
 Do not claim a change is complete if the relevant validation has not been
 performed.
 
+### Verification is proportional to blast radius
+
+> Verification effort is proportional to the plausible operational blast radius of the change. The
+> objective is the smallest sufficient proof, not the largest available test suite.
+
+This is not permission to cut corners: **under-testing is wrong, and over-testing is wrong too.** Tests
+consume developer time, agent time, tokens, CI compute, browser runtime and human review time. Spend
+those resources where they materially increase confidence.
+
+Two rules follow, and both are mandatory.
+
+**A verification result proves ONE source tree.** If that tree changes afterwards, classify only the
+DELTA since the last verified tree. A README wording correction after a green runtime gate needs the
+documentation checks for that delta — not a re-run of a thousand runtime and browser assertions.
+Conversely, a later change that CAN affect previously proved behaviour must re-run the affected proof,
+and unknown impact escalates conservatively.
+
+**Iteration and the final gate are different things.** During implementation, run the nearest relevant
+test or the smallest affected subsystem gate after each meaningful edit. Run the complete local gate
+ONCE, when the coherent candidate is ready. At PR head, exact-head CI is the final merge proof; do not
+reproduce the same expensive gate locally unless the tree changed in a way that can invalidate it, or a
+failed gate is being re-verified after a fix.
+
+### Change classes
+
+| Change class | Examples | Normally prove |
+| --- | --- | --- |
+| Documentation only | README wording, instructional prose, documentation comments, spelling, non-executable diagrams | `git diff --check`, plus documentation integrity/parity checks where they exist. Do NOT automatically install dependencies, build, run Vitest or start browsers. |
+| Authored website content | Markdown pages, JSON page documents, locale dictionaries, ordinary authored artwork | Source format/schema validity, the deployment-owned structural tests, asset integrity where applicable, and a production build. Do NOT run the whole browser matrix merely because prose or artwork changed. |
+| Deployment configuration, routing or runtime-facing authored structure | `site.config.json`, `spokes.json`, hostname behaviour, locale/site/location declarations, asset-role configuration, deployment acceptance code | The full DEPLOYMENT gate, including deployment browser acceptance where relevant. |
+| Foundation/runtime code | Application code, the generic test tree | The FOUNDATION gate: generic Foundation tests, generic browser scenarios, and the bounded real-deployment canary. |
+| Shared, mixed, dependency, security, release or CI infrastructure | Manifests, lockfiles, build/CI configuration, platform scripts, the shared harness, this file | FULL. |
+| Unknown or unclassifiable | Anything you cannot place above | FULL. |
+
+Failure is always conservative: **uncertain means prove more, never silently prove less.** The
+machine-readable form of these classes is the CI classifier — `scripts/ci/change-scope.mjs`, whose
+`OWNERS`, `SCOPES` and `ROUTE_COMMANDS` state each route's contract, and whose unknown-path fallback is
+the complete gate. Deployment-specific consequences are in `deployment/AGENTS.md`; browser-specific
+escalation is in `tests/browser/README.md`.
+
 ---
 
 ## 16. Git Discipline
@@ -526,7 +572,7 @@ Rules:
 
 - Never hard-code user-facing copy in components. Interface strings belong
   in the deployment's `config/i18n/<locale>.json` (the capsule's
-  `deployment/config/i18n/` in this repository) and must validate against the Zod
+  `deployment/spokes/foundation/config/i18n/` in this repository) and must validate against the Zod
   dictionary schema.
 - New routes must be added under `src/app/[[...segments]]` (the ONE catch-all route); a
   static metadata segment may NOT sit under a catch-all (Next.js requires the catch-all to be
@@ -547,7 +593,7 @@ content alone.
 
 ## 25. JSON Configuration
 
-The deployment's `site.config.json` (the capsule's `deployment/site.config.json` in this
+The deployment's `site.config.json` (the capsule's `deployment/spokes/foundation/site.config.json` in this
 repository) is the single source of truth for site settings:
 branding, languages, contact details, social links, navigation, and
 feature flags under `features`.
@@ -586,7 +632,7 @@ In practice:
 - **lead with the reader's goal**, then the mechanism: "where do I edit my website?"
   is answered by a map, not by an architecture description;
 - **keep the human-facing entry points honest**: the deployment's `content/README.md`
-  (`deployment/content/README.md` in this repository) is the map for
+  (`deployment/spokes/foundation/content/README.md` in this repository) is the map for
   authored content, and each authoring root explains its own mode in plain language.
 
 When a change adds or alters a user-facing capability, update the documentation in the

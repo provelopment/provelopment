@@ -94,7 +94,7 @@ Adapters may depend on external technologies.
 Application and site configuration, loaded from the deployment's
 `site.config.json` — the configuration file at the DEPLOYMENT ROOT (see
 [The deployment root](#the-deployment-root) below). In this repository that is
-the capsule's `deployment/site.config.json`.
+the capsule's `deployment/spokes/foundation/site.config.json`.
 
 The JSON file is the primary customization boundary for downstream website
 clones: branding, languages, navigation, contact details, and feature flags
@@ -168,7 +168,7 @@ Content should remain separate from application implementation.
 
 **One human-facing content area.** Everything a normal user authors as website
 content has ONE obvious home: the deployment's `content/` tree (relative to the
-deployment root — the capsule's `deployment/content/` in this repository), and
+deployment root — the capsule's `deployment/spokes/foundation/content/` in this repository), and
 `content/README.md` is the map
 that answers "where do I edit my website?". Content is never authored under
 `config/` (configuration changes how the site *behaves*; content is what it *says*),
