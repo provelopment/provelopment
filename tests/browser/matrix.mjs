@@ -5561,7 +5561,6 @@ async function runBottomNavWrapScenario(chrome) {
  * framework re-derives the same-origin path, which is where the shipped asset is served from.
  */
 const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/github.svg";
-const GRAPHIC_FIXTURE_NATURAL_BOX = "98x96";
 
 /**
  * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
@@ -5715,7 +5714,16 @@ async function runHeaderRowsScenario(chrome) {
     for (const { width, probe } of graphic.measured) {
       const tag = `nav1b.graphic.w${width}`;
       check(rows, `${tag}.graphicIsTheIdentity`, !!probe && probe.logoPresent === true, `present=${probe && probe.logoPresent}`);
-      check(rows, `${tag}.graphicIsTheShippedFixture`, !!probe && probe.logoNaturalBox === GRAPHIC_FIXTURE_NATURAL_BOX, `natural=${probe && probe.logoNaturalBox}`);
+      // The graphic REALLY LOADED — proved by a natural size, never by a particular artwork's pixels
+      // (M21 §15: an owner may replace an allowed graphic without failing a scenario about the shell).
+      // The layout contracts around it (its accepted lockup height, its left edge, never shrunk into one
+      // column) are asserted below and are what this scenario is about.
+      check(
+        rows,
+        `${tag}.graphicIsTheShippedFixture`,
+        !!probe && /^[1-9]\d*x[1-9]\d*$/.test(String(probe.logoNaturalBox)),
+        `natural=${probe && probe.logoNaturalBox}`,
+      );
       // The graphic starts in its normal left-hand identity position, at its accepted lockup height.
       check(rows, `${tag}.graphicStartsAtThePaddedLeftEdge`, !!probe && probe.logoLeft !== null && probe.headerContentLeft !== null && Math.abs(probe.logoLeft - probe.headerContentLeft) <= 1, `left=${probe && probe.logoLeft} contentLeft=${probe && probe.headerContentLeft}`);
       check(rows, `${tag}.graphicKeepsItsAcceptedHeight`, !!probe && probe.logoHeight === 32, `height=${probe && probe.logoHeight}`);
