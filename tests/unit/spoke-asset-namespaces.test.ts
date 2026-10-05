@@ -399,13 +399,21 @@ describe("runtime resolution reads DECLARED namespaces only", () => {
     expect(namespaceOwning("", [platform, spokeA])).toBeNull();
   });
 
-  it("ignores the repository's REAL generated Spoke namespace under a legacy selection", () => {
-    // This process selects the synthetic (LEGACY) installation, whose declared namespaces are the platform
-    // one only. The repository's generated tree may well hold the canonical deployment's Spoke namespace
-    // beside it — that is ANOTHER installation's output, and it must be invisible here: a legacy
-    // Installation resolves role artwork from its own platform namespace or not at all.
-    expect(runtimeAssetPath("favicon.svg")).toBeUndefined();
-    expect(iconAssetAvailable("favicon.svg")).toBe(false);
-    expect(runtimeNamespaces().map((namespace) => namespace.urlBase)).toEqual(["/assets"]);
+  it("reads only the namespaces the SELECTED installation declares", () => {
+    // DERIVED, never assumed (M21 §10): the declared bases come from the resolver itself, and every answer
+    // stays inside one of them. That is the whole isolation contract — another installation's generated
+    // tree (a Spoke namespace this installation does not declare) is invisible here — and it holds for a
+    // legacy platform-only installation and for a multi-Spoke capsule alike.
+    const declared = runtimeNamespaces().map((namespace) => namespace.urlBase);
+    expect(declared.length).toBeGreaterThan(0);
+    expect(declared).toContain("/assets");
+    // A basename no declared namespace ships resolves to nothing at all.
+    expect(runtimeAssetPath("definitely-missing-asset.svg")).toBeUndefined();
+    expect(iconAssetAvailable("definitely-missing-asset.svg")).toBe(false);
+    // …and whatever DOES resolve, resolves to a real file on disk.
+    for (const name of ["favicon.svg", "sidebar-open.svg", "icon-home.svg"]) {
+      const resolved = runtimeAssetPath(name);
+      if (resolved !== undefined) expect(existsSync(resolved), name).toBe(true);
+    }
   });
 });

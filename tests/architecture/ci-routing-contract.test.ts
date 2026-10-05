@@ -87,8 +87,8 @@ function satisfies(declared: string, actual: string): boolean {
 }
 
 describe("the workflow is orchestration of ONE classification authority", () => {
-  it("has exactly the classifier, the four routes and the one required result", () => {
-    expect(jobIds()).toEqual(["classify", "documentation", "deployment", "foundation", "full", "validate"]);
+  it("has exactly the classifier, the five routes and the one required result", () => {
+    expect(jobIds()).toEqual(["classify", "documentation", "content", "deployment", "foundation", "full", "validate"]);
   });
 
   it("invokes the classifier exactly once, and lets it be the only ownership policy", () => {
@@ -135,7 +135,7 @@ describe("the workflow is orchestration of ONE classification authority", () => 
   it("never hands a range it could not measure to a command", () => {
     // A fallback selects the complete gate AND reports no range, so the two steps that inspect a range
     // are guarded: skipping is visible, while a failure would be blamed on the wrong thing entirely.
-    for (const jobId of ["documentation", "full"]) {
+    for (const jobId of ["documentation", "content", "full"]) {
       expect(jobLines(jobId).join("\n"), jobId).toContain("if: needs.classify.outputs.base != ''");
     }
   });
@@ -257,7 +257,7 @@ describe("the required status context survives routing", () => {
     const validate = jobLines("validate").join("\n");
     expect(validate).toMatch(/^ {4}name: validate$/m);
     expect(validate).toMatch(/^ {4}if: always\(\)$/m);
-    expect(validate).toMatch(/needs: \[classify, documentation, deployment, foundation, full\]/);
+    expect(validate).toMatch(/needs: \[classify, documentation, content, deployment, foundation, full\]/);
   });
 
   it("fails on a failed classifier, an unknown scope, or a failed selected route", () => {

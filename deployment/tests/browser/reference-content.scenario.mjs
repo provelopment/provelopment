@@ -20,6 +20,7 @@
 //   (`src/config/deployment-build.ts`) — so this scenario names no repository path of its own.
 
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 // The FOUNDATION's CDP client, reused (never re-implemented): the harness owns the browser
@@ -28,20 +29,17 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { Cdp } from "../../../tests/browser/cdp.mjs";
 // M18 — the REAL hostnames, the readiness poll and the test-only browser hostname mapping, shared with the
 // deployment's other host-driving scenario (`../support/host-requests.mjs`).
+// M21 — STRUCTURE, CONFIGURATION AND ROUTE IDENTITY ONLY. No authored page is ever an expectation:
+// this scenario proves route resolution, canonical origin, Site/locale context, control configuration,
+// asset-namespace ownership, document structure and link resolution. Production prose is not an
+// acceptance input (`AGENTS.md` §14: tests protect behaviour and supported contracts, not wording).
 import {
   FOUNDATION_HOST,
   GERMANY_HOST,
   HOST_RESOLVER_RULES,
+  requestWithHost,
   waitForHostReady,
 } from "../support/host-requests.mjs";
-// M21 — THE AUTHORED PAGES ARE THE TEST'S EXPECTATIONS (see `../support/authored-page-outline.mjs`).
-import {
-  includesAnyProse,
-  includesProse,
-  readAuthoredTitles,
-  readPageOutline,
-  spokeDirectory,
-} from "../support/authored-page-outline.mjs";
 
 /** The dev server THIS scenario started, as a visitor addresses it (set below, per run). */
 let BASE_URL = "";
@@ -65,17 +63,78 @@ export const id = "reference-content";
  */
 const REFERENCE_ORIGIN = "https://foundation-template.provelopment.com";
 /**
- * M21 — THE AUTHORED PAGES ARE THE EXPECTATIONS.
+ * M21 — THE AUTHORED PAGES ARE NOT AN EXPECTATION.
  *
- * Every content-facing check in this scenario DERIVES what a page must show from the deployment's own
- * authored page — its title, its headings, its prose, its destinations — read at run time through
- * `../support/authored-page-outline.mjs`, and the German UI vocabulary is read from the dictionary
- * that carries it. The scenario therefore proves that the shipped pages parse and render, that the
- * right Spoke owns each route, and that no other Spoke's content leaks — it does NOT approve wording,
- * so an owner's copy edit can no longer invalidate it. The rule is recorded in `AGENTS.md`,
- * `deployment/AGENTS.md` and `tests/browser/README.md`.
+ * This scenario proves the durable contract of the shipped pages: the route resolves, the document is
+ * structurally valid (exactly one h1, a non-skipping heading outline), the Spoke/Site/locale context is
+ * the right one (canonical origin, hreflang, control configuration), the asset namespace belongs to the
+ * owning Spoke, and every internal link the page renders resolves. Copy belongs to the owner: it is
+ * never quoted, so an editorial change cannot invalidate a check. The rule is recorded in `AGENTS.md`
+ * (§14), `deployment/AGENTS.md` and `tests/browser/README.md`.
  */
-const REFERENCE_REPOSITORY_URL = "https://github.com/provelopment/provelopment-foundation";
+
+/**
+ * The heading-outline issues of a rendered document: no missing level-1 heading and no SKIPPED level.
+ *
+ * This is the structural contract a page's outline has (assistive technology and search engines read
+ * it), and it says nothing about the words in it.
+ */
+function headingOutlineIssues(levels) {
+  const issues = [];
+  if (levels.length === 0 || levels[0] !== 1) issues.push("the document does not open with its level-1 heading");
+  if (levels.filter((level) => level === 1).length !== 1) {
+    issues.push(`expected exactly one level-1 heading, found ${levels.filter((level) => level === 1).length}`);
+  }
+  for (let index = 1; index < levels.length; index += 1) {
+    if (levels[index] - levels[index - 1] > 1) {
+      issues.push(`heading level skips from h${levels[index - 1]} to h${levels[index]}`);
+    }
+  }
+  return issues;
+}
+
+/**
+ * How many declarative sections the JSON composer stamped, in authoring order.
+ *
+ * `page-document-content.tsx` numbers each authored section (`page-section-<n>`) and the sections that
+ * carry a heading emit that id, so a rendered page whose ids are unique and strictly increasing proves
+ * the DOCUMENT was composed — a fact about the authoring mode and the renderer, not about any word.
+ */
+function declarativeSectionCount(ids) {
+  const numbers = ids
+    .map((id) => Number(/^page-section-(\d+)$/.exec(id)?.[1] ?? Number.NaN))
+    .filter((value) => Number.isInteger(value));
+  if (numbers.length === 0) return 0;
+  const strictlyIncreasing = numbers.every((value, index) => index === 0 || value > numbers[index - 1]);
+  const unique = new Set(numbers).size === numbers.length;
+  return strictlyIncreasing && unique ? numbers.length : 0;
+}
+
+/**
+ * Every internal destination a page renders must RESOLVE at the host that serves it.
+ *
+ * "Resolve" includes the platform's own accepted completion: a locale-rooted destination is answered
+ * with a same-host redirect to its site-scoped route, so the walk follows same-host redirects and
+ * requires a 200 at the end. A destination that dead-ends (404, a foreign host, a loop) fails.
+ */
+async function internalLinksResolve(port, host, hrefs) {
+  if (hrefs.length === 0) return false;
+  for (const href of hrefs) {
+    let pathname = href;
+    let status = 0;
+    for (let hop = 0; hop < 4; hop += 1) {
+      const response = await requestWithHost(port, host, pathname);
+      status = response.status;
+      if (status === 200) break;
+      if (status !== 307 && status !== 308) break;
+      const target = new URL(response.location, `https://${host}`);
+      if (target.host !== host) break;
+      pathname = `${target.pathname}${target.search}`;
+    }
+    if (status !== 200) return false;
+  }
+  return true;
+}
 
 const DISCLOSURE_PROBE = `(() => {
   const r2 = (v) => Math.round(v * 100) / 100;
@@ -180,7 +239,26 @@ const REFERENCE_PROBE = `(() => {
     headings: [...document.querySelectorAll('main h2, main h3')].map((h) => (h.textContent || '').trim()),
     text,
     aboutAnchors: [...document.querySelectorAll('main a[href*="about"]')].map((a) => (a.getAttribute('href') || '') + ' :: ' + a.textContent.trim()),
-    repositoryLink: !!document.querySelector('main a[href*="${REFERENCE_REPOSITORY_URL}"]'),
+    // STRUCTURE ONLY: the outline's levels, the composer's section markers, and every document-level
+    // internal destination (fragments stripped) — never any authored text.
+    headingLevels: [...document.querySelectorAll('h1, h2, h3, h4, h5, h6')].map((h) => Number(h.tagName.slice(1))),
+    sections: [...document.querySelectorAll('[id^="page-section-"]')].map((el) => el.id),
+    // The Markdown renderer's OWN section anchors (the composer's page-section-<n> ids excluded), so
+    // the authoring mode's addressability is proved without reading a heading's text.
+    markdownAnchors: [...document.querySelectorAll('main h2[id], main h3[id]')]
+      .map((h) => h.id).filter((id) => !id.startsWith('page-section-')),
+    // The asset namespaces the document actually references (the platform namespace, or a Spoke's own)
+    // — the structural form of "whose artwork does this page use?". String work only: this expression
+    // travels inside a template literal, where an escaped slash would not survive.
+    assetNamespaces: [...new Set([...document.querySelectorAll('img[src], a[href], link[href]')]
+      .map((el) => (el.getAttribute('src') || el.getAttribute('href') || ''))
+      .map((url) => { const at = url.indexOf('/assets/'); return at < 0 ? '' : url.slice(0, at) + '/assets/'; })
+      .filter((base) => base !== ''))],
+    internalHrefs: [...new Set([...document.querySelectorAll('a[href^="/"]')]
+      .map((a) => (a.getAttribute('href') || '').split('#')[0])
+      .filter((href) => href !== ''))],
+    externalHrefs: [...new Set([...document.querySelectorAll('a[href^="http"]')]
+      .map((a) => (a.getAttribute('href') || '')))],
     canonical: (document.querySelector('link[rel="canonical"]') || {}).href || null,
     ogUrl: (document.querySelector('meta[property="og:url"]') || {}).content || null,
     visibleNav: [...document.querySelectorAll('nav a')]
@@ -283,26 +361,11 @@ export async function run(chrome, harness) {
   /** The GERMANY Spoke's own host, as a visitor addresses it locally. */
   const GERMANY_BASE_URL = `http://${GERMANY_HOST}:${port}`;
 
-  // ── THE AUTHORED PAGES AND DICTIONARIES, READ ONCE (M21) ─────────────────────────────────────────
-  // Every content-facing check below reads from here. Nothing is quoted: the expectations are the
-  // deployment's own files, so the suite proves the shipped pages PARSE and RENDER, that the owning
-  // Spoke serves them, and that no other Spoke's content leaks — never that some wording is approved.
-  const foundationDir = spokeDirectory(foundationConfigFile);
-  const germanyDir = spokeDirectory(germanyConfigFile);
-  const authoredPage = (dir, site, locale, slug) => readPageOutline(dir, { site, locale, slug });
-  const authoredHome = await authoredPage(foundationDir, "ww", "en", "home");
-  const authoredAbout = await authoredPage(foundationDir, "ww", "en", "about");
-  const authoredGermanHome = await authoredPage(foundationDir, "ww", "de", "home");
-  const authoredGermanAbout = await authoredPage(foundationDir, "ww", "de", "about");
-  const authoredGermanyBerlin = await authoredPage(germanyDir, "de", "de", "berlin");
-  /** The Germany Spoke's authored titles: the markers a leak of ITS content would carry. */
-  const germanyTitles = await readAuthoredTitles(germanyDir, [
-    { site: "de", locale: "de", slug: "home" },
-    { site: "de", locale: "en", slug: "home" },
-    { site: "de", locale: "de", slug: "about" },
-    { site: "de", locale: "en", slug: "about" },
-  ]);
-  /** The UI vocabulary each Spoke's own dictionaries declare — configuration, read, never quoted. */
+  // ── THIS DEPLOYMENT'S CONFIGURATION, READ ONCE (M21) ────────────────────────────────────────────
+  // Only CONFIGURATION is read here — the dictionaries that declare the UI vocabulary. The authored
+  // pages are never read: they are the owner's editorial data, not an expectation (see AGENTS.md §14).
+  const foundationDir = path.dirname(foundationConfigFile);
+  const germanyDir = path.dirname(germanyConfigFile);
   const dictionary = async (dir, locale) =>
     JSON.parse(await readFile(`${dir}/config/i18n/${locale}.json`, "utf8"));
   const foundationDictionary = {
@@ -634,31 +697,39 @@ export async function run(chrome, harness) {
     check(rows, "reference.home.isLocaleRoot", home.path === "/ww/en", home.path);
     check(
       rows,
-      "reference.home.oneH1AuthoredTitle",
-      home.h1s.length === 1 && home.h1s[0] === authoredHome.title,
+      "reference.home.oneH1",
+      // STRUCTURE, not copy: the page-level heading exists exactly once and carries visible text.
+      home.h1s.length === 1 && home.h1s[0].trim() !== "",
       JSON.stringify(home.h1s),
     );
     check(
       rows,
-      "reference.home.jsonSectionsRender",
-      // The AUTHORED document is the assertion: every heading it declares must be rendered.
-      authoredHome.headings.length > 0 &&
-        authoredHome.headings.every((heading) => home.headings.includes(heading)),
-      JSON.stringify(home.headings),
+      "reference.home.headingOutlineIsValid",
+      headingOutlineIssues(home.headingLevels).length === 0,
+      JSON.stringify({ levels: home.headingLevels, issues: headingOutlineIssues(home.headingLevels) }),
     );
     check(
       rows,
-      "reference.home.ownershipPrinciple",
-      // …and so is every prose line it declares — the portability statement among them.
-      authoredHome.prose.length > 0 &&
-        authoredHome.prose.every((line) => includesProse(home.text, line)),
-      "the authored Home prose is delivered",
+      "reference.home.declarativeDocumentComposed",
+      // The JSON composer stamps ONE contiguous `page-section-<n>` id per authored section, so a page
+      // carrying 1..N proves the DOCUMENT was composed in this authoring mode — no word is read.
+      declarativeSectionCount(home.sections) > 1,
+      JSON.stringify(home.sections),
+    );
+    check(rows, "reference.home.assetNamespaceOwnership", home.assetNamespaces.every((base) => !base.includes("/spokes/germany/")), JSON.stringify(home.assetNamespaces));
+    check(
+      rows,
+      "reference.home.internalLinksResolve",
+      await internalLinksResolve(port, FOUNDATION_HOST, home.internalHrefs),
+      JSON.stringify(home.internalHrefs),
     );
     check(
       rows,
       "reference.home.linksTheRepository",
-      home.repositoryLink === true,
-      "Home links the public repository (the owner-final hero action)",
+      // A durable structural fact: the page renders at least one EXTERNAL destination, and the owner
+      // decides where it points (never asserted here).
+      home.externalHrefs.length > 0,
+      JSON.stringify(home.externalHrefs.slice(0, 3)),
     );
     check(
       rows,
@@ -705,31 +776,37 @@ export async function run(chrome, harness) {
     const about = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
     check(
       rows,
-      "reference.about.oneH1AuthoredTitle",
-      about.h1s.length === 1 && about.h1s[0] === authoredAbout.title,
+      "reference.about.oneH1",
+      about.h1s.length === 1 && about.h1s[0].trim() !== "",
       JSON.stringify(about.h1s),
     );
     check(
       rows,
-      "reference.about.markdownSectionsRender",
-      // The AUTHORED Markdown page is the assertion: every `#` heading it declares is rendered.
-      authoredAbout.headings.length > 0 &&
-        authoredAbout.headings.every((heading) => about.headings.includes(heading)),
-      JSON.stringify(about.headings),
+      "reference.about.headingOutlineIsValid",
+      headingOutlineIssues(about.headingLevels).length === 0,
+      JSON.stringify({ levels: about.headingLevels, issues: headingOutlineIssues(about.headingLevels) }),
     );
     check(
       rows,
-      "reference.about.deliversThePrinciples",
-      // …and every authored paragraph and list item reaches the page.
-      authoredAbout.prose.length > 0 &&
-        authoredAbout.prose.every((line) => includesProse(about.text, line)),
-      "the authored About prose is delivered",
+      "reference.about.markdownSectionsAreAddressable",
+      // The Markdown mode renders its `#` sections as anchored headings: the renderer's own anchors
+      // exist, which is a fact about the mode and the renderer — not about any heading's wording.
+      about.markdownAnchors.length > 0 && about.markdownAnchors.every((id) => id.trim() !== ""),
+      JSON.stringify(about.markdownAnchors),
+    );
+    check(
+      rows,
+      "reference.about.internalLinksResolve",
+      await internalLinksResolve(port, FOUNDATION_HOST, about.internalHrefs),
+      JSON.stringify(about.internalHrefs),
     );
     check(
       rows,
       "reference.about.linksTheRepository",
-      about.repositoryLink === true,
-      "About links the public repository",
+      // Durable structure: the authored page renders at least one external destination. WHICH one is
+      // the owner's editorial decision and is deliberately not asserted.
+      about.externalHrefs.length > 0,
+      JSON.stringify(about.externalHrefs.slice(0, 3)),
     );
     check(
       rows,
@@ -859,15 +936,26 @@ export async function run(chrome, harness) {
     await cdp.navigate(`${BASE_URL}/ww/de/about`);
     await waitReady(cdp);
     const backOnGlobal = JSON.parse(await cdp.evaluate(REFERENCE_PROBE));
+    const backOnGlobalSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
     check(
       rows,
       "reference.sites.noCrossSiteContent",
-      // Identity, then isolation: the served h1 IS Global's own German About title, and none of the
-      // Germany Spoke's authored pages is rendered here. Both sides are read from the two trees.
+      // ISOLATION IS STRUCTURAL, never a copy comparison: the coordinate is answered on the reference
+      // origin inside the `ww` Site, its controls are the Foundation Spoke's own configuration, every
+      // internal destination stays inside `ww`, and the document references only the Foundation Spoke's
+      // asset namespace. Two Spokes may legitimately share wording; that is why wording proves nothing.
       backOnGlobal.path === "/ww/de/about" &&
-        backOnGlobal.h1s[0] === authoredGermanAbout.title &&
-        !includesAnyProse(backOnGlobal.text, germanyTitles),
-      "Global's German About is Global's own page, not Germany's",
+        backOnGlobal.canonical === `${REFERENCE_ORIGIN}/ww/de/about` &&
+        backOnGlobal.ogUrl === `${REFERENCE_ORIGIN}/ww/de/about` &&
+        JSON.stringify(backOnGlobalSelectors.selectorOrder ?? null) === JSON.stringify(["layout", "language"]) &&
+        backOnGlobal.internalHrefs.every((href) => href.startsWith("/ww/") || href.startsWith("/assets")) &&
+        !backOnGlobal.assetNamespaces.some((base) => base.includes("/spokes/germany/")),
+      JSON.stringify({
+        path: backOnGlobal.path,
+        canonical: backOnGlobal.canonical,
+        selectors: backOnGlobalSelectors.selectorOrder,
+        namespaces: backOnGlobal.assetNamespaces,
+      }),
     );
 
     // English About → Deutsch: the SAME page, in German. The route is preserved.
@@ -896,17 +984,27 @@ export async function run(chrome, harness) {
     const germanSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
     check(
       rows,
-      "reference.german.aboutOneH1AuthoredTitle",
-      germanAbout.h1s.length === 1 && germanAbout.h1s[0] === authoredGermanAbout.title,
+      "reference.german.aboutOneH1",
+      germanAbout.h1s.length === 1 && germanAbout.h1s[0].trim() !== "",
       JSON.stringify(germanAbout.h1s),
     );
     check(
       rows,
-      "reference.german.aboutSectionsRender",
-      // The AUTHORED German page is the assertion: every `#` heading it declares is rendered.
-      authoredGermanAbout.headings.length > 0 &&
-        authoredGermanAbout.headings.every((heading) => germanAbout.headings.includes(heading)),
-      JSON.stringify(germanAbout.headings),
+      "reference.german.aboutHeadingOutlineIsValid",
+      headingOutlineIssues(germanAbout.headingLevels).length === 0,
+      JSON.stringify({ levels: germanAbout.headingLevels, issues: headingOutlineIssues(germanAbout.headingLevels) }),
+    );
+    check(
+      rows,
+      "reference.german.aboutMarkdownSectionsAreAddressable",
+      germanAbout.markdownAnchors.length > 0,
+      JSON.stringify(germanAbout.markdownAnchors),
+    );
+    check(
+      rows,
+      "reference.german.aboutInternalLinksResolve",
+      await internalLinksResolve(port, FOUNDATION_HOST, germanAbout.internalHrefs),
+      JSON.stringify(germanAbout.internalHrefs),
     );
     check(
       rows,
@@ -988,17 +1086,21 @@ export async function run(chrome, harness) {
     const germanHomeSelectors = JSON.parse(await cdp.evaluate(REFERENCE_SELECTORS_PROBE));
     check(
       rows,
-      "reference.german.homeOneH1AuthoredTitle",
-      germanHome.h1s.length === 1 && germanHome.h1s[0] === authoredGermanHome.title,
+      "reference.german.homeOneH1",
+      germanHome.h1s.length === 1 && germanHome.h1s[0].trim() !== "",
       JSON.stringify(germanHome.h1s),
     );
     check(
       rows,
-      "reference.german.homeSectionsRender",
-      // The AUTHORED German home document is the assertion.
-      authoredGermanHome.headings.length > 0 &&
-        authoredGermanHome.headings.every((heading) => germanHome.headings.includes(heading)),
-      JSON.stringify(germanHome.headings),
+      "reference.german.homeHeadingOutlineIsValid",
+      headingOutlineIssues(germanHome.headingLevels).length === 0,
+      JSON.stringify({ levels: germanHome.headingLevels, issues: headingOutlineIssues(germanHome.headingLevels) }),
+    );
+    check(
+      rows,
+      "reference.german.homeDeclarativeDocumentComposed",
+      declarativeSectionCount(germanHome.sections) > 1,
+      JSON.stringify(germanHome.sections),
     );
     check(
       rows,
@@ -1011,9 +1113,18 @@ export async function run(chrome, harness) {
     );
     check(
       rows,
-      "reference.german.repositoryLinkIntact",
-      germanHome.repositoryLink === true,
-      "the owner-final external destination is preserved in German",
+      "reference.german.homeLinksStayInsideTheGlobalSite",
+      // `de` is BOTH a locale key and the Germany Site's code, so a German page's internal destinations
+      // must be site-scoped (`/ww/…`): a bare `/de/…` would read as the Germany Site. This is the
+      // durable form of that contract — the destinations themselves are the owner's to choose.
+      germanHome.internalHrefs.length > 0 && germanHome.internalHrefs.every((href) => href.startsWith("/ww/")),
+      JSON.stringify(germanHome.internalHrefs),
+    );
+    check(
+      rows,
+      "reference.german.homeInternalLinksResolve",
+      await internalLinksResolve(port, FOUNDATION_HOST, germanHome.internalHrefs),
+      JSON.stringify(germanHome.internalHrefs),
     );
     // The internal action states the SITE-SCOPED destination it means (`/ww/de/about`), because
     // `de` is now BOTH a locale key and the Germany site's code: the site-less locale form
@@ -1121,7 +1232,13 @@ export async function run(chrome, harness) {
     check(
       rows,
       "reference.germany.locationRendersItsOwnPage",
-      inBerlin.h1s.length === 1 && inBerlin.h1s[0] === authoredGermanyBerlin.title,
+      // Route identity + context, not copy: the regional route, its canonical and the Location
+      // control's own value all name the same configured location.
+      inBerlin.path === "/de/de/berlin" &&
+        inBerlin.canonical.endsWith("/de/de/berlin") &&
+        berlinSelectors.locationValue === "berlin" &&
+        inBerlin.h1s.length === 1 &&
+        inBerlin.h1s[0].trim() !== "",
       JSON.stringify(inBerlin.h1s),
     );
 

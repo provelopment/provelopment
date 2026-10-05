@@ -12,28 +12,35 @@ instruction-manuals/** -text
 
 # Asset artwork is verified BYTE-FOR-BYTE.
 #
-# `deployment/content/assets/**` is the SOURCE asset tree — it belongs to the SELECTED
-# DEPLOYMENT — and `public/assets/**` is its mirrored runtime derivative
+# The authored asset SOURCE trees, and the GENERATED runtime namespaces they are mirrored into, are
+# stored verbatim in EVERY layout Foundation supports. The layout vocabulary itself lives in ONE place
+# (`src/config/deployment-root.ts`, `DEPLOYMENT_RESOURCE_PATHS.assetSources`), so these patterns spell
+# the layouts it defines and nothing else:
+#
+#   content/assets/**                       a repository-root Installation (a standalone spoke)
+#   deployment/content/assets/**            a capsule whose Installation root owns the trees itself
+#   deployment/spokes/*/content/assets/**   a capsule whose Spokes each own their authored root
+#   public/assets/**                        the shared PLATFORM runtime namespace
+#   public/spokes/*/assets/**               a Spoke's own runtime namespace
+#
+# The mirror proof is a SHA-256 comparison of source and derivative as they exist on disk
 # (`scripts/sync-runtime-assets.mjs`, `pnpm assets:check`,
-# `deployment/tests/unit/asset-taxonomy-mirror.test.ts`). The mirror proof is a SHA-256
-# comparison of the two files as they exist on disk, and the favicon contract
-# compares the branding mark with the favicon derived from it — so no automatic
-# line-ending conversion may rewrite either side. Store source artwork and its
-# runtime mirror verbatim.
+# `deployment/tests/unit/asset-taxonomy-mirror.test.ts`), and the favicon contract compares the branding
+# mark with the favicon derived from it — so no automatic line-ending conversion may rewrite either side.
 #
-# `public/assets/**` is GENERATED and NOT version-controlled (FOUNDATION-DEPLOYMENT-ISO-B3C1):
-# it is ignored by `.gitignore` and installed from the source tree by the package lifecycle. Its
-# `-text` rule is kept as a guard so that an explicit re-add (or a downstream repository that still
-# commits a mirror) can never have its artwork bytes normalised.
-#
-# Both paths must stay listed: a rule for a tree that no longer exists would stop
-# protecting the artwork without failing anything visible (FOUNDATION-PAGES-A1D
-# moved the source tree from `assets/` to `content/assets/`, and
-# FOUNDATION-DEPLOYMENT-ISO-B2B moved that source tree into the deployment capsule;
-# `deployment/tests/unit/asset-taxonomy-mirror.test.ts` now asserts that BOTH paths —
-# and only the current ones — carry `-text`).
+# Every supported SOURCE layout must stay listed: a rule for a tree that stops existing would silently
+# stop protecting artwork (FOUNDATION-PAGES-A1D moved the source tree from `assets/` to
+# `content/assets/`, ISO-B2B moved it into the deployment capsule, and ISO-B3C2 made the capsule author a
+# PER-SPOKE root). The runtime namespaces are GENERATED and NOT version-controlled
+# (FOUNDATION-DEPLOYMENT-ISO-B3C1): their rules are kept as guards so that an explicit re-add — or a
+# downstream repository that still commits a mirror — can never have its artwork bytes normalised.
+# `deployment/tests/unit/asset-taxonomy-mirror.test.ts` asserts that every one of these patterns carries
+# `-text`, and that no rule survives for a retired tree.
+content/assets/** -text
 deployment/content/assets/** -text
+deployment/spokes/*/content/assets/** -text
 public/assets/** -text
+public/spokes/*/assets/** -text
 
 # `LICENSE` is the CANONICAL Apache License 2.0 text, installed byte-for-byte
 # from <https://www.apache.org/licenses/LICENSE-2.0.txt> and never paraphrased,

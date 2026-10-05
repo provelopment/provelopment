@@ -6,6 +6,7 @@ import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
 import {
+  AUTHORED_CONTENT_TREES,
   OWNERS,
   ROUTE_COMMANDS,
   SCOPES,
@@ -14,6 +15,7 @@ import {
   normalisePath,
   rangeFromEvent,
 } from "../../scripts/ci/change-scope.mjs";
+import { DEPLOYMENT_RESOURCE_PATHS } from "@/config/deployment-root";
 
 /**
  * CHANGE-SCOPED CI ROUTING (FOUNDATION-DEPLOYMENT-ISO-B3B)
@@ -59,9 +61,22 @@ function runClassifier(args: readonly string[]): { status: number; stdout: strin
 }
 
 describe("the classification vocabulary is exactly the owners and the routes", () => {
-  it("names four owners and four routes", () => {
-    expect(OWNERS).toEqual(["documentation", "deployment", "foundation", "shared"]);
-    expect(SCOPES).toEqual(["documentation", "deployment", "foundation", "full"]);
+  it("names five owners and five routes", () => {
+    expect(OWNERS).toEqual(["documentation", "content", "deployment", "foundation", "shared"]);
+    expect(SCOPES).toEqual(["documentation", "content", "deployment", "foundation", "full"]);
+  });
+
+  it("derives its authored trees from the path authority, so a layout change cannot be missed", () => {
+    // `src/config/deployment-root.ts` is the ONE place that spells an Installation's authored resource
+    // trees (a Spoke's own root, or a legacy implicit root). The classifier repeats no shape blindly:
+    // every tree that authority declares must be COVERED by an authored content tree here, so adding or
+    // renaming an authored tree in the platform cannot leave a page edit classified as something else.
+    for (const tree of Object.values(DEPLOYMENT_RESOURCE_PATHS)) {
+      expect(
+        AUTHORED_CONTENT_TREES.some((authored) => `${tree}/`.startsWith(authored)),
+        `${tree} is authored data the classifier must recognise`,
+      ).toBe(true);
+    }
   });
 
   it("declares a contract for every route, and only for those routes", () => {
@@ -92,14 +107,27 @@ describe("every repository surface has ONE owner", () => {
     ["deployment/content/pages/markdown/README.md", "documentation"],
     ["deployment/content/pages/json/README.md", "documentation"],
     ["deployment/content/assets/icon-library/icons/README.md", "documentation"],
-    // …while nothing else in the deployment's content tree is documentation:
-    ["deployment/content/pages/markdown/ww/en/about.md", "deployment"],
-    ["deployment/content/pages/markdown/de/de/about.md", "deployment"],
+    // …while nothing else in the deployment's content tree is documentation. ORDINARY AUTHORED DATA is
+    // the `content` owner, in every supported layout: an explicit Spoke's own root, and a legacy
+    // implicit Installation that names the same trees at its root.
+    ["deployment/spokes/foundation/content/pages/markdown/ww/en/about.md", "content"],
+    ["deployment/spokes/foundation/content/pages/json/ww/en/home.json", "content"],
+    ["deployment/spokes/germany/config/i18n/de.json", "content"],
+    ["deployment/spokes/germany/content/assets/placeholders/logo-header.svg", "content"],
+    ["deployment/content/pages/markdown/ww/en/about.md", "content"],
+    ["deployment/content/pages/markdown/de/de/about.md", "content"],
+    ["deployment/content/assets/platform-marks/platform-marks-provenance.md", "content"],
+    ["deployment/config/i18n/en.json", "content"],
+    // …an author-facing README inside ANY authored tree stays documentation, in every layout:
+    ["deployment/spokes/foundation/content/pages/markdown/README.md", "documentation"],
+    ["deployment/spokes/germany/content/assets/README.md", "documentation"],
+    // …and a generated lifecycle document is NOT authored content:
     ["deployment/content/COUNTRY-CODES.md", "deployment"],
-    ["deployment/content/assets/platform-marks/platform-marks-provenance.md", "deployment"],
+    ["deployment/spokes/foundation/content/COUNTRY-CODES.md", "deployment"],
     // The capsule's production state and its own acceptance contract:
     ["deployment/site.config.json", "deployment"],
-    ["deployment/config/i18n/en.json", "deployment"],
+    ["deployment/spokes.json", "deployment"],
+    ["deployment/spokes/foundation/site.config.json", "deployment"],
     ["deployment/foundation-baseline.json", "deployment"],
     ["deployment/tests/unit/asset-install.test.ts", "deployment"],
     ["deployment/tests/integration/page-authoring.test.ts", "deployment"],
@@ -168,9 +196,15 @@ describe("the route follows the ownership of the WHOLE change", () => {
     ["root documentation only", ["README.md"], "documentation"],
     ["every platform manual at once", ["AGENTS.md", "ARCHITECTURE.md", "DEPLOYMENT.md"], "documentation"],
     ["a distributed manual", ["instruction-manuals/content-management.md"], "documentation"],
-    ["a deployment page", ["deployment/content/pages/markdown/ww/en/about.md"], "deployment"],
-    ["a deployment dictionary", ["deployment/config/i18n/de.json"], "deployment"],
+    ["an authored page (explicit Spoke)", ["deployment/spokes/foundation/content/pages/markdown/ww/en/about.md"], "content"],
+    ["an authored JSON page", ["deployment/spokes/germany/content/pages/json/de/de/home.json"], "content"],
+    ["an authored dictionary", ["deployment/spokes/germany/config/i18n/de.json"], "content"],
+    ["authored artwork", ["deployment/spokes/foundation/content/assets/placeholders/logo-header.svg"], "content"],
+    ["a legacy authored page", ["deployment/content/pages/markdown/ww/en/about.md"], "content"],
+    ["a legacy authored dictionary", ["deployment/config/i18n/de.json"], "content"],
     ["a deployment test", ["deployment/tests/unit/r1a-reference-deployment.test.ts"], "deployment"],
+    ["the Installation manifest", ["deployment/spokes.json"], "deployment"],
+    ["a Spoke configuration", ["deployment/spokes/germany/site.config.json"], "deployment"],
     ["the deployment's browser acceptance", ["deployment/tests/browser/reference-content.scenario.mjs"], "deployment"],
     ["the deployment's baseline", ["deployment/foundation-baseline.json"], "deployment"],
     ["the deployment README alone", ["deployment/README.md"], "documentation"],
@@ -195,8 +229,17 @@ describe("the route follows the ownership of the WHOLE change", () => {
     ["a retired root site configuration", ["site.config.json"], "full"],
     // Documentation never narrows anything, and never widens a single-owner change either.
     ["documentation + deployment", ["DEPLOYMENT.md", "deployment/content/README.md"], "documentation"],
-    ["documentation + a deployment page", ["README.md", "deployment/content/pages/markdown/ww/en/about.md"], "deployment"],
+    ["documentation + an authored page", ["README.md", "deployment/spokes/foundation/content/pages/markdown/ww/en/about.md"], "content"],
+    ["documentation + a legacy authored page", ["README.md", "deployment/content/pages/markdown/ww/en/about.md"], "content"],
     ["documentation + Foundation", ["CUSTOMIZING.md", "src/core/site-code.ts"], "foundation"],
+    // A change that MIXES authored data with anything executable escalates to the stronger scope: the
+    // `content` route applies only when every non-documentation changed path is eligible authored data.
+    ["authored page + its Spoke configuration", ["deployment/spokes/germany/content/pages/json/de/de/home.json", "deployment/spokes/germany/site.config.json"], "deployment"],
+    ["authored page + the Installation manifest", ["deployment/spokes/foundation/content/pages/markdown/ww/en/about.md", "deployment/spokes.json"], "deployment"],
+    ["authored page + a deployment test", ["deployment/spokes/foundation/content/pages/markdown/ww/en/about.md", "deployment/tests/unit/r1a-reference-deployment.test.ts"], "deployment"],
+    ["authored page + Foundation source", ["deployment/spokes/foundation/content/pages/markdown/ww/en/about.md", "src/core/site-code.ts"], "full"],
+    ["authored page + a shared path", ["deployment/spokes/germany/content/assets/placeholders/logo-header.svg", "package.json"], "full"],
+    ["authored page + a workflow file", ["deployment/spokes/germany/config/i18n/de.json", ".github/workflows/ci.yml"], "full"],
   ];
 
   it.each(routing)("%s → %s", (_name, paths, expected) => {
@@ -247,11 +290,16 @@ describe("the route follows the ownership of the WHOLE change", () => {
       expect(entry.retired).toBe(true);
       expect(entry.owner).toBe("shared");
     }
-    // The capsule's own paths are the current spelling, not a retired one.
+    // The capsule's own paths are the current spelling, not a retired one — and an authored page inside
+    // them is ordinary authored data, which is what the `content` route exists for.
     const current = classifyChange(["deployment/content/pages/markdown/ww/en/x.md"]);
-    expect(current.scope).toBe("deployment");
+    expect(current.scope).toBe("content");
     expect(current.warnings).toHaveLength(0);
     expect(current.entries[0].retired).toBe(false);
+    // A re-created ROOT location is still the retired case, whichever owner the path would otherwise have.
+    const retiredConfig = classifyChange(["config/i18n/en.json"]);
+    expect(retiredConfig.scope).toBe("full");
+    expect(retiredConfig.entries[0].retired).toBe(true);
   });
 });
 

@@ -44,18 +44,45 @@ own tree — `tests/browser/` inside the root the deployment authority selected,
 discovers every `*.scenario.mjs` there and runs it, so a deployment ships expectations rather than a
 second browser framework, and adding a deployment edits no list.
 
-### Expected, not pinned: authored page prose
+### Expected, not pinned: structure, context and configuration
 
-A scenario owns EXPECTATIONS about a deployment, and the deployment's authored pages are its data — so a
-content-facing check DERIVES what a page must show from that page's own source at run time
-(`deployment/tests/support/authored-page-outline.mjs` reads both authoring modes) instead of quoting copy.
-The checks prove the invariants: the source parses, every authored heading, prose line and destination
-renders, the owning Spoke/Site/locale serves the route, and no other Spoke's content appears. Wording is
-never approved by a test, so an owner's copy edit cannot invalidate the suite, and a routing or isolation
-guarantee is never proved with marketing prose as its marker.
+A scenario owns EXPECTATIONS about a deployment, and the deployment's authored content is its DATA — so a
+scenario proves what is durable and never quotes copy. For a real page: the route resolves, the response
+succeeds, exactly one h1 exists where required, the document is structurally valid, the correct
+Spoke/Site/locale context is selected, the canonical origin and hreflang are correct, the asset namespace
+is the owning one, the internal links the page renders resolve, and the configured controls appear. For
+isolation: the resolved runtime context, origin, Site path and asset namespace — never a title, because
+two Spokes may legally share one.
 
-Exact strings remain correct where the TEST authored the text — a planted fixture page may assert its own
-`"Authored fixture page"`. The same rule is recorded in `AGENTS.md` and `deployment/AGENTS.md`.
+A scenario must not parse production Markdown or prose, and must not read an authored page to derive an
+expectation: the application owns that parser. Test-owned fixtures keep exact assertions, because the TEST
+authored that text.
+
+Two operational notes for probe authors:
+
+- a probe travels inside a template literal, so an ESCAPED SLASH does not survive template evaluation —
+  write string work (`indexOf`, `slice`) instead of a slash-escaped regex inside a probe;
+- prefer asserting a data attribute, an `id`, a resolved context or a response status over a class list or
+  a sentence.
+
+The same rule is recorded in `AGENTS.md` (§14) and `deployment/AGENTS.md`.
+
+### How much to run, and when (escalation)
+
+Verification effort is proportional to blast radius (`AGENTS.md` §15 — the ONE authority). For this
+harness that means:
+
+- an authored page, dictionary or artwork edit does NOT need a browser scenario at all;
+- a deployment/browser-owned change (routing, hostname behaviour, locale/site/location declarations,
+  asset roles, a scenario or harness edit) runs the AFFECTED browser scope — the nearest scenario's
+  `--scope`, then the owning project's browser suite once the change is coherent;
+- a harness (`tests/browser/**`) or shared-surface change escalates to both scopes, because both owners'
+  scenarios are driven by the same runner;
+- anything unclassifiable runs both scopes. Uncertain escalates, never narrows.
+
+During implementation, run the affected scope after each meaningful harness edit. The complete browser
+matrix is a FINAL-gate proof: run it once on the coherent candidate, and let exact-head CI prove the PR
+head. Do not re-run the matrix for a documentation-only delta afterwards.
 
 ### What the harness may write
 
@@ -111,7 +138,7 @@ export async function run(chrome, harness) { … }  // returns the same check ro
 The `harness` argument carries the generic pieces a scenario needs — its port, its viewports, its
 assertion collector, its dev server (`startDevServer`/`stopServer`/`waitForServer`/`waitReady`), its
 layout helper, and `configFile`: the deployment's configuration path, resolved exactly as the build
-resolves it (a capsule at `<repo>/deployment/site.config.json` when one exists, otherwise the
+resolves it (a capsule at `<repo>/deployment` when one exists, otherwise the
 repository root). A deployment scenario therefore names no repository path of its own, and a
 repository without a capsule discovers nothing.
 

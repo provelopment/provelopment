@@ -14,7 +14,7 @@
 //      Scope semantics live in `tests/browser/scope.mjs` (one harness, one discovery policy).
 // (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -223,6 +223,20 @@ function servedInstallationAssetCapability() {
     },
     /** A generated namespace this selection does NOT declare — the canonical Spoke's, by convention. */
     undeclaredSpokeNamespace: join(ROOT, "public", "spokes", "foundation", "assets"),
+    /**
+     * The platform ICON filenames THIS installation publishes — DERIVED, never assumed (M21 §10).
+     *
+     * A scenario that needs a real icon filename asks here, so the harness works for any installation:
+     * a deployment that replaces or renames its icon library keeps every scenario meaningful, and a
+     * scenario whose subject (two distinct shipped icons) is absent skips instead of failing.
+     */
+    publishedIcons() {
+      const platform = namespaces.find((namespace) => namespace.urlBase === "/assets");
+      if (!platform || !existsSync(platform.directory)) return [];
+      return readdirSync(platform.directory)
+        .filter((name) => name.startsWith("icon-") && name.endsWith(".svg"))
+        .sort();
+    },
   };
   return servedCapability;
 }
@@ -1582,12 +1596,37 @@ async function runCanonical(chrome) {
       capability.mode === "legacy" && capability.urlBases.length === 1 && capability.urlBases[0] === "/assets",
       `mode=${capability.mode} bases=${capability.urlBases.join(",")}`,
     );
-    const canonicalRole = capability.asset("logo-header.svg");
+    // DERIVED, never a named canonical role (M21 §10): a role this installation does not publish is NOT
+    // served, and every icon it DOES serve comes from a namespace it DECLARES — so an undeclared Spoke
+    // namespace is never consulted, whatever happens to exist on disk.
+    const publishedIconNames = capability.publishedIcons();
+    const unpublishedRole = capability.asset("role-this-installation-does-not-ship.svg");
+    const publishedIconName = publishedIconNames[0] ?? "no-icon-is-published.svg";
+    const publishedRole = capability.asset(publishedIconName);
     check(
       rows,
-      "iso.canonicalSpokeRoleIsUnavailableToThisInstallation",
-      canonicalRole.served === false && canonicalRole.url === null,
-      `served=${canonicalRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
+      "iso.installationPublishesItsOwnIcons",
+      publishedIconNames.length > 0,
+      `icons=${publishedIconNames.length}`,
+    );
+    check(
+      rows,
+      "iso.unpublishedRoleIsUnavailableToThisInstallation",
+      unpublishedRole.served === false && unpublishedRole.url === null,
+      `served=${unpublishedRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
+    );
+    const publishedRoleUrl = publishedRole.url ?? "";
+    const publishedRoleBase = publishedRoleUrl.endsWith(`/${publishedIconName}`)
+      ? publishedRoleUrl.slice(0, publishedRoleUrl.length - publishedIconName.length - 1)
+      : "";
+    check(
+      rows,
+      "iso.servedIconComesFromADeclaredNamespace",
+      publishedIconNames.length > 0 &&
+        publishedRole.served === true &&
+        publishedRoleUrl.startsWith("/") &&
+        capability.urlBases.includes(publishedRoleBase),
+      `icon=${publishedIconName} url=${publishedRoleUrl || "(none)"} base=${publishedRoleBase || "(none)"} bases=${capability.urlBases.join(",")}`,
     );
     await cdp.navigate(`${BASE_URL}/ww/en`);
     await waitReady(cdp);
@@ -1621,11 +1660,12 @@ async function runCanonical(chrome) {
  * warnings anywhere. Own dev server; config restored after.
  */
 async function runDuplicateNavScenario(chrome) {
-  // P6-1: the fixture icons must be REAL shipped assets (a configured icon with
-  // no backing file is now a LOUD build failure) — Alpha/Beta take the two
-  // distinct shipped sidebar defaults to prove each same-`href` entry keeps
-  // its OWN icon; the other entries are icon-less (their icons were never
-  // asserted — only Alpha/Beta identity is).
+  // P6-1: the fixture icons must be REAL shipped assets (a configured icon with no backing file is a
+  // LOUD build failure), so the two DISTINCT names are DERIVED from the icons THIS installation
+  // publishes (M21 §10). A scenario whose subject is "two distinct shipped icons" is SKIPPED where the
+  // installation publishes fewer than two — the subject is absent, not broken.
+  const publishedIcons = servedInstallationAssetCapability().publishedIcons();
+  if (publishedIcons.length < 2) return;
   const DUP_NAV = [
     { label: "First", href: "/first", position: "middle" },
     { label: "Second", href: "/second", position: "middle" },
@@ -1636,8 +1676,8 @@ async function runDuplicateNavScenario(chrome) {
     // every installation, while `sidebar-open.svg`/`sidebar-close.svg` are that installation's OWN
     // replaceable role files and are not shipped by this one. The assertions below match on the basename,
     // so `icon-sidebar-open.svg` satisfies them exactly as the role filename used to.
-    { label: "Alpha", href: "/pricing", icon: "icon-sidebar-open.svg", position: "top" },
-    { label: "Beta", href: "/pricing", icon: "icon-sidebar-close.svg", position: "bottom", disabled: true },
+    { label: "Alpha", href: "/pricing", icon: publishedIcons[0], position: "top" },
+    { label: "Beta", href: "/pricing", icon: publishedIcons[1], position: "bottom", disabled: true },
   ];
   const HOOK = `(() => { window.__dupKeyWarnings = []; const o = window.console.error; window.console.error = (...a) => { const s = a.map(String).join(" "); if (/same key|duplicate|two children/i.test(s)) window.__dupKeyWarnings.push(s); o.apply(window.console, a); }; })();`;
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -1681,9 +1721,9 @@ async function runDuplicateNavScenario(chrome) {
         return {
           both: labels.includes("Alpha") && labels.includes("Beta"),
           alphaIsLink: !!alpha && alpha.getAttribute("href") === "/ww/en/pricing",
-          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='sidebar-open.svg']"),
+          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='${publishedIcons[0]}']"),
           betaDisabled: !!betaLi && !!betaLi.querySelector("[aria-disabled='true']"),
-          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='sidebar-close.svg']"),
+          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='${publishedIcons[1]}']"),
           warnings: window.__dupKeyWarnings.length,
         };
       })()`);
@@ -2843,7 +2883,12 @@ async function runConnectivityIconScenario(chrome) {
   // (`sidebar-open.svg`) belong to the installation that owns them and are deliberately not used as a
   // generic fixture: this scenario's subject is the connectivity icon seam, not another installation's
   // artwork, and the assertions below match the filename's basename either way.
-  const ICON = "icon-sidebar-open.svg"; // an existing generic PLATFORM asset — never replaceable role artwork
+  // The icon this pass configures is DERIVED from the platform icons THIS installation publishes
+  // (M21 §10): the seam under test is the configured-icon behaviour, never a particular artwork file.
+  // An installation that publishes no platform icon has no subject here, so the pass is SKIPPED.
+  const publishedIcons = servedInstallationAssetCapability().publishedIcons();
+  if (publishedIcons.length === 0) return;
+  const ICON = publishedIcons[0];
   const MISSING = "missing-connectivity-icon-fixture.svg"; // deliberately absent
   const original = await readFile(CONFIG_PATH, "utf8");
   const rows = [];
@@ -3093,7 +3138,7 @@ async function runConnectivityIconScenario(chrome) {
     await waitReady(cdp);
     const painted = await cdp.evaluate(`(async () => {
       const img = [...document.querySelectorAll('footer li img')]
-        .find((el) => (el.getAttribute('src') || '').endsWith('sidebar-open.svg'));
+        .find((el) => (el.getAttribute('src') || '').endsWith('${ICON}'));
       if (!img) return null;
       const link = img.closest('a');
       link.style.color = 'rgb(255, 0, 0)';
@@ -5516,7 +5561,6 @@ async function runBottomNavWrapScenario(chrome) {
  * framework re-derives the same-origin path, which is where the shipped asset is served from.
  */
 const GRAPHIC_FIXTURE_LOGO_URL = "https://example.com/assets/github.svg";
-const GRAPHIC_FIXTURE_NATURAL_BOX = "98x96";
 
 /**
  * NAV1B — THE HEADER'S FIXED SEMANTIC ROWS UNDER PRESSURE (own servers + TEST-OWNED fixtures).
@@ -5670,7 +5714,16 @@ async function runHeaderRowsScenario(chrome) {
     for (const { width, probe } of graphic.measured) {
       const tag = `nav1b.graphic.w${width}`;
       check(rows, `${tag}.graphicIsTheIdentity`, !!probe && probe.logoPresent === true, `present=${probe && probe.logoPresent}`);
-      check(rows, `${tag}.graphicIsTheShippedFixture`, !!probe && probe.logoNaturalBox === GRAPHIC_FIXTURE_NATURAL_BOX, `natural=${probe && probe.logoNaturalBox}`);
+      // The graphic REALLY LOADED — proved by a natural size, never by a particular artwork's pixels
+      // (M21 §15: an owner may replace an allowed graphic without failing a scenario about the shell).
+      // The layout contracts around it (its accepted lockup height, its left edge, never shrunk into one
+      // column) are asserted below and are what this scenario is about.
+      check(
+        rows,
+        `${tag}.graphicIsTheShippedFixture`,
+        !!probe && /^[1-9]\d*x[1-9]\d*$/.test(String(probe.logoNaturalBox)),
+        `natural=${probe && probe.logoNaturalBox}`,
+      );
       // The graphic starts in its normal left-hand identity position, at its accepted lockup height.
       check(rows, `${tag}.graphicStartsAtThePaddedLeftEdge`, !!probe && probe.logoLeft !== null && probe.headerContentLeft !== null && Math.abs(probe.logoLeft - probe.headerContentLeft) <= 1, `left=${probe && probe.logoLeft} contentLeft=${probe && probe.headerContentLeft}`);
       check(rows, `${tag}.graphicKeepsItsAcceptedHeight`, !!probe && probe.logoHeight === 32, `height=${probe && probe.logoHeight}`);

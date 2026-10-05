@@ -1,7 +1,19 @@
+import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
+
+// THE RELEASE CONTENT AUTHORITY (FOUNDATION-MULTISITE-M21 §11/§12).
+//
+// What a Foundation release does and does not carry is decided by ONE classified inventory. The
+// generic document set this suite checks is DERIVED from that authority, so a path the release
+// EXCLUDES — the reference deployment's own documents above all — can never be required here. A
+// materialised release contains no `deployment/**` at all, and this suite must pass there.
+import {
+  classifyReleasePath,
+  RELEASE_INCLUSION,
+} from "../../scripts/release/release-content-policy.mjs";
 
 /**
  * FOUNDATION DOES NOT DEPEND ON ANY OTHER WORKSPACE PROJECT (FOUNDATION-MULTISITE-M20 §55)
@@ -60,6 +72,30 @@ function dependsOnSiblingProject(line: string): boolean {
   return false;
 }
 
+/** Every tracked path of this revision — the same inventory the release content policy classifies. */
+function trackedPaths(): string[] {
+  return execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+    .split("\0")
+    .filter((entry) => entry !== "");
+}
+
+/**
+ * THE ACTIVE PLATFORM DOCUMENTS — derived, never hand-listed.
+ *
+ * The set is what a RELEASE CARRIES: the repository's own documentation at its root, and the
+ * documentation beside its platform scripts and source, as the release content policy classifies it.
+ * A path the policy EXCLUDES therefore leaves this set by itself: the deployment's documents (which a
+ * release never contains), the test trees' own notes, and the distributed instruction manuals (upstream
+ * copies, not this repository's active documentation). A document nobody classified stops release
+ * construction rather than quietly joining or leaving the check.
+ */
+function platformDocuments(): string[] {
+  return trackedPaths()
+    .filter((file) => /\.md$/i.test(file))
+    .filter((file) => !file.includes("/") || file.startsWith("scripts/") || file.startsWith("src/"))
+    .filter((file) => classifyReleasePath(file).inclusion === RELEASE_INCLUSION.PLATFORM);
+}
+
 describe("Foundation depends on no other workspace project", () => {
   it("imports, requires and path-literals nothing outside this repository", () => {
     const offenders: string[] = [];
@@ -75,20 +111,30 @@ describe("Foundation depends on no other workspace project", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("makes no canonical-content claim about another project in its active documentation", () => {
-    const documents = [
-      "README.md",
-      "ARCHITECTURE.md",
-      "CUSTOMIZING.md",
-      "DEPLOYMENT.md",
-      "BRAND_ASSETS.md",
-      "AGENTS.md",
+  it("checks the documents a RELEASE carries, and never the deployment's own", () => {
+    // The derived set is what a release contains: no path from the excluded deployment, and an
+    // inventory that cannot go empty (a check over nothing proves nothing).
+    const documents = platformDocuments();
+    expect(documents.length).toBeGreaterThan(0);
+    expect(documents).toContain("ARCHITECTURE.md");
+    for (const document of documents) expect(document.startsWith("deployment/")).toBe(false);
+
+    // …and the reference deployment's own documents are EXCLUDED by the release policy, so requiring one
+    // inside a release payload is a contradiction the policy itself refutes (M21 §11/§12). The claim is
+    // made over the POLICY's answers, which is what makes it true in a materialised release too — there
+    // is no `deployment/**` to enumerate, and none may be required.
+    for (const document of [
       "deployment/README.md",
-      "scripts/installation/README.md",
-      "src/core/foundation-installation/README.md",
-    ];
+      "deployment/AGENTS.md",
+      "deployment/tests/unit/r1a-reference-deployment.test.ts",
+    ]) {
+      expect(classifyReleasePath(document).inclusion, document).toBe(RELEASE_INCLUSION.EXCLUDED);
+    }
+  });
+
+  it("makes no canonical-content claim about another project in its active documentation", () => {
     const offenders: string[] = [];
-    for (const document of documents) {
+    for (const document of platformDocuments()) {
       const lines = readFileSync(path.join(ROOT, document), "utf8").split(/\r?\n/);
       lines.forEach((line, index) => {
         if (SIBLING_PROJECT.test(line) && /canonical|byte-for-byte|installed from|authoritative/i.test(line)) {

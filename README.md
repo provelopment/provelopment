@@ -31,8 +31,9 @@ default locale. The starter renders immediately: no content or artwork has to be
 deleted first.
 
 Before production, **replace the placeholder values**: `site.url`, `site.name`,
-`site.tagline` and `site.description` in the deployment's `site.config.json` (this
-repository ships its deployment as the capsule `deployment/site.config.json`), the
+`site.tagline` and `site.description` in the deployment's `site.config.json` (in this
+repository that file belongs to the Foundation Spoke, at
+`deployment/spokes/foundation/site.config.json`), the
 starter copy in its `config/i18n/en.json`, and the graphics in its
 `content/assets/placeholders/`.
 
@@ -114,11 +115,11 @@ tests           # Architecture-boundary, unit, integration and CDP browser-matri
 ## Where your content lives
 
 **One folder holds everything you write or upload:** the deployment's
-[`content/`](deployment/content/README.md) — in this repository that folder is
-`deployment/content/`. Pages and the artwork they use — all of it.
+[`content/`](deployment/spokes/foundation/content/README.md) — in this repository that folder is
+`deployment/spokes/foundation/content/`. Pages and the artwork they use — all of it.
 
 ```text
-content/                 (this repository: deployment/content/)
+content/                 (this repository: deployment/spokes/foundation/content/)
 ├── README.md            ← the map: "where do I edit my website?"
 ├── pages/
 │   ├── markdown/        ← simple, safe pages  (content/pages/markdown/<site>/<locale>/<route>.md)
@@ -126,8 +127,10 @@ content/                 (this repository: deployment/content/)
 └── assets/              ← logos, favicons, icons, graphics  (you edit here)
 ```
 
-Every path written as `content/…` in this README is relative to that deployment
-content folder: write `deployment/content/…` when you are at this repository's root.
+Every path written as `content/…` in this README is relative to the AUTHORING ROOT
+that owns it: the Installation root in a legacy implicit installation, and the Spoke's
+own root in the explicit form this repository uses — write
+`deployment/spokes/foundation/content/…` when you are at this repository's root.
 
 **If authored content has its own URL, it is a page.** A services page, one service, a
 blog article, a portfolio project, a privacy policy and "About" are all pages: they
@@ -146,7 +149,7 @@ content/pages/markdown/ww/en/legal/privacy.md          →  /ww/en/legal/privacy
 
 - **site** — a recognized lowercase country code (`ca`, `fr`, `ch`…) or `ww` for a
   worldwide/global site. The complete list is in
-  [`content/COUNTRY-CODES.md`](deployment/content/COUNTRY-CODES.md); a folder that is not one of those
+  [`content/COUNTRY-CODES.md`](deployment/spokes/foundation/content/COUNTRY-CODES.md); a folder that is not one of those
   codes is not a site, and its pages are never published.
 - **language** — `en`, `fr`, `fr-ca`… (lowercase).
 
@@ -174,12 +177,12 @@ change settings in `site.config.json` — in this repository both live in `deplo
 | **Advanced declarative JSON** | an experienced author/developer who needs page composition Markdown cannot express | `content/pages/json/<site>/<locale>/<route>.json` |
 
 Both are documented for the person doing the authoring:
-[`content/pages/markdown/README.md`](deployment/content/pages/markdown/README.md) explains what
+[`content/pages/markdown/README.md`](deployment/spokes/foundation/content/pages/markdown/README.md) explains what
 Markdown is, where the file goes, exactly what you can write and how to link to a
 section of your own page;
-[`content/pages/json/README.md`](deployment/content/pages/json/README.md) explains the advanced
+[`content/pages/json/README.md`](deployment/spokes/foundation/content/pages/json/README.md) explains the advanced
 mode's role and its current status. Your artwork lives in
-[`content/assets/`](deployment/content/assets/README.md).
+[`content/assets/`](deployment/spokes/foundation/content/assets/README.md).
 
 Whichever mode you choose, **the page title is the page's only top-level heading**.
 Headings you write inside a page are placed below it automatically, so `#` is still how
@@ -193,14 +196,14 @@ Editing a file is not publishing it. A change reaches the website when it is
 
 ```bash
 git status                                  # see what you changed
-git add deployment/content/pages/markdown/ww/en/about.md  # stage the file(s) you edited
+git add deployment/spokes/foundation/content/pages/markdown/ww/en/about.md  # stage the file(s) you edited
 git commit -m "Update About page"           # record the change
 git push                                    # send it; automated checks then build the site
 ```
 
 A saved-but-uncommitted file cannot be pushed, and an unpushed commit cannot reach
 the site — those four commands are the whole workflow, and it is the same for every
-file under the deployment's `content/` tree (`deployment/content/` in this repository).
+file under the deployment's `content/` tree (`deployment/spokes/foundation/content/` in this repository).
 
 > **Public deployment — live technical baseline.** This repository is deployed
 > directly to **`https://foundation-template.provelopment.com/`**: Vercel builds
@@ -233,8 +236,8 @@ file under the deployment's `content/` tree (`deployment/content/` in this repos
 >    behaviour; the reference site's own choice to enable it is reference configuration.
 
 The repository also authors its own **two reference pages** — Home
-(`deployment/content/pages/json/ww/en/home.json`, the advanced JSON mode) and About
-(`deployment/content/pages/markdown/ww/en/about.md`, the simple Markdown mode) — so both authoring
+(`deployment/spokes/foundation/content/pages/json/ww/en/home.json`, the advanced JSON mode) and About
+(`deployment/spokes/foundation/content/pages/markdown/ww/en/about.md`, the simple Markdown mode) — so both authoring
 modes are demonstrated by the live site. A site that authors no home page still gets the
 configuration-driven starter landing page, and the two authoring roots' own documentation
 is never content. Technical routes (`/sitemap.xml`, `/robots.txt`) and generated metadata
@@ -242,13 +245,13 @@ are not content pages.
 
 ## Customize identity
 
-1. **Configuration** — the deployment's `site.config.json` (`deployment/site.config.json`
+1. **Configuration** — the deployment's `site.config.json` (`deployment/spokes/foundation/site.config.json`
    in this repository) is validated at build time (a bad edit
    fails with an actionable message). It drives the site name, tagline,
    description, contact details, social links, navigation, an optional secondary
    footer navigation group, enabled capabilities and the resolved UI.
 2. **Text and colour** — the visible landing-page copy lives in the deployment's
-   `config/i18n/en.json` (`deployment/config/i18n/en.json` in this repository); the single theme accent is one value in
+   `config/i18n/en.json` (`deployment/spokes/foundation/config/i18n/en.json` in this repository); the single theme accent is one value in
    `src/app/globals.css` (`--ui-foundation-accent`). Change it and the whole site
    re-colours; keep it dark enough to meet the WCAG AA contrast gate.
 3. **Graphics** — replace the neutral files in the deployment's `content/assets/placeholders/`
@@ -290,8 +293,8 @@ It is **safe by design**: raw HTML you type is shown as text, unsafe link
 destinations are dropped, and the rendered page is checked against a fixed
 element/attribute allowlist. `## Opening hours` also gains the predictable fragment
 `#opening-hours`, so an author can link to their own sections — at any depth. The
-author-facing guide is [`content/pages/markdown/README.md`](deployment/content/pages/markdown/README.md);
-the advanced mode is [`content/pages/json/README.md`](deployment/content/pages/json/README.md) (a
+author-facing guide is [`content/pages/markdown/README.md`](deployment/spokes/foundation/content/pages/markdown/README.md);
+the advanced mode is [`content/pages/json/README.md`](deployment/spokes/foundation/content/pages/json/README.md) (a
 JSON page file currently stops the build with an error naming the file rather than
 being ignored, because nothing yet interprets it).
 
@@ -310,7 +313,7 @@ content/pages/markdown/ww/en/blog/choosing-a-domain.md    ← one article
 Quotes, cards, statistics and FAQ rows are **embedded**: you write them in the page
 that shows them, because they have no URL of their own. (The declarative JSON mode is
 where structured page sections live — the declarative JSON mode, documented in
-[`content/pages/json/README.md`](deployment/content/pages/json/README.md).)
+[`content/pages/json/README.md`](deployment/spokes/foundation/content/pages/json/README.md).)
 
 Navigation entries are configuration (`navigation[]`), their labels come from
 `config/i18n/en.json` → `navigation.items`, and a policy document is surfaced in the
@@ -443,7 +446,7 @@ Menu bar) belongs to no site at all — it is the visitor's own presentation pre
 offices, addresses, languages or markets; the addresses are placeholders and no opening hours are
 claimed. An adopter replaces them with their own sites, languages and locations — see
 [`CUSTOMIZING.md`](CUSTOMIZING.md) for the configuration and
-[`deployment/content/README.md`](deployment/content/README.md) for where the pages live.
+[`deployment/spokes/foundation/content/README.md`](deployment/spokes/foundation/content/README.md) for where the pages live.
 
 ## The live Foundation site
 
@@ -479,9 +482,9 @@ licence and attribution, exactly as it was:
 
 - **Tabler Icons** (MIT) — the icon library under the deployment's
   `content/assets/icon-library/`. The upstream MIT notice is bundled at
-  [`content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt`](deployment/content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt),
+  [`content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt`](deployment/spokes/foundation/content/assets/icon-library/licensing/TABLER-ICONS-MIT.txt),
   with per-icon provenance in
-  [`icon-provenance.json`](deployment/content/assets/icon-library/licensing/icon-provenance.json).
+  [`icon-provenance.json`](deployment/spokes/foundation/content/assets/icon-library/licensing/icon-provenance.json).
 - **Third-party platform marks** (WhatsApp, Telegram, Facebook, Messenger, Instagram,
   LinkedIn, GitHub) — brand-owner assets governed by each owner's own brand rules, held
   under `content/assets/platform-marks/` alongside their provenance records.

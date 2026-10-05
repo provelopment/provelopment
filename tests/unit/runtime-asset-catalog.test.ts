@@ -241,11 +241,15 @@ describe("M16/M17 — the LIVE render path never establishes availability from t
       );
     }
 
-    // …and the intrinsic sizes a page graphic presents with are BUILD data too, not a header read.
+    // …and the intrinsic sizes a page graphic presents with are BUILD data too, not a header read: they
+    // come from the installation's OWN artwork, so what is asserted is that they are REAL (a positive
+    // pair) and that the filesystem-free resolver agrees — never a particular size (M21 §10).
     const iconUrl = real.availableIconUrl("icon-home.svg") ?? "";
     expect(iconUrl).not.toBe("");
-    expect(real.readImageDimensions(iconUrl)).toEqual({ width: 24, height: 24 });
-    expect(withoutFilesystem.readImageDimensions(iconUrl)).toEqual(real.readImageDimensions(iconUrl));
+    const dimensions = real.readImageDimensions(iconUrl);
+    expect(dimensions?.width ?? 0).toBeGreaterThan(0);
+    expect(dimensions?.height ?? 0).toBeGreaterThan(0);
+    expect(withoutFilesystem.readImageDimensions(iconUrl)).toEqual(dimensions);
 
     // Role projections are ownership answers too, so they are identical without the tree — for a basename
     // the live inventory holds and for one it does not.
@@ -335,8 +339,13 @@ describe("M16/M17 — a MULTI-Spoke Installation publishes one catalog per decla
         const names = Object.keys(catalog.namespaces[`/spokes/${spoke.segment}/assets`]);
         expect(names.length).toBeGreaterThan(0);
         for (const name of names) {
-          expect(resolver.namespaceOwning(name)?.urlBase).toBe(`/spokes/${spoke.segment}/assets`);
-          expect(resolver.availableIconUrl(name)).toBe(`/spokes/${spoke.segment}/assets/${name}`);
+          const owner = resolver.namespaceOwning(name);
+          // COVERAGE and NON-SHADOWABILITY, derived from the resolver's own answers: every basename this
+          // Spoke ships is owned by ONE of ITS two declared namespaces (the shared platform one first,
+          // then its own) — never by another Spoke's, and never by nothing (M21 §10).
+          expect(owner, name).toBeDefined();
+          expect(["/assets", `/spokes/${spoke.segment}/assets`], name).toContain(owner?.urlBase);
+          expect(resolver.availableIconUrl(name)).toBe(`${owner?.urlBase}/${name}`);
         }
       }
       // The shared platform namespace is non-shadowable, whatever the Spokes ship.

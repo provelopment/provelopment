@@ -395,6 +395,15 @@ describe("the CURRENT BUILD context is today's compatibility seam", () => {
   });
 });
 
+/**
+ * THE INSTALLATION THIS PROCESS SELECTED, asked of the runtime authority (FOUNDATION-MULTISITE-M21).
+ *
+ * Read ONCE here so the production-activation check below can ask the authority what this deployment
+ * DECLARES, instead of composing a path or parsing a manifest file: a materialised release's synthetic
+ * deployment declares no Spokes, and that check is then SKIPPED rather than failed.
+ */
+const productionActivation = installationRuntimeIndex(deploymentPaths().root);
+
 describe("architecture guards: the new capability is additive and has no mutable selection", () => {
   const read = (file: string) => readFileSync(path.join(process.cwd(), file), "utf8");
 
@@ -411,16 +420,25 @@ describe("architecture guards: the new capability is additive and has no mutable
     expect(read("src/config/installation-runtime.ts")).not.toMatch(/from "@\/config"/);
   });
 
-  it("declares the TWO production Spokes this deployment activates (M18)", () => {
-    const manifest = JSON.parse(read("deployment/spokes.json"));
-    expect(manifest.spokes.map((spoke: { id: string }) => spoke.id)).toEqual(["foundation", "germany"]);
-    // Each Spoke is authored in its OWN root beneath the dedicated `spokes/` namespace, and manifest
-    // order is authored REPORTING order only — never a default, a first Spoke or a precedence rule.
-    expect(manifest.spokes.map((spoke: { root: string }) => spoke.root)).toEqual([
-      "spokes/foundation",
-      "spokes/germany",
-    ]);
-  });
+  it.skipIf(productionActivation.mode !== "explicit")(
+    "declares the TWO production Spokes this deployment activates (M18)",
+    () => {
+      // The Installation's OWN declaration authority answers this — no path is composed here and no
+      // manifest file is parsed by the test. `explicit` mode is what "a manifest declares the Spokes"
+      // means; a release's synthetic deployment declares none, so the subject is absent there and the
+      // check is SKIPPED rather than failed (FOUNDATION-MULTISITE-M21).
+      expect(productionActivation.spokes.map((spoke) => spoke.id)).toEqual(["foundation", "germany"]);
+      // Each Spoke owns its own root beneath the dedicated `spokes/` namespace, and manifest order is
+      // authored REPORTING order only — never a default, a first Spoke or a precedence rule.
+      expect(
+        productionActivation.spokes.map((spoke) => {
+          const context = runtimeContextForSpoke(productionActivation, spoke.id);
+          const root = context?.resources.spokeRoot ?? "";
+          return path.relative(deploymentPaths().root, root).split(path.sep).join("/");
+        }),
+      ).toEqual(["spokes/foundation", "spokes/germany"]);
+    },
+  );
 
   it("has RETIRED the internal Spoke page tree: the public route IS the page identity (M17)", () => {
     expect(existsSync(path.join(process.cwd(), "src", "app", "~spoke"))).toBe(false);

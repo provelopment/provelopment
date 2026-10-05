@@ -339,7 +339,7 @@ Two equivalent ways to replace a UI asset:
 
 1. **Replace the file** — keep the configured filename and replace the SOURCE artwork
    in the deployment's `content/assets/**` (this repository: the capsule's
-   `deployment/content/assets/**`, e.g. `placeholders/sidebar-open.svg`). No configuration
+   `deployment/spokes/foundation/content/assets/**`, e.g. `placeholders/sidebar-open.svg`). No configuration
    change; the generated `public/assets/` copy is installed from it by `pnpm assets:sync`
    (and by `pnpm install`, `pnpm dev` and `pnpm build`).
 2. **Change the configured filename** — put your file in the same source tree and point
@@ -943,7 +943,7 @@ authored in (see the sections table below).
 
 Those are the *only* two page-authoring paths. `content/` is the single
 human-facing content area — pages and the artwork they use — and
-[`content/README.md`](deployment/content/README.md) is the map to hand to whoever edits the
+[`content/README.md`](deployment/spokes/foundation/content/README.md) is the map to hand to whoever edits the
 site. Each mode root's own `README.md` explains its mode in plain language, and a
 README is never itself a page, at any level.
 
@@ -960,7 +960,7 @@ blockquotes, links, images, inline code, fenced code blocks, horizontal rules,
 autolinks, task-list marks and **tables**. Each heading also receives a deterministic
 fragment id, so `## Opening hours` is linkable as `#opening-hours` (case and accents
 ignored; repeats become `-2`, `-3`; documentation:
-[`content/pages/markdown/README.md`](deployment/content/pages/markdown/README.md)). A capability
+[`content/pages/markdown/README.md`](deployment/spokes/foundation/content/pages/markdown/README.md)). A capability
 not listed here is deliberately not part of the mode.
 
 Every rendered page has exactly ONE top-level heading — its **page title**. A heading
@@ -1384,7 +1384,7 @@ There are **two equally-supported ways to customize an asset**:
 
 1. **Replace the file** — overwrite the default artwork where it is AUTHORED, in the
    deployment's `content/assets/**` (for example the capsule's
-   `deployment/content/assets/placeholders/favicon.svg` for the icon role). No
+   `deployment/spokes/foundation/content/assets/placeholders/favicon.svg` for the icon role). No
    configuration change, no code change: the git-ignored `public/assets/` copy is
    installed from it by `pnpm assets:sync` (and by `pnpm install`, `pnpm dev` and
    `pnpm build`).
@@ -2518,7 +2518,7 @@ pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build
 
 One Foundation repository can serve several **independent websites**. Each site is named by a
 recognized lowercase country code (or `ww` for a worldwide site — see
-[`content/COUNTRY-CODES.md`](deployment/content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
+[`content/COUNTRY-CODES.md`](deployment/spokes/foundation/content/COUNTRY-CODES.md)) and lives at `/<site>/<locale>/…`.
 
 ```json
 {

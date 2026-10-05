@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { availableBannerPath, availableIconUrl, runtimeAssetUrl } from "@/config/assets";
+import { DEPLOYMENT_RESOURCE_PATHS } from "@/config/deployment-root";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -204,13 +206,16 @@ describe("runtime mirror — one deterministic source → derivative relationshi
     for (const icon of library) expect(planned.has(icon), `${icon} must be mirrored`).toBe(true);
   });
 
-  it("documents the source of truth in the shipped placeholder files themselves", () => {
+  it("derives the graphic roles from their declared placeholder sources, so a replacement is in place", () => {
+    // WHAT IS PROVED: the ROLE, its SOURCE and the byte-identity between them — never today's artwork
+    // and never an SVG's explanatory comment (M21 §10). A deployment may replace this graphic without
+    // rewriting a test: the mechanism that carries the replacement is what is asserted.
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
-      expect(readRuntime(role)).toContain(`content/assets/placeholders/${role}`);
-      expect(readRuntime(role)).toContain("scripts/sync-runtime-assets.mjs");
+      const row = MIRRORED.find((entry) => entry.to === role);
+      expect(row?.from, role).toBe(`content/assets/placeholders/${role}`);
+      expect(readSource("placeholders", role), `${role} must be a real SVG`).toContain("<svg");
+      expect(readRuntime(role), role).toBe(readSource("placeholders", role));
     }
-    // No runtime file claims to be brand authority.
-    expect(readRuntime("header-graphic.svg")).toMatch(/NOT BRAND AUTHORITY/);
   });
 });
 
@@ -231,18 +236,25 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     );
   });
 
-  it("marks the runtime mirror as GENERATED and never hand-edited", () => {
-    const script = readFileSync(path.join(ROOT, "scripts", "sync-runtime-assets.mjs"), "utf8");
-    expect(script).toContain("NEVER edit it by hand");
-    expect(script).toContain("content/assets/**");
-    expect(script).toContain("the SOURCE OF TRUTH");
+  it("keeps the runtime mirror GENERATED: a hand edit can never become a committed authority", () => {
+    // The contract is "this tree is output, never a source", and it is proved by the repository's own
+    // ignore authority plus the drift mechanism asserted above (missing/created/updated/unexpected):
+    // a hand-edited runtime file is DETECTED, and it can never be committed as the authority.
+    const ignored = (target: string) => {
+      try {
+        execFileSync("git", ["check-ignore", "-q", target], { cwd: ROOT, stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const relative = (absolute: string) => path.relative(ROOT, absolute).split(path.sep).join("/");
 
-    const readme = readFileSync(path.join(foundationSpoke.assetSourceRoot, "README.md"), "utf8");
-    // S3E1C/S3F1 — the generated tree is NAMESPACED, so the instruction is stricter than it was and names
-    // no single hand-edit target: NOTHING under `public/` (either namespace) is ever edited by hand.
-    expect(readme).toContain("public/assets");
-    expect(readme).toContain("public/spokes/<runtime-segment>/assets/");
-    expect(readme).toMatch(/never edit anything under `public\/` by hand/i);
+    expect(ignored("public/assets"), "the generated mirror is not version-controlled").toBe(true);
+    expect(
+      ignored(relative(foundationSpoke.assetSourceRoot)),
+      "the authored source is version-controlled — it IS the authority",
+    ).toBe(false);
   });
 
   it("mirrors every runtime file FROM content/assets (no source outside it)", () => {
@@ -251,20 +263,33 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     }
   });
 
-  it("stores the source tree and its mirror byte-verbatim (no EOL conversion)", () => {
-    // The mirror proof hashes the two files as they exist on disk, so `.gitattributes`
-    // must keep BOTH trees out of automatic line-ending conversion. A1D moved the source
-    // tree and B2B moved it into this capsule, and a stale rule for a retired path would
-    // have silently stopped protecting the artwork — so the CURRENT paths are asserted
-    // here: the SOURCE rule follows the deployment, the runtime mirror stays the
-    // repository's generated output.
-    const attributes = readFileSync(path.join(ROOT, ".gitattributes"), "utf8");
-    for (const rule of ["deployment/content/assets/** -text", "public/assets/** -text"]) {
-      expect(attributes, rule).toContain(rule);
+  it("protects EVERY supported authored asset layout byte-verbatim, and both runtime namespaces", () => {
+    // `.gitattributes` is EXECUTABLE repository configuration, so its RULES are the contract — the wording
+    // around them is not (M21 §19). The patterns are DERIVED from the platform's own layout vocabulary:
+    // an Installation root names its asset sources through `DEPLOYMENT_RESOURCE_PATHS.assetSources`, a
+    // Spoke names the same tree beneath its own root, and the runtime namespaces mirror them.
+    const rules = readFileSync(path.join(ROOT, ".gitattributes"), "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line !== "" && !line.startsWith("#"));
+    const patterns = rules.map((rule) => rule.split(/\s+/)[0] ?? "");
+    const sources = DEPLOYMENT_RESOURCE_PATHS.assetSources;
+    const expected = [
+      `${sources}/**`, // a repository-root Installation (a standalone spoke)
+      `deployment/${sources}/**`, // a capsule whose Installation root owns the trees itself
+      `deployment/spokes/*/${sources}/**`, // a capsule whose Spokes each own their authored root
+      "public/assets/**", // the shared PLATFORM runtime namespace
+      "public/spokes/*/assets/**", // a Spoke's own runtime namespace
+    ];
+
+    for (const pattern of expected) {
+      expect(patterns, `${pattern} must be stored verbatim`).toContain(pattern);
+      const rule = rules.find((candidate) => candidate.startsWith(`${pattern} `)) ?? "";
+      expect(rule, `${pattern} must carry -text`).toContain("-text");
     }
-    expect(attributes, "a rule for the retired assets/ tree must be gone").not.toMatch(
-      /^assets\/\*\* -text$/m,
-    );
+
+    // …and a rule for a RETIRED source tree must be gone: `assets/` was moved under `content/assets/`.
+    expect(patterns).not.toContain("assets/**");
   });
 });
 

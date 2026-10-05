@@ -46,7 +46,9 @@ The major application boundaries are:
 - `src/application`
 - `src/adapters`
 - `src/config`
-- `content` (deployment-owned: the capsule's `deployment/content/**` in this repository)
+- `content` (deployment-owned: the AUTHORING ROOT's content tree — a Spoke's own root in this
+  repository's capsule (`deployment/spokes/<spoke>/content/**`), or a single `content/` tree at the
+  Installation root in a legacy implicit installation)
 - `public`
 - `tests`
 
@@ -142,11 +144,15 @@ Keep those concerns separate.
 Human-authored content should remain separate from application implementation.
 
 **One human-facing content area.** Everything a normal user authors as website
-content lives in the deployment's content tree (`content/`, relative to the deployment
-root — the capsule's `deployment/content/` in this repository): pages
-(`content/pages/markdown`, `content/pages/json`) and the artwork a site owner replaces
-(`content/assets`) — and `content/README.md` is the map that answers
-"where do I edit my website?". Authored
+content lives in the deployment's content tree: `content/` relative to the AUTHORING
+ROOT that owns it — the Installation root in a legacy implicit installation, or a
+SPOKE's own root in the explicit form this repository uses
+(`deployment/spokes/foundation/content/` and `deployment/spokes/germany/content/`
+here). Inside it live the pages (`content/pages/markdown`, `content/pages/json`) and
+the artwork a site owner replaces (`content/assets`), and `content/README.md` is the
+map that answers "where do I edit my website?". Every supported asset-source layout
+is byte-protected (`.gitattributes`), so authored artwork is stored verbatim wherever
+it is authored. Authored
 content is never placed under `config/`: configuration changes how the site *behaves*,
 content is what it *says*. Equally, unrelated technical configuration is not moved into
 `content/` merely to make the tree uniform.
@@ -305,30 +311,48 @@ Do not write tests solely to increase a coverage number.
 
 Prefer tests that protect meaningful behavior and architectural boundaries.
 
-### Authored page prose is not a test contract
+### Tests protect behaviour and supported contracts
 
-Production page wording — titles, descriptions, headings, paragraphs, callout text, action labels, and
-the anchor IDs derived from headings — is DEPLOYMENT DATA. A deployment's acceptance tests must not pin
-it: a copy edit is not a defect, and a test that quotes today's wording fails for a reason that has
-nothing to do with the product (PR #237 was exactly that failure).
-
-Read the expectation out of the authored source at run time — `deployment/tests/support/authored-page-outline.mjs`
-does this for both authoring modes — and assert the invariants instead:
-
-- the authored source parses and validates (JSON document, Markdown frontmatter);
-- every authored heading, prose line and link destination reaches the rendered page;
-- the page belongs to the right Spoke / Site / locale (route identity, canonical origin);
-- no other Spoke's content is ever rendered in its place.
-
-Ownership and isolation are proved with structural state, route identity, configuration, canonical origin
-and runtime context — never with marketing prose as an ownership marker.
-
-Exact textual assertions remain correct in TEST-OWNED SYNTHETIC FIXTURES: a fixture that authors
-`"Authored fixture page"` may assert it, because the TEST created that input. The rule is:
+A test must not fail merely because incidental authored content or implementation wording changed:
 
 ```text
-test-owned fixture text   → may be asserted exactly
-real deployment page prose → must not be an exact test contract
+page prose changes
+a heading is renamed
+two websites use the same page title
+a comment is reworded
+documentation prose is rewritten without changing its contractual meaning
+an allowed graphic is replaced
+an implementation expression is refactored without changing behaviour
+```
+
+Exact strings are appropriate only when the string itself IS the contract:
+
+```text
+route segments · schema keys · configured IDs · HTTP values · protocol/header names
+test-owned fixture values · explicit accessibility values whose exact wording is itself required
+```
+
+**A deployment's authored pages are not an acceptance input.** A deployment test proves what is durable:
+the source is valid, the route resolves, the response succeeds, exactly one h1 exists where required, the
+rendered document is structurally valid, no runtime error occurs, the correct Spoke / Site / locale
+context is selected, the canonical origin and hreflang are correct, the asset namespace is the owning
+one, the rendered internal links resolve, the configured controls appear, and unknown or foreign
+coordinates do not resolve. It must NOT compare a rendered page against authored paragraph text, and it
+must NOT prove ownership with a title — two Spokes may legally use the same one. Isolation is proved
+structurally: resolved runtime context, hostname, canonical origin, Site code, resource root, asset
+namespace, resolver result.
+
+**Tests do not parse production content.** The application owns the parser and the validators; test-owned
+fixtures prove THEM. A support module may describe a rendered document's SHAPE — heading levels, the
+declarative composer's section markers, whether a link resolves — and nothing else
+(`deployment/tests/support/rendered-structure.ts`). There is no second authoring interpreter in a test
+suite.
+
+Synthetic fixtures remain exact where the TEST authored the text:
+
+```text
+test-owned fixture text    → may be asserted exactly
+real deployment page prose → must never be an expectation
 ```
 
 ---
@@ -349,6 +373,46 @@ When tests exist, run the relevant test suite as well.
 
 Do not claim a change is complete if the relevant validation has not been
 performed.
+
+### Verification is proportional to blast radius
+
+> Verification effort is proportional to the plausible operational blast radius of the change. The
+> objective is the smallest sufficient proof, not the largest available test suite.
+
+This is not permission to cut corners: **under-testing is wrong, and over-testing is wrong too.** Tests
+consume developer time, agent time, tokens, CI compute, browser runtime and human review time. Spend
+those resources where they materially increase confidence.
+
+Two rules follow, and both are mandatory.
+
+**A verification result proves ONE source tree.** If that tree changes afterwards, classify only the
+DELTA since the last verified tree. A README wording correction after a green runtime gate needs the
+documentation checks for that delta — not a re-run of a thousand runtime and browser assertions.
+Conversely, a later change that CAN affect previously proved behaviour must re-run the affected proof,
+and unknown impact escalates conservatively.
+
+**Iteration and the final gate are different things.** During implementation, run the nearest relevant
+test or the smallest affected subsystem gate after each meaningful edit. Run the complete local gate
+ONCE, when the coherent candidate is ready. At PR head, exact-head CI is the final merge proof; do not
+reproduce the same expensive gate locally unless the tree changed in a way that can invalidate it, or a
+failed gate is being re-verified after a fix.
+
+### Change classes
+
+| Change class | Examples | Normally prove |
+| --- | --- | --- |
+| Documentation only | README wording, instructional prose, documentation comments, spelling, non-executable diagrams | `git diff --check`, plus documentation integrity/parity checks where they exist. Do NOT automatically install dependencies, build, run Vitest or start browsers. |
+| Authored website content | Markdown pages, JSON page documents, locale dictionaries, ordinary authored artwork | Source format/schema validity, the deployment-owned structural tests, asset integrity where applicable, and a production build. Do NOT run the whole browser matrix merely because prose or artwork changed. |
+| Deployment configuration, routing or runtime-facing authored structure | `site.config.json`, `spokes.json`, hostname behaviour, locale/site/location declarations, asset-role configuration, deployment acceptance code | The full DEPLOYMENT gate, including deployment browser acceptance where relevant. |
+| Foundation/runtime code | Application code, the generic test tree | The FOUNDATION gate: generic Foundation tests, generic browser scenarios, and the bounded real-deployment canary. |
+| Shared, mixed, dependency, security, release or CI infrastructure | Manifests, lockfiles, build/CI configuration, platform scripts, the shared harness, this file | FULL. |
+| Unknown or unclassifiable | Anything you cannot place above | FULL. |
+
+Failure is always conservative: **uncertain means prove more, never silently prove less.** The
+machine-readable form of these classes is the CI classifier — `scripts/ci/change-scope.mjs`, whose
+`OWNERS`, `SCOPES` and `ROUTE_COMMANDS` state each route's contract, and whose unknown-path fallback is
+the complete gate. Deployment-specific consequences are in `deployment/AGENTS.md`; browser-specific
+escalation is in `tests/browser/README.md`.
 
 ---
 
@@ -508,7 +572,7 @@ Rules:
 
 - Never hard-code user-facing copy in components. Interface strings belong
   in the deployment's `config/i18n/<locale>.json` (the capsule's
-  `deployment/config/i18n/` in this repository) and must validate against the Zod
+  `deployment/spokes/foundation/config/i18n/` in this repository) and must validate against the Zod
   dictionary schema.
 - New routes must be added under `src/app/[[...segments]]` (the ONE catch-all route); a
   static metadata segment may NOT sit under a catch-all (Next.js requires the catch-all to be
@@ -529,7 +593,7 @@ content alone.
 
 ## 25. JSON Configuration
 
-The deployment's `site.config.json` (the capsule's `deployment/site.config.json` in this
+The deployment's `site.config.json` (the capsule's `deployment/spokes/foundation/site.config.json` in this
 repository) is the single source of truth for site settings:
 branding, languages, contact details, social links, navigation, and
 feature flags under `features`.
@@ -568,7 +632,7 @@ In practice:
 - **lead with the reader's goal**, then the mechanism: "where do I edit my website?"
   is answered by a map, not by an architecture description;
 - **keep the human-facing entry points honest**: the deployment's `content/README.md`
-  (`deployment/content/README.md` in this repository) is the map for
+  (`deployment/spokes/foundation/content/README.md` in this repository) is the map for
   authored content, and each authoring root explains its own mode in plain language.
 
 When a change adds or alters a user-facing capability, update the documentation in the

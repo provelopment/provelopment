@@ -75,6 +75,49 @@ jobs:
           HEAD: ${{ needs.classify.outputs.head }}
         run: git diff --check "$BASE".."$HEAD"
 
+  # ── CONTENT ─────────────────────────────────────────────────────────────────
+  # Ordinary AUTHORED website data changed — a Spoke's pages, its dictionaries or its authored artwork
+  # sources — while the executable deployment behaviour and configuration did not. This route is
+  # deliberately bounded: the generated checks, the deployment's own tests and a production build. The
+  # build is the load-bearing proof (Foundation statically generates the authored page inventory, so a
+  # malformed or unrenderable page must fail BEFORE deployment), and the browser acceptance is omitted
+  # because prose and artwork do not change shell or runtime behaviour. Verification effort is
+  # proportional to the plausible blast radius (`AGENTS.md`, the verification SOP).
+  content:
+    name: content
+    needs: classify
+    if: needs.classify.outputs.scope == 'content'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Repository hygiene — whitespace errors and conflict markers
+        if: needs.classify.outputs.base != ''
+        env:
+          BASE: ${{ needs.classify.outputs.base }}
+          HEAD: ${{ needs.classify.outputs.head }}
+        run: git diff --check "$BASE".."$HEAD"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm assets:check
+
+      - run: pnpm country-codes:check
+
+      - run: pnpm test:deployment
+
+      - run: pnpm build
+
   # ── DEPLOYMENT ──────────────────────────────────────────────────────────────
   # The capsule's own contract, and NOTHING of the Foundation's test surfaces: no `test:foundation`
   # and no `test:browser:foundation` here, however broad this repository's gate used to be. The
@@ -89,7 +132,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -131,7 +174,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -177,7 +220,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.1.0
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -218,7 +261,7 @@ jobs:
   # the SELECTED route succeeded; every other outcome, including an unknown scope, fails it.
   validate:
     name: validate
-    needs: [classify, documentation, deployment, foundation, full]
+    needs: [classify, documentation, content, deployment, foundation, full]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -227,19 +270,21 @@ jobs:
           SCOPE: ${{ needs.classify.outputs.scope }}
           CLASSIFY: ${{ needs.classify.result }}
           DOCUMENTATION: ${{ needs.documentation.result }}
+          CONTENT: ${{ needs.content.result }}
           DEPLOYMENT: ${{ needs.deployment.result }}
           FOUNDATION: ${{ needs.foundation.result }}
           FULL: ${{ needs.full.result }}
         run: |
           set -euo pipefail
           echo "change scope: ${SCOPE:-<none>}"
-          echo "job results: classify=${CLASSIFY} documentation=${DOCUMENTATION} deployment=${DEPLOYMENT} foundation=${FOUNDATION} full=${FULL}"
+          echo "job results: classify=${CLASSIFY} documentation=${DOCUMENTATION} content=${CONTENT} deployment=${DEPLOYMENT} foundation=${FOUNDATION} full=${FULL}"
           if [ "$CLASSIFY" != "success" ]; then
             echo "::error::the change-scope classifier did not succeed (${CLASSIFY}) — no route can be trusted, so this run FAILS."
             exit 1
           fi
           case "$SCOPE" in
             documentation) selected="$DOCUMENTATION" ;;
+            content)       selected="$CONTENT" ;;
             deployment)    selected="$DEPLOYMENT" ;;
             foundation)    selected="$FOUNDATION" ;;
             full)          selected="$FULL" ;;

@@ -163,17 +163,23 @@ describe("Foundation Spoke — the `ww` Site alone, with its own page tree", () 
       expect(page?.fallback, `${label} is authored, not a fallback`).toBe(false);
       expect(page?.title.trim(), `${label} carries its own authored title`).not.toBe("");
     }
-    // Each language authors its OWN copy: a German page is never the English page served twice.
-    expect(germanAbout?.title).not.toBe(englishAbout?.title);
-    expect(germanHome?.title).not.toBe(englishHome?.title);
-    // …and Global's German About is NOT the Germany Spoke's About page. The two Spokes' authored
-    // trees are compared with each other, so the guarantee holds without quoting any wording (M21).
-    expect(germanAbout?.title).not.toBe(
-      (await pagesFor(GERMANY_SPOKE).resolve(GERMANY, "about", "en"))?.title,
-    );
-    expect(germanHome?.title).not.toBe(
-      (await pagesFor(GERMANY_SPOKE).resolve(GERMANY, HOME_CONTENT_SLUG, GERMANY))?.title,
-    );
+    // Each page reports the SITE it came from and the locale that answered — and the Germany Spoke
+    // answers its own coordinates from its OWN roots. Ownership is proved by context; titles are never
+    // compared, because two Spokes may legally share one (M21).
+    for (const [label, page, locale] of [
+      ["ww/en", englishHome, "en"],
+      ["ww/en/about", englishAbout, "en"],
+      ["ww/de", germanHome, "de"],
+      ["ww/de/about", germanAbout, "de"],
+    ] as const) {
+      expect(page?.siteId, label).toBe(GLOBAL);
+      expect(page?.locale, label).toBe(locale);
+    }
+    const germanySpokePages = pagesFor(GERMANY_SPOKE);
+    expect((await germanySpokePages.resolve(GERMANY, "about", "en"))?.siteId).toBe(GERMANY);
+    expect((await germanySpokePages.resolve(GERMANY, HOME_CONTENT_SLUG, GERMANY))?.siteId).toBe(GERMANY);
+    expect(FOUNDATION.resources.jsonPagesRoot).not.toBe(GERMANY_SPOKE.resources.jsonPagesRoot);
+    expect(FOUNDATION.resources.markdownPagesRoot).not.toBe(GERMANY_SPOKE.resources.markdownPagesRoot);
   });
 
   it("cannot resolve ANY Germany Spoke coordinate, in either of its languages (§10)", async () => {
@@ -286,11 +292,13 @@ describe("Germany Spoke — the `de` Site alone, with its own page tree and Loca
       // as the served h1. The wording is the owner's, so the value is read, never quoted (M21).
       expect(page?.title.trim(), `${locale}/${slug} carries its own authored title`).not.toBe("");
     }
-    // `/de/en` is Germany's OWN English Home, never Global's English Home: the two Spokes' authored
-    // trees are compared with each other, which is the guarantee the wording used to stand for.
+    // `/de/en` is Germany's OWN English Home, never Global's: each resolution reports its own Site, and
+    // the two Spokes answer from DIFFERENT authored roots. Context, not wording (M21).
     const germanyEnglishHome = await pages.resolve(GERMANY, HOME_CONTENT_SLUG, "en");
     const globalEnglishHome = await pagesFor(FOUNDATION).resolve(GLOBAL, HOME_CONTENT_SLUG, "en");
-    expect(germanyEnglishHome?.title).not.toBe(globalEnglishHome?.title);
+    expect(germanyEnglishHome?.siteId).toBe(GERMANY);
+    expect(globalEnglishHome?.siteId).toBe(GLOBAL);
+    expect(GERMANY_SPOKE.resources.jsonPagesRoot).not.toBe(FOUNDATION.resources.jsonPagesRoot);
   });
 });
 

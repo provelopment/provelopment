@@ -12,7 +12,7 @@ import { siteAssetsSchema } from "@/config/schema";
 import { FooterGraphic } from "@/components/site/footer-graphic";
 import { PageBackground } from "@/components/site/page-background";
 
-import { runtimeAssetFile, runtimeAssetUrl, shippedRoleSource } from "../support/runtime-assets";
+import { runtimeAssetFile, shippedRoleSource } from "../support/runtime-assets";
 import { PageBanner } from "@/components/site/page-banner";
 import { StatusGraphic } from "@/components/site/status-graphic";
 import { headerGraphicBandProps } from "@/components/site/header-graphic";
@@ -196,17 +196,15 @@ describe("swap contract — the configured role inventory", () => {
 
 describe("swap contract — filename-only resolution", () => {
   it("resolution depends on the BASENAME only, not on the URL's origin", () => {
-    // The availability check looks the basename up under public/assets/, so a URL
-    // on ANY origin can be screened…
-    expect(
-      availableHeaderGraphicPath("https://cdn.elsewhere.example/header-graphic.svg"),
-    ).toBe(runtimeAssetUrl("header-graphic.svg"));
-    // …and the rendered src is the URL of the RUNTIME NAMESPACE that holds the file, so the browser
-    // always fetches a same-origin file that actually exists (S3E1C; `assetPathFromUrl` itself remains
-    // the pure pathname projection it always was).
-    expect(availableHeaderGraphicPath("https://www.example.com/assets/header-graphic.svg")).toBe(
-      runtimeAssetUrl("header-graphic.svg"),
-    );
+    // ORIGIN-INDEPENDENCE is the contract: the same basename on ANY origin projects to the SAME
+    // same-origin path. WHICH namespace ultimately serves it is the installation's own shape, so that is
+    // never assumed here (M21 §10).
+    const elsewhere = availableHeaderGraphicPath("https://cdn.elsewhere.example/assets/header-graphic.svg");
+    const canonical = availableHeaderGraphicPath("https://www.example.com/assets/header-graphic.svg");
+    expect(elsewhere).toBe(canonical);
+    // …and the projection is always a same-origin path (or the deliberate absence value).
+    expect(elsewhere === undefined || elsewhere.startsWith("/")).toBe(true);
+    // `assetPathFromUrl` remains the pure pathname projection it always was (S3E1C).
     expect(assetPathFromUrl("https://www.example.com/assets/header-graphic.svg")).toBe(
       "/assets/header-graphic.svg",
     );
