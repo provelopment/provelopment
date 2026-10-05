@@ -1597,10 +1597,18 @@ async function runCanonical(chrome) {
       `mode=${capability.mode} bases=${capability.urlBases.join(",")}`,
     );
     // DERIVED, never a named canonical role (M21 §10): a role this installation does not publish is NOT
-    // served, and every role it DOES serve comes from a namespace it DECLARES — so an undeclared Spoke
+    // served, and every icon it DOES serve comes from a namespace it DECLARES — so an undeclared Spoke
     // namespace is never consulted, whatever happens to exist on disk.
+    const publishedIconNames = capability.publishedIcons();
     const unpublishedRole = capability.asset("role-this-installation-does-not-ship.svg");
-    const publishedRole = capability.asset(CONTROL_ICON_ROLE);
+    const publishedIconName = publishedIconNames[0] ?? "no-icon-is-published.svg";
+    const publishedRole = capability.asset(publishedIconName);
+    check(
+      rows,
+      "iso.installationPublishesItsOwnIcons",
+      publishedIconNames.length > 0,
+      `icons=${publishedIconNames.length}`,
+    );
     check(
       rows,
       "iso.unpublishedRoleIsUnavailableToThisInstallation",
@@ -1608,16 +1616,17 @@ async function runCanonical(chrome) {
       `served=${unpublishedRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
     );
     const publishedRoleUrl = publishedRole.url ?? "";
-    const publishedRoleBase = publishedRoleUrl.endsWith(`/${CONTROL_ICON_ROLE}`)
-      ? publishedRoleUrl.slice(0, publishedRoleUrl.length - CONTROL_ICON_ROLE.length - 1)
+    const publishedRoleBase = publishedRoleUrl.endsWith(`/${publishedIconName}`)
+      ? publishedRoleUrl.slice(0, publishedRoleUrl.length - publishedIconName.length - 1)
       : "";
     check(
       rows,
-      "iso.servedRoleComesFromADeclaredNamespace",
-      publishedRole.served === true &&
+      "iso.servedIconComesFromADeclaredNamespace",
+      publishedIconNames.length > 0 &&
+        publishedRole.served === true &&
         publishedRoleUrl.startsWith("/") &&
         capability.urlBases.includes(publishedRoleBase),
-      `url=${publishedRoleUrl || "(none)"} base=${publishedRoleBase || "(none)"} bases=${capability.urlBases.join(",")}`,
+      `icon=${publishedIconName} url=${publishedRoleUrl || "(none)"} base=${publishedRoleBase || "(none)"} bases=${capability.urlBases.join(",")}`,
     );
     await cdp.navigate(`${BASE_URL}/ww/en`);
     await waitReady(cdp);
@@ -1712,9 +1721,9 @@ async function runDuplicateNavScenario(chrome) {
         return {
           both: labels.includes("Alpha") && labels.includes("Beta"),
           alphaIsLink: !!alpha && alpha.getAttribute("href") === "/ww/en/pricing",
-          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='sidebar-open.svg']"),
+          alphaIcon: !!alpha && !!alpha.querySelector("img[src$='${publishedIcons[0]}']"),
           betaDisabled: !!betaLi && !!betaLi.querySelector("[aria-disabled='true']"),
-          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='sidebar-close.svg']"),
+          betaIcon: !!betaLi && !!betaLi.querySelector("img[src$='${publishedIcons[1]}']"),
           warnings: window.__dupKeyWarnings.length,
         };
       })()`);
@@ -3129,7 +3138,7 @@ async function runConnectivityIconScenario(chrome) {
     await waitReady(cdp);
     const painted = await cdp.evaluate(`(async () => {
       const img = [...document.querySelectorAll('footer li img')]
-        .find((el) => (el.getAttribute('src') || '').endsWith('sidebar-open.svg'));
+        .find((el) => (el.getAttribute('src') || '').endsWith('${ICON}'));
       if (!img) return null;
       const link = img.closest('a');
       link.style.color = 'rgb(255, 0, 0)';
