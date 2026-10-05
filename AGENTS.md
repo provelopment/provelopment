@@ -305,30 +305,48 @@ Do not write tests solely to increase a coverage number.
 
 Prefer tests that protect meaningful behavior and architectural boundaries.
 
-### Authored page prose is not a test contract
+### Tests protect behaviour and supported contracts
 
-Production page wording — titles, descriptions, headings, paragraphs, callout text, action labels, and
-the anchor IDs derived from headings — is DEPLOYMENT DATA. A deployment's acceptance tests must not pin
-it: a copy edit is not a defect, and a test that quotes today's wording fails for a reason that has
-nothing to do with the product (PR #237 was exactly that failure).
-
-Read the expectation out of the authored source at run time — `deployment/tests/support/authored-page-outline.mjs`
-does this for both authoring modes — and assert the invariants instead:
-
-- the authored source parses and validates (JSON document, Markdown frontmatter);
-- every authored heading, prose line and link destination reaches the rendered page;
-- the page belongs to the right Spoke / Site / locale (route identity, canonical origin);
-- no other Spoke's content is ever rendered in its place.
-
-Ownership and isolation are proved with structural state, route identity, configuration, canonical origin
-and runtime context — never with marketing prose as an ownership marker.
-
-Exact textual assertions remain correct in TEST-OWNED SYNTHETIC FIXTURES: a fixture that authors
-`"Authored fixture page"` may assert it, because the TEST created that input. The rule is:
+A test must not fail merely because incidental authored content or implementation wording changed:
 
 ```text
-test-owned fixture text   → may be asserted exactly
-real deployment page prose → must not be an exact test contract
+page prose changes
+a heading is renamed
+two websites use the same page title
+a comment is reworded
+documentation prose is rewritten without changing its contractual meaning
+an allowed graphic is replaced
+an implementation expression is refactored without changing behaviour
+```
+
+Exact strings are appropriate only when the string itself IS the contract:
+
+```text
+route segments · schema keys · configured IDs · HTTP values · protocol/header names
+test-owned fixture values · explicit accessibility values whose exact wording is itself required
+```
+
+**A deployment's authored pages are not an acceptance input.** A deployment test proves what is durable:
+the source is valid, the route resolves, the response succeeds, exactly one h1 exists where required, the
+rendered document is structurally valid, no runtime error occurs, the correct Spoke / Site / locale
+context is selected, the canonical origin and hreflang are correct, the asset namespace is the owning
+one, the rendered internal links resolve, the configured controls appear, and unknown or foreign
+coordinates do not resolve. It must NOT compare a rendered page against authored paragraph text, and it
+must NOT prove ownership with a title — two Spokes may legally use the same one. Isolation is proved
+structurally: resolved runtime context, hostname, canonical origin, Site code, resource root, asset
+namespace, resolver result.
+
+**Tests do not parse production content.** The application owns the parser and the validators; test-owned
+fixtures prove THEM. A support module may describe a rendered document's SHAPE — heading levels, the
+declarative composer's section markers, whether a link resolves — and nothing else
+(`deployment/tests/support/rendered-structure.ts`). There is no second authoring interpreter in a test
+suite.
+
+Synthetic fixtures remain exact where the TEST authored the text:
+
+```text
+test-owned fixture text    → may be asserted exactly
+real deployment page prose → must never be an expectation
 ```
 
 ---

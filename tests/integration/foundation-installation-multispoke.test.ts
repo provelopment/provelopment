@@ -59,6 +59,17 @@ import {
  */
 const REAL_CAPSULE = capsuleDirectory(process.cwd());
 
+/**
+ * THIS REPOSITORY'S REFERENCE CAPSULE IS THE SUBJECT (FOUNDATION-MULTISITE-M21).
+ *
+ * A Foundation release EXCLUDES `deployment/**`, so a materialised release contains no reference capsule
+ * at all. These proofs are about THIS repository's own capsule: where it does not exist the subject is
+ * absent, so the suite is SKIPPED rather than failed — a release that legitimately ships no deployment
+ * must not be unable to prove itself. The generic contracts these proofs build on are covered by the
+ * synthetic-deployment suites, which need no capsule whatsoever.
+ */
+const capsuleSuite = existsSync(REAL_CAPSULE) ? describe : describe.skip;
+
 /** Representative authored paths, capsule-relative, whose bytes must survive establishment untouched. */
 const PRESERVED = [
   "spokes.json",
@@ -110,7 +121,7 @@ async function establishRealCapsule(seed: string) {
   return { outcome, release, target, capsule: targetCapsule(target) };
 }
 
-describe("§14 — establishment accepts the REAL two-Spoke capsule", () => {
+capsuleSuite("§14 — establishment accepts the REAL two-Spoke capsule", () => {
   it("declares exactly foundation + germany in the target, through the declaration authority", async () => {
     const seed = realCapsuleSeed();
     const { outcome, capsule } = await establishRealCapsule(seed);
@@ -154,7 +165,7 @@ describe("§14 — establishment accepts the REAL two-Spoke capsule", () => {
   });
 });
 
-describe("§15 — each Spoke's own model and tree resolve from the TARGET", () => {
+capsuleSuite("§15 — each Spoke's own model and tree resolve from the TARGET", () => {
   it("resolves each Spoke's OWN sites and pages, and never the other Spoke's", async () => {
     const seed = realCapsuleSeed();
     const { outcome, capsule } = await establishRealCapsule(seed);
@@ -194,7 +205,7 @@ describe("§15 — each Spoke's own model and tree resolve from the TARGET", () 
 
 /** Establish the real capsule into a disposable target, from a disposable immutable release. */
 
-describe("§16/§17 — authored bytes travel intact, and nothing outside the target moves", () => {
+capsuleSuite("§16/§17 — authored bytes travel intact, and nothing outside the target moves", () => {
   it("preserves the manifest, configurations, dictionaries, pages and artwork byte-for-byte", async () => {
     const seed = realCapsuleSeed();
     const before = snapshotTree(seed);
@@ -263,7 +274,7 @@ describe("§16/§17 — authored bytes travel intact, and nothing outside the ta
   });
 });
 
-describe("§11/§12/§41 — generated state is refused, and the record belongs to THIS establishment", () => {
+capsuleSuite("§11/§12/§41 — generated state is refused, and the record belongs to THIS establishment", () => {
   it("refuses a seed carrying generated operational state rather than discarding it", async () => {
     const seed = realCapsuleSeed();
     writeFileSync(path.join(seed, INSTALLATION_OPERATIONAL_STATE_FILE_NAME), "{}\n", "utf8");

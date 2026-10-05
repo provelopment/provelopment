@@ -9,10 +9,10 @@ import {
   productionStateDrift,
 } from "../../../tests/support/production-state-manifest";
 import { selectDisposableDeploymentCopy } from "../../../tests/support/disposable-deployment";
-// M21 — the authored page is the expectation: this suite proves the LOCALE ROOT is served
-// content-first by rendering the headings the authored JSON home itself declares, instead of
-// quoting the copy (authored prose is deployment data, not a test contract).
-import { includesProse, jsonOutline } from "../support/authored-page-outline.mjs";
+// M21 — the locale root is proved content-first STRUCTURALLY: the declarative composer's own section
+// markers are present, the outline is valid, and the starter homepage is absent. The page's words are
+// never read (`AGENTS.md` §14).
+import { declarativeSectionCount, headingLevels, headingOutlineIssues } from "../support/rendered-structure";
 
 // DEPLOYMENT SCOPE — this test asserts THIS deployment's own configuration, content and assets, so it
 // lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in the
@@ -75,18 +75,18 @@ const { HOME_CONTENT_SLUG } = await import("@/core/page-content");
 const { resolveSites } = await import("@/core/site");
 
 /**
- * THE AUTHORED HOME'S OUTLINE, THROUGH THE REAL COMPOSITION (M21).
+ * THE LOCALE ROOT IS CONTENT-FIRST, PROVED STRUCTURALLY (M21).
  *
- * The locale root is proved content-first by rendering what the AUTHORED home document declares, so
- * the expectation is read from the deployment's own page at run time. Neither the heading text nor
- * the section vocabulary is quoted here: a copy edit can never invalidate this suite, while a home
- * page that fails to render still does.
+ * The JSON authoring mode stamps one contiguous `page-section-<n>` id per authored section, so a
+ * rendered locale root carrying 1..N proves the DECLARATIVE DOCUMENT was composed — while the starter
+ * homepage marker is absent. Not one authored word is read: the page's copy is the owner's business.
  */
-async function authoredHomeHeadings(): Promise<readonly string[]> {
-  const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
-  const home = await pages.resolve(SITE, HOME_CONTENT_SLUG, "en");
-  if (home?.kind !== "json") throw new Error("the reference Home is authored in the JSON mode");
-  return jsonOutline(home.document).headings;
+function declarativeCompositionIssues(html: string): readonly string[] {
+  const issues: string[] = [];
+  if (declarativeSectionCount(html) <= 1) issues.push("the declarative document was not composed");
+  if (html.includes("home-hero")) issues.push("the starter homepage rendered instead");
+  issues.push(...headingOutlineIssues(headingLevels(html)));
+  return issues;
 }
 
 /**
@@ -514,14 +514,9 @@ describe("the one page model, through the real application", () => {
       await PageRoute({ params: Promise.resolve({ segments: [SITE, "en"] }) }),
     );
     expect(html).not.toContain("home-hero");
-    // A section only the DECLARATIVE vocabulary can produce (the starter has none): every heading the
-    // AUTHORED home document declares is rendered. The expectation is read from that document, so the
-    // rendering contract is proved without pinning the copy (M21).
-    const authoredHeadings = await authoredHomeHeadings();
-    expect(authoredHeadings.length).toBeGreaterThan(0);
-    for (const heading of authoredHeadings) {
-      expect(includesProse(html, heading), heading).toBe(true);
-    }
+    // A page only the DECLARATIVE vocabulary can produce: the composer's own section markers are
+    // present and contiguous, and the outline is valid — all proved without reading the copy (M21).
+    expect(declarativeCompositionIssues(html)).toEqual([]);
     // …and the reserved home slug never becomes its own URL.
     const paths = (await publicRouteInventory()).map((route) => route.segments.join("/"));
     expect(paths).not.toContain(`${SITE}/en/${HOME_CONTENT_SLUG}`);
@@ -540,10 +535,8 @@ describe("the one page model, through the real application", () => {
       );
       expect(html).not.toContain("Markdown home fixture");
       expect(html).not.toContain("home-hero");
-      // The JSON home page is still the one that rendered: every heading it authors is present.
-      for (const heading of await authoredHomeHeadings()) {
-        expect(includesProse(html, heading), heading).toBe(true);
-      }
+      // The JSON home page is still the one that rendered: the declarative composition stands.
+      expect(declarativeCompositionIssues(html)).toEqual([]);
     } finally {
       cleanUp(fixture);
     }

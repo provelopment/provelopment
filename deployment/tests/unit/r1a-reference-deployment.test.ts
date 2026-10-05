@@ -13,17 +13,15 @@ import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { createPageSources } from "@/adapters/content/page-sources";
 import { buildSitemapRoutes } from "@/application/route-discovery";
-// M21 — the deployment's authored page sources ARE the test's expectations: titles, headings, prose
-// and destinations are read from the page files the owner authored, never pinned as copy.
+// M21 — SHAPE AND RESOLUTION, NEVER COPY. These helpers read the RENDERED document's structure and the
+// deployment's own resolution authority. No authored page is parsed by a test (`AGENTS.md` §14).
 import {
-  h1Texts,
-  headingTags,
-  includesProse,
-  jsonOutline,
-  markdownHeadings,
-  markdownLinks,
-  markdownProse,
-} from "../support/authored-page-outline.mjs";
+  declarativeSectionCount,
+  headingLevels,
+  headingOutlineIssues,
+  markdownSectionAnchors,
+  unresolvedDestinations,
+} from "../support/rendered-structure";
 // M18 — the deployment declares TWO Spokes, so this suite binds the FOUNDATION Spoke explicitly (the
 // accepted runtime authorities refuse an installation-wide answer for a multi-Spoke Installation, and
 // "the" configuration would be the default-Spoke rule the runtime refuses). The reference `ww` Site,
@@ -172,10 +170,11 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
     const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
     const about = await pages.resolve(siteCode, "about", localePath);
     expect(about?.kind).toBe("markdown");
-    // An authored page: a title, a summary and a body whose headings drive the rendered page.
+    // An authored page exists with its own title, summary and body. What they SAY is the owner's
+    // business: the assertions below cover the rendered shape, never the words (M21).
     expect(about?.title.trim()).not.toBe("");
-    expect(about?.kind === "markdown" ? about.description?.trim() : "").not.toBe("");
-    expect(about?.kind === "markdown" ? markdownHeadings(about.body).length : 0).toBeGreaterThan(0);
+    expect(about?.kind === "markdown" ? about.body.trim() !== "" : false).toBe(true);
+    expect(about?.kind === "markdown" ? (about.description ?? "").trim() !== "" : false).toBe(true);
   });
 
   it("publishes each page's own URL and never /home", async () => {
@@ -189,57 +188,51 @@ describe("the reference pages are real pages, in the two authoring modes", () =>
 });
 
 describe("the served reference pages", () => {
-  it("renders the authored Home document: one h1, its sections, and its real destinations", async () => {
+  it("renders the authored Home document: one h1, a valid outline, its real destinations", async () => {
     const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
-    const home = await pages.resolve(siteCode, HOME_CONTENT_SLUG, localePath);
-    const outline = home?.kind === "json" ? jsonOutline(home.document) : null;
     const html = renderToStaticMarkup(
       await PageRoute({ params: Promise.resolve({ segments: [siteCode, localePath] }) }),
     );
 
-    // The authored title is the page's ONLY level-1 heading (both modes share the h1 contract),
-    // and every section heading and body the document declares is what renders. Nothing here pins
-    // wording: the expectations ARE the authored source, read at run time (M21).
+    // SHAPE, not copy: exactly one page-level heading, and no skipped level anywhere in the outline.
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(h1Texts(html)).toEqual([home?.title]);
-    for (const heading of outline?.headings ?? []) {
-      expect(includesProse(html, heading), heading).toBe(true);
-    }
-    for (const body of outline?.prose ?? []) {
-      expect(includesProse(html, body), body.slice(0, 60)).toBe(true);
-    }
-    // Every destination the document declares reaches the served anchors.
-    for (const href of outline?.links ?? []) {
-      expect(html, href).toContain(href);
-    }
+    expect(headingOutlineIssues(headingLevels(html))).toEqual([]);
+    // The JSON authoring mode really COMPOSED this page: its per-section markers are present and
+    // contiguous from 1 — a fact about the renderer, not about a single authored word.
+    expect(declarativeSectionCount(html)).toBeGreaterThan(1);
+    // Every internal destination the page renders resolves to a page THIS deployment serves.
+    expect(
+      await unresolvedDestinations(html, (slug) => pages.resolve(siteCode, slug, localePath), {
+        prefixes: [`/${siteCode}/${localePath}`, `/${localePath}`],
+        homeSlug: HOME_CONTENT_SLUG,
+      }),
+    ).toEqual([]);
     // An authored home page REPLACES the configuration-driven starter homepage.
     expect(html).not.toContain("home-hero");
   });
 
-  it("renders the authored About page: one h1 and the Markdown body's own sections", async () => {
+  it("renders the authored About page: one h1, a valid outline, addressable sections", async () => {
     const pages = createPageSources({ sites: siteConfig.sites, roots: foundationSpoke.resources });
-    const about = await pages.resolve(siteCode, "about", localePath);
-    const body = about?.kind === "markdown" ? about.body : "";
     const html = renderToStaticMarkup(
       await PageRoute({ params: Promise.resolve({ segments: [siteCode, localePath, "about"] }) }),
     );
 
     expect(html.match(/<h1\b/g) ?? []).toHaveLength(1);
-    expect(h1Texts(html)).toEqual([about?.title]);
-    // Every authored `# Heading` renders RELATIVE to the page title — an h2, never an h1 — and each
-    // one carries its own anchor. The heading TEXT is the owner's, so it is read, never quoted.
-    const headings = markdownHeadings(body);
-    expect(headings).toHaveLength((html.match(/<h2\b/g) ?? []).length);
-    for (const tag of headingTags(html).filter((heading) => heading.startsWith("<h2"))) {
-      expect(tag, "each rendered section heading carries an anchor").toMatch(/id="[^"]+"/);
+    expect(headingOutlineIssues(headingLevels(html))).toEqual([]);
+    // The Markdown mode renders its sections as ADDRESSABLE headings: the renderer's OWN anchors exist
+    // (the composer's section ids excluded), so the mode and the renderer are proved, not the wording.
+    const anchors = markdownSectionAnchors(html);
+    expect(anchors.length).toBeGreaterThan(0);
+    for (const anchor of anchors) {
+      expect(anchor.trim(), "every rendered section heading carries an anchor").not.toBe("");
     }
-    // …and the authored body, its prose and its destinations all reach the page.
-    for (const line of markdownProse(body)) {
-      expect(includesProse(html, line), line.slice(0, 60)).toBe(true);
-    }
-    for (const href of markdownLinks(body)) {
-      expect(html, href).toContain(href);
-    }
+    // …and every internal destination resolves to a page this deployment serves.
+    expect(
+      await unresolvedDestinations(html, (slug) => pages.resolve(siteCode, slug, localePath), {
+        prefixes: [`/${siteCode}/${localePath}`, `/${localePath}`],
+        homeSlug: HOME_CONTENT_SLUG,
+      }),
+    ).toEqual([]);
   });
 });
 

@@ -95,17 +95,19 @@ another deployment
    contract here. Platform behaviour is proved once, by the Foundation. A deployment test that merely
    repeats a generic assertion adds maintenance, not confidence.
 5. **Author content in the content system; never change production content to satisfy a stale test, and
-   never pin the owner's prose as a test expectation.**
+   never use the owner's content as an expectation.**
    When an assertion and the owner's file disagree, the file wins: update the assertion. Copy is
    never adjusted so that a check passes.
-   **Production page wording is deployment data, not a test contract (M21).** A title, description,
-   heading, paragraph, callout, action label or heading-derived anchor is READ from the authored page at
-   run time (`deployment/tests/support/authored-page-outline.mjs`) and asserted as an INVARIANT: the
-   source parses and validates, every authored heading, prose line and destination renders, the right
-   Spoke/Site/locale owns the route, and no other Spoke's content appears. Ownership and isolation use
-   structural state, route identity, configuration and canonical origin — never marketing prose as a
-   marker. Exact strings stay correct for TEST-OWNED SYNTHETIC FIXTURES, whose text the test itself
-   authored; real deployment page prose must never become an exact expectation.
+   **Tests protect behaviour and supported contracts, not authored content or implementation wording
+   (M21).** A deployment test proves the durable contract: the source validates, the route resolves, the
+   response succeeds, exactly one h1 exists where required, the rendered document is structurally valid,
+   the Spoke/Site/locale context is right, canonical origin and hreflang are right, the asset namespace
+   is the owning one, internal links resolve, configured controls appear, and foreign coordinates do not
+   resolve. It must NOT compare a rendered page against authored paragraph text, and it must NOT prove
+   ownership with a title — two Spokes may legally share one; isolation is proved by runtime context,
+   origin, route ownership and asset namespace. Nothing in `deployment/tests/**` parses production
+   Markdown or prose either: the application owns that parser (see `AGENTS.md` §14). Exact strings stay
+   correct for TEST-OWNED SYNTHETIC FIXTURES, whose text the test itself authored.
 6. **A change to this deployment must not require editing Foundation.** Configuration, dictionaries,
    content and this capsule's tests are the levers.
 7. **If you find a genuine Foundation defect, STOP and report it.** Name the file, the behaviour and

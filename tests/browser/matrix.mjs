@@ -14,7 +14,7 @@
 //      Scope semantics live in `tests/browser/scope.mjs` (one harness, one discovery policy).
 // (requires a local Chrome/Chromium/Edge binary).
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -223,6 +223,20 @@ function servedInstallationAssetCapability() {
     },
     /** A generated namespace this selection does NOT declare — the canonical Spoke's, by convention. */
     undeclaredSpokeNamespace: join(ROOT, "public", "spokes", "foundation", "assets"),
+    /**
+     * The platform ICON filenames THIS installation publishes — DERIVED, never assumed (M21 §10).
+     *
+     * A scenario that needs a real icon filename asks here, so the harness works for any installation:
+     * a deployment that replaces or renames its icon library keeps every scenario meaningful, and a
+     * scenario whose subject (two distinct shipped icons) is absent skips instead of failing.
+     */
+    publishedIcons() {
+      const platform = namespaces.find((namespace) => namespace.urlBase === "/assets");
+      if (!platform || !existsSync(platform.directory)) return [];
+      return readdirSync(platform.directory)
+        .filter((name) => name.startsWith("icon-") && name.endsWith(".svg"))
+        .sort();
+    },
   };
   return servedCapability;
 }
@@ -1582,12 +1596,28 @@ async function runCanonical(chrome) {
       capability.mode === "legacy" && capability.urlBases.length === 1 && capability.urlBases[0] === "/assets",
       `mode=${capability.mode} bases=${capability.urlBases.join(",")}`,
     );
-    const canonicalRole = capability.asset("logo-header.svg");
+    // DERIVED, never a named canonical role (M21 §10): a role this installation does not publish is NOT
+    // served, and every role it DOES serve comes from a namespace it DECLARES — so an undeclared Spoke
+    // namespace is never consulted, whatever happens to exist on disk.
+    const unpublishedRole = capability.asset("role-this-installation-does-not-ship.svg");
+    const publishedRole = capability.asset(CONTROL_ICON_ROLE);
     check(
       rows,
-      "iso.canonicalSpokeRoleIsUnavailableToThisInstallation",
-      canonicalRole.served === false && canonicalRole.url === null,
-      `served=${canonicalRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
+      "iso.unpublishedRoleIsUnavailableToThisInstallation",
+      unpublishedRole.served === false && unpublishedRole.url === null,
+      `served=${unpublishedRole.served} foreignNamespaceExists=${existsSync(capability.undeclaredSpokeNamespace)}`,
+    );
+    const publishedRoleUrl = publishedRole.url ?? "";
+    const publishedRoleBase = publishedRoleUrl.endsWith(`/${CONTROL_ICON_ROLE}`)
+      ? publishedRoleUrl.slice(0, publishedRoleUrl.length - CONTROL_ICON_ROLE.length - 1)
+      : "";
+    check(
+      rows,
+      "iso.servedRoleComesFromADeclaredNamespace",
+      publishedRole.served === true &&
+        publishedRoleUrl.startsWith("/") &&
+        capability.urlBases.includes(publishedRoleBase),
+      `url=${publishedRoleUrl || "(none)"} base=${publishedRoleBase || "(none)"} bases=${capability.urlBases.join(",")}`,
     );
     await cdp.navigate(`${BASE_URL}/ww/en`);
     await waitReady(cdp);
@@ -1621,11 +1651,12 @@ async function runCanonical(chrome) {
  * warnings anywhere. Own dev server; config restored after.
  */
 async function runDuplicateNavScenario(chrome) {
-  // P6-1: the fixture icons must be REAL shipped assets (a configured icon with
-  // no backing file is now a LOUD build failure) — Alpha/Beta take the two
-  // distinct shipped sidebar defaults to prove each same-`href` entry keeps
-  // its OWN icon; the other entries are icon-less (their icons were never
-  // asserted — only Alpha/Beta identity is).
+  // P6-1: the fixture icons must be REAL shipped assets (a configured icon with no backing file is a
+  // LOUD build failure), so the two DISTINCT names are DERIVED from the icons THIS installation
+  // publishes (M21 §10). A scenario whose subject is "two distinct shipped icons" is SKIPPED where the
+  // installation publishes fewer than two — the subject is absent, not broken.
+  const publishedIcons = servedInstallationAssetCapability().publishedIcons();
+  if (publishedIcons.length < 2) return;
   const DUP_NAV = [
     { label: "First", href: "/first", position: "middle" },
     { label: "Second", href: "/second", position: "middle" },
@@ -1636,8 +1667,8 @@ async function runDuplicateNavScenario(chrome) {
     // every installation, while `sidebar-open.svg`/`sidebar-close.svg` are that installation's OWN
     // replaceable role files and are not shipped by this one. The assertions below match on the basename,
     // so `icon-sidebar-open.svg` satisfies them exactly as the role filename used to.
-    { label: "Alpha", href: "/pricing", icon: "icon-sidebar-open.svg", position: "top" },
-    { label: "Beta", href: "/pricing", icon: "icon-sidebar-close.svg", position: "bottom", disabled: true },
+    { label: "Alpha", href: "/pricing", icon: publishedIcons[0], position: "top" },
+    { label: "Beta", href: "/pricing", icon: publishedIcons[1], position: "bottom", disabled: true },
   ];
   const HOOK = `(() => { window.__dupKeyWarnings = []; const o = window.console.error; window.console.error = (...a) => { const s = a.map(String).join(" "); if (/same key|duplicate|two children/i.test(s)) window.__dupKeyWarnings.push(s); o.apply(window.console, a); }; })();`;
   const original = await readFile(CONFIG_PATH, "utf8");
@@ -2843,7 +2874,12 @@ async function runConnectivityIconScenario(chrome) {
   // (`sidebar-open.svg`) belong to the installation that owns them and are deliberately not used as a
   // generic fixture: this scenario's subject is the connectivity icon seam, not another installation's
   // artwork, and the assertions below match the filename's basename either way.
-  const ICON = "icon-sidebar-open.svg"; // an existing generic PLATFORM asset — never replaceable role artwork
+  // The icon this pass configures is DERIVED from the platform icons THIS installation publishes
+  // (M21 §10): the seam under test is the configured-icon behaviour, never a particular artwork file.
+  // An installation that publishes no platform icon has no subject here, so the pass is SKIPPED.
+  const publishedIcons = servedInstallationAssetCapability().publishedIcons();
+  if (publishedIcons.length === 0) return;
+  const ICON = publishedIcons[0];
   const MISSING = "missing-connectivity-icon-fixture.svg"; // deliberately absent
   const original = await readFile(CONFIG_PATH, "utf8");
   const rows = [];

@@ -120,24 +120,25 @@ describe("§20 — A/B/A/B: the two real contexts never cross", () => {
     // tree nor its bindings (§29).
     expect(await pagesFor(foundationSpoke).resolve("ww", "berlin", "de")).toBeNull();
     expect(await pagesFor(foundationSpoke).resolve("ww", "frankfurt", "en")).toBeNull();
-    // Germany's own Home IS Germany's, in both of its languages: every locale answers from the
-    // Germany Spoke's OWN tree, with its own authored title — and its English Home is never the
-    // Global Home. The values come from the two authored trees, so no wording is pinned here
-    // (FOUNDATION-MULTISITE-M21: authored page prose is deployment data, not a test contract).
+    // Germany's own Home IS Germany's, in both of its languages: each locale answers from the GERMANY
+    // Spoke's tree, reports Site `de`, and falls back to nothing — while the Global Home reports `ww`
+    // and resolves from a different authored root. Context proves ownership; wording proves nothing,
+    // because two websites may legally share a title (M21).
     const germanyGerman = await pagesFor(germanySpoke).resolve("de", HOME_CONTENT_SLUG, "de");
     const germanyEnglish = await pagesFor(germanySpoke).resolve("de", HOME_CONTENT_SLUG, "en");
     const globalEnglish = await pagesFor(foundationSpoke).resolve("ww", HOME_CONTENT_SLUG, "en");
-    for (const [label, page] of [
-      ["de/de", germanyGerman],
-      ["de/en", germanyEnglish],
+    for (const [label, page, locale] of [
+      ["de/de", germanyGerman, "de"],
+      ["de/en", germanyEnglish, "en"],
     ] as const) {
       expect(page, label).not.toBeNull();
+      expect(page?.siteId, label).toBe("de");
+      expect(page?.locale, label).toBe(locale);
       expect(page?.fallback, `${label} is authored, not a fallback`).toBe(false);
-      expect(page?.title.trim(), `${label} carries its own authored title`).not.toBe("");
+      expect(page?.title.trim(), `${label} declares its own title`).not.toBe("");
     }
-    // Two distinct authored sources, and neither is the other Spoke's Home.
-    expect(germanyGerman?.title).not.toBe(germanyEnglish?.title);
-    expect(germanyEnglish?.title).not.toBe(globalEnglish?.title);
+    expect(globalEnglish?.siteId).toBe("ww");
+    expect(germanySpoke.resources.jsonPagesRoot).not.toBe(foundationSpoke.resources.jsonPagesRoot);
   });
 });
 

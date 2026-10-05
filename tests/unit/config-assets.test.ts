@@ -8,6 +8,23 @@ import {
   type IconConfigSource,
 } from "@/config/assets";
 import { siteConfig } from "@/config";
+import { existsSync, readdirSync } from "node:fs";
+import path from "node:path";
+
+/**
+ * The icon names THIS installation publishes in its own platform namespace.
+ *
+ * DERIVED, never listed (FOUNDATION-MULTISITE-M21 §10): the contract is "every icon the installation
+ * ships is available to the renderer", not "this repository happens to ship these two names". A
+ * deployment that replaces or extends its icon library therefore keeps this suite meaningful.
+ */
+function publishedIconNames(): string[] {
+  const platformAssets = path.join(process.cwd(), "public", "assets");
+  if (!existsSync(platformAssets)) return [];
+  return readdirSync(platformAssets)
+    .filter((name) => /^icon-.+\.svg$/i.test(name))
+    .sort();
+}
 
 /**
  * P6-1 — the icon-asset availability contract (framework layer):
@@ -22,26 +39,31 @@ import { siteConfig } from "@/config";
 describe("P6-1 — configured icon assets", () => {
   it("the shipped PLATFORM icons are real files under public/assets", () => {
     // The icon LIBRARY is platform/shared artwork (S3E1C), so it is installed into the platform namespace
-    // of EVERY installation — unlike a Spoke's replaceable role artwork, which is served from that Spoke's
-    // own namespace and is therefore asked of the installation's sources (see `tests/support/runtime-assets`).
-    expect(iconAssetAvailable("icon-sidebar-open.svg")).toBe(true);
-    expect(iconAssetAvailable("icon-sidebar-close.svg")).toBe(true);
+    // of EVERY installation. WHICH names exist is the installation's own business: they are read from the
+    // namespace it publishes, so replacing the library never invalidates this check (M21 §10).
+    const icons = publishedIconNames();
+    expect(icons.length, "the installation publishes an icon library").toBeGreaterThan(0);
+    for (const icon of icons) expect(iconAssetAvailable(icon), icon).toBe(true);
   });
 
   it("availableIconName preserves missing/empty verbatim and neutralizes unavailable names (never a broken image)", () => {
-    expect(availableIconName("icon-sidebar-open.svg")).toBe("icon-sidebar-open.svg");
+    const [published] = publishedIconNames();
+    expect(published, "the installation publishes an icon library").toBeDefined();
+    expect(availableIconName(published)).toBe(published);
     expect(availableIconName("definitely-missing-icon.svg")).toBe("");
     expect(availableIconName("")).toBe("");
     expect(availableIconName(undefined)).toBeUndefined();
   });
 
   it("a config with ONLY existing/empty/absent icon leaves validates", () => {
+    const [open, close] = publishedIconNames();
+    expect(open, "the installation publishes an icon library").toBeDefined();
     expect(() =>
-      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "icon-sidebar-open.svg", close: "icon-sidebar-close.svg" })),
+      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open, close })),
     ).not.toThrow();
     expect(() => assertConfiguredIconAssetsExist(minimalConfigWithIcons({}))).not.toThrow();
     expect(() =>
-      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "", close: "icon-sidebar-close.svg", cta: "" })),
+      assertConfiguredIconAssetsExist(minimalConfigWithIcons({ open: "", close, cta: "" })),
     ).not.toThrow();
   });
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { availableBannerPath, availableIconUrl, runtimeAssetUrl } from "@/config/assets";
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
@@ -204,13 +205,16 @@ describe("runtime mirror — one deterministic source → derivative relationshi
     for (const icon of library) expect(planned.has(icon), `${icon} must be mirrored`).toBe(true);
   });
 
-  it("documents the source of truth in the shipped placeholder files themselves", () => {
+  it("derives the graphic roles from their declared placeholder sources, so a replacement is in place", () => {
+    // WHAT IS PROVED: the ROLE, its SOURCE and the byte-identity between them — never today's artwork
+    // and never an SVG's explanatory comment (M21 §10). A deployment may replace this graphic without
+    // rewriting a test: the mechanism that carries the replacement is what is asserted.
     for (const role of ["header-graphic.svg", "footer-graphic.svg"]) {
-      expect(readRuntime(role)).toContain(`content/assets/placeholders/${role}`);
-      expect(readRuntime(role)).toContain("scripts/sync-runtime-assets.mjs");
+      const row = MIRRORED.find((entry) => entry.to === role);
+      expect(row?.from, role).toBe(`content/assets/placeholders/${role}`);
+      expect(readSource("placeholders", role), `${role} must be a real SVG`).toContain("<svg");
+      expect(readRuntime(role), role).toBe(readSource("placeholders", role));
     }
-    // No runtime file claims to be brand authority.
-    expect(readRuntime("header-graphic.svg")).toMatch(/NOT BRAND AUTHORITY/);
   });
 });
 
@@ -231,18 +235,25 @@ describe("ONE user-editable asset authority (FOUNDATION-PAGES-A1D)", () => {
     );
   });
 
-  it("marks the runtime mirror as GENERATED and never hand-edited", () => {
-    const script = readFileSync(path.join(ROOT, "scripts", "sync-runtime-assets.mjs"), "utf8");
-    expect(script).toContain("NEVER edit it by hand");
-    expect(script).toContain("content/assets/**");
-    expect(script).toContain("the SOURCE OF TRUTH");
+  it("keeps the runtime mirror GENERATED: a hand edit can never become a committed authority", () => {
+    // The contract is "this tree is output, never a source", and it is proved by the repository's own
+    // ignore authority plus the drift mechanism asserted above (missing/created/updated/unexpected):
+    // a hand-edited runtime file is DETECTED, and it can never be committed as the authority.
+    const ignored = (target: string) => {
+      try {
+        execFileSync("git", ["check-ignore", "-q", target], { cwd: ROOT, stdio: "ignore" });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const relative = (absolute: string) => path.relative(ROOT, absolute).split(path.sep).join("/");
 
-    const readme = readFileSync(path.join(foundationSpoke.assetSourceRoot, "README.md"), "utf8");
-    // S3E1C/S3F1 — the generated tree is NAMESPACED, so the instruction is stricter than it was and names
-    // no single hand-edit target: NOTHING under `public/` (either namespace) is ever edited by hand.
-    expect(readme).toContain("public/assets");
-    expect(readme).toContain("public/spokes/<runtime-segment>/assets/");
-    expect(readme).toMatch(/never edit anything under `public\/` by hand/i);
+    expect(ignored("public/assets"), "the generated mirror is not version-controlled").toBe(true);
+    expect(
+      ignored(relative(foundationSpoke.assetSourceRoot)),
+      "the authored source is version-controlled — it IS the authority",
+    ).toBe(false);
   });
 
   it("mirrors every runtime file FROM content/assets (no source outside it)", () => {

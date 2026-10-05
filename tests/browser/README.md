@@ -44,18 +44,28 @@ own tree — `tests/browser/` inside the root the deployment authority selected,
 discovers every `*.scenario.mjs` there and runs it, so a deployment ships expectations rather than a
 second browser framework, and adding a deployment edits no list.
 
-### Expected, not pinned: authored page prose
+### Expected, not pinned: structure, context and configuration
 
-A scenario owns EXPECTATIONS about a deployment, and the deployment's authored pages are its data — so a
-content-facing check DERIVES what a page must show from that page's own source at run time
-(`deployment/tests/support/authored-page-outline.mjs` reads both authoring modes) instead of quoting copy.
-The checks prove the invariants: the source parses, every authored heading, prose line and destination
-renders, the owning Spoke/Site/locale serves the route, and no other Spoke's content appears. Wording is
-never approved by a test, so an owner's copy edit cannot invalidate the suite, and a routing or isolation
-guarantee is never proved with marketing prose as its marker.
+A scenario owns EXPECTATIONS about a deployment, and the deployment's authored content is its DATA — so a
+scenario proves what is durable and never quotes copy. For a real page: the route resolves, the response
+succeeds, exactly one h1 exists where required, the document is structurally valid, the correct
+Spoke/Site/locale context is selected, the canonical origin and hreflang are correct, the asset namespace
+is the owning one, the internal links the page renders resolve, and the configured controls appear. For
+isolation: the resolved runtime context, origin, Site path and asset namespace — never a title, because
+two Spokes may legally share one.
 
-Exact strings remain correct where the TEST authored the text — a planted fixture page may assert its own
-`"Authored fixture page"`. The same rule is recorded in `AGENTS.md` and `deployment/AGENTS.md`.
+A scenario must not parse production Markdown or prose, and must not read an authored page to derive an
+expectation: the application owns that parser. Test-owned fixtures keep exact assertions, because the TEST
+authored that text.
+
+Two operational notes for probe authors:
+
+- a probe travels inside a template literal, so an ESCAPED SLASH does not survive template evaluation —
+  write string work (`indexOf`, `slice`) instead of a slash-escaped regex inside a probe;
+- prefer asserting a data attribute, an `id`, a resolved context or a response status over a class list or
+  a sentence.
+
+The same rule is recorded in `AGENTS.md` (§14) and `deployment/AGENTS.md`.
 
 ### What the harness may write
 
