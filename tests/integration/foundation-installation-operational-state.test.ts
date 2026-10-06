@@ -22,6 +22,8 @@ import {
   INSTALLATION_OPERATIONAL_STATE_SCHEMA_VERSION,
   parseInstallationOperationalState,
 } from "@/core/foundation-installation/index";
+// The record's file name is asked of the platform's own authority, exactly as the establishment fixture does.
+import { INSTALLATION_OPERATIONAL_STATE_FILE_NAME } from "@/core/foundation-installation/model";
 
 import { classifyReleasePath } from "../../scripts/release/release-content-policy.mjs";
 import {
@@ -53,18 +55,33 @@ import {
  *      authored state, and a health evaluation can never become a commit;
  *   3. the authored-state manifest (the same one both Vitest projects run against the real deployment) does
  *      NOT drift when the record is written;
- *   4. the record is INSTALLATION-LOCAL: the store refuses a location outside the installation root, and the
- *      installation that established it is left without a record of its own.
+ *   4. the record is INSTALLATION-LOCAL: the store refuses a location outside the installation root, and
+ *      establishing one installation writes a record ONLY into the target it establishes — the release
+ *      payload and the seed it read stay byte-identical, each carrying no record of its own. The runner's
+ *      own directory is NOT an establishment source, and the contract is asserted in BOTH a source checkout
+ *      and an established installation, so the answer cannot depend on ambient context (FOUNDATION-B4B-A3).
  *
  * A fifth proof lives in `tests/architecture/write-ownership-guard.test.ts`: `src/**` now contains exactly
  * two writers, this store being one, each with the ONE domain it owns.
  */
 const INSTALLATION = { name: "b4b operational proof", repository: "https://example.invalid/b4b-operational" };
 
-/** Establish into a fresh disposable target with a fixed clock, and return the target root. */
-async function establishedTarget(): Promise<{ targetRoot: string; payloadDirectory: string; seed: string }> {
+/**
+ * Establish into a fresh disposable target with a fixed clock, and return the ACTUAL sources the act read —
+ * each snapshotted BEFORE the act, so "unchanged" is proved against what those sources really were rather
+ * than against a re-reading that could hide a mutation.
+ */
+async function establishedTarget(): Promise<{
+  targetRoot: string;
+  payloadDirectory: string;
+  seed: string;
+  payloadBefore: Map<string, string>;
+  seedBefore: Map<string, string>;
+}> {
   const release = constructSyntheticRelease();
   const seed = syntheticSeed();
+  const payloadBefore = snapshotTree(release.payloadDirectory);
+  const seedBefore = snapshotTree(seed);
   const targetRoot = path.join(disposableTree("foundation-b4b-record-"), "target");
   const payload = new LocalReleaseSource({ payloadDirectory: release.payloadDirectory });
   const outcome = await establishFoundationInstallation(
@@ -93,7 +110,41 @@ async function establishedTarget(): Promise<{ targetRoot: string; payloadDirecto
     },
   );
   expect(outcome.ok, JSON.stringify(outcome)).toBe(true);
-  return { targetRoot, payloadDirectory: release.payloadDirectory, seed };
+  return { targetRoot, payloadDirectory: release.payloadDirectory, seed, payloadBefore, seedBefore };
+}
+
+/** Every operational record found beneath a tree, by root-relative POSIX path — where it was written, and where not. */
+function operationalRecordsIn(root: string): string[] {
+  return [...snapshotTree(root).keys()].filter(
+    (relative) =>
+      relative === INSTALLATION_OPERATIONAL_STATE_FILE_NAME ||
+      relative.endsWith(`/${INSTALLATION_OPERATIONAL_STATE_FILE_NAME}`),
+  );
+}
+
+/**
+ * THE ESTABLISHMENT OWNERSHIP CONTRACT (FOUNDATION-B4B-A3), asserted identically in EVERY runner context.
+ *
+ * The act's sources are explicit — a release payload, a seed and a target — and its ownership is exactly
+ * that: operational state is created and managed ONLY inside the target installation it establishes, while
+ * the payload and the seed it read stay byte-identical and carry no record of their own. The directory the
+ * test runner happens to sit in is NOT a source and is not part of this contract, which is why nothing here
+ * reads `process.cwd()`: an existing installation may legitimately own its own operational record.
+ */
+async function assertEstablishmentOwnsOnlyItsTarget(): Promise<string> {
+  const { targetRoot, payloadDirectory, seed, payloadBefore, seedBefore } = await establishedTarget();
+
+  // The record exists EXACTLY ONCE, inside the installation it describes …
+  expect(operationalRecordsIn(targetRoot)).toEqual([
+    `${INSTALLATION_CAPSULE_RELATIVE_PATH}/${INSTALLATION_OPERATIONAL_STATE_FILE_NAME}`,
+  ]);
+  // … it exists in NEITHER of the sources the act read …
+  expect(operationalRecordsIn(payloadDirectory)).toEqual([]);
+  expect(operationalRecordsIn(seed)).toEqual([]);
+  // … and both sources are byte-identical to what they were BEFORE the act.
+  expect(snapshotTree(payloadDirectory)).toEqual(payloadBefore);
+  expect(snapshotTree(seed)).toEqual(seedBefore);
+  return targetRoot;
 }
 
 describe("the operational record is generated state, never authored state", () => {
@@ -174,18 +225,39 @@ describe("the operational record is generated state, never authored state", () =
     expect(record.current.healthEvaluatedAt).toBeNull();
   });
 
-  it("leaves the installation that established it without a record of its own, and its sources intact", async () => {
-    const { targetRoot, payloadDirectory, seed } = await establishedTarget();
-    const sources = snapshotTree(payloadDirectory);
-    const seedBefore = snapshotTree(seed);
+  it("writes operational state only to the target, and leaves the release and seed sources intact", async () => {
+    // A. FOUNDATION SOURCE / RELEASE CONTEXT — the contract as an ordinary checkout or bare release proves it.
+    await assertEstablishmentOwnsOnlyItsTarget();
+  });
 
-    // The SOURCE installation (this repository) is left without an operational record by the act …
-    expect(existsSync(operationalStateFileOf(process.cwd()))).toBe(false);
-    // … and the release it read and the capsule it was seeded from are byte-identical afterwards.
-    expect(snapshotTree(payloadDirectory)).toEqual(sources);
-    expect(snapshotTree(seed)).toEqual(seedBefore);
-    // The record exists exactly once, inside the installation it describes.
-    expect(existsSync(operationalStateFileOf(targetRoot))).toBe(true);
+  /**
+   * THE RUNNER MAY ITSELF BE AN ESTABLISHED INSTALLATION (FOUNDATION-B4B-A3)
+   *
+   * This suite ships inside every release, so it is also run FROM an installation — a directory that
+   * legitimately owns `deployment/operational-state.json` of its own. That record belongs to the runner
+   * installation and has nothing to do with any target being established, so the contract is asserted again
+   * with the runner's own established installation as the current directory. The answer must be the one a
+   * source checkout gives; it must never depend on ambient context. (The defect this proves against: an
+   * assertion that read `process.cwd()` as if it were an establishment source.)
+   */
+  it("holds the same ownership contract when the runner is itself an established installation", async () => {
+    // B. ESTABLISHED INSTALLATION CONTEXT — a disposable installation, so no developer's own state is involved.
+    const runner = await establishedTarget();
+    const runnerRecord = operationalStateFileOf(runner.targetRoot);
+    const recordBefore = readFileSync(runnerRecord, "utf8");
+
+    const previous = process.cwd();
+    process.chdir(runner.targetRoot);
+    try {
+      // The runner's own record is legitimately present in the context this suite now executes in …
+      expect(existsSync(operationalStateFileOf(process.cwd()))).toBe(true);
+      // … and the establishment contract answers identically here: target-local state, sources untouched.
+      await assertEstablishmentOwnsOnlyItsTarget();
+      // The runner installation's own record is neither consulted nor rewritten by establishing something else.
+      expect(readFileSync(runnerRecord, "utf8")).toBe(recordBefore);
+    } finally {
+      process.chdir(previous);
+    }
   });
 
   it("cannot be repaired by the store: a corrupt record is returned as stored and refused by the domain", async () => {
