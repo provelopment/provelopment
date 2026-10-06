@@ -296,8 +296,12 @@ describe("sidebar page icons — expanded vs collapsed behaviour", () => {
   it("mobile navigation behaviour is unchanged (no page icons, control sizing untouched)", () => {
     const mobileNav = read("src", "components", "shell", "shell-mobile-nav.tsx");
     expect(mobileNav).toContain('className="ui-mobile-nav-icon h-8 w-8 shrink-0"');
-    expect(mobileNav).toContain("DEFAULT_SIDEBAR_OPEN_ICON");
-    expect(mobileNav).toContain("DEFAULT_SIDEBAR_CLOSE_ICON");
+    // SIDEBAR ASSET CORRECTION — the shell no longer holds the shipped default itself. It renders the
+    // control the FRAMEWORK LAYER resolved, because only that layer knows which runtime namespace OWNS the
+    // shipped role (a Spoke's own namespace in an explicit Installation). These two assertions are the
+    // durable SOURCE-level guard for that class: a re-introduced `/assets/<name>` guess fails here.
+    expect(mobileNav).not.toContain("DEFAULT_SIDEBAR_OPEN_ICON");
+    expect(mobileNav).not.toContain("DEFAULT_SIDEBAR_CLOSE_ICON");
     // The 16px page-icon token is scoped to the sidebar surface only.
     expect(globals).not.toMatch(/\.ui-mobile-nav-icon[^{]*\{[^}]*--ui-sidebar-nav-icon-size/);
   });

@@ -65,6 +65,10 @@ const mobileNavHtml = (): string =>
       id: "shell-mobile-nav",
       className: "md:hidden",
       closeLabel: "Hide navigation",
+      // SIDEBAR ASSET CORRECTION — the trigger's icon is the control the FRAMEWORK LAYER resolved; the
+      // primitive never guesses `/assets/<name>` (which is a 404 wherever the platform namespace does not
+      // own the shipped role). The 32px artwork and the >=44px hit area are unchanged.
+      open: { icon: "/spokes/foundation/assets/sidebar-open.svg" },
       children: null,
     }),
   );

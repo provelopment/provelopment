@@ -43,6 +43,10 @@ const el = (type: string, props: Record<string, unknown> | null, ...children: Re
 
 describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
   it("trigger exposes the recognizable open icon + \"Show navigation\" action label", () => {
+    // SIDEBAR ASSET CORRECTION — the P5-1 intent (a recognizable open-sidebar icon beside the action
+    // label) is expressed with the control the FRAMEWORK LAYER resolved, which is what every product
+    // composition supplies. The primitive no longer guesses `/assets/<name>` from a bare filename, because
+    // only the framework layer knows which runtime namespace OWNS the shipped default.
     const html = renderToStaticMarkup(
       ShellMobileNav({
         pattern: "drawer",
@@ -50,6 +54,7 @@ describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
         id: "shell-mobile-nav",
         className: "md:hidden",
         closeLabel: "Hide navigation",
+        open: { icon: "/spokes/foundation/assets/sidebar-open.svg" },
         children: el("nav", null, "Nav content"),
       }),
     );
@@ -58,7 +63,7 @@ describe("ShellMobileNav — P5-1 mobile sidebar contract (closed SSR)", () => {
     // the shared ui-mobile-nav-icon marker); the P5-1 browser contract (the
     // marker + the visible "Show navigation" label) is unchanged.
     expect(html).toMatch(/<img[^>]*class="[^"]*ui-mobile-nav-icon/);
-    expect(html).toContain('/assets/sidebar-open.svg');
+    expect(html).toContain('src="/spokes/foundation/assets/sidebar-open.svg"');
     // The trigger is not an icon-only control: the visible action label is the
     // accessible name, with the icon decorative (aria-hidden by the SVG itself).
     expect(html).toContain('aria-expanded="false"');

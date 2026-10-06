@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 
 import { DisclosureIcon } from "@/components/ui/disclosure-icon";
 import {
-  DEFAULT_SIDEBAR_CLOSE_ICON,
-  DEFAULT_SIDEBAR_OPEN_ICON,
   resolveControlPresentation,
   SHELL_LAYOUT_ATTRIBUTE,
 } from "@/core/ui";
@@ -128,14 +126,14 @@ export function ShellMobileNav({
   }, [openState, activeLayoutKey]);
 
   // P5-5 — both controls resolve through the SAME presentation helper. The
-  // shipped default assets (`/assets/sidebar-open.svg` / close) are
-  // replaceable in place, or via the configured filename.
+  // RESOLVED asset (the framework layer screens and namespaces it) is rendered
+  // verbatim; a control composed without one renders no icon at all — the shell
+  // never guesses `/assets/<name>`, because only the framework layer knows which
+  // runtime namespace OWNS the shipped default. The trigger keeps its OWN label.
   const openControl = resolveControlPresentation(open ?? {}, {
-    defaultIcon: DEFAULT_SIDEBAR_OPEN_ICON,
     fallbackText: triggerLabel,
   });
   const closeControl = resolveControlPresentation(close ?? {}, {
-    defaultIcon: DEFAULT_SIDEBAR_CLOSE_ICON,
     fallbackText: closeLabel ?? "Hide navigation",
   });
 

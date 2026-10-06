@@ -564,6 +564,156 @@ async function runBrowserProof(harness, rows, chrome, port, installation) {
   }
 }
 
+/**
+ * THE FOUNDATION-OWNED SHELL ASSET PROOF (FOUNDATION SIDEBAR ASSET CORRECTION).
+ *
+ * THE DEFECT this proof exists to keep closed: in an EXPLICIT multi-Spoke Installation the shell composed
+ * a sidebar/default control icon as `/assets/sidebar-open.svg` — the PLATFORM path — while that role file
+ * belongs to each SPOKE's own replaceable namespace (`/spokes/<segment>/assets/**`). The request answered
+ * 404 on every Spoke of this Installation, and the browser showed a broken image.
+ *
+ * WHY THE ACCEPTED GATE MISSED IT: the deployment browser matrix runs against a synthetic LEGACY-shaped
+ * installation whose control-icon assertions are CONDITIONAL on that installation shipping the role — so
+ * the assertions were skipped rather than failing — and this multi-host scenario asserted cross-Spoke
+ * ISOLATION (own namespace named, foreign refused) without ever FETCHING the icons the shell rendered.
+ *
+ * The proof is deliberately scoped to FOUNDATION-OWNED RENDERED SHELL ASSETS: the sidebar/control icon
+ * markers the Foundation's own primitives paint. User-authored navigation content is never crawled here.
+ */
+const SHELL_ICON_MARKERS = ["ui-sidebar-toggle-icon", "ui-mobile-nav-icon", "ui-nav-item-icon"];
+
+/** The replaceable role basenames the sidebar control family presents (the installation's own artwork). */
+const SHELL_ASSET_ROLE_BASENAMES = [
+  "sidebar-open.svg",
+  "sidebar-close.svg",
+  "sidebar-default-icon-open.svg",
+  "sidebar-default-icon-closed.svg",
+];
+
+/** Every rendered shell icon URL in one document, with its `src` and the marker that identified it. */
+function shellIconUrls(html) {
+  const found = [];
+  for (const tag of html.matchAll(/<img\b[^>]*>/g)) {
+    const marker = SHELL_ICON_MARKERS.find((name) => tag[0].includes(name));
+    if (marker === undefined) continue;
+    const src = /src="([^"]+)"/.exec(tag[0])?.[1] ?? "";
+    if (src !== "") found.push({ src, marker });
+  }
+  return [...new Map(found.map((entry) => [entry.src, entry])).values()];
+}
+
+/** The rendered shell icons a REAL browser reports, and whether every one of them loaded. */
+const RENDERED_SHELL_ICONS_PROBE = `(() => {
+  const imgs = [...document.querySelectorAll("img.ui-sidebar-toggle-icon, img.ui-mobile-nav-icon, img.ui-nav-item-icon")];
+  return {
+    count: imgs.length,
+    broken: imgs.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.getAttribute("src") || ""),
+    sources: imgs.map((image) => image.getAttribute("src") || ""),
+  };
+})()`;
+
+async function runShellAssetProof(harness, rows, port, installation) {
+  for (const spoke of installation.spokes) {
+    const host = `${spoke.hostname}:${port}`;
+    const page = await requestWithHost(port, host, "/ww/en/about");
+    harness.check(
+      rows,
+      `${spoke.id}: the page carrying the shell is served for the asset inspection`,
+      page.status === 200,
+      `status=${page.status}`,
+    );
+
+    const icons = shellIconUrls(page.body);
+    harness.check(
+      rows,
+      `${spoke.id}: the shell renders its own control/navigation icons`,
+      icons.length > 0,
+      `icons=${icons.length}`,
+    );
+
+    // THE DEFECT'S OWN SIGNATURE: a Spoke-owned replaceable role resolved to the platform path.
+    const guessed = SHELL_ASSET_ROLE_BASENAMES.filter((name) => page.body.includes(`src="/assets/${name}"`));
+    harness.check(
+      rows,
+      `${spoke.id}: no shell control resolves a Spoke-owned role to the platform path`,
+      guessed.length === 0,
+      `guessed=${guessed.join(",") || "(none)"}`,
+    );
+
+    // THE NAMESPACE INVENTORY, STATED: the Spoke's own namespace OWNS the role; the platform namespace
+    // does not own it in an explicit Installation — which is exactly why a `/assets/...` URL cannot work.
+    const owned = await requestWithHost(port, host, `/spokes/${spoke.segment}/assets/sidebar-open.svg`);
+    const platform = await requestWithHost(port, host, "/assets/sidebar-open.svg");
+    harness.check(
+      rows,
+      `${spoke.id}: the Spoke namespace OWNS the sidebar role while the platform namespace does not`,
+      owned.status === 200 && platform.status !== 200,
+      `spoke=${owned.status} platform=${platform.status}`,
+    );
+
+    for (const { src, marker } of icons) {
+      const asset = await requestWithHost(port, host, src);
+      const declared = src.startsWith(`/spokes/${spoke.segment}/assets/`) || src.startsWith("/assets/");
+      harness.check(
+        rows,
+        `${spoke.id}: rendered shell icon ${src} (${marker}) is served from a declared namespace (200)`,
+        asset.status === 200 && declared,
+        `status=${asset.status} namespace=${declared ? "declared" : "undeclared"}`,
+      );
+    }
+  }
+}
+
+/**
+ * THE SAME FACT IN A REAL BROWSER, IN BOTH DISCLOSURE STATES: every rendered shell icon must have LOADED
+ * (never a broken `<img>`), closed and open. The controls are DISCOVERED (`button[aria-controls]`) rather
+ * than named, so whichever sidebar/mobile surfaces a composition presents are the ones exercised.
+ */
+async function runShellAssetBrowserProof(harness, rows, chrome, port, installation) {
+  const cdp = await Cdp.connect(chrome);
+  try {
+    for (const spoke of installation.spokes) {
+      const fixture = MULTIHOST_SPOKES.find((candidate) => candidate.id === spoke.id);
+      await cdp.navigate(`http://${spoke.hostname}:${port}/ww/en/about`);
+      const deadline = Date.now() + 60000;
+      let ready = false;
+      while (Date.now() < deadline && !ready) {
+        const text = await cdp.evaluate(`document.body ? document.body.textContent || "" : ""`);
+        ready = typeof text === "string" && text.includes(fixture.aboutBody);
+        if (!ready) await sleep(400);
+      }
+
+      const closed = await cdp.evaluate(RENDERED_SHELL_ICONS_PROBE);
+      harness.check(
+        rows,
+        `${spoke.id}: every rendered shell icon LOADED in the closed state (no broken image)`,
+        closed !== null && closed.count > 0 && closed.broken.length === 0,
+        `images=${closed ? closed.count : "(none)"} broken=${closed ? closed.broken.join(",") || "(none)" : "(unknown)"}`,
+      );
+
+      const opened = await cdp.evaluate(
+        `(() => { const buttons = [...document.querySelectorAll("button[aria-controls]")]; for (const button of buttons) { try { button.click(); } catch {} } return buttons.length; })()`,
+      );
+      await sleep(700);
+      const open = await cdp.evaluate(RENDERED_SHELL_ICONS_PROBE);
+      harness.check(
+        rows,
+        `${spoke.id}: the disclosure controls were exercised (an open state is composed)`,
+        typeof opened === "number" && opened > 0,
+        `controls=${opened}`,
+      );
+      harness.check(
+        rows,
+        `${spoke.id}: every rendered shell icon LOADED in the open state (no broken image)`,
+        open !== null && open.broken.length === 0,
+        `images=${open ? open.count : "(none)"} broken=${open ? open.broken.join(",") || "(none)" : "(unknown)"}`,
+      );
+    }
+  } finally {
+    await cdp.close();
+  }
+}
+
 /** Removes exactly the namespaces this scenario created — the generated segments alpha and beta. */
 function removeNamespaces(harness, installation) {
   for (const spoke of installation.spokes) {
@@ -595,6 +745,9 @@ export async function run(chrome, harness) {
     await runSurfaceProof(harness, rows, started.port, installation);
     await runHostnameProof(harness, rows, started.port, installation);
     await runInspectionProof(harness, rows, started.port, installation);
+    // The Foundation's OWN rendered shell assets, fetched and browser-verified (SIDEBAR ASSET CORRECTION).
+    await runShellAssetProof(harness, rows, started.port, installation);
+    await runShellAssetBrowserProof(harness, rows, chrome, started.port, installation);
     await runBrowserProof(harness, rows, chrome, started.port, installation);
   } catch (error) {
     harness.check(
