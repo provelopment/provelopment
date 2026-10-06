@@ -219,4 +219,3 @@ describe("the bottom bar's mobile disclosure resolves through namespace ownershi
     );
   });
 });
-
