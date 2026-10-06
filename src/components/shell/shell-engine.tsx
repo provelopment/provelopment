@@ -10,8 +10,6 @@ import {
   bandClassName,
   bottomBarCompositions,
   contentWidthClass,
-  DEFAULT_SIDEBAR_CLOSE_ICON,
-  DEFAULT_SIDEBAR_OPEN_ICON,
   densityClass,
   layoutScopeAttributes,
   mobileDisclosureCompositions,
@@ -402,16 +400,19 @@ export function ShellEngine({
   function buildAside() {
     if (!asideActive || !asideContent) return null;
     // P6-1 — the rail disclosure uses the SAME resolved control (icon + text)
-    // contract as the mobile layer: missing leaves → shipped default asset +
-    // the localized Show/Hide label; `text: ""` → icon-only; `icon: ""` →
-    // text-only. The content layer already screened the icon filenames against
-    // public/assets (availableIconName), so no broken image can be composed.
+    // contract as the mobile layer: missing leaves → the control the framework layer resolved; `text: ""`
+    // → icon-only; `icon: ""` → text-only.
+    //
+    // SIDEBAR ASSET CORRECTION — there is NO filename fallback here any more. A shipped default is
+    // RESOLVED by the framework layer (`resolveIconControlUrl`), because only that layer knows which of a
+    // context's runtime namespaces OWNS the file: a Spoke's replaceable role artwork is served from its own
+    // namespace in an explicit Installation. A lower renderer that substituted `/assets/<name>` from a bare
+    // filename was exactly the defect: a broken image and a 404 wherever the platform namespace does not own
+    // the role. A control composed without a resolved icon renders NO icon, never a guessed path.
     const openControl = resolveControlPresentation(sidebarOpen ?? {}, {
-      defaultIcon: DEFAULT_SIDEBAR_OPEN_ICON,
       fallbackText: sidebarLabels?.show ?? "Show navigation",
     });
     const closeControl = resolveControlPresentation(sidebarClose ?? {}, {
-      defaultIcon: DEFAULT_SIDEBAR_CLOSE_ICON,
       fallbackText: sidebarLabels?.hide ?? "Hide navigation",
     });
     // P0-1 — the sidebar capability is configured (not hard-coded per band):
@@ -543,6 +544,10 @@ export function ShellEngine({
               closeLabel={bottomNav.closeLabel}
               mode={bottomNav.mode}
               sidebarClose={bottomNav.sidebarClose}
+              // SIDEBAR ASSET CORRECTION — the SAME resolved control the rail and this composition's own
+              // mobile disclosure use. The More drawer is a sidebar disclosure too, so it must not be the
+              // one surface whose icon a lower renderer has to guess as `/assets/<name>`.
+              sidebarOpen={sidebarOpen}
               bandsClassName={bandClassName(mobileSurfaceBands(composition.decision))}
               scope={layoutScopeAttributes(
                 "bottom-bar",

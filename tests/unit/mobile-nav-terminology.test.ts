@@ -62,6 +62,9 @@ const mobileNavHtml = (): string =>
       id: "shell-mobile-nav",
       className: "md:hidden",
       closeLabel: dictionary.navigation.hideSidebar,
+      // SIDEBAR ASSET CORRECTION — the trigger's icon is the control the FRAMEWORK LAYER resolved (the
+      // primitive never guesses `/assets/<name>`); the shipped copy and layout contract are unchanged.
+      open: { icon: "/spokes/foundation/assets/sidebar-open.svg" },
       children: null,
     }),
   );

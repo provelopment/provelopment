@@ -92,6 +92,16 @@ export interface ShellBottomBarProps {
   readonly activeLayouts?: readonly string[];
   /** P5-5 — configuration for the shared "Hide navigation" disclosure control. */
   readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
+  /**
+   * SIDEBAR ASSET CORRECTION — the RESOLVED "Show navigation" control for this bar's "More" disclosure.
+   *
+   * The "More" drawer's trigger is a mobile sidebar disclosure like any other, so its icon belongs to
+   * whichever runtime namespace OWNS the shipped default. The engine receives the control already resolved
+   * by the framework layer (exactly as it does for the rail and the primary mobile disclosure) and passes it
+   * down; without it the trigger's icon would have to be guessed as `/assets/<name>`, which is a 404 in an
+   * explicit multi-Spoke Installation where that role file belongs to the Spoke's own namespace.
+   */
+  readonly sidebarOpen?: { readonly icon?: string; readonly text?: string };
 }
 
 /**
@@ -139,6 +149,7 @@ export function ShellBottomBar({
   activeLayouts,
   bandsClassName = "md:hidden",
   sidebarClose,
+  sidebarOpen,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
   // P5-5 — "closed" means the menu is not composed at all (adopter choice;
@@ -212,6 +223,9 @@ export function ShellBottomBar({
             id="shell-bottom-more"
             triggerLabel={moreLabel}
             closeLabel={closeLabel}
+            // The More trigger is a sidebar disclosure: its icon is the control the framework layer
+            // resolved, while the trigger keeps its OWN label (the drawer's own "More" wording).
+            open={{ icon: sidebarOpen?.icon, text: moreLabel }}
             close={sidebarClose}
             activeLayouts={activeLayouts}
           >
