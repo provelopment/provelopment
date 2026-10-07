@@ -9,8 +9,10 @@ import {
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
-// LOC1 — the ONE selector-ordering rule for a Site that REQUIRES a Location.
-import { orderedLocationIdsForSelector } from "@/core/location-selection";
+// LOC1/LOC2 — the ONE rule that says which Location leads a required Site's selector, and which Location
+// completes its Location-less requests: `effectiveDefaultLocation` (the adopter's refinement for THIS
+// locale, else the site-wide default) is asked here exactly as the route boundary asks it.
+import { effectiveDefaultLocation, orderedLocationIdsForSelector } from "@/core/location-selection";
 import { pathContextOr, sitePrefixPath } from "@/core/site";
 import { useClientRouting } from "./client-routing-context";
 
@@ -82,17 +84,21 @@ export function LocationSwitcher({
   // selector picks a place whose pages are shared with THIS site's tree, so a Location can never
   // be offered where it has no destination. Displayed order stays alphabetical by label, using the
   // projection's plain sort label (`label ?? name ?? id`) — the same one the server used — and a
-  // REQUIRED Site leads with its configured default Location (LOC1); optional ordering is untouched.
+  // REQUIRED Site leads with the EFFECTIVE default Location for the locale being read (LOC2: the
+  // adopter's refinement for this locale when it authored one, else the site-wide default; LOC1
+  // ordering otherwise); optional ordering is untouched.
   const regionLabelOf = (regionId: string): string => routing.regionSortLabels[regionId] ?? regionId;
   const availableRegions = orderedLocationIdsForSelector(
     [...regionsForSite(routing.pageBindings, parsed.site.code)].sort((a, b) =>
       regionLabelOf(a).localeCompare(regionLabelOf(b), "en", { sensitivity: "base" }),
     ),
     policy,
+    parsed.localePath,
   );
-  // LOC1 — in a REQUIRED Site the visitor's Location is never unspecified: the configured default is the
-  // natural selection, and it is the Location this Site's non-regional URLs are completed into.
-  const activeRegion = parsed.region ?? policy?.default ?? "";
+  // LOC1/LOC2 — in a REQUIRED Site the visitor's Location is never unspecified: the effective default
+  // (the URL's own Location always winning when it names one) is the natural selection, and it is the
+  // Location this locale's non-regional URLs are completed into.
+  const activeRegion = parsed.region ?? effectiveDefaultLocation(policy, parsed.localePath) ?? "";
 
   function handleChange(nextRegion: string) {
     if (nextRegion === activeRegion) {

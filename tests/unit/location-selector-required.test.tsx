@@ -39,6 +39,8 @@ const REGION_BASE = {
 const REGIONS = {
   beta: { ...REGION_BASE, label: "Beta" },
   alpha: { ...REGION_BASE, label: "Alpha" },
+  /** LOC2 — a third Location, bound only where a refinement names it. */
+  gamma: { ...REGION_BASE, label: "Gamma" },
 };
 
 const BASE = {
@@ -85,7 +87,11 @@ const required = config([
 ]);
 
 /** The rendered options of the Location control, in DOM order, as `[value, label]`. */
-function locationOptions(siteConfig: SiteConfig, path: string): readonly (readonly [string, string])[] {
+function locationOptions(
+  siteConfig: SiteConfig,
+  path: string,
+  locale = "en",
+): readonly (readonly [string, string])[] {
   currentPath = path;
   const html = renderToStaticMarkup(
     <ClientRoutingProvider
@@ -95,10 +101,10 @@ function locationOptions(siteConfig: SiteConfig, path: string): readonly (readon
       )}
     >
       <LocationSwitcher
-        locale="en"
+        locale={locale}
         label="Location"
         unspecifiedLabel="All locations"
-        regionLabels={{ beta: "Beta", alpha: "Alpha" }}
+        regionLabels={{ beta: "Beta", alpha: "Alpha", gamma: "Gamma" }}
       />
     </ClientRoutingProvider>,
   );
@@ -142,6 +148,67 @@ describe("a REQUIRED Site offers NO unspecified option, and leads with its defau
       const options = locationOptions(required, path);
       expect(options.some(([value]) => value === "")).toBe(false);
       expect(options[0]?.[0]).toBe("beta");
+    }
+  });
+});
+
+/**
+ * LOC2 — THE EFFECTIVE DEFAULT IS PER LOCALE (FOUNDATION-LOC2)
+ * ==========================================================
+ *
+ * The control leads with the Location the adopter's REFINEMENT names for the locale being READ, and with
+ * the site-wide default in every other locale — the same ONE rule the route boundary asks, read for this
+ * locale. The optional mode and the active selection are unchanged: the refinement supplies the leading
+ * option, never the selection, which is still the URL's own Location.
+ */
+const localeRefined = parseSiteConfig({
+  ...BASE,
+  i18n: {
+    defaultLocale: "en",
+    locales: [
+      { code: "en", label: "English" },
+      { code: "de", label: "Deutsch" },
+    ],
+  },
+  sites: [
+    { code: "ww", label: "Global" },
+    {
+      code: "ca",
+      label: "Canada",
+      locales: ["en", "de"],
+      defaultLocale: "en",
+      locationSelection: { mode: "required", default: "beta", localeDefaults: { de: "gamma" } },
+    },
+  ],
+  business: {
+    regions: REGIONS,
+    pages: [
+      { site: "ca", locale: "en", region: "beta" },
+      { site: "ca", locale: "en", region: "alpha" },
+      { site: "ca", locale: "de", region: "gamma" },
+      { site: "ca", locale: "de", region: "beta" },
+    ],
+  },
+});
+
+describe("LOC2 — the control leads with the EFFECTIVE default for the locale it is read in", () => {
+  it("leads with the refined Location on the locale the refinement names", () => {
+    const options = locationOptions(localeRefined, "/ca/de/gamma", "de");
+    // The accepted label order is Alpha, Beta, Gamma; the refinement lifts Gamma to the front.
+    expect(options.map(([value]) => value)).toEqual(["gamma", "alpha", "beta"]);
+    expect(options.some(([, label]) => label === "All locations")).toBe(false);
+  });
+
+  it("leads with the site-wide default on an unmapped locale of the SAME Site", () => {
+    const options = locationOptions(localeRefined, "/ca/en/beta", "en");
+    expect(options.map(([value]) => value)).toEqual(["beta", "alpha", "gamma"]);
+    expect(options.some(([, label]) => label === "All locations")).toBe(false);
+  });
+
+  it("leaves the OPTIONAL mode exactly as it was, in every locale", () => {
+    for (const locale of ["en", "de"]) {
+      const options = locationOptions(optional, "/ca/en/beta", locale);
+      expect(options[0]).toEqual(["", "All locations"]);
     }
   });
 });

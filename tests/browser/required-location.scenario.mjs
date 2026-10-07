@@ -9,9 +9,12 @@
  * unspecified option, and does using it move the URL inside the Location namespace?).
  *
  * TWO DEPLOYMENTS, ONE DIFFERENCE. The scenario materialises TWO disposable copies of the committed
- * synthetic fixture in OS temp: one whose Site declares `locationSelection: { "mode": "required",
- * "default": "north" }`, and the untouched one. Both are started, and the SAME assertions are measured on
- * each — which is what makes "an absent policy changes nothing" a measurement rather than a claim.
+ * synthetic fixture in OS temp: one whose Site declares a required-Location policy — `{ "mode":
+ * "required", "default": "north", "localeDefaults": { "de": "south" } }`, the LOC2 refinement included —
+ * and the untouched one. Both are started, and the SAME assertions are measured on each — which is what
+ * makes "an absent policy changes nothing" a measurement rather than a claim. The refinement is measured
+ * the same way: the SAME Site answers `/ca/en` with its site-wide default and `/ca/de` with the Location
+ * the adopter named FOR THAT LOCALE, so the difference is authored data and not inference.
  *
  * NO DEPLOYMENT IS MUTATED: the copies live in OS temp (the harness's own write domain), the shipped
  * fixture is only ever read, and both copies are removed when the run ends.
@@ -65,10 +68,29 @@ function canadaSite(config) {
   return config.sites.find((site) => site.code === "ca");
 }
 
-/** The policy under test: `ca` requires its `north` Location, and `about` exists there as a page. */
+/**
+ * The policy under test: `ca` REQUIRES its `north` Location, and REFINES its `de` locale to `south`
+ * (FOUNDATION-LOC2). `about` exists as a page in both Locations, so a completed page is observable too.
+ *
+ * The refinement is exactly what LOC2 adds: authored data naming the Location that completes an
+ * otherwise Location-less request FOR ONE LOCALE. Nothing in the platform knows that `de` "is" `south`;
+ * this patch is the adopter.
+ */
 async function requireNorthLocation(harness, root, config) {
-  canadaSite(config).locationSelection = { mode: "required", default: "north" };
-  config.business.pages.push({ site: "ca", locale: "en", region: "north", slug: "about" });
+  // The Site serves BOTH locales, and binds a Location in each — the shape a refinement needs (rule 8
+  // refuses a refinement whose Location has no landing in its OWN locale).
+  canadaSite(config).locales = ["en", "de"];
+  canadaSite(config).locationSelection = {
+    mode: "required",
+    default: "north",
+    localeDefaults: { de: "south" },
+  };
+  config.business.pages.push(
+    { site: "ca", locale: "en", region: "north", slug: "about" },
+    { site: "ca", locale: "de", region: "south" },
+    { site: "ca", locale: "de", region: "south", slug: "about" },
+    { site: "ca", locale: "de", region: "north" },
+  );
 
   // A regional PAGE reuses the accepted content model — its own file inside the Location's directory —
   // so the copy authors one: byte-for-byte the Site+locale page the fixture already ships, copied to the
@@ -79,6 +101,19 @@ async function requireNorthLocation(harness, root, config) {
     path.join(root, "content", "pages", "markdown", "ca", "en", "north", "about.md"),
     { recursive: false },
   );
+  // The SAME for the refined locale's own pages: a `de` landing per Location (the fixture's landing
+  // files are named after the Location) and the `de` about page of the refined Location.
+  for (const [from, to] of [
+    [["ca", "en", "south.md"], ["ca", "de", "south.md"]],
+    [["ca", "en", "north.md"], ["ca", "de", "north.md"]],
+    [["ca", "en", "about.md"], ["ca", "de", "south", "about.md"]],
+  ]) {
+    harness.cpSync(
+      path.join(root, "content", "pages", "markdown", ...from),
+      path.join(root, "content", "pages", "markdown", ...to),
+      { recursive: false },
+    );
+  }
 }
 
 /**
@@ -152,6 +187,7 @@ async function requiredHttpProof(harness, rows, port) {
   const base = `http://127.0.0.1:${port}`;
   const completions = [
     ["/ca", "/ca/en/north"],
+    // An UNMAPPED locale keeps the site-wide default — this Site refines `de`, not `en`.
     ["/ca/en", "/ca/en/north"],
     ["/ca/en/about", "/ca/en/north/about"],
     // The untouched Site is the control: its completions are exactly the established ones.
@@ -167,6 +203,28 @@ async function requiredHttpProof(harness, rows, port) {
       response.status === 307 && response.location === to,
       `status=${response.status} location=${response.location}`,
     );
+  }
+
+  // LOC2 — THE EXPLICIT LOCALE REFINEMENT. A Location-less request in the REFINED locale is completed
+  // into the Location the ADOPTER named for it, through the SAME one public redirect; nothing infers it.
+  for (const [from, to] of [
+    ["/ca/de", "/ca/de/south"],
+    ["/ca/de/about", "/ca/de/south/about"],
+  ]) {
+    const response = await request(`${base}${from}`);
+    harness.check(
+      rows,
+      `${from} (the refined locale) is completed into ${to}`,
+      response.status === 307 && response.location === to,
+      `status=${response.status} location=${response.location}`,
+    );
+  }
+
+  // …and THE URL WINS, in the refined locale too: a request that already names a Location is answered
+  // exactly as it is, whether it names the refined one or another.
+  for (const served of ["/ca/de/south", "/ca/de/north", "/ca/de/south/about"]) {
+    const response = await request(`${base}${served}`);
+    harness.check(rows, `${served} renders (200)`, response.status === 200, `status=${response.status}`);
   }
 
   for (const served of ["/ca/en/north", "/ca/en/north/about", "/ca/en/south", "/ww/en", "/ww/en/about"]) {
@@ -242,6 +300,41 @@ async function requiredBrowserProof(harness, rows, chrome, port, dictionary) {
       "using the control moves the URL inside the Location namespace",
       switched,
       switched ? "/ca/en/south" : "the control did not move the URL",
+    );
+
+    // LOC2 — THE REFINED LOCALE. A Location-less URL lands in the Location the ADOPTER named for that
+    // locale, and the control leads with it. Nothing in the platform associates the language with the
+    // place: this is authored configuration, which is exactly what makes it measurable here.
+    await cdp.navigate(`${base}/ca/de`);
+    let refinedLanded = true;
+    try {
+      await harness.waitReady(cdp, { path: "/ca/de/south" });
+    } catch (error) {
+      refinedLanded = false;
+      harness.check(rows, "a BROWSER reaches the REFINED Location's URL", false, String(error));
+    }
+    if (refinedLanded) {
+      harness.check(rows, "a BROWSER reaches the REFINED Location's URL", true, "/ca/de/south");
+    }
+
+    const refinedControl = await readLocationControl(cdp);
+    harness.check(
+      rows,
+      "the refined locale's control offers NO option with an empty value",
+      refinedControl !== null && !refinedControl.values.includes(""),
+      JSON.stringify(refinedControl?.values ?? null),
+    );
+    harness.check(
+      rows,
+      "the REFINED Location leads the control in its own locale",
+      refinedControl?.values[0] === "south",
+      JSON.stringify(refinedControl?.values ?? null),
+    );
+    harness.check(
+      rows,
+      "the refined locale's control selects the URL's own Location",
+      refinedControl?.value === "south",
+      `value=${refinedControl?.value ?? "(none)"}`,
     );
   } finally {
     await cdp.close();

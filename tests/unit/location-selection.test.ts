@@ -6,6 +6,7 @@ import type { SiteConfig } from "@/config/site-config";
 import type { OperationalRegion } from "@/core/region";
 import {
   assertLocationSelectionValid,
+  effectiveDefaultLocation,
   locationSelectionIssues,
   orderedLocationIdsForSelector,
 } from "@/core/location-selection";
@@ -141,8 +142,8 @@ describe("an ABSENT policy leaves the established optional behaviour untouched",
 
   it("keeps the selector's inventory and ordering exactly as the caller computed it", () => {
     const inventory = ["south", "far", "north"];
-    expect(orderedLocationIdsForSelector(inventory, null)).toEqual(inventory);
-    expect(orderedLocationIdsForSelector(inventory, undefined)).toEqual(inventory);
+    expect(orderedLocationIdsForSelector(inventory, null, "en")).toEqual(inventory);
+    expect(orderedLocationIdsForSelector(inventory, undefined, "de")).toEqual(inventory);
   });
 });
 
@@ -210,6 +211,7 @@ describe("a REQUIRED policy is scoped to its Site — never a deployment-wide sw
         {
           code: "ca",
           locationSelection: { mode: "required", default: "far" },
+          locales: [{ path: "en" }, { path: "de" }],
         },
       ],
       regions: REGIONS,
@@ -341,7 +343,13 @@ describe("a policy that cannot be honoured is refused at configuration time", ()
 
   it("names the Site, the configured default Location and the rule it broke", () => {
     const issues = locationSelectionIssues({
-      sites: [{ code: "ca", locationSelection: { mode: "required", default: "nowhere" } }],
+      sites: [
+        {
+          code: "ca",
+          locationSelection: { mode: "required", default: "nowhere" },
+          locales: [{ path: "en" }, { path: "de" }],
+        },
+      ],
       regions: REGIONS,
       bindings: [{ site: "ca", locale: "en", region: "north", slug: null }],
     });
@@ -357,7 +365,13 @@ describe("a policy that cannot be honoured is refused at configuration time", ()
 
   it("accepts a policy that IS honourable, and writes nothing back to it", () => {
     expect(() => assertLocationSelectionValid({
-      sites: [{ code: "ca", locationSelection: { mode: "required", default: "north" } }],
+      sites: [
+        {
+          code: "ca",
+          locationSelection: { mode: "required", default: "north" },
+          locales: [{ path: "en" }, { path: "de" }],
+        },
+      ],
       regions: REGIONS,
       bindings: [{ site: "ca", locale: "en", region: "north", slug: null }],
     })).not.toThrow();
@@ -380,11 +394,285 @@ describe("a REQUIRED policy is carried on the Site that declares it", () => {
 
   it("leads the selector with the configured default Location, then the caller's order", () => {
     const policy = { mode: "required", default: "north" } as const;
-    expect(orderedLocationIdsForSelector(["south", "north"], policy)).toEqual(["north", "south"]);
+    expect(orderedLocationIdsForSelector(["south", "north"], policy, "en")).toEqual(["north", "south"]);
     // A default that is NOT in the inventory cannot reorder anything (validation refuses it first).
-    expect(orderedLocationIdsForSelector(["south", "north"], { mode: "required", default: "far" })).toEqual([
-      "south",
+    expect(
+      orderedLocationIdsForSelector(["south", "north"], { mode: "required", default: "far" }, "en"),
+    ).toEqual(["south", "north"]);
+  });
+});
+
+/**
+ * LOC2 — EXPLICIT PER-LOCALE DEFAULTS FOR A REQUIRED SITE (FOUNDATION-LOC2)
+ * =======================================================================
+ *
+ * The same capability, refined: an adopter may name the Location that completes an otherwise
+ * Location-less request FOR ONE LOCALE. What this suite proves, in the order it is asserted:
+ *
+ *   · an existing LOC1 policy (no `localeDefaults`) behaves EXACTLY as before — measured against the SAME
+ *     Site WITH a refinement, so the difference is the refinement and nothing else;
+ *   · a mapped locale uses ITS Location, an unmapped locale keeps the site-wide default, and a mapped
+ *     locale's page is completed into that Location's equivalent page;
+ *   · a URL that already names a Location is untouched — in any locale, including the refined one — so
+ *     Language and Location stay independent dimensions;
+ *   · every refinement that could not be honoured is refused at configuration time, naming the Site, the
+ *     locale, the configured Location and the violated rule;
+ *   · the selector leads with the EFFECTIVE default for the locale it is read in.
+ *
+ * The vocabulary stays synthetic and neutral (`north`, `south`, `far`, `en`, `de`). Nothing here encodes
+ * one deployment's places or languages, and — the point of the whole feature — NO test asserts that a
+ * language IS a place: the refinement is authored data.
+ */
+
+/** `ca` serves BOTH locales and binds a Location in each, so a `de` refinement has a real destination. */
+const LOCALE_REFINED_BINDINGS = [
+  { site: "ca", locale: "en", region: "north" },
+  { site: "ca", locale: "en", region: "north", slug: "about" },
+  { site: "ca", locale: "en", region: "south" },
+  { site: "ca", locale: "de", region: "north" },
+  { site: "ca", locale: "de", region: "south" },
+  { site: "ca", locale: "de", region: "south", slug: "about" },
+  { site: "ww", locale: "en", region: "far" },
+];
+
+/** `ca` requires `north` and REFINES `de` to `south` — the one difference from the LOC1 fixture. */
+const LOCALE_REFINED_RAW = {
+  ...REQUIRED_RAW,
+  business: { regions: REGIONS, pages: LOCALE_REFINED_BINDINGS },
+  sites: [
+    { code: "ww", label: "Global" },
+    {
+      code: "ca",
+      label: "Canada",
+      locales: ["en", "de"],
+      defaultLocale: "en",
+      locationSelection: { mode: "required", default: "north", localeDefaults: { de: "south" } },
+    },
+  ],
+};
+
+/** The SAME bindings and locales with NO refinement: LOC1's behaviour, measured side by side. */
+const LOCALE_UNREFINED_RAW = {
+  ...LOCALE_REFINED_RAW,
+  sites: [
+    { code: "ww", label: "Global" },
+    {
+      code: "ca",
+      label: "Canada",
+      locales: ["en", "de"],
+      defaultLocale: "en",
+      locationSelection: { mode: "required", default: "north" },
+    },
+  ],
+};
+
+const localeRefined: SiteConfig = parseSiteConfig(LOCALE_REFINED_RAW);
+const localeUnrefined: SiteConfig = parseSiteConfig(LOCALE_UNREFINED_RAW);
+
+/** The refinement exactly as the runtime reads it — the adopter's own data, never inferred. */
+const REFINED_POLICY = {
+  mode: "required",
+  default: "north",
+  localeDefaults: { de: "south" },
+} as const;
+
+describe("LOC2 — an EXPLICIT locale refinement, and LOC1 unchanged without one", () => {
+  it("carries the refinement on the Site that authored it, and nothing on the other", () => {
+    expect(localeRefined.sites.find((site) => site.code === "ca")?.locationSelection).toEqual({
+      mode: "required",
+      default: "north",
+      localeDefaults: { de: "south" },
+    });
+    expect(localeRefined.sites.find((site) => site.code === "ww")?.locationSelection ?? null).toBeNull();
+    expect(localeUnrefined.sites.find((site) => site.code === "ca")?.locationSelection).toEqual({
+      mode: "required",
+      default: "north",
+    });
+  });
+
+  it("answers the effective default with the ONE rule: refinement first, else the site-wide default", () => {
+    expect(effectiveDefaultLocation(REFINED_POLICY, "de")).toBe("south");
+    expect(effectiveDefaultLocation(REFINED_POLICY, "en")).toBe("north");
+    // An UNMAPPED locale keeps the site-wide default — no inference from the locale's language.
+    expect(effectiveDefaultLocation(REFINED_POLICY, "es")).toBe("north");
+    // No refinement authored at all: LOC1's answer, in every locale.
+    expect(effectiveDefaultLocation({ mode: "required", default: "north" }, "de")).toBe("north");
+    // No policy: no default at all (the established optional behaviour).
+    expect(effectiveDefaultLocation(null, "de")).toBeNull();
+    expect(effectiveDefaultLocation(undefined, "en")).toBeNull();
+  });
+
+  it("keeps the LOC1 behaviour EXACTLY when no refinement is authored", () => {
+    // The measurement: two configurations whose ONLY difference is the refinement.
+    expect(completionFor(localeUnrefined, "/ca/de")).toBe("/ca/de/north");
+    // The unrefined Site keeps LOC1's accepted fallback — `north` has no `about` in `de`, so the visitor
+    // lands on `north`'s `de` landing…
+    expect(completionFor(localeUnrefined, "/ca/de/about")).toBe("/ca/de/north");
+    // …while the refined Site preserves the page, because a refinement is validated to be honourable IN
+    // its own locale (rule 8), so `south` really has that page in `de`.
+    expect(completionFor(localeRefined, "/ca/de")).toBe("/ca/de/south");
+    expect(completionFor(localeRefined, "/ca/de/about")).toBe("/ca/de/south/about");
+  });
+
+  it("uses the refined Location for ITS locale, and the site-wide default elsewhere", () => {
+    expect(completionFor(localeRefined, "/ca/de")).toBe("/ca/de/south");
+    expect(completionFor(localeRefined, "/ca/en")).toBe("/ca/en/north");
+    // The bare Site path negotiates the Site's OWN default locale, then keeps the same rules.
+    expect(completionFor(localeRefined, "/ca")).toBe("/ca/en/north");
+  });
+
+  it("completes a mapped locale's page into the refined Location's own equivalent page", () => {
+    expect(completionFor(localeRefined, "/ca/de/about")).toBe("/ca/de/south/about");
+    // A page the refined Location does not have falls back to ITS landing — the accepted rule, unchanged.
+    expect(completionFor(localeRefined, "/ca/de/faqs")).toBe("/ca/de/south");
+  });
+
+  it("leaves a URL that ALREADY names a Location alone — in every locale", () => {
+    // The URL wins: a visitor in `north` stays in `north`, even in the locale refined to `south`…
+    expect(completionFor(localeRefined, "/ca/de/north")).toBeNull();
+    expect(completionFor(localeRefined, "/ca/de/north/about")).toBeNull();
+    expect(completionFor(localeRefined, "/ca/en/south")).toBeNull();
+    // …and the refined Location itself is untouched in its own locale.
+    expect(completionFor(localeRefined, "/ca/de/south")).toBeNull();
+    expect(completionFor(localeRefined, "/ca/de/south/about")).toBeNull();
+  });
+
+  it("stays scoped to its Site: a sibling Site is unaffected", () => {
+    expect(completionFor(localeRefined, "/ww/en")).toBeNull();
+    expect(completionFor(localeRefined, "/ww/de")).toBeNull();
+    expect(completionFor(localeRefined, "/ww/en/far")).toBeNull();
+  });
+
+  it("leads the selector with the effective default for the locale being read", () => {
+    const inventory = ["alpha", "south", "north"];
+    expect(orderedLocationIdsForSelector(inventory, REFINED_POLICY, "de")).toEqual(["south", "alpha", "north"]);
+    expect(orderedLocationIdsForSelector(inventory, REFINED_POLICY, "en")).toEqual(["north", "alpha", "south"]);
+    // An unrefined LOC1 policy orders identically in EVERY locale (backward compatibility).
+    expect(orderedLocationIdsForSelector(inventory, { mode: "required", default: "north" }, "de")).toEqual([
       "north",
+      "alpha",
+      "south",
     ]);
+  });
+});
+
+describe("LOC2 — every refinement that cannot be honoured is refused at configuration time", () => {
+  /** The refined fixture, with ONE `locationSelection` block replaced: the shape each refusal is read on. */
+  const withPolicy = (locationSelection: unknown) => ({
+    ...LOCALE_REFINED_RAW,
+    sites: [
+      { code: "ww", label: "Global" },
+      {
+        code: "ca",
+        label: "Canada",
+        locales: ["en", "de"],
+        defaultLocale: "en",
+        locationSelection,
+      },
+    ],
+  });
+
+  it("refuses a refinement for a locale THIS Site does not serve", () => {
+    // `ca` serves `en` and `de`; a refinement for `es` could never complete an `es` request of this Site.
+    expect(() =>
+      parseSiteConfig(withPolicy({ mode: "required", default: "north", localeDefaults: { es: "south" } })),
+    ).toThrow(/"es" is not a locale THIS Site serves/);
+  });
+
+  it("refuses a refinement naming a Location that does not exist", () => {
+    expect(() =>
+      parseSiteConfig(withPolicy({ mode: "required", default: "north", localeDefaults: { de: "nowhere" } })),
+    ).toThrow(/the refined Location is not an operating Location/);
+  });
+
+  it("refuses a refinement naming ANOTHER Site's Location, and names the Site that owns it", () => {
+    // `far` is `ww`'s Location; this `ca` Site's inventory is `north` + `south` only.
+    expect(() =>
+      parseSiteConfig(withPolicy({ mode: "required", default: "north", localeDefaults: { de: "far" } })),
+    ).toThrow(/not part of THIS Site's Location inventory[\s\S]*belongs to Site "ww"/);
+  });
+
+  it("refuses a refinement whose Location has no landing in THAT EXACT locale", () => {
+    // `south` is bound to `en` only here, so a `de` refinement could only fall back to another locale —
+    // exactly what an authored refinement must never do (the site-wide default keeps the fallback rule).
+    expect(() =>
+      parseSiteConfig({
+        ...withPolicy({ mode: "required", default: "north", localeDefaults: { de: "south" } }),
+        business: {
+          regions: REGIONS,
+          pages: [
+            { site: "ca", locale: "en", region: "north" },
+            { site: "ca", locale: "en", region: "south" },
+            { site: "ca", locale: "de", region: "north" },
+            { site: "ww", locale: "en", region: "far" },
+          ],
+        },
+      }),
+    ).toThrow(/has no landing in THIS EXACT locale/);
+  });
+
+  it("refuses a refinement that is not an object of non-empty pairs", () => {
+    expect(() =>
+      parseSiteConfig(withPolicy({ mode: "required", default: "north", localeDefaults: ["de"] })),
+    ).toThrow();
+    expect(() =>
+      parseSiteConfig(withPolicy({ mode: "required", default: "north", localeDefaults: { de: " " } })),
+    ).toThrow();
+  });
+
+  it("names the Site, the locale, the configured Location and the violated rule", () => {
+    const issues = locationSelectionIssues({
+      sites: [
+        {
+          code: "ca",
+          locationSelection: { mode: "required", default: "north", localeDefaults: { es: "south" } },
+          locales: [{ path: "en" }, { path: "de" }],
+        },
+      ],
+      regions: REGIONS,
+      bindings: [{ site: "ca", locale: "en", region: "north", slug: null }],
+    });
+
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.siteCode).toBe("ca");
+    expect(issues[0]?.message).toContain('Site "ca"');
+    expect(issues[0]?.message).toContain('localeDefaults["es"] "south"');
+    expect(issues[0]?.message).toContain("is not a locale THIS Site serves");
+    expect(issues[0]?.message).toContain("en, de");
+  });
+
+  it("accepts a refinement that IS honourable, and reports ONE issue at a time", () => {
+    expect(() =>
+      assertLocationSelectionValid({
+        sites: [
+          {
+            code: "ca",
+            locationSelection: { mode: "required", default: "north", localeDefaults: { de: "south" } },
+            locales: [{ path: "en" }, { path: "de" }],
+          },
+        ],
+        regions: REGIONS,
+        bindings: [
+          { site: "ca", locale: "en", region: "north", slug: null },
+          { site: "ca", locale: "de", region: "south", slug: null },
+        ],
+      }),
+    ).not.toThrow();
+
+    // A policy whose site-wide default is already unhonourable reports that FIRST and does not cascade
+    // into the refinements: one policy, one issue, in the order an author would fix them.
+    const issues = locationSelectionIssues({
+      sites: [
+        {
+          code: "ca",
+          locationSelection: { mode: "required", default: "nowhere", localeDefaults: { es: "south" } },
+          locales: [{ path: "en" }, { path: "de" }],
+        },
+      ],
+      regions: REGIONS,
+      bindings: [{ site: "ca", locale: "en", region: "north", slug: null }],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.message).toContain('locationSelection.default "nowhere"');
   });
 });
