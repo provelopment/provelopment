@@ -29,6 +29,10 @@
  * out. No request object, no configuration read, no rendering.
  */
 import { negotiateLocale } from "@/core/locale";
+// LOC1 — the ONE required-Location rule: which Location a required Site's non-regional request must be
+// completed into. The route boundary COMPOSES it (`@/core/location-selection` owns it), so the visitor's
+// public URL is the only place the Location lives — no cookie, no session, no client state.
+import { requiredLocationDestination } from "@/core/location-selection";
 import {
   siteByCode,
   sitePrefixPath,
@@ -85,6 +89,13 @@ export function completePublicPath(
   const site = first === undefined ? undefined : siteByCode(siteSet, first);
   if (site !== undefined) {
     if (second !== undefined && siteSupportsLocalePath(site, second)) {
+      // LOC1 — A SITE THAT REQUIRES A LOCATION HAS NO UNSPECIFIED PUBLIC URL. This path named the Site
+      // and a locale but no Location, so a required Site is completed into its configured default
+      // Location (deterministically, by the accepted Location destination rule) with a PUBLIC redirect;
+      // an optional Site is answered exactly as before.
+      const requiredLocation = requiredLocationRedirectFor(siteConfig, site, second, rest.join("/"));
+      if (requiredLocation !== null) return { redirectPath: requiredLocation };
+
       return {
         destination: {
           site,
@@ -98,10 +109,11 @@ export function completePublicPath(
     // A bare Site path, or a Site followed by something that is not one of ITS locales: complete it with
     // that Site's own negotiated locale and keep whatever followed the Site.
     const tail = segments.slice(1);
+    const localePath = negotiatedLocaleFor(site, hints);
     return {
-      redirectPath: `${sitePrefixPath(site)}/${negotiatedLocaleFor(site, hints)}${
-        tail.length === 0 ? "" : `/${tail.join("/")}`
-      }`,
+      redirectPath:
+        requiredLocationRedirectFor(siteConfig, site, localePath, tail.join("/")) ??
+        `${sitePrefixPath(site)}/${localePath}${tail.length === 0 ? "" : `/${tail.join("/")}`}`,
     };
   }
 
@@ -112,10 +124,38 @@ export function completePublicPath(
   const explicitLocale =
     first !== undefined && siteSupportsLocalePath(defaultSite, first) ? first : undefined;
   const tail = explicitLocale === undefined ? segments : segments.slice(1);
+  const localePath = explicitLocale ?? negotiatedLocaleFor(defaultSite, hints);
 
   return {
-    redirectPath: `${sitePrefixPath(defaultSite)}/${
-      explicitLocale ?? negotiatedLocaleFor(defaultSite, hints)
-    }${tail.length === 0 ? "" : `/${tail.join("/")}`}`,
+    redirectPath:
+      requiredLocationRedirectFor(siteConfig, defaultSite, localePath, tail.join("/")) ??
+      `${sitePrefixPath(defaultSite)}/${localePath}${
+        tail.length === 0 ? "" : `/${tail.join("/")}`
+      }`,
   };
+}
+
+/**
+ * THE REQUIRED-LOCATION STEP OF A COMPLETION (LOC1), or `null` when this Site needs none.
+ *
+ * `null` covers both "this Site declares no policy" (the established optional behaviour, untouched) and
+ * "the path already names one of this Site's Locations" — and the decision itself is the core rule's
+ * (`@/core/location-selection`), asked with the accepted default-locale rule, so the boundary adds an
+ * ORDER of completion and no routing rule of its own.
+ */
+function requiredLocationRedirectFor(
+  siteConfig: SiteConfig,
+  site: ResolvedSite,
+  localePath: string,
+  routePath: string,
+): string | null {
+  return requiredLocationDestination({
+    policy: site.locationSelection,
+    siteCode: site.code,
+    sitePrefix: sitePrefixPath(site),
+    localePath,
+    routePath,
+    regions: siteConfig.regions,
+    bindings: siteConfig.pageBindings,
+  });
 }

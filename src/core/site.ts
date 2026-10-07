@@ -1,4 +1,11 @@
 import { pageRoutePath, pageRoutePathSegments } from "./page-route-path";
+import {
+  isLocationSelectionPolicy,
+  locationSelectionIssue,
+  REQUIRED_LOCATION_SELECTION_MODE,
+  type AuthoredLocationSelection,
+  type LocationSelectionPolicy,
+} from "./location-selection";
 import { isRegionBoundToLocale } from "./regional-pages";
 import type { PageRegionBinding } from "./region";
 import { defaultSiteLabel, isSiteCode, normalizeSiteCode, siteCodeIssue, WORLDWIDE_SITE_CODE } from "./site-code";
@@ -64,6 +71,15 @@ export interface SiteInput {
   readonly defaultLocale?: string;
   /** Whether the site's default locale may answer its other locales. Absent → `true`. */
   readonly fallback?: boolean;
+  /**
+   * LOC1 — this Site's OPTIONAL Location-selection policy (`locationSelection`), exactly as authored.
+   *
+   * Absent → the established optional behaviour (an unspecified Location state exists). The resolver
+   * copies the policy through the ONE shape rule and never infers one; the cross-reference rules (does
+   * the default Location exist, belong to THIS Site and have a usable landing?) belong to
+   * `@/core/location-selection` and are applied at configuration/build time.
+   */
+  readonly locationSelection?: AuthoredLocationSelection | undefined;
 }
 
 /** A site, fully resolved: every leaf determined, nothing left to infer. */
@@ -79,6 +95,16 @@ export interface ResolvedSite {
   readonly fallback: boolean;
   /** True for the ONE configured default site (the site `/` negotiates to). */
   readonly isDefault: boolean;
+  /**
+   * LOC1 — this Site's Location-selection policy, or `null`/absent for the established optional
+   * behaviour.
+   *
+   * `required` means the Site has NO visitor-facing unspecified Location state: its non-regional public
+   * paths are completed into the configured default Location (`@/core/location-selection`), and its
+   * Location selector offers no unspecified option. It travels WITH the Site, so it is scoped by Site by
+   * construction — a policy can only ever be read for the Site that declares it.
+   */
+  readonly locationSelection?: LocationSelectionPolicy | null;
 }
 
 /** Every site of a deployment, plus the one `/` resolves to. */
@@ -150,6 +176,20 @@ export function resolveSites(options: ResolveSitesOptions): SiteSet {
     if (seenCodes.has(code)) issues.push(`duplicate site "${code}"`);
     seenCodes.add(code);
 
+    // LOC1 — THE SITE'S OWN LOCATION-SELECTION POLICY, read through the ONE shape rule
+    // (`@/core/location-selection` — the very predicate the configuration schema applies). A block that
+    // is present but unusable is REPORTED, never silently dropped: a policy that reads as if it did
+    // something while doing nothing is exactly the outcome worth a loud failure.
+    const authoredLocationSelection = raw.locationSelection;
+    const locationSelection: LocationSelectionPolicy | null = isLocationSelectionPolicy(
+      authoredLocationSelection,
+    )
+      ? { mode: REQUIRED_LOCATION_SELECTION_MODE, default: authoredLocationSelection.default }
+      : null;
+    if (authoredLocationSelection !== undefined && locationSelection === null) {
+      issues.push(`site "${code}": ${locationSelectionIssue(authoredLocationSelection)}`);
+    }
+
     const localeInputs: readonly (string | SiteLocaleInput)[] = raw.locales ?? locales;
     if (localeInputs.length === 0) issues.push(`site "${code}" must list at least one locale`);
 
@@ -203,6 +243,10 @@ export function resolveSites(options: ResolveSitesOptions): SiteSet {
       defaultLocale: siteDefaultLocale,
       fallback: raw.fallback ?? true,
       isDefault: false,
+      // LOC1 — the Site's Location-selection policy travels WITH the Site, never beside it: it is a fact
+      // about this ONE Site, so it can never be read for, or leak into, another. An absent block is
+      // `null` — the established optional behaviour — and the resolver NEVER infers a policy.
+      locationSelection,
     };
   });
 

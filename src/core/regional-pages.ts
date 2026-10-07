@@ -165,7 +165,12 @@ export function isRegionBoundToLocale(
  * Pure so the LocationSwitcher and tests share exactly one rule.
  */
 export function regionDefaultLocale(
-  regions: Readonly<Record<string, OperationalRegion>>,
+  /**
+   * The operating Locations. ONLY `defaultLocale` is read here, so this parameter deliberately accepts
+   * the narrow structural view: the runtime's normalized regions AND a raw configuration map (which the
+   * required-Location validation holds before normalization) both qualify, and neither needs a cast.
+   */
+  regions: Readonly<Record<string, { readonly defaultLocale?: string }>>,
   entries: readonly PageRegionBinding[],
   regionId: string,
 ): string | null {

@@ -1,14 +1,21 @@
 import { z } from "zod";
 
-import { isCalendarDate } from "@/core/region";
+import { isCalendarDate, normalizePageRegionBindings } from "@/core/region";
 import { isIanaTimeZone } from "@/core/business-hours";
 // The ONE content-slug rule. A `pageBindings` slug and a legal-document slug must
 // both name a real content file, so they consume the same authority the page-source
 // contract and the content repository use — never a restated copy of the regex.
 import { CONTENT_SLUG_PATTERN } from "@/core/page-content";
 import { LOCALE_PATTERN } from "@/core/locale";
+// LOC1 — the ONE shape rule and the ONE set of cross-reference rules for a Site's
+// OPTIONAL Location-selection policy. The schema applies the same functions the
+// resolver and the route boundary use, so none of the three can disagree.
+import {
+  locationSelectionIssue,
+  locationSelectionIssues,
+} from "@/core/location-selection";
 import { resolveSites, SiteConfigurationError, type SiteSet } from "@/core/site";
-import { siteCodeIssue } from "@/core/site-code";
+import { normalizeSiteCode, siteCodeIssue } from "@/core/site-code";
 import { LOCALE_PATH_KEY_PATTERN } from "@/core/site-locale";
 import {
   CONTENT_WIDTHS,
@@ -1116,6 +1123,30 @@ const siteConfigEntrySchema = z
       .optional(),
     fallback: z.boolean().optional(),
     /**
+     * LOC1 — THIS SITE'S OPTIONAL LOCATION-SELECTION POLICY.
+     *
+     * STRUCTURAL TYPING ONLY. This leaf says "a block of this shape may be authored here" and nothing
+     * more: the ONE SHAPE rule (`mode === "required"`, a non-empty `default`) belongs to the ONE
+     * authority, `@/core/location-selection` (`locationSelectionIssue`), and is applied below — so the
+     * message an author sees is the message the resolver gives. The CROSS-REFERENCE rules (the default
+     * must be a configured Location of THIS Site's own inventory with a usable landing destination) are
+     * applied by the same module in the file-level refinement.
+     *
+     * ABSENT is a first-class state: a Site that declares no policy keeps the established optional
+     * behaviour exactly, so no existing configuration becomes required-Location and none needs migrating.
+     */
+    locationSelection: z
+      .object({
+        mode: z.string().optional(),
+        default: z.string().optional(),
+      })
+      .strict()
+      .superRefine((value, ctx) => {
+        const issue = locationSelectionIssue(value);
+        if (issue !== null) ctx.addIssue({ code: "custom", message: issue });
+      })
+      .optional(),
+    /**
      * S3B — THE HUB THIS SITE BELONGS TO (optional).
      *
      * STRUCTURAL TYPING ONLY. This leaf says "a string may be authored here" and nothing more: every
@@ -1258,4 +1289,28 @@ export const siteConfigFileSchema = z
         });
       }
     });
+
+    // LOC1 — A REQUIRED LOCATION POLICY MUST BE HONOURABLE. The default must be an operating Location
+    // configured in `business.regions`, must belong to THIS Site's own Location inventory, and must have
+    // a usable landing destination in this Site; a Site that binds no Location at all cannot require one.
+    // The rules are `@/core/location-selection`'s (the same functions the loader asserts with), applied
+    // to the SAME normalized bindings the runtime resolves with — never a restated copy, and never a
+    // runtime 404: an unhonourable policy is refused here, at configuration/build time.
+    const normalizedBindings = normalizePageRegionBindings(
+      file.business?.pages,
+      sites.defaultSite.code,
+    );
+    for (const issue of locationSelectionIssues({
+      sites: sites.sites,
+      regions: file.business?.regions ?? {},
+      bindings: normalizedBindings,
+    })) {
+      const index =
+        file.sites?.findIndex((entry) => normalizeSiteCode(entry.code) === issue.siteCode) ?? -1;
+      ctx.addIssue({
+        code: "custom",
+        path: index >= 0 ? ["sites", index, "locationSelection"] : ["sites"],
+        message: issue.message,
+      });
+    }
   });

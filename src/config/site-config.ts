@@ -1,6 +1,7 @@
 import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
+import type { AuthoredLocationSelection } from "@/core/location-selection";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import type { ResolvedSite } from "@/core/site";
 import type { Hub } from "@/core/spoke";
@@ -192,6 +193,16 @@ export interface SiteConfigEntry {
   readonly locales?: readonly string[];
   /** Whether this site's default locale may answer its other locales. Absent → `true`. */
   readonly fallback?: boolean;
+  /**
+   * LOC1 — this Site's OPTIONAL Location-selection policy:
+   * `{ "mode": "required", "default": "<location id>" }`.
+   *
+   * Absent → the established optional behaviour: the Location control keeps its explicit unspecified
+   * option, non-regional routes stay valid, and nothing needs migrating. When present, the Site has no
+   * visitor-facing unspecified state and its non-regional public paths are completed into the
+   * configured default Location. `default` is an adopter decision and is never inferred.
+   */
+  readonly locationSelection?: AuthoredLocationSelection;
 }
 
 /** N2 — the shell layout presentation switcher (`ui.layoutSwitcher`). */

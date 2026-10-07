@@ -133,6 +133,48 @@ export interface PageRegionBinding {
 }
 
 /**
+ * ONE authored `business.pages` entry, exactly as a configuration file may spell it.
+ *
+ * `site` is optional (absent → the default Site) and `slug` carries the Phase-K back-compat spelling
+ * (absent, or equal to the region id, means the regional LANDING). The ONE normalization rule below
+ * turns this into {@link PageRegionBinding}, and BOTH the configuration schema and the loader apply it,
+ * so validation and resolution cannot disagree about what an author wrote.
+ */
+export interface AuthoredPageRegionBinding {
+  readonly site?: string;
+  readonly locale: string;
+  readonly region: string;
+  readonly slug?: string;
+}
+
+/**
+ * NORMALIZES authored `business.pages` entries to canonical
+ * `{ site, locale, region, slug: string | null }`:
+ *
+ *   `{ locale, region }`                        → landing (slug null);
+ *   `{ locale, region, slug }`                  → regional page;
+ *   Phase K `{ locale, slug, region }` where `slug === region` → landing;
+ *   S1 `{ site, … }`                            → the Site whose tree carries it; absent → the
+ *                                                 DEFAULT Site, so a single-site deployment keeps its
+ *                                                 configuration exactly as it was.
+ *
+ * THE ONE implementation of that rule: the schema validates with it and the loader builds the runtime
+ * bindings with it.
+ */
+export function normalizePageRegionBindings(
+  raw: readonly AuthoredPageRegionBinding[] | undefined,
+  defaultSiteCode: string,
+): readonly PageRegionBinding[] {
+  return (raw ?? []).map((entry) => {
+    const site = entry.site ?? defaultSiteCode;
+    if (entry.slug === undefined || entry.slug === entry.region) {
+      return { site, locale: entry.locale, region: entry.region, slug: null };
+    }
+    return { site, locale: entry.locale, region: entry.region, slug: entry.slug };
+  });
+}
+
+/**
  * Region ids that would collide with a static site route at `/{locale}/…`
  * (static routes keep deterministic precedence over the dynamic `[item]`
  * segment). Configured region ids must avoid these.

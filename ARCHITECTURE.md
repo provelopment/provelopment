@@ -1871,6 +1871,64 @@ selector; the Layout switcher disabled → no Layout control. The Location inven
 site's** (`regionsForSite`): a location belongs to one Site's page tree, so a Site that binds none
 never offers another Site's locations — and never a destination that does not exist.
 
+### Required Locations — the per-Site location-selection policy (FOUNDATION-LOC1)
+
+A **Site** is the country/global context inside the active website; a **Location** is the physical or
+business place *inside* that Site. Until LOC1 every Site had two visitor states — a Location, or the
+explicit *unspecified* one — because that is what the reference deployment wants. A Site whose every
+page belongs to a place wants the opposite, and must be able to say so **about itself alone**:
+
+```jsonc
+"sites": [
+  {
+    "code": "ca",
+    "locales": ["en", "fr"],
+    "defaultLocale": "en",
+    "locationSelection": { "mode": "required", "default": "toronto" }
+  }
+]
+```
+
+The policy is **optional, per Site and explicit**:
+
+* **absent** → the established optional behaviour, EXACTLY: the Location selector keeps its explicit
+  unspecified option, non-regional routes stay valid, and no existing configuration needs migrating.
+  No Installation becomes required-Location by accident.
+* **`mode: "required"`** → the Site has **no visitor-facing unspecified state**. Its non-regional public
+  paths are completed into the configured default Location, and its Location control offers no
+  unspecified option. `"required"` is the ONLY mode; there is no second one, and no deployment-wide
+  switch.
+* **`default`** → an adopter decision, **never inferred** — not from alphabetical order, binding order,
+  locale, timezone, country, the browser, "the first region" or "the first binding".
+
+**Routing.** `/{site}/{locale}` and `/{site}/{locale}/{page}` of a required Site answer with a PUBLIC
+redirect into the default Location, resolved by the accepted Location destination rule — the same page
+there when it exists, that Location's landing otherwise, and the accepted `regionDefaultLocale` rule
+when the requested locale is not bound to the Location. There is no second locale algorithm, no
+second destination rule and no hidden state: the Location stays **URL-authoritative**, so a request
+that already names one of the Site's Locations is answered exactly as it is (including a Location
+other than the default), and no cookie, session, client state or environment variable is consulted.
+
+**Selection and inventory.** The Location control's inventory is unchanged (`regionsForSite` — the
+ACTIVE Site's own Locations); in required mode the configured default Location leads and the remaining
+Locations keep the accepted deterministic ordering. A Location of another Site can never satisfy a
+requirement, enter the routing or enter a selector: every lookup is Site-scoped
+(`bindingsForSite`), by construction.
+
+**Discovery.** A required Site's canonical inventory is its regional one: its non-regional URLs are
+redirects, so they are deliberately not advertised as visitor destinations in the sitemap. Optional
+Sites are untouched.
+
+**Refusal, not repair.** A policy that cannot be honoured fails at **configuration/build time**, naming
+the Site, the configured default Location and the violated rule: the default must be an operating
+Location of `business.regions`; the Site must actually have Locations; the default must belong to THIS
+Site's inventory; and it must have a usable landing destination in this Site. An unhonourable policy is
+never allowed to become a runtime 404.
+
+**What it is not.** It does not collapse Site into Location, it does not create a Location, it does not
+move a Location between Sites, it does not touch Languages or Layout, and it never applies to a Site
+that did not declare it.
+
 ### The reference deployment demonstrates the full model
 
 The public reference deployment is configured as the worked example, so the architecture above has a
