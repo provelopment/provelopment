@@ -134,6 +134,11 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/browser/cdp.mjs": "the headless-Chrome profile directory it created, under OS temp",
   "tests/browser/multihost.scenario.mjs":
     "OS temp (its disposable two-Spoke Installation) and `public/spokes/<segment>/**` — the GENERATED namespaces it materialises and removes for the cross-host asset proof",
+  "tests/browser/required-location.scenario.mjs":
+    "OS temp only: TWO disposable copies of the committed synthetic deployment it materialises, patches (one " +
+    "required-Location policy and one regional page) and removes, each behind its own dev server — every write " +
+    "through the harness's own guarded writers. The committed fixture, the selected deployment and the " +
+    "repository are only ever READ (LOC1)",
   "tests/support/multihost-installation.mjs":
     "OS temp only: the disposable two-Spoke Installation it authors and the caller removes",
   "tests/unit/spoke-request-context.test.ts":
