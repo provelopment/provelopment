@@ -208,7 +208,8 @@ tree stays clean.
   contract (vertical navigation, content-appropriate bounded width, explicit
   "Close navigation" control that closes with focus-return + inert/scroll restore);
 - responsive landmark exclusivity and deterministic unique ids;
-- Adaptive's bottom-bar **More** disclosure through the same Drawer path;
+- Adaptive's bottom bar: EVERY configured destination renders in it and the rows wrap (the former
+  bottom-bar **More** disclosure was RETIRED — no trigger, no drawer, nothing hidden);
 - **persistent navigation** (`persistent-navigation` scenario): the rail's content
   column stays in view while the page scrolls (bounded by the viewport, its
   control and destinations reachable, expanding the collapsed tablet rail while
@@ -216,8 +217,8 @@ tree stays clean.
   regions is persistent at each breakpoint boundary, a long navigation scrolls
   inside the rail column with its last destination still reachable, a fragment
   target clears the sticky header (and the clearance is removed where the rail is
-  persistent), the bottom-bar More disclosure keeps its focus/inert/Escape/scroll
-  behaviour while scrolled, the primary CTA stays in normal flow, and the
+  persistent), the bottom bar keeps every destination in view and hittable while
+  scrolled (the former More disclosure was retired), the primary CTA stays in normal flow, and the
   configured destinations are unchanged. The tall fixture is authored as **safe
   Markdown**, and its fragment target is an **authored heading** (`## Anchor Section`
   → `#anchor-section`, FOUNDATION-PAGES-A1D), so the shell's clearance contract is

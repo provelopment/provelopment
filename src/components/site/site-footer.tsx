@@ -16,7 +16,7 @@ import { ContextNavLinks, type ContextNavLink } from "./context-nav-links";
 import { ClientRoutingProvider } from "./client-routing-context";
 import { buildClientRoutingContext } from "./client-routing";
 import { FooterGraphic } from "./footer-graphic";
-import { FOOTER_LINK_CLASS } from "./footer-link-class";
+import { FOOTER_LINK_CLASS, FOOTER_HEADING_BOX_CLASS, FOOTER_HEADING_CLASS } from "./footer-link-class";
 import { navItemKey } from "./nav-links";
 
 interface SiteFooterProps {
@@ -186,7 +186,13 @@ export async function SiteFooter({
                 horizontal page scroll. `overflow-wrap: break-word` only breaks
                 mid-word when a token would otherwise overflow, so normal text is
                 unaffected. Combined with `lg:col-span-4` below so the copyright
-                spans the full width as a coherent single line on desktop. */}
+                spans the full width as a coherent single line on desktop.
+
+                R1 — AND EVERY GRID ITEM CARRIES `min-w-0`. `break-words` alone was NOT enough: a grid item's
+                automatic minimum size is its MIN-CONTENT width, so a token longer than its track (a 40-character
+                address, a long URL) still pushed the item wider than its column and overran the neighbouring
+                one. `min-w-0` removes that floor and lets the inherited wrapping rule do its work — the
+                generic layout fix, with no break inserted into adopter content. */}
             <div className="mx-auto grid max-w-page break-words gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
                 {hasRegions ? null : (
                     <BusinessInfo
@@ -199,7 +205,7 @@ export async function SiteFooter({
                 )}
 
                 {hasConnectivity ? (
-                    <div>
+                    <div className="min-w-0">
                         {/* The section heading IS the Connect-page link, so it renders
                             only when method links exist beneath it — never as a bare
                             heading over an empty group, and never on a site that
@@ -247,10 +253,10 @@ export async function SiteFooter({
                     The heading doubles as the landmark's accessible name; without one
                     the footer's generic navigation label is used. */}
                 {footerNavLinks.length > 0 ? (
-                    <nav aria-label={footerNavGroup?.heading ?? dictionary.navigation.footerLabel}>
+                    <nav className="min-w-0" aria-label={footerNavGroup?.heading ?? dictionary.navigation.footerLabel}>
                         {footerNavGroup?.heading ? (
-                            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                                {footerNavGroup.heading}
+                            <h2 className={FOOTER_HEADING_CLASS}>
+                                <span className={FOOTER_HEADING_BOX_CLASS}>{footerNavGroup.heading}</span>
                             </h2>
                         ) : null}
 
@@ -263,9 +269,9 @@ export async function SiteFooter({
                     </nav>
                 ) : null}
 
-                <nav aria-label={dictionary.navigation.footerLabel}>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                        {dictionary.sections.navigate}
+                <nav className="min-w-0" aria-label={dictionary.navigation.footerLabel}>
+                    <h2 className={FOOTER_HEADING_CLASS}>
+                        <span className={FOOTER_HEADING_BOX_CLASS}>{dictionary.sections.navigate}</span>
                     </h2>
 
                     <ContextNavLinks
@@ -277,9 +283,9 @@ export async function SiteFooter({
                 </nav>
 
                 {legalLinks.length > 0 ? (
-                    <nav aria-label={dictionary.legal.heading}>
-                        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                            {dictionary.legal.heading}
+                    <nav className="min-w-0" aria-label={dictionary.legal.heading}>
+                        <h2 className={FOOTER_HEADING_CLASS}>
+                            <span className={FOOTER_HEADING_BOX_CLASS}>{dictionary.legal.heading}</span>
                         </h2>
 
                         <ul className="mt-3 space-y-2">

@@ -38,13 +38,9 @@ vi.mock("react", async (importOriginal) => {
 });
 
 import { ShellMobileNav } from "@/components/shell";
-import { ShellEngine } from "@/components/shell";
 import { assetIconSrc } from "@/components/ui/asset-icon";
-import { siteConfig } from "@/config";
 import type { RuntimeAssetNamespace } from "@/config/deployment-root";
 import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
-import { siteSetOf } from "@/core/site";
-import { resolveUiConfig } from "@/core/ui";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/ww/en" }));
 
@@ -164,58 +160,16 @@ describe("the rendering projection's documented contract", () => {
   });
 });
 
-/** The Site set the engine receives as a prop (it imports no configuration of its own). */
-const SITE_SET = siteSetOf(siteConfig.sites, siteConfig.defaultSite);
-
-const SEVEN_LINKS = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ href: `/${n}`, label: `Item ${n}` }));
-
-/** The engine rendered with the BOTTOM-BAR mobile composition and the composition's resolved controls. */
-const bottomBarHtml = (): string =>
-  renderToStaticMarkup(
-    ShellEngine({
-      // `mobile: "bottom-bar"` is the one configuration whose "More" drawer composes a mobile disclosure.
-      resolved: resolveUiConfig({ navigation: { mobile: "bottom-bar" } }),
-      header: el("header", null, "Brand"),
-      main: el("p", null, "Body"),
-      footer: el("footer", null, "Foot"),
-      mainId: "main",
-      navigationLabel: "Primary navigation",
-      locale: "en",
-      pageBindings: [],
-      siteSet: SITE_SET,
-      // The framework layer resolved BOTH controls through the namespace that owns them, exactly as the
-      // server composition does — the engine receives them as already-resolved values.
-      sidebarOpen: { icon: explicitInstallation.resolveIconControlUrl(undefined, "sidebar-open.svg") },
-      sidebarClose: { icon: explicitInstallation.resolveIconControlUrl(undefined, "sidebar-close.svg") },
-      bottomNav: {
-        label: "Primary navigation",
-        moreLabel: "More",
-        links: SEVEN_LINKS,
-        closeLabel: "Hide navigation",
-        mode: "compact",
-        sidebarClose: { icon: explicitInstallation.resolveIconControlUrl(undefined, "sidebar-close.svg") },
-      },
-    }),
-  );
-
-describe("the bottom bar's mobile disclosure resolves through namespace ownership too", () => {
-  it("composes its More drawer trigger from the RESOLVED open control, never the platform path", () => {
-    // The "More" drawer's trigger is a mobile sidebar disclosure like any other. It composed without an
-    // `open` control, so the shell invented `/assets/sidebar-open.svg` — a 404 in an explicit Installation.
-    const html = bottomBarHtml();
-    expect(html).toContain('id="shell-bottom-more"');
-    expect(html).toContain('src="/spokes/web1/assets/sidebar-open.svg"');
-    expect(html).not.toContain('src="/assets/sidebar-open.svg"');
-  });
-
-  it("keeps the More trigger's own label while the drawer's close control keeps its own resolved icon", () => {
-    // The trigger carries the drawer's own wording ("More"), NOT the sidebar control's label, and the
-    // close control the composition supplies is resolved through the same ownership rule.
-    const html = bottomBarHtml();
-    expect(html).toContain("<span>More</span>");
-    expect(html).not.toContain("Show navigation</span>");
-    expect(explicitInstallation.resolveIconControlUrl(undefined, "sidebar-close.svg")).toBe(
-      "/spokes/web1/assets/sidebar-close.svg",
-    );
-  });
-});
+/**
+ * R1 — THE BOTTOM BAR'S "MORE" DISCLOSURE IS RETIRED, AND SO IS THIS SUITE'S SECOND SUBJECT.
+ *
+ * The namespace defect this file documents was *reached through* the bottom bar's More drawer: the drawer
+ * composed its mobile disclosure without an `open` control, so a lower renderer invented
+ * `/assets/sidebar-open.svg`. The owner has since retired that presentation entirely — the bar renders every
+ * configured destination and wraps, and composes no disclosure at all — so the drawer-specific assertions
+ * that lived here are gone with it. The CONTRACT they proved is unchanged and still pinned above: the
+ * framework layer resolves a control through the namespace that owns it, and a rendering primitive renders
+ * the resolved URL verbatim (never a guessed platform path). The remaining live surface for that rule is the
+ * sidebar disclosure, the mobile drawer and the rail (`ShellMobileNav`, `Sidebar`), plus the browser half in
+ * `tests/browser/multihost.scenario.mjs`.
+ */

@@ -940,12 +940,17 @@ describe("Phase UI-05 — adaptive preset boundaries", () => {
     }
   });
 
-  it("the deterministic bottom-bar content rule lives in the framework-free core", () => {
+  it("R1 — the retired bottom-bar overflow rule is NOT a platform constant any more", () => {
     const coreIndex = readFileSync(path.join(UI_CORE_DIRECTORY, "index.ts"), "utf8");
     const shellCore = readFileSync(path.join(UI_CORE_DIRECTORY, "shell.ts"), "utf8");
-    expect(coreIndex).toContain("splitBottomNavItems");
-    expect(coreIndex).toContain("BOTTOM_NAV_PRIMARY_LIMIT");
-    expect(shellCore).toContain("BOTTOM_NAV_PRIMARY_LIMIT = 4");
+    // The owner retired "first four + More": the bar renders EVERY destination and wraps, so the limit and
+    // the split rule were removed rather than left as dead compatibility logic beside the new presentation.
+    expect(coreIndex).not.toContain("splitBottomNavItems");
+    expect(coreIndex).not.toContain("BOTTOM_NAV_PRIMARY_LIMIT");
+    expect(shellCore).not.toContain("BOTTOM_NAV_PRIMARY_LIMIT =");
+    expect(shellCore).not.toContain("export function splitBottomNavItems");
+    // …and the retirement is DOCUMENTED where the rule used to live, so a reader learns why it is gone.
+    expect(shellCore).toContain("THE RETIRED");
   });
 
   it("the engine receives config-derived context (locale, pageBindings) via props — no config import", () => {

@@ -159,12 +159,14 @@ describe("the rendered footer — secondary navigation group", () => {
 
     // The heading is real text in an <h2> — deliberately NOT a link, because a
     // group label has no destination and inventing one is the coupling this
-    // surface removes.
-    expect(html).toMatch(/<h2[^>]*>Project<\/h2>/);
+    // surface removes. R1 — the text sits in the ONE shared footer-heading box, so this heading's visible
+    // top aligns with the linked Connect heading and every other group beside it.
+    expect(html).toMatch(/<h2[^>]*>\s*<span[^>]*>Project<\/span>\s*<\/h2>/);
     expect(html).not.toMatch(/<h2[^>]*>\s*<a[\s>]/);
 
-    // It is its own navigation landmark, named by the heading.
-    expect(html).toContain('<nav aria-label="Project">');
+    // It is its own navigation landmark, named by the heading (the landmark also carries the layout class
+    // every footer column now takes, so `min-w-0` reaches it).
+    expect(html).toMatch(/<nav[^>]*aria-label="Project"[^>]*>/);
     // …and the primary footer list is untouched beside it.
     expect(html).toContain('aria-label="Footer navigation"');
   });
@@ -200,7 +202,7 @@ describe("the rendered footer — secondary navigation group", () => {
   it("does NOT leak the group into the primary navigation", async () => {
     const html = await renderFooter({ footerNavigation: GROUP });
     const primary =
-      /<nav aria-label="Footer navigation">([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? "";
+      /<nav[^>]*aria-label="Footer navigation"[^>]*>([\s\S]*?)<\/nav>/.exec(html)?.[1] ?? "";
 
     expect(primary.length).toBeGreaterThan(0);
     expect(primary).not.toContain("/help");

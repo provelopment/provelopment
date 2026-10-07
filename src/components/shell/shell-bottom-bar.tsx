@@ -3,14 +3,11 @@
 import { usePathname } from "next/navigation";
 
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
-import { NavItem } from "@/components/ui/nav-item";
 import type { NavItemModel } from "@/components/ui/nav-item";
 import type { PageRegionBinding } from "@/core/region";
 import { isInternalHref, resolveNavHref } from "@/core/regional-pages";
 import { pathContextOr, sitePrefixPath, type SiteSet } from "@/core/site";
-import { menuModeClass, splitBottomNavItems, type MenuMode } from "@/core/ui";
-
-import { ShellMobileNav } from "./shell-mobile-nav";
+import { menuModeClass, type MenuMode } from "@/core/ui";
 
 /**
  * ShellBottomBar (UI-05 — Shell Engine).
@@ -21,16 +18,17 @@ import { ShellMobileNav } from "./shell-mobile-nav";
  *  - resolves the same region-aware hrefs + active state as the site header's
  *    navigation (pure `@/core/regional-pages` helpers; content passes
  *    `pageBindings` + `locale` via props — no config import);
- *  - applies the DETERMINISTIC content rule (`splitBottomNavItems` from the
- *    decision core): the first `BOTTOM_NAV_PRIMARY_LIMIT` items render in the
- *    `BottomNavigation` bar, the remainder (when non-empty) is exposed through
- *    a closed-by-default "More" drawer;
- *  - composes ONLY the shared primitives (`BottomNavigation`, `NavItem`,
- *    `ShellMobileNav`) — no presentation identity, no business rules.
+ *  - renders EVERY configured navigation destination DIRECTLY in the bar, in
+ *    configuration order, flowing left-to-right and wrapping onto further rows
+ *    as the width requires (R1 — the former "first four + More drawer" rule was
+ *    RETIRED by the owner; no destination is hidden behind an overflow control);
+ *  - composes ONLY the shared primitives (`BottomNavigation`, `NavItem`) — no
+ *    presentation identity, no business rules.
  *
- * A11y contract: one `<nav>` landmark (the bar) wherever the composition presents it; the More
- * drawer is a `role=dialog` overlay (closed-by-default SSR, Escape closes) that is never
- * simultaneously present in the tab order with the bar. ≥44px touch targets.
+ * A11y contract (R1): ONE `<nav>` landmark (the bar) wherever the composition presents it, holding every
+ * configured destination in configured order with `aria-current` on the active one; the rows WRAP at narrow
+ * widths and never scroll horizontally, never truncate and never collapse into a drawer; every target keeps
+ * the shared ≥44px box (`NavItem`'s own contract).
  */
 export interface ShellBottomBarLink {
   readonly href: string;
@@ -46,8 +44,6 @@ export interface ShellBottomBarLink {
 export interface ShellBottomBarProps {
   /** Accessible label for the bar landmark (localized by the composer). */
   readonly label: string;
-  /** Accessible label for the "More" drawer trigger (localized). */
-  readonly moreLabel: string;
   /** Navigation content (labels already localized; hrefs resolved here). */
   readonly links: readonly ShellBottomBarLink[];
   readonly locale: string;
@@ -61,9 +57,6 @@ export interface ShellBottomBarProps {
   readonly siteSet: SiteSet;
   /** Localized demo badge label (for `demoOnly` items). */
   readonly demoBadgeLabel?: string;
-  /** P6-1 — label for the explicit "Hide navigation" control in the More drawer
-   * (the shared sidebar contract; absent → no close control renders). */
-  readonly closeLabel?: string;
   /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
   readonly mode?: MenuMode;
   /**
@@ -84,24 +77,6 @@ export interface ShellBottomBarProps {
    * mobile-only presentation so a direct consumer is unchanged.
    */
   readonly bandsClassName?: string;
-  /**
-   * NAV1A — the layouts this bar presents, forwarded to its "More" drawer so an
-   * open overflow dialog is withdrawn (and closed) when the visitor switches away
-   * from this layout. See `ShellMobileNav`.
-   */
-  readonly activeLayouts?: readonly string[];
-  /** P5-5 — configuration for the shared "Hide navigation" disclosure control. */
-  readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
-  /**
-   * SIDEBAR ASSET CORRECTION — the RESOLVED "Show navigation" control for this bar's "More" disclosure.
-   *
-   * The "More" drawer's trigger is a mobile sidebar disclosure like any other, so its icon belongs to
-   * whichever runtime namespace OWNS the shipped default. The engine receives the control already resolved
-   * by the framework layer (exactly as it does for the rail and the primary mobile disclosure) and passes it
-   * down; without it the trigger's icon would have to be guessed as `/assets/<name>`, which is a 404 in an
-   * explicit multi-Spoke Installation where that role file belongs to the Spoke's own namespace.
-   */
-  readonly sidebarOpen?: { readonly icon?: string; readonly text?: string };
 }
 
 /**
@@ -116,13 +91,21 @@ export interface ShellBottomBarProps {
 export const BOTTOM_NAV_LIST_CLASS = "flex flex-wrap items-center gap-x-4 gap-y-2";
 
 /**
- * NAV1A — the bar's LINK box. A flex item's automatic minimum size is its min-content size,
- * so a label allowed to break inside itself would let a row SQUASH its links instead of
- * moving one onto the next line. Keeping each label on one line makes the item's minimum
- * the full label, so a row wraps exactly when the next link genuinely does not fit — which
- * is what the wrapping contract requires.
+ * NAV1A/R1 — the bar's LINK box: the shared ≥44px interaction floor, plus the one-line rule.
+ *
+ * A flex item's automatic minimum size is its min-content size, so a label allowed to break inside itself
+ * would let a row SQUASH its links instead of moving one onto the next line. Keeping each label on one line
+ * (`whitespace-nowrap`) makes the item's minimum the full label, so a row wraps exactly when the next link
+ * genuinely does not fit — which is what the wrapping contract requires.
+ *
+ * R1 — AND EVERY LINK CARRIES THE PLATFORM'S ≥44px TARGET BOX. The bar is now the whole navigation (every
+ * configured destination renders in it, wrapping as required), so its links are the primary touch targets
+ * rather than a compact subset: the same `inline-flex min-h-11 min-w-11 items-center` floor the header's
+ * brand link (VIS1C/EN-M), the sidebar disclosure triggers and the footer links (VIS2S) already take. The
+ * floor is LAYOUT only — typography and colour stay with the shared nav-item treatment — and it is why the
+ * wrapped rows remain comfortable targets at narrow widths.
  */
-export const BOTTOM_NAV_LINK_CLASS = "whitespace-nowrap";
+export const BOTTOM_NAV_LINK_CLASS = "inline-flex min-h-11 min-w-11 items-center whitespace-nowrap";
 
 /**
  * NAV1A — the bar's horizontal PAGE-EDGE INSET. It is the same `px-4` the header and the
@@ -137,19 +120,14 @@ export const PAGE_EDGE_INSET_CLASS = "px-4";
 
 export function ShellBottomBar({
   label,
-  moreLabel,
   links,
   locale,
   pageBindings,
   siteSet,
   demoBadgeLabel,
-  closeLabel,
   mode,
   scope,
-  activeLayouts,
   bandsClassName = "md:hidden",
-  sidebarClose,
-  sidebarOpen,
 }: ShellBottomBarProps) {
   const pathname = usePathname();
   // P5-5 — "closed" means the menu is not composed at all (adopter choice;
@@ -185,7 +163,9 @@ export function ShellBottomBar({
   // P6-3C — the bar carries NAVIGATION only. The primary CTA has its single
   // authoritative home in the shell's TOP region (below the header), so it is
   // never duplicated into the bar and can never be obscured by it.
-  const { primary, remainder } = splitBottomNavItems(resolved);
+  //
+  // R1 — EVERY destination renders here, in configured order. `BOTTOM_NAV_LIST_CLASS` already owns the
+  // wrapping, so the bar grows in height instead of hiding a destination behind an overflow control.
 
   return (
     <div
@@ -213,29 +193,10 @@ export function ShellBottomBar({
       <div className={`${PAGE_EDGE_INSET_CLASS} py-1`}>
         <BottomNavigation
           label={label}
-          items={primary}
+          items={resolved}
           listClassName={BOTTOM_NAV_LIST_CLASS}
           linkClassName={BOTTOM_NAV_LINK_CLASS}
         />
-        {remainder.length > 0 ? (
-          <ShellMobileNav
-            pattern="drawer"
-            id="shell-bottom-more"
-            triggerLabel={moreLabel}
-            closeLabel={closeLabel}
-            // The More trigger is a sidebar disclosure: its icon is the control the framework layer
-            // resolved, while the trigger keeps its OWN label (the drawer's own "More" wording).
-            open={{ icon: sidebarOpen?.icon, text: moreLabel }}
-            close={sidebarClose}
-            activeLayouts={activeLayouts}
-          >
-            <ul>
-              {remainder.map((item) => (
-                <NavItem key={item.key ?? item.href} item={item} />
-              ))}
-            </ul>
-          </ShellMobileNav>
-        ) : null}
       </div>
     </div>
   );

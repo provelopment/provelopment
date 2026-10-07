@@ -50,6 +50,30 @@ export interface SpokeHostRoutingEntry {
   readonly hostnameClaims: readonly Hostname[];
 }
 
+/** ONE option of the CROSS-SPOKE SWITCHER: the Spoke it offers, the label a visitor reads and its origin. */
+export interface SpokeSwitcherOption {
+  readonly spokeId: string;
+  readonly label: string;
+  readonly href: string;
+}
+
+/**
+ * The Installation's authored HUB-SCOPED SPOKE SWITCHER (R1).
+ *
+ * ONE INSTALLATION IS ONE HUB for organizational/navigation purposes, and every Spoke the manifest declares
+ * is a MEMBER of it. These options are that Hub's members — never an arbitrary link list, never another
+ * organization's site, and never a template/provisioning relationship (a site generated or updated from a
+ * centrally managed template remains its OWN Hub/Installation unless it is declared as a member).
+ *
+ * Options are in AUTHORED order — navigation between members is a dimension of its own, so nothing here is
+ * sorted, inferred from the manifest or read from the filesystem. The build has already proved every option
+ * routes back to the member it names (`./spoke-host-routing.mjs`), so the chrome renders the list it is
+ * given.
+ */
+export interface SpokeSwitcherConfig {
+  readonly options: readonly SpokeSwitcherOption[];
+}
+
 /** The build's immutable hostname routing description. */
 export interface InstallationHostRouting {
   readonly mode: HostRoutingMode;
@@ -65,10 +89,19 @@ export interface InstallationHostRouting {
    * suffix rule and never a wildcard — together with the Spoke id the collection names.
    */
   readonly inspection: SpokeInspectionPolicy | null;
+  /** The authored cross-Spoke switcher, or `null` when this Installation declares none. */
+  readonly spokeSwitcher: SpokeSwitcherConfig | null;
 }
 
-/** One entry's claims: `origin → hostname`, through the ONE pure step; an unusable origin claims nothing. */
-function claimsFor(origin: string, where: string): readonly Hostname[] {
+/**
+ * One entry's claims: its canonical `origin → hostname`, through the ONE pure step, followed by the
+ * ADDITIONAL exact hostnames the Spoke authored (`hostAliases`) — an unusable origin claims nothing.
+ *
+ * The canonical hostname always LEADS, because it is the one the Spoke's canonical metadata is built from;
+ * the additional claims are routing claims only and never become a second origin. A claim that merely
+ * restates the canonical hostname is collapsed, so the list stays one entry per hostname.
+ */
+function claimsFor(origin: string, hostAliases: readonly Hostname[], where: string): readonly Hostname[] {
   if (origin === "") return [];
   const hostname = hostnameFromOrigin(origin);
   if (hostname === null) {
@@ -77,7 +110,7 @@ function claimsFor(origin: string, where: string): readonly Hostname[] {
         "no request could ever be routed to it.",
     );
   }
-  return [hostname];
+  return [hostname, ...hostAliases.filter((alias) => alias !== hostname)];
 }
 
 /**
@@ -170,6 +203,87 @@ function normalizeInspectionValues(raw: unknown, what: string): Hostname[] {
 let cached: InstallationHostRouting | null = null;
 
 /**
+ * One entry's ADDITIONAL claims, normalized through the ONE pure step (`normalizeHostname`) — refusing an
+ * unusable value.
+ *
+ * The build already validated these (`./spoke-host-routing.mjs`), so a value that cannot be a hostname here
+ * means the artifact was not produced by that seam: it is REFUSED rather than silently dropped, because a
+ * claim that quietly disappeared would leave a Spoke unreachable at a hostname the Installation authored.
+ */
+function aliasesOf(raw: unknown, where: string): readonly Hostname[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new Error(
+      `FOUNDATION-MULTISITE-M23: ${where}: the build's additional hostname claims are something other ` +
+        "than a list.",
+    );
+  }
+  const aliases: Hostname[] = [];
+  for (const value of raw) {
+    if (typeof value !== "string") {
+      throw new Error(
+        `FOUNDATION-MULTISITE-M23: ${where}: an additional hostname claim is not text.`,
+      );
+    }
+    const hostname = normalizeHostname(value);
+    if (hostname === null) {
+      throw new Error(
+        `FOUNDATION-MULTISITE-M23: ${where}: the additional hostname claim "${value}" is not a usable ` +
+          "hostname. Recognition is exact, so an unusable value must be reported rather than ignored.",
+      );
+    }
+    if (!aliases.includes(hostname)) aliases.push(hostname);
+  }
+  return aliases;
+}
+
+/**
+ * The build's published CROSS-SPOKE SWITCHER, normalized into the pure configuration — or `null` when none.
+ *
+ * The options arrive in AUTHORED order and are kept in it (never sorted, never derived). A malformed option
+ * is a build defect, so it is refused loudly: a switcher that silently lost an option would read as a
+ * working installation while offering fewer Spokes than the Installation declares.
+ */
+function switcherOf(raw: unknown): SpokeSwitcherConfig | null {
+  if (raw === undefined || raw === null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M23: the build's cross-Spoke switcher is malformed — it needs an options list.",
+    );
+  }
+  const entry = raw as { options?: unknown };
+  if (!Array.isArray(entry.options)) {
+    throw new Error(
+      "FOUNDATION-MULTISITE-M23: the build's cross-Spoke switcher carries options as something other " +
+        "than a list.",
+    );
+  }
+
+  const options: SpokeSwitcherOption[] = entry.options.map((option) => {
+    const candidate = option as { spokeId?: unknown; label?: unknown; href?: unknown };
+    if (
+      option === null ||
+      typeof option !== "object" ||
+      typeof candidate.spokeId !== "string" ||
+      typeof candidate.label !== "string" ||
+      typeof candidate.href !== "string"
+    ) {
+      throw new Error(
+        "FOUNDATION-MULTISITE-M23: the build's cross-Spoke switcher carries an option without a Spoke, " +
+          "a label and a destination.",
+      );
+    }
+    return Object.freeze({
+      spokeId: candidate.spokeId,
+      label: candidate.label,
+      href: candidate.href,
+    });
+  });
+
+  return Object.freeze({ options: Object.freeze(options) });
+}
+
+/**
  * The current build's hostname routing.
  *
  * An empty value means a build that inlined NO routing description — a legacy unit-test import, or a
@@ -181,11 +295,16 @@ export function hostRoutingForBuild(): InstallationHostRouting {
 
   const raw = process.env[DEPLOYMENT_HOST_ROUTING_ENV]?.trim() ?? "";
   if (raw === "") {
-    cached = Object.freeze({ mode: "single" as const, spokes: Object.freeze([]), inspection: null });
+    cached = Object.freeze({
+      mode: "single" as const,
+      spokes: Object.freeze([]),
+      inspection: null,
+      spokeSwitcher: null,
+    });
     return cached;
   }
 
-  let parsed: { mode?: unknown; spokes?: unknown; inspection?: unknown };
+  let parsed: { mode?: unknown; spokes?: unknown; inspection?: unknown; spokeSwitcher?: unknown };
   try {
     parsed = JSON.parse(raw);
   } catch (error) {
@@ -199,7 +318,12 @@ export function hostRoutingForBuild(): InstallationHostRouting {
   const rawSpokes = Array.isArray(parsed.spokes) ? parsed.spokes : [];
 
   const spokes: SpokeHostRoutingEntry[] = rawSpokes.map((entry) => {
-    const spoke = entry as { id?: unknown; segment?: unknown; canonicalOrigin?: unknown };
+    const spoke = entry as {
+      id?: unknown;
+      segment?: unknown;
+      canonicalOrigin?: unknown;
+      hostAliases?: unknown;
+    };
     if (
       typeof spoke.id !== "string" ||
       typeof spoke.segment !== "string" ||
@@ -214,11 +338,20 @@ export function hostRoutingForBuild(): InstallationHostRouting {
       id: spoke.id,
       runtimeSegment: spoke.segment,
       canonicalOrigin: spoke.canonicalOrigin,
-      hostnameClaims: claimsFor(spoke.canonicalOrigin, `Spoke "${spoke.id}"`),
+      hostnameClaims: claimsFor(
+        spoke.canonicalOrigin,
+        aliasesOf(spoke.hostAliases, `Spoke "${spoke.id}"`),
+        `Spoke "${spoke.id}"`,
+      ),
     });
   });
 
-  cached = Object.freeze({ mode, spokes: Object.freeze(spokes), inspection: inspectionOf(parsed.inspection) });
+  cached = Object.freeze({
+    mode,
+    spokes: Object.freeze(spokes),
+    inspection: inspectionOf(parsed.inspection),
+    spokeSwitcher: switcherOf(parsed.spokeSwitcher),
+  });
 
   // MULTI — hostname dispatch: a Spoke that claims NO host can never be selected, so an Installation that
   // declares several Spokes must have an authored canonical origin for every one of them. Refusing HERE (with
@@ -237,6 +370,18 @@ export function hostRoutingForBuild(): InstallationHostRouting {
   }
 
   return cached;
+}
+
+/**
+ * THE CROSS-SPOKE SWITCHER OF THE CURRENT BUILD, or `null` when the Installation authors none.
+ *
+ * The chrome's ONE reader (WEB-1 owner requirement 1): the header renders the ordered options this returns,
+ * with the current Spoke marked, so no component ever parses a manifest, infers an order or names a Spoke of
+ * its own. A build whose Installation declares no switcher answers `null`, and the header composes exactly
+ * what it composed before — no control, no markup, no attribute.
+ */
+export function spokeSwitcherForBuild(): SpokeSwitcherConfig | null {
+  return hostRoutingForBuild().spokeSwitcher;
 }
 
 /** The entry with this identity OR this runtime segment, or `null` — the internal route's ONE lookup. */

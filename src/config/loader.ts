@@ -114,6 +114,9 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
     bookingFeature: json.features?.booking,
     contactFeature: json.features?.contact,
     legal: json.legal,
+    // R1 — the OPTIONAL site-wide notice (authored). Absent stays absent, so a Spoke that presents none
+    // renders exactly the chrome it rendered before this capability existed.
+    siteNotice: json.siteNotice,
   };
 }
 

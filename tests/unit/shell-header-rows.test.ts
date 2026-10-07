@@ -184,7 +184,10 @@ describe("NAV1B — the header's top row owns the identity and the navigation-MO
     // right edge of the padded content (an auto second track, `justify-self-end`).
     expect(precedes(switcherOn, "ui-site-header-identity", "ui-site-header-context")).toBe(true);
     expect(precedes(switcherOn, "ui-site-header-mode", "ui-site-header-context")).toBe(true);
-    expect(openTag(switcherOn, "ui-site-header-mode")).toContain("justify-self-end");
+    // R1 — the mode selector and the (optional) cross-Spoke switcher share ONE right-anchored cluster cell,
+    // so the right-edge anchor lives on the cluster; the control inside keeps only its own sizing.
+    expect(openTag(switcherOn, "ui-site-header-controls")).toContain("justify-self-end");
+    expect(precedes(switcherOn, "ui-site-header-controls", "ui-site-header-context")).toBe(true);
     // The mode row wraps the ONE control, and both stay in the top region (before the control row).
     expect(precedes(switcherOn, "ui-site-header-mode", "data-ui-layout-switcher")).toBe(true);
     expect(precedes(switcherOn, "data-ui-layout-switcher", "ui-site-header-context")).toBe(true);

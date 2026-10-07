@@ -21,6 +21,12 @@ import type { ReactNode } from "react";
 export interface AppShellProps {
   /** Header block (any composition the consumer supplies). */
   readonly header: ReactNode;
+  /**
+   * Optional band rendered immediately AFTER the header and BEFORE every other slot (R1 — the site-wide
+   * notice). It is the frame's second placement-only slot: no landmark, no wrapper, so a consumer's semantic
+   * surface keeps its own semantics. Absent → nothing is rendered at all.
+   */
+  readonly notice?: ReactNode;
   /** Main content. The primary landmark receives `id={mainId}`. */
   readonly main: ReactNode;
   /** Footer block. */
@@ -58,6 +64,7 @@ export interface AppShellProps {
 
 export function AppShell({
   header,
+  notice,
   main,
   footer,
   navigation,
@@ -73,6 +80,7 @@ export function AppShell({
   return (
     <>
       {header}
+      {notice ?? null}
       {sidebarLead ?? null}
       {sidebar ? <div className={sidebarClassName}>{sidebar}</div> : null}
       {navigation ? (

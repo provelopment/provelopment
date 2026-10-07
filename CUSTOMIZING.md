@@ -213,7 +213,7 @@ deployment gets when it omits the `ui` block entirely:
 | --- | --- | --- |
 | `navigation.desktop` | `sidebar` | expanded collapsible rail ≥`lg` |
 | `navigation.tablet` | `collapsed-sidebar` | centred icon rail ≥`md` |
-| `navigation.mobile` | `bottom-bar` | bottom navigation + "More" drawer <`md` |
+| `navigation.mobile` | `bottom-bar` | bottom navigation carrying EVERY configured item, wrapping <`md` |
 | `shell.sidebar.collapsible` | `true` | the rail collapses to an icon column and restores |
 | `shell.header` / `shell.footer` | `standard` | standard chrome |
 | `presentation` (5 leaves) | balanced/default | typography · rhythm · surface · header · hero |
@@ -286,8 +286,8 @@ composition-specific styling. Sidebar mode composes no such disclosure (see *Res
 below): its navigation is the persistent rail itself at every width.
 
 **Behavioral & accessibility contract (UI-10):** the disclosures share a
-browser-validated modal contract in the `Drawer` primitive (the More drawer and
-any drawer/overlay composition use it): **focus** moves into an opened disclosure
+browser-validated modal contract in the `Drawer` primitive (every drawer/overlay
+composition uses it): **focus** moves into an opened disclosure
 and returns to the trigger on close (Escape / backdrop / trigger); Tab / Shift+Tab
 are contained; the background becomes **`inert`** while open and is restored on
 close; a dismissing **backdrop/scrim** is shown; background **scroll is locked**;
@@ -323,11 +323,16 @@ has a deliberate **320px floor** (`--ui-shell-min-inline-size`), so every width 
 closed or open — fits the viewport without a horizontal scrollbar, and a narrower window scrolls
 horizontally by design instead of deforming the layout. Menu Bar mode uses a full-width sticky
 bottom navigation at every viewport width: the top navigation is not part of Menu Bar mode. The
-bottom bar's content rule is deterministic: the first **4** configured `navigation` items render in
-the bar; the remainder (when non-empty) is exposed through the "More" drawer. The bar's SURFACE
+bottom bar's content rule is deterministic and **has no overflow control**: EVERY configured
+`navigation` item renders in the bar, in configuration order, and the rows WRAP onto further rows
+as the width requires (the bar grows in height rather than hiding a destination). The former
+"first four + **More** drawer" rule — and the `BOTTOM_NAV_PRIMARY_LIMIT`/`splitBottomNavItems`
+platform constant behind it — was **retired by the owner**, because natural wrapping is ordinary
+visible navigation and an overflow drawer is not: no trigger, no drawer and nothing hidden. The
+bar's SURFACE
 spans the viewport and its navigation region uses the full available width minus the page-edge
 inset — the page's own `max-w-page` bound is deliberately NOT applied to it — and its links flow
-horizontally inside that region, wrapping onto another row only when the width requires it.
+horizontally inside that region, wrapping onto another row whenever the width requires it.
 
 `cta.enabled` resolves `false` by default — the shell renders no CTA, and the
 Foundation never invents a business action. When you enable a CTA, supply
