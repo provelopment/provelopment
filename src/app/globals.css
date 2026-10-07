@@ -1641,6 +1641,16 @@ html[data-ui-shell-layout="menu-bar"] .ui-shell-sidebar:has([data-ui-shell-part=
   max-width: 100%;
 }
 
+.ui-site-header-top--graphic .ui-site-header-controls {
+  grid-area: 1 / 1;
+  justify-self: end;
+  align-self: start;
+  position: relative;
+  z-index: 10;
+  padding-inline-start: 0.75rem;
+  background-color: var(--background);
+}
+
 .ui-site-header-top--graphic .ui-site-header-mode {
   grid-area: 1 / 1;
   justify-self: end;
@@ -1820,4 +1830,47 @@ html[data-ui-shell-layout="menu-bar"] .ui-shell-sidebar:has([data-ui-shell-part=
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+/* ── R1 — THE SITE-WIDE NOTICE (`siteNotice`) ────────────────────────────────────────────────────
+ *
+ * Generic shell chrome: an opt-in, site-wide message the shell presents on every page of the Spoke that
+ * enables it, immediately below the header. Nothing here is business-specific — the platform owns the
+ * surface, the adopter owns the words (localized dictionary copy), and this rule owns only its TREATMENT:
+ *
+ *  - a raised band, distinct from the page background, using the EXISTING token layer, so light and dark
+ *    themes are handled where every other colour is (no theme branch, no adopter-specific colour);
+ *  - `information` (the default) is the quiet surface; `attention` reuses the accent token for a stronger,
+ *    still non-alarming emphasis — a TONE, never a colour choice made here;
+ *  - a single hairline separates it from the header above, matching the footer/header borders.
+ *
+ * The element itself carries `role="note"` (`site-notice.tsx`), so this stylesheet adds presentation only.
+ * It is placed AFTER every surface-specific block on purpose: it belongs to no composition and to no
+ * presentation, so no selector above can inherit a rule from it.
+ */
+.ui-site-notice {
+  background-color: var(--muted);
+  color: var(--foreground);
+}
+
+.ui-site-notice[data-ui-site-notice-tone="attention"] {
+  background-color: var(--accent);
+  border-top: 2px solid var(--secondary);
+}
+
+/* ── R1 — THE FOOTER'S UNBREAKABLE-TOKEN RULE ────────────────────────────────────────────────────
+ *
+ * `overflow-wrap: break-word` (Tailwind's `break-words`, already on the footer grid) breaks a long token
+ * when it would otherwise overflow the LINE — but it deliberately leaves the element's min-content width
+ * alone. In a flex/inline-flex box that is the deciding factor: the box's automatic minimum WIDTH is its
+ * content's min-content width, so a 49-character address pushed its footer column wider than its track and
+ * overran the neighbouring one (or grew the whole document horizontally at narrow widths).
+ *
+ * `overflow-wrap: anywhere` is the one value that ALSO lowers min-content width, so a footer link box can
+ * shrink to the width its column actually gives it and the token then WRAPS inside it. It is a LAYOUT rule
+ * only — no break is inserted into adopter content, no typography or colour changes, and the shared ≥44px
+ * target floor and vertical centring are untouched (`footer-link-class.ts` composes this class).
+ */
+.ui-footer-break-anywhere {
+  overflow-wrap: anywhere;
 }

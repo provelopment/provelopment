@@ -1,6 +1,7 @@
 import type { Business } from "@/core/business";
 import type { ContactFeatureConfig } from "@/core/contact-inquiry";
 import type { LegalConfigEntry } from "@/core/legal";
+import type { AuthoredSiteNotice } from "@/core/notice";
 import type { AuthoredLocationSelection } from "@/core/location-selection";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
 import type { ResolvedSite } from "@/core/site";
@@ -452,4 +453,11 @@ export interface SiteConfig {
    * the page decides existence.
    */
   readonly legal?: readonly LegalConfigEntry[];
+  /**
+   * R1 — the OPTIONAL site-wide notice this Spoke presents to every visitor on every page (generic shell
+   * chrome). Threaded as AUTHORED (`siteNoticeSchema`): the ONE pure resolver (`resolveSiteNotice`,
+   * `@/core/notice`) decides whether a notice is presented and in what tone, so the shell and the build-time
+   * copy lock cannot disagree about what "shown" means.
+   */
+  readonly siteNotice?: AuthoredSiteNotice;
 }

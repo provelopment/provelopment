@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import { resolveNavHref, bindingsForSite } from "@/core/regional-pages";
 import { pathContextOr, sitePrefixPath } from "@/core/site";
-import { FOOTER_TARGET_CLASS } from "./footer-link-class";
+import { FOOTER_HEADING_BOX_CLASS, FOOTER_HEADING_CLASS } from "./footer-link-class";
 import { useClientRouting } from "./client-routing-context";
 
 interface ContextConnectHeadingProps {
@@ -49,20 +49,20 @@ export function ContextConnectHeading({ locale, label }: ContextConnectHeadingPr
     sitePrefixPath(parsed.site),
   );
 
-  const headingClass =
-    "text-sm font-semibold uppercase tracking-wide text-muted-foreground";
-  // VIS2S — the heading is also the Connect link, so it carries the shared footer
-  // target floor while keeping the heading's own typography.
-  const linkClass = `${FOOTER_TARGET_CLASS} ${headingClass} hover:text-primary transition-colors`;
+  // R1 — THE ONE FOOTER HEADING CONTRACT. The typography and the box the heading's TEXT sits in both come
+  // from the shared footer contract (`footer-link-class.ts`), so this LINKED heading's visible text starts at
+  // the same vertical position as the unlinked headings beside it — while the link keeps the platform's ≥44px
+  // interaction target (`FOOTER_HEADING_BOX_CLASS` IS that floor).
+  const linkClass = `${FOOTER_HEADING_BOX_CLASS} ${FOOTER_HEADING_CLASS} hover:text-primary transition-colors`;
 
   return (
-    <h2 className={headingClass}>
+    <h2 className={FOOTER_HEADING_CLASS}>
       {href ? (
         <Link href={href} className={linkClass}>
           {label}
         </Link>
       ) : (
-        label
+        <span className={FOOTER_HEADING_BOX_CLASS}>{label}</span>
       )}
     </h2>
   );

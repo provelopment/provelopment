@@ -22,6 +22,7 @@ import { LanguageSwitcher } from "./language-switcher";
 import { LayoutSwitcher } from "./layout-switcher";
 import { LocationSwitcher } from "./location-switcher";
 import { SiteSelector, type SiteSelectorOption } from "./site-selector";
+import { SpokeSwitcher, type SpokeSwitcherOption } from "./spoke-switcher";
 import { getSiteNavLinks } from "./nav-links";
 import { headerGraphicBandProps } from "./header-graphic";
 
@@ -51,6 +52,19 @@ interface SiteHeaderProps {
     readonly dictionaryAccess: RuntimeDictionaryAccess;
     /** M13 — that same context's asset resolver (server-only; never handed to a client component). */
     readonly assets: RuntimeAssetOwnershipResolver;
+    /**
+     * R1 — THE CROSS-SPOKE SWITCHER'S SERVER-RESOLVED PROJECTION: the identity of the Spoke THIS page
+     * belongs to, the control's localized accessible name, and the ordered options the Installation authored.
+     *
+     * Absent → NO switcher renders, which is the state of every Installation that authors none (the platform
+     * never invents Spokes, labels or destinations). The current Spoke is request/hostname-authoritative and
+     * arrives already resolved, so the control marks the truth rather than a client-side guess.
+     */
+    readonly spokeSwitch?: {
+        readonly current: string;
+        readonly label: string;
+        readonly options: readonly SpokeSwitcherOption[];
+    };
 }
 
 /**
@@ -93,6 +107,7 @@ export function SiteHeader({
     resolved,
     siteId,
     siteSwitch,
+    spokeSwitch,
     siteConfig,
     dictionaryAccess,
     assets,
@@ -281,20 +296,39 @@ export function SiteHeader({
                         )}
                     </div>
 
-                    {/* N2/NAV1B — the ONE navigation-MODE control, shown only when the visitor
-                        actually has more than one presentation to choose from (the switcher's
-                        own `enabled` semantics: disabled → the site presents exactly one
-                        effective option, so there is nothing to select and no control). */}
-                    {resolved.layoutSwitcher.enabled ? (
-                        <div className="ui-site-header-mode justify-self-end">
-                            <LayoutSwitcher
-                                label={dictionary.layout.label}
-                                defaultLayout={resolved.layoutSwitcher.default}
-                                labels={{
-                                    sidebar: dictionary.layout.sidebar,
-                                    "menu-bar": dictionary.layout.menuBar,
-                                }}
-                            />
+                    {/* ── THE HEADER'S RIGHT-HAND CONTROL CLUSTER (R1) ─────────────────────
+                        NAV1B keeps this row's ownership: the identity plus the controls that choose the
+                        CHROME a visitor is reading in — the cross-Spoke switcher (when the Installation
+                        authors one) and the navigation-MODE selector (when the adopter enables it). Both
+                        keep their normal control sizing, stay anchored at the padded right edge, and wrap
+                        inside this cell when the width demands it, so neither can push the identity off the
+                        row nor migrate into the control row below.
+
+                        WHY THE SPOKE SWITCHER LIVES HERE. It must remain visible on a Spoke that has ONE
+                        Site, ONE language and NO Locations — the row below is composed only when such
+                        controls exist, so a switcher placed there would vanish exactly where an Installation
+                        that switches Spokes needs it most. */}
+                    {spokeSwitch !== undefined || resolved.layoutSwitcher.enabled ? (
+                        <div className="ui-site-header-controls justify-self-end flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+                            {spokeSwitch !== undefined ? (
+                                <SpokeSwitcher
+                                    current={spokeSwitch.current}
+                                    label={spokeSwitch.label}
+                                    options={spokeSwitch.options}
+                                />
+                            ) : null}
+                            {resolved.layoutSwitcher.enabled ? (
+                                <div className="ui-site-header-mode">
+                                    <LayoutSwitcher
+                                        label={dictionary.layout.label}
+                                        defaultLayout={resolved.layoutSwitcher.default}
+                                        labels={{
+                                            sidebar: dictionary.layout.sidebar,
+                                            "menu-bar": dictionary.layout.menuBar,
+                                        }}
+                                    />
+                                </div>
+                            ) : null}
                         </div>
                     ) : null}
                 </div>

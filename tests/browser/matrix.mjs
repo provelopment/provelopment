@@ -1315,116 +1315,41 @@ async function runAdaptiveMobile(rows, cdp) {
   check(rows, "bar.cta.single", s.reachableCtas === 1, `count=${s.reachableCtas}`);
   check(rows, "bar.no.dialog", s.dialogs === 0);
 
-  if (!s.moreTrigger) {
-    check(rows, "more.trigger", true, "More drawer not present (≤4 nav items) — skipped");
-    return;
-  }
-  const moreOpen = await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
-  check(rows, "more.open", moreOpen);
-  const mo = await cdp.evaluate(`(() => {
-    const d = document.querySelector('#shell-bottom-more-panel');
-    if (!d) return null;
-    return {
-      role: d.getAttribute('role'),
-      labelResolves: d.getAttribute('aria-labelledby') === 'shell-bottom-more' && document.getElementById('shell-bottom-more') != null,
-      controlsResolves: (() => { const t = document.getElementById('shell-bottom-more'); return t && document.getElementById(t.getAttribute('aria-controls')) === d; })(),
-      focusInside: d.contains(document.activeElement),
-      mainInert: !!document.querySelector('main').closest('[inert]'),
-      overflow: document.body.style.overflow,
-    };
-  })()`);
-  check(rows, "more.dialog.semantics", !!mo && mo.role === "dialog" && mo.labelResolves && mo.controlsResolves);
-  check(rows, "more.focus.inside", !!mo && !!mo.focusInside);
-  check(rows, "more.inert.background", !!mo && !!mo.mainInert);
-  check(rows, "more.scroll.locked", !!mo && mo.overflow === "hidden");
-
-  let trapped = true;
-  for (let i = 0; i < 4 && trapped; i += 1) {
-    await cdp.pressKey("Tab");
-    await sleep(30);
-    trapped = await cdp.evalBool('document.querySelector("#shell-bottom-more-panel").contains(document.activeElement)');
-  }
-  check(rows, "more.tab.contained", trapped);
-
-  await cdp.pressKey("Escape");
-  await sleep(200);
-  const mc = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, activeId: document.activeElement && document.activeElement.id, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
-  check(rows, "more.escape.closed", mc.dialogs === 0);
-  check(rows, "more.escape.focusReturn", mc.activeId === "shell-bottom-more");
-  check(rows, "more.escape.inertCleared", mc.mainInert === false);
-
-  await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
-  await clickBackdrop(cdp);
-  await sleep(250);
-  const mb = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
-  check(rows, "more.backdrop.closed", mb.dialogs === 0);
-  check(rows, "more.backdrop.inertCleared", mb.mainInert === false);
-
-  // P5-5A — the one-item-per-row contract extends to the adaptive More drawer
-  // across the whole <md range (the DO "~390/700/900" acceptance viewport).
-  await cdp.setViewport(VIEWPORTS.mobileWide.width, VIEWPORTS.mobileWide.height);
-  await cdp.navigate(`${BASE_URL}/ww/en`);
-  await waitReady(cdp);
-  const wideMore = await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
-  check(rows, "wide700.more.open", wideMore);
-  const wm = await cdp.evaluate(`(() => {
-    const d = document.querySelector('#shell-bottom-more-panel');
-    if (!d) return null;
+  // -- R1 -- THE RETIRED "MORE" OVERFLOW, AND THE WRAPPING BAR THAT REPLACED IT ---------------
+  //
+  // The owner retired the 4 + "More" rule (it supersedes the legacy behaviour deliberately): the bar now
+  // renders EVERY configured destination directly, in configuration order, flowing left to right and
+  // wrapping onto further rows as the width requires. So the proofs are the RETIREMENT and the GEOMETRY:
+  // no trigger, no panel, no dialog; every configured destination present; the rows wrap; no horizontal
+  // overflow; every target still >= 44px; exactly one current mark.
+  check(rows, "bar.more.retired", !s.moreTrigger, "no #shell-bottom-more control exists");
+  const barShape = await cdp.evaluate(`(() => {
     const bar = document.querySelector('.ui-shell-bottom-bar');
-    const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    if (!bar) return null;
+    const list = bar.querySelector('ul');
+    const lis = [...bar.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
     const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
+    const anchors = lis.map((li) => li.querySelector('a')).filter(Boolean);
+    const targets = anchors.map((a) => { const r = a.getBoundingClientRect(); return Math.round(Math.min(r.width, r.height)); });
     return {
-      barVisible: !!bar && bar.getBoundingClientRect().height > 0,
-      onePerRow: lis.length === 0 ? true : new Set(tops).size === tops.length,
+      items: lis.length,
+      rows: new Set(tops).size,
+      wrapClass: !!list && list.className.includes('flex-wrap'),
+      offscreen: anchors.some((a) => { const r = a.getBoundingClientRect(); return r.right > document.documentElement.clientWidth + 1 || r.left < -1; }),
+      minTarget: targets.length === 0 ? 0 : Math.min(...targets),
+      dialogs: document.querySelectorAll('[role="dialog"]').length,
+      panels: document.querySelectorAll('#shell-bottom-more-panel').length,
+      currentMarks: bar.querySelectorAll('a[aria-current="page"]').length,
     };
   })()`);
-  check(rows, "wide700.more.barVisible", !!wm && !!wm.barVisible);
-  check(rows, "wide700.more.onePerRow", !!wm && !!wm.onePerRow);
-  await cdp.pressKey("Escape");
-  await sleep(120);
-
-  // P5-1 — adaptive More drawer follows the SAME shared sidebar contract:
-  // bounded width + explicit Close navigation control with icon (preserved More entry).
-  await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
-  const mp = await cdp.evaluate(`(() => {
-    const d = document.querySelector('#shell-bottom-more-panel');
-    const t = document.getElementById('shell-bottom-more');
-    if (!d) return null;
-    const ul = d.querySelector('ul');
-    const closeBtn = d.querySelector('.ui-drawer-close');
-    const pr = d.getBoundingClientRect();
-    const cr = closeBtn ? closeBtn.getBoundingClientRect() : null;
-    return {
-      panelWidth: Math.round(pr.width),
-      viewportWidth: document.documentElement.clientWidth,
-      closeLabel: closeBtn ? closeBtn.textContent.trim() : null,
-      closeVisible: !!closeBtn && !!cr && cr.width > 0 && cr.height > 0,
-      closeBelowNav: !!closeBtn && !!ul && cr.top > ul.getBoundingClientRect().bottom - 4,
-      closeIcon: !!closeBtn && !!closeBtn.querySelector('.ui-mobile-nav-icon'),
-      closeIconLoaded: (() => { const ic = closeBtn ? closeBtn.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
-      triggerIcon: !!t && !!t.querySelector('.ui-mobile-nav-icon'),
-      triggerIconLoaded: (() => { const ic = t ? t.querySelector('.ui-mobile-nav-icon') : null; return !!ic && ic.complete && ic.naturalWidth > 0; })(),
-      // P5-4 — one navigation item per row in the More disclosure too.
-      itemsPerRow: (() => { const lis = [...d.querySelectorAll('ul > li')].filter((li) => { const r = li.getBoundingClientRect(); return r.width > 0 && r.height > 0; }); if (lis.length === 0) return false; const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top)); return new Set(tops).size === tops.length; })(),
-    };
-  })()`);
-  check(rows, "more.panel.bounded", !!mp && mp.panelWidth > 0 && mp.panelWidth < mp.viewportWidth && mp.panelWidth <= Math.min(288, mp.viewportWidth * 0.8) + 2);
-  check(rows, "more.trigger.icon", !!mp && !!mp.triggerIcon);
-  check(rows, "more.trigger.icon.loaded", !!mp && !!mp.triggerIconLoaded);
-  check(rows, "more.close.visible", !!mp && !!mp.closeVisible);
-  // P6-1 — the More drawer uses the ONE vocabulary: "Hide navigation".
-  check(rows, "more.close.label", !!mp && !!mp.closeLabel && mp.closeLabel === "Hide navigation", mp ? `label=[${mp.closeLabel}]` : "null");
-  check(rows, "more.close.belowNav", !!mp && !!mp.closeBelowNav);
-  check(rows, "more.close.icon", !!mp && !!mp.closeIcon);
-  check(rows, "more.close.icon.loaded", !!mp && !!mp.closeIconLoaded);
-  check(rows, "more.nav.onePerRow", !!mp && !!mp.itemsPerRow);
-  const moreCloseClick = await cdp.clickCenter("#shell-bottom-more-panel .ui-drawer-close");
-  await sleep(250);
-  const mcc = await cdp.evaluate(`(() => ({ dialogs: document.querySelectorAll('[role="dialog"]').length, activeId: document.activeElement && document.activeElement.id, mainInert: !!document.querySelector('main').closest('[inert]') }))()`);
-  check(rows, "more.closeBtn.clicked", moreCloseClick);
-  check(rows, "more.closeBtn.closed", mcc.dialogs === 0);
-  check(rows, "more.closeBtn.focusReturn", mcc.activeId === "shell-bottom-more");
-  check(rows, "more.closeBtn.inertCleared", mcc.mainInert === false);
+  check(rows, "bar.items.present", !!barShape && barShape.items > 0, barShape ? `items=${barShape.items}` : "null");
+  check(rows, "bar.list.wrapCapable", !!barShape && barShape.wrapClass);
+  check(rows, "bar.rows.atLeastOne", !!barShape && barShape.rows >= 1, barShape ? `rows=${barShape.rows}` : "null");
+  check(rows, "bar.no.horizontalOverflow", !!barShape && !barShape.offscreen);
+  check(rows, "bar.targets.atLeast44", !!barShape && barShape.minTarget >= 44, barShape ? `min=${barShape.minTarget}` : "null");
+  check(rows, "bar.current.marked", !!barShape && barShape.currentMarks === 1, barShape ? `marks=${barShape.currentMarks}` : "null");
+  check(rows, "bar.no.overflowControl", !!barShape && barShape.panels === 0);
+  check(rows, "bar.no.dialog", !!barShape && barShape.dialogs === 0);
 
   // P5-1 — footer clearance at mobile + tablet: the STICKY bar participates in
   // document flow after the footer (never obscuring it; no spacer needed).
@@ -1556,7 +1481,10 @@ async function runCanonical(chrome) {
     await runAsidePresentation(rows, CANONICAL, cdp);
     await runAsideBoundaries(rows, CANONICAL, true, cdp);
     await runAdaptiveMobile(rows, cdp);
-    await runReducedMotion(rows, "#shell-bottom-more", "#shell-bottom-more-panel", cdp);
+    // R1 — the retired bottom bar has no More disclosure to measure for motion; the SAME no-animation
+    // contract is asserted on the surface the composition now presents (the wrapping bar), so the two
+    // unconditional reduced-motion invariants below keep running unchanged.
+    await runReducedMotion(rows, "#shell-bottom-bar", ".ui-shell-bottom-bar ul", cdp);
     // P1-3 — visible focus-ring contract (link + pointer-distinction + keyboard Tab).
     await runFocusVisibleRing(rows, cdp, "focus.canonical");
     // P1-4 / P1-7 — the primitives' on-page proof (see the notes above).
@@ -1733,38 +1661,38 @@ async function runDuplicateNavScenario(chrome) {
         check(rows, `${label}.desktop.beta.disabled.ownIcon`, d.betaDisabled && d.betaIcon);
         check(rows, `${label}.desktop.noDupKeyConsole`, d.warnings === 0);
       }
-      // Mobile 390 + 700: the canonical bottom-bar More disclosure.
+      // R1 — Mobile 390 + 700: EVERY configured destination now renders in the bar ITSELF (the retired
+      // "More" disclosure no longer exists), so the SAME identity contract is asserted directly there: both
+      // entries present, the navigable one a real link, the disabled one carrying its own identity, no
+      // duplicate React keys, and nothing pushed outside the viewport.
       for (const w of [390, 700]) {
         await cdp.setViewport(w, 844);
         await cdp.navigate(url);
         await waitReady(cdp);
-        const trigger = "#shell-bottom-more";
-        const panel = "#shell-bottom-more-panel";
-        const opened = await openTrigger(cdp, trigger, panel);
-        check(rows, `${label}.w${w}.opens`, opened);
-        if (!opened) continue;
         const m = await cdp.evaluate(`(() => {
-          const p = document.querySelector(${JSON.stringify(panel)});
-          const lis = [...p.querySelectorAll("ul > li")].filter((li) => li.getBoundingClientRect().width > 0);
-          const labels = lis.map((li) => li.querySelector(".ui-nav-item-label")?.textContent ?? "");
-          const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
-          const alpha = lis.find((li) => li.querySelector(".ui-nav-item-label")?.textContent === "Alpha");
-          const beta = lis.find((li) => li.querySelector(".ui-nav-item-label")?.textContent === "Beta");
+          const bar = document.querySelector('.ui-shell-bottom-bar');
+          if (!bar) return null;
+          const lis = [...bar.querySelectorAll('ul > li')].filter((li) => li.getBoundingClientRect().width > 0);
+          const labels = lis.map((li) => li.querySelector('.ui-nav-item-label')?.textContent ?? '');
+          const alpha = lis.find((li) => li.querySelector('.ui-nav-item-label')?.textContent === 'Alpha');
+          const beta = lis.find((li) => li.querySelector('.ui-nav-item-label')?.textContent === 'Beta');
+          const anchors = [...bar.querySelectorAll('ul a')];
           return {
-            onePerRow: new Set(tops).size === tops.length,
-            hasBoth: labels.includes("Alpha") && labels.includes("Beta"),
+            hasBoth: labels.includes('Alpha') && labels.includes('Beta'),
             alphaLink: !!alpha && !!alpha.querySelector("a[href='/ww/en/pricing']"),
             betaDisabled: !!beta && !!beta.querySelector("[aria-disabled='true']"),
+            overflow: anchors.some((a) => { const r = a.getBoundingClientRect(); return r.right > document.documentElement.clientWidth + 1 || r.left < -1; }),
+            dialogs: document.querySelectorAll('[role="dialog"]').length,
             warnings: window.__dupKeyWarnings.length,
           };
         })()`);
-        check(rows, `${label}.w${w}.onePerRow`, !!m && m.onePerRow);
-        check(rows, `${label}.w${w}.both.in.disclosure`, !!m && m.hasBoth);
+        check(rows, `${label}.w${w}.bar.renders`, !!m);
+        check(rows, `${label}.w${w}.both.in.bar`, !!m && m.hasBoth);
         check(rows, `${label}.w${w}.alpha.navigable`, !!m && m.alphaLink);
         check(rows, `${label}.w${w}.beta.disabled.identity`, !!m && m.betaDisabled);
+        check(rows, `${label}.w${w}.no.horizontalOverflow`, !!m && !m.overflow);
+        check(rows, `${label}.w${w}.no.dialog`, !!m && m.dialogs === 0);
         check(rows, `${label}.w${w}.noDupKeyConsole`, !!m && m.warnings === 0);
-        await cdp.pressKey("Escape");
-        await sleep(120);
       }
     } finally {
       if (cdp) await cdp.close();
@@ -3544,7 +3472,9 @@ async function runPersistentNavigationScenario(chrome) {
     const mob = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
       const header = document.querySelector('.ui-shell-top');
       const bar = document.querySelector('.ui-shell-bottom-bar');
-      const trigger = document.querySelector('#shell-bottom-more');
+      // R1 — the bar's OWN first destination is the control this scenario tracks at mobile widths: the
+      // retired "More" disclosure no longer exists, and the bar now carries every destination itself.
+      const trigger = bar ? bar.querySelector('ul a') : null;
       const hr = header ? header.getBoundingClientRect() : null;
       const br = bar ? bar.getBoundingClientRect() : null;
       const tr = trigger ? trigger.getBoundingClientRect() : null;
@@ -3560,6 +3490,18 @@ async function runPersistentNavigationScenario(chrome) {
         triggerTarget: tr ? Math.round(Math.min(tr.width, tr.height)) : null,
         railHidden: !visibleRail(),
         chromeBudget: hr && br ? Math.round(((hr.height + br.height) / vh) * 100) / 100 : null,
+        // R1 — the bar WRAPS, so its height is no longer a fixed single row: the chrome budget is measured on
+        // the chrome a visitor ALWAYS sees (the header plus the bar's FIRST row), while the bar's wrapped
+        // total is bounded separately — it must stay a comfortable share of the viewport rather than swallow
+        // it, and no destination may be hidden to keep it small.
+        firstRowHeight: (() => {
+          const lis = bar ? [...bar.querySelectorAll('ul > li')].filter((li) => li.getBoundingClientRect().height > 0) : [];
+          if (lis.length === 0) return br ? br.height : null;
+          const tops = lis.map((li) => Math.round(li.getBoundingClientRect().top));
+          const firstTop = Math.min(...tops);
+          return Math.max(...lis.filter((li) => Math.round(li.getBoundingClientRect().top) === firstTop).map((li) => Math.round(li.getBoundingClientRect().height)));
+        })(),
+        barShare: br ? Math.round((br.height / vh) * 100) / 100 : null,
         dialogs: document.querySelectorAll('[role="dialog"]').length,
       };
     })()`);
@@ -3570,13 +3512,25 @@ async function runPersistentNavigationScenario(chrome) {
     check(rows, "persist.mobile.bar.inView", !!mob.barInView);
     check(rows, "persist.mobile.trigger.inView", !!mob.triggerInView);
     check(rows, "persist.mobile.trigger.hittable", !!mob.triggerHittable);
-    // VIS1C — the existing >=44x44 mobile disclosure trigger target is unchanged.
-    check(rows, "persist.mobile.trigger.touchTarget", mob.triggerTarget != null && mob.triggerTarget >= 44, `trigger=${mob.triggerTarget}`);
+    // R1 — the bar carries EVERY destination, so its links are the touch targets: the ≥44px floor the
+    // platform applies to its other interactive chrome (measured on the bar's own first destination).
+    check(rows, "persist.mobile.trigger.touchTarget", mob.triggerTarget != null && mob.triggerTarget >= 44, `target=${mob.triggerTarget}`);
     // No rail is composed below md — the header and the bar carry navigation there.
     check(rows, "persist.mobile.rail.hidden", !!mob.railHidden);
-    // The persistent chrome must leave the viewport to its content (this is what
-    // keeps a SHORT viewport usable).
-    check(rows, "persist.mobile.chrome.budget", mob.chromeBudget != null && mob.chromeBudget <= 0.35, `budget=${mob.chromeBudget}`);
+    // The persistent chrome must leave the viewport to its content (this is what keeps a SHORT viewport
+    // usable). R1 — measured on the header plus the bar's FIRST row, because the bar now WRAPS: its wrapped
+    // total is a legitimate consequence of showing every destination, and bounding it by a single-row budget
+    // would be the very "hide a destination to stay small" rule the owner retired.
+    check(
+      rows,
+      "persist.mobile.chrome.budget",
+      mob.chromeBudget != null && mob.firstRowHeight != null && (mob.chromeBudget - mob.barShare + (mob.firstRowHeight / 844)) <= 0.35,
+      `budget=${mob.chromeBudget} barShare=${mob.barShare} firstRow=${mob.firstRowHeight}`,
+    );
+    // …and the wrapped bar itself must still leave the viewport to its content: a long navigation legitimately
+    // produces several rows, but the bar may never swallow the page (this fixture deliberately configures a
+    // LONG navigation, which is exactly the case that used to hide destinations behind "More").
+    check(rows, "persist.mobile.bar.share", mob.barShare != null && mob.barShare <= 0.75, `barShare=${mob.barShare}`);
     check(rows, "persist.mobile.noDialogWhileScrolling", mob.dialogs === 0);
 
     // ── MOBILE: a fragment target is not hidden beneath the sticky header ────
@@ -3614,56 +3568,36 @@ async function runPersistentNavigationScenario(chrome) {
     );
 
     // ── MOBILE: the disclosure still works while the page is scrolled ────────
-    const barPaths = await cdp.evaluate(
-      `(() => { ${NAV_PROBE_HELPERS} const bar = document.querySelector('.ui-shell-bottom-bar'); return bar ? navPaths(bar) : []; })()`,
-    );
+    // -- R1 -- the bar carries EVERY destination while the page is scrolled --------------------
+    //
+    // The retired "More" disclosure is gone, so the SAME persistence claim is now provable directly on the
+    // bar: every configured destination is reachable there, nothing is hidden behind an overflow control,
+    // and the surface stays in view and hittable while the document is scrolled.
     await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS} scrollToMiddle(); return true; })()`);
     await sleep(300);
-    const opened = await openTrigger(cdp, "#shell-bottom-more", "#shell-bottom-more-panel");
-    const drawer = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
-      const panel = document.querySelector('#shell-bottom-more-panel');
-      const main = document.querySelector('main');
+    const persisted = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
+      const bar = document.querySelector('.ui-shell-bottom-bar');
+      const anchors = bar ? [...bar.querySelectorAll('ul a')] : [];
       return {
-        open: !!panel,
-        role: panel ? panel.getAttribute('role') : null,
-        modal: panel ? panel.getAttribute('aria-modal') : null,
-        labelResolves: !!(panel && document.getElementById(panel.getAttribute('aria-labelledby'))),
-        focusInside: !!(panel && panel.contains(document.activeElement)),
-        mainInert: !!(main && main.closest('[inert]')),
-        scrollLocked: document.body.style.overflow === 'hidden',
-        paths: panel ? navPaths(panel) : [],
+        barInView: inView(bar ? bar.getBoundingClientRect() : null),
+        allHittable: anchors.length > 0 && anchors.every((a) => hittable(a)),
+        paths: bar ? navPaths(bar) : [],
+        dialogs: document.querySelectorAll('[role="dialog"]').length,
+        panels: document.querySelectorAll('#shell-bottom-more-panel').length,
       };
     })()`);
-    check(rows, "persist.mobile.disclosure.opened", !!opened && !!drawer.open);
-    check(rows, "persist.mobile.disclosure.semantics", drawer.role === "dialog" && drawer.modal === "true" && !!drawer.labelResolves);
-    check(rows, "persist.mobile.disclosure.focusInside", !!drawer.focusInside);
-    check(rows, "persist.mobile.disclosure.backgroundInert", !!drawer.mainInert);
-    check(rows, "persist.mobile.disclosure.scrollLocked", !!drawer.scrollLocked);
-    // The bar's items plus the drawer's = the whole configured navigation:
-    // persistence changed WHERE it is reachable, not WHAT it contains.
+    check(rows, "persist.mobile.bar.stillInView", !!persisted.barInView);
+    check(rows, "persist.mobile.bar.allHittable", !!persisted.allHittable);
+    check(rows, "persist.mobile.bar.no.dialog", persisted.dialogs === 0);
+    check(rows, "persist.mobile.bar.no.overflowControl", persisted.panels === 0);
+    // The bar's destinations ARE the whole configured navigation: persistence changed WHERE it is
+    // reachable, not WHAT it contains.
     check(
       rows,
       "persist.mobile.destinations.union",
-      JSON.stringify([...barPaths, ...drawer.paths].sort()) === JSON.stringify([...configuredPaths].sort()),
-      `bar=${barPaths.length} drawer=${drawer.paths.length} configured=${configuredPaths.length}`,
+      JSON.stringify([...persisted.paths].sort()) === JSON.stringify([...configuredPaths].sort()),
+      `bar=${persisted.paths.length} configured=${configuredPaths.length}`,
     );
-    await cdp.pressKey("Escape");
-    await sleep(300);
-    const closed = await cdp.evaluate(`(() => { ${NAV_PROBE_HELPERS}
-      const bar = document.querySelector('.ui-shell-bottom-bar');
-      return {
-        dialogs: document.querySelectorAll('[role="dialog"]').length,
-        focusReturned: !!document.activeElement && document.activeElement.id === 'shell-bottom-more',
-        inertCleared: !document.querySelector('main').closest('[inert]'),
-        scrollRestored: document.body.style.overflow !== 'hidden',
-        barStillInView: inView(bar ? bar.getBoundingClientRect() : null),
-      };
-    })()`);
-    check(rows, "persist.mobile.disclosure.escape.closed", closed.dialogs === 0);
-    check(rows, "persist.mobile.disclosure.escape.focusReturned", !!closed.focusReturned);
-    check(rows, "persist.mobile.disclosure.escape.inertCleared", !!closed.inertCleared);
-    check(rows, "persist.mobile.disclosure.escape.scrollRestored", !!closed.scrollRestored);
-    check(rows, "persist.mobile.disclosure.escape.barStillInView", !!closed.barStillInView);
 
     // ── SHORT VIEWPORT: a LONG navigation stays reachable inside the rail ────
     for (const [label, viewport] of [

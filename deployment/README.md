@@ -97,6 +97,78 @@ above. Nothing is fetched from Vercel at request time, no Vercel setting is read
 deliberately **no `*.vercel.app` rule**: an unrelated project's Vercel URL, a team URL, or a name that merely
 *contains* ours answers 404 like any other unknown host.
 
+## One Installation is one Hub: the Hub-scoped Spoke switcher (R1)
+
+Two OPTIONAL leaves let an Installation state routing facts **beside** the topology above. Neither changes
+what a Spoke's canonical metadata says: a Spoke's canonical origin is always its own `site.url`.
+
+```json
+{
+  "spokes": [
+    { "id": "foundation", "root": "spokes/foundation", "hostAliases": ["foundation-staging.example.test"] },
+    { "id": "germany", "root": "spokes/germany" }
+  ],
+  "spokeSwitcher": {
+    "options": [
+      { "spokeId": "foundation", "label": "Foundation", "href": "https://foundation-template.provelopment.com" },
+      { "spokeId": "germany", "label": "Germany", "href": "https://foundation-template-germany.provelopment.com" }
+    ]
+  }
+}
+```
+
+**`hostAliases` — additional claims, never a second origin.** An entry may claim exact hostnames IN
+ADDITION to its canonical one, so a staging host can serve a Spoke before its public domain is attached.
+The claims are ROUTING only: `site.url` stays the origin canonical links, `hreflang`, `og:url` and the
+sitemap are built from, and a request to an alias renders the SAME Spoke. Recognition is exact equality:
+no wildcard, no suffix match, and an alias is refused if it restates any Spoke's canonical hostname, is
+claimed by another Spoke, or collides with an inspection hostname the `inspectionSpoke` policy owns.
+
+**`spokeSwitcher` — THE HUB-SCOPED SPOKE SWITCHER** (navigation between the Spokes of ONE Hub, never the
+within-Spoke Site selector). **ONE INSTALLATION REPRESENTS ONE HUB** for organizational/navigation purposes,
+and **every Spoke this manifest declares is a MEMBER of that Hub**; that declaration IS the membership
+boundary. The list is authored data: its ORDER is exactly the order written, it is never sorted and never
+derived from the manifest.
+
+Every option must NAME a declared member and carry an absolute HTTPS origin that this Installation itself
+would route to that member — through its canonical hostname, one of its additional claims, or an inspection
+hostname the policy nominates for it. Refused at build time: an option pointing at another member's host, at
+a host nothing claims, **or at an unrelated organization's site** (which belongs to a different
+Hub/Installation). There is no `hubId`, no organization registry and no hostname-suffix rule: **the routing
+check is the enforcement mechanism**. A domain suffix does not imply membership.
+
+The control renders in the header's persistent control row on every page of every member, marks the member
+the request resolved to, and selecting that member is a no-op; its accessible name (`spokeSwitcher.label`)
+must resolve for every locale each Spoke serves.
+
+**THE FIVE DIMENSIONS ARE NOT EACH OTHER:**
+
+| Dimension | What it is | Control |
+| --- | --- | --- |
+| **Hub** | the organizational/navigation association boundary — ONE per Installation | none (it is the scope the switcher moves within) |
+| **Spoke** | a complete website/domain context, a member of exactly one Hub | the Hub-scoped Spoke switcher |
+| **Site** | a country/global context INSIDE one Spoke | the Site selector |
+| **Location** | a physical/business location INSIDE one Site | the Location selector |
+| **Language** | an independent locale dimension | the Language selector |
+
+**TEMPLATE/PROVISIONING LINEAGE IS NOT HUB MEMBERSHIP.** A centrally managed template may later provision and
+update independent Installations (for example white-label reseller templates for Australia, Canada, Indonesia,
+Germany, the UK and the USA). That relationship is **template/update lineage**, not membership: using a
+Provelopment-managed template does NOT put a reseller's website into the Provelopment Hub switcher, and an
+autonomous reseller or customer remains its **own** Hub/Installation. Membership is created by ONE thing only —
+being declared as a Spoke in the same manifest.
+
+**`siteNotice` — the opt-in site-wide notice.** A Spoke may present ONE generic notice on every page
+(shell chrome, never page content):
+
+```json
+"siteNotice": { "mode": "shown", "tone": "information" }
+```
+
+with its localized wording in each locale's dictionary (`"siteNotice": { "title": "…", "body": "…" }`).
+Absent configuration renders no markup at all. A Spoke that PRESENTS the notice must resolve both fields
+for every locale it serves — the build refuses it otherwise, naming the locale and the missing field.
+
 ## Update, and Upgrade (M20)
 
 | Operation | Foundation release | The authored material |

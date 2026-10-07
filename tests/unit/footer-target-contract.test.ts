@@ -12,6 +12,7 @@ import {
   type ContextNavLink,
 } from "@/components/site/context-nav-links";
 import {
+  FOOTER_HEADING_BOX_CLASS,
   FOOTER_LINK_CLASS,
   FOOTER_TARGET_CLASS,
 } from "@/components/site/footer-link-class";
@@ -95,8 +96,11 @@ describe("VIS2S — the shared footer link target contract", () => {
 
   it("D. the Connect heading link and the business-info links carry the same floor", () => {
     const heading = read(...SITE, "context-connect-heading.tsx");
-    expect(heading).toContain("FOOTER_TARGET_CLASS");
-    expect(heading).toMatch(/linkClass = `\$\{FOOTER_TARGET_CLASS\}/);
+    // R1 — the heading's text box IS the shared footer target floor (`FOOTER_HEADING_BOX_CLASS`), which is
+    // what makes a LINKED heading align with the unlinked ones beside it while keeping the ≥44px target.
+    expect(FOOTER_HEADING_BOX_CLASS).toBe(FOOTER_TARGET_CLASS);
+    expect(heading).toContain("FOOTER_HEADING_BOX_CLASS");
+    expect(heading).toMatch(/linkClass = `\$\{FOOTER_HEADING_BOX_CLASS\}/);
 
     const info = read(...SITE, "business-info.tsx");
     expect((info.match(/FOOTER_LINK_CLASS/g) ?? []).length).toBeGreaterThanOrEqual(3);

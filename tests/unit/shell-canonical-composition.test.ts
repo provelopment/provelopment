@@ -144,8 +144,8 @@ describe("ShellEngine — Canonical aside composition (UI-05)", () => {
   });
 });
 
-describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
-  it("renders a bottom bar with the first 4 items + a CLOSED More drawer for the remainder", () => {
+describe("ShellEngine — Canonical bottom-bar composition (UI-05, R1)", () => {
+  it("renders EVERY configured item directly in the bar, in order, and no overflow control", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: adaptive,
@@ -153,7 +153,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         main: mainText,
         footer,
         mainId: "main",
-        bottomNav: { label: "Primary", moreLabel: "More", links: sevenLinks },
+        bottomNav: { label: "Primary", links: sevenLinks },
         locale: "en",
         pageBindings,
         siteSet: SITE_SET,
@@ -161,20 +161,21 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
     );
     expect(html).toContain("ui-shell-bottom-bar");
     expect(html).toContain('aria-label="Primary"');
-    expect(html.match(/\/en\/[1-4]"/g) ?? []).toHaveLength(4);
-    expect(html.indexOf("/en/5")).toBe(-1);
-    expect(html.indexOf("/en/6")).toBe(-1);
-    expect(html.indexOf("/en/7")).toBe(-1);
-    // B1: the More trigger owns the id; aria-controls resolves to the `-panel` id.
-    expect(html).toContain('id="shell-bottom-more"');
-    expect(html).toContain('aria-controls="shell-bottom-more-panel"');
-    expect(html).not.toContain('id="shell-bottom-more-panel"');
+    // R1 — the retired "first four + More" rule: ALL SEVEN destinations render in the bar's own list.
+    for (const n of [1, 2, 3, 4, 5, 6, 7]) {
+      expect(html, `item ${n}`).toContain(`/en/${n}"`);
+    }
+    // No overflow control, no drawer, no dialog, and therefore no More ids at all.
+    expect(html).not.toContain("shell-bottom-more");
     expect(html).not.toContain('role="dialog"');
+    expect(html.match(/<nav/g) ?? []).toHaveLength(1);
+    // The bar's OWN list owns the wrapping (the layout class the component publishes).
+    expect(html).toContain("flex flex-wrap");
     const ids = allIds(html);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("omits the More drawer entirely when the navigation has ≤ 4 items", () => {
+  it("renders no More control for a short navigation either — the bar's content is the list itself", () => {
     const html = renderToStaticMarkup(
       ShellEngine({
         resolved: adaptive,
@@ -182,13 +183,14 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         main: mainText,
         footer,
         mainId: "main",
-        bottomNav: { label: "Primary", moreLabel: "More", links: sevenLinks.slice(0, 3) },
+        bottomNav: { label: "Primary", links: sevenLinks.slice(0, 3) },
         locale: "en",
         pageBindings,
         siteSet: SITE_SET,
       }),
     );
     expect(html).toContain("/en/1");
+    expect(html).toContain("/en/3");
     expect(html).not.toContain("shell-bottom-more");
   });
 
@@ -200,7 +202,7 @@ describe("ShellEngine — Canonical bottom-bar composition (UI-05)", () => {
         main: mainText,
         footer,
         mainId: "main",
-        bottomNav: { label: "Primary", moreLabel: "More", links: sevenLinks.slice(0, 4) },
+        bottomNav: { label: "Primary", links: sevenLinks.slice(0, 4) },
         ctaLabel: "Book",
         ctaHref: "/book",
         locale: "en",

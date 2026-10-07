@@ -41,8 +41,10 @@ import type { SiteSet } from "@/core/site";
  *    `hidden lg:block`, tablet `hidden md:block lg:hidden`) with distinct ids
  *    and mutually exclusive responsive classes — at any width exactly ONE
  *    sidebar landmark is exposed, with zero `useId`/hydration risk.
- *  - MOBILE "bottom-bar": composed via `ShellBottomBar` (deterministic
- *    content split: first `BOTTOM_NAV_PRIMARY_LIMIT` items + More drawer).
+ *  - MOBILE "bottom-bar": composed via `ShellBottomBar`, which renders EVERY
+ *    configured navigation destination directly and WRAPS the rows as the width
+ *    requires (R1 — the former "first four + More drawer" content split was
+ *    retired by the owner; nothing is hidden behind an overflow control).
  *  - CTA: composed ONLY when `resolved.cta.enabled` AND label+href are
  *    supplied, placed per the decision's structural slot (header/aside/
  *    bottom). The engine NEVER invents an action, href, label, or meaning.
@@ -68,6 +70,14 @@ export interface ShellEngineProps {
   readonly main: ReactNode;
   /** Footer content slot. */
   readonly footer: ReactNode;
+  /**
+   * R1 — an optional frame-level band presented IMMEDIATELY BELOW the header and ABOVE everything else the
+   * frame composes (the sidebar lead, the rail, the main landmark). It has no landmark and no wrapper of its
+   * own, because its consumer's surface (`SiteNotice`) is already a semantic `<aside>`: the frame's job is
+   * only to place shell chrome where the page structure cannot move it. Absent → nothing is rendered, so a
+   * build that presents no notice is byte-identical to before.
+   */
+  readonly notice?: ReactNode;
   /** Deterministic id for the `<main>` landmark (skip-link target). */
   readonly mainId: string;
   /** Optional class for the `<main>` landmark (layout-fidelity, e.g. `flex-1`). */
@@ -98,15 +108,10 @@ export interface ShellEngineProps {
   /** Region-aware bottom-bar spec (mobile "bottom-bar" pattern). */
   readonly bottomNav?: {
     readonly label: string;
-    readonly moreLabel: string;
     readonly links: readonly ShellBottomBarLink[];
     readonly demoBadgeLabel?: string;
-    /** P6-1 — label for the explicit "Hide navigation" control in the More drawer. */
-    readonly closeLabel?: string;
     /** P5-5 — bottom-menu presentation mode (open | compact | closed). */
     readonly mode?: MenuMode;
-    /** P5-5 — configuration for the shared "Close navigation" disclosure control. */
-    readonly sidebarClose?: { readonly icon?: string; readonly text?: string };
   };
   /** Client nav context: current locale + configured region page bindings. */
   readonly locale: string;
@@ -127,6 +132,7 @@ export interface ShellEngineProps {
 export function ShellEngine({
   resolved,
   header,
+  notice,
   main,
   footer,
   mainId,
@@ -373,6 +379,7 @@ export function ShellEngine({
         }
         main={main}
         footer={asideActive ? <div className={regionWidthClass}>{footer}</div> : footer}
+        notice={notice}
         sidebar={buildAside()}
         sidebarLead={sidebarDisclosure}
         // P6-3A — the rail owns its own width (`.ui-sidebar-rail`): a horizontal
@@ -535,26 +542,18 @@ export function ShellEngine({
             <ShellBottomBar
               key={composition.layout ?? "bottom-bar"}
               label={bottomNav.label}
-              moreLabel={bottomNav.moreLabel}
               links={bottomNav.links}
               locale={locale}
               pageBindings={pageBindings}
               siteSet={siteSet}
               demoBadgeLabel={bottomNav.demoBadgeLabel}
-              closeLabel={bottomNav.closeLabel}
               mode={bottomNav.mode}
-              sidebarClose={bottomNav.sidebarClose}
-              // SIDEBAR ASSET CORRECTION — the SAME resolved control the rail and this composition's own
-              // mobile disclosure use. The More drawer is a sidebar disclosure too, so it must not be the
-              // one surface whose icon a lower renderer has to guess as `/assets/<name>`.
-              sidebarOpen={sidebarOpen}
               bandsClassName={bandClassName(mobileSurfaceBands(composition.decision))}
               scope={layoutScopeAttributes(
                 "bottom-bar",
                 composition.layout === null ? [] : [composition.layout],
                 scopedLayouts,
               )}
-              activeLayouts={composition.layout === null ? undefined : [composition.layout]}
             />
           ))}
         </>

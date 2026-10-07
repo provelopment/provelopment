@@ -54,6 +54,7 @@ import { StatusGraphicProvider } from "@/components/site/status-graphic-context"
 import { StructuredData } from "@/components/site/structured-data";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
+import { SiteNotice } from "@/components/site/site-notice";
 import { ShellEngine } from "@/components/shell";
 import { SidebarPreferenceBoot } from "@/components/ui/sidebar-preference-boot";
 import { PageBanner } from "@/components/site/page-banner";
@@ -68,6 +69,7 @@ import { SafeMarkdownContent } from "@/components/site/safe-markdown-content";
 import { Heading } from "@/components/ui/heading";
 import { Section } from "@/components/ui/section";
 import { assertConfiguredIconAssetsExistFor } from "@/config/assets";
+import type { Dictionary } from "@/config/i18n/dictionary";
 import type { SpokeRuntimeContext } from "@/config/installation-runtime";
 import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
@@ -76,7 +78,9 @@ import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries
 import type { SiteConfig } from "@/config/site-config";
 import { effectiveSitePageConfig } from "@/config/site-page-config";
 import { siteDescriptionForLocale } from "@/config/site-metadata";
+import { spokeSwitcherForBuild } from "@/config/spoke-routing";
 import { buildLanguageAlternates } from "@/core/locale";
+import { resolveSiteNotice } from "@/core/notice";
 import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { pageRoutePathSegments } from "@/core/page-route-path";
 import {
@@ -100,6 +104,35 @@ import {
   type SiteRequest,
   type SiteSet,
 } from "@/core/site";
+
+/**
+ * R1 — ONE OPTIONAL DICTIONARY SECTION, REQUIRED HERE.
+ *
+ * The build's locks (`@/config/runtime-dictionaries` → `assertSiteNoticeCopyPresent`,
+ * `assertSpokeSwitcherLabelPresent`) guarantee that a Spoke presenting a notice, and an Installation
+ * authoring a switcher, resolve that copy for every locale they serve — so a VALID build always finds it. This
+ * converts that invariant into a typed non-optional value and makes a bypassed lock a LOUD internal error
+ * instead of an unnamed control or a blank notice.
+ *
+ * IT IS DEFINED LOCALLY ON PURPOSE. `@/config/i18n`'s `requireDictionarySection` is the same rule, but that
+ * module's body constructs the compatibility dictionary binding at import time — which is exactly the
+ * process-global Spoke authority this composition exists to avoid (a multi-Spoke build must compose two
+ * contexts in one process, A/B/A/B, without either influencing the other). The rule is three lines of typing,
+ * not a second dictionary authority.
+ */
+function requiredSection<T extends keyof Dictionary>(
+  dictionary: Dictionary,
+  section: T,
+): NonNullable<Dictionary[T]> {
+  const value = dictionary[section];
+  if (!value) {
+    throw new Error(
+      `R1: the dictionary section "${String(section)}" is missing; the build's feature lock should have ` +
+        "refused this deployment at configuration time.",
+    );
+  }
+  return value as NonNullable<Dictionary[T]>;
+}
 
 /**
  * EVERY CONTEXT-DERIVED FACT THE SERVER GRAPH NEEDS, built ONCE per composition.
@@ -743,22 +776,12 @@ export async function layoutForContext(
   const bottomNav = usesBottomBar
     ? {
         label: dictionary.navigation.primaryLabel,
-        moreLabel: dictionary.navigation.moreMenu,
+        // R1 — the retired "More" rule: the bar carries EVERY configured destination (see
+        // `shell-bottom-bar.tsx`), so the composer passes no More label and no drawer control content.
         links: navLinks,
-        // P6-1 — one vocabulary: the disclosure close control says "Hide navigation".
-        closeLabel: dictionary.navigation.hideSidebar,
         // P5-5 — the bottom navigation shares the same three-state menu
         // contract (open | compact | closed) as the top/sidebar menus.
         mode: resolvedUi.navigation.bottom.mode,
-        sidebarClose: {
-          // P6-1 — icon resolved to the runtime namespace that holds it, or to
-          // the shipped default role (never a broken image).
-          icon: assets.resolveIconControlUrl(
-            resolvedUi.navigation.sidebar.close.icon,
-            DEFAULT_SIDEBAR_CLOSE_ICON,
-          ),
-          text: resolvedUi.navigation.sidebar.close.text,
-        },
       }
     : undefined;
 
@@ -800,6 +823,33 @@ export async function layoutForContext(
     "data-ui-cta-state": resolvedUi.cta.state,
   };
 
+  // R1 — THE CROSS-SPOKE SWITCHER, resolved ONCE (Web-1 owner requirement 1). The OPTIONS come from the
+  // build's own routing description — the Installation's authored `spokeSwitcher`, every destination already
+  // proved routable to the Spoke it names at build time — and the MARKED Spoke is THIS context's identity,
+  // which the request boundary decided from the hostname. Nothing here infers an order, a label or a Spoke.
+  const authoredSpokeSwitcher = spokeSwitcherForBuild();
+  const spokeSwitch =
+    authoredSpokeSwitcher === null
+      ? undefined
+      : {
+          current: composition.context.id,
+          // The accessible name is the CURRENT LOCALE's dictionary answer; the build refused a build whose
+          // Installation authors a switcher without it for a served locale, so this lookup cannot fail in a
+          // valid build — and `requireDictionarySection` makes a bypassed lock a loud internal error rather
+          // than an unnamed control.
+          label: requiredSection(dictionary, "spokeSwitcher").label,
+          options: authoredSpokeSwitcher.options,
+        };
+
+  // R1 — THE SITE-WIDE NOTICE, resolved by the ONE pure rule from THIS Spoke's authored configuration, with
+  // the current locale's wording. The build's copy lock guarantees both fields for a Spoke that PRESENTS the
+  // notice; a Spoke that presents none composes nothing at all.
+  const siteNotice = resolveSiteNotice(siteConfig.siteNotice);
+  const notice =
+    siteNotice === null
+      ? undefined
+      : <SiteNotice notice={siteNotice} copy={requiredSection(dictionary, "siteNotice")} />;
+
   return (
     <html
       lang={localeTag}
@@ -823,12 +873,14 @@ export async function layoutForContext(
         <PageBanner banners={bannerMap} regionIds={regionIds} />
         <ShellEngine
           resolved={resolvedUi}
+          notice={notice}
           header={
             <SiteHeader
               locale={locale}
               resolved={resolvedUi}
               siteId={site.code}
               siteSwitch={siteSwitch}
+              spokeSwitch={spokeSwitch}
               siteConfig={siteConfig}
               dictionaryAccess={composition.dictionaries}
               assets={assets}

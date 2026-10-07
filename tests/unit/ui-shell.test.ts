@@ -5,12 +5,12 @@ import {
   densityClass,
   resolveShellPattern,
   resolveUiConfig,
-  splitBottomNavItems,
   type DesktopNavigationPattern,
   type MobileNavigationPattern,
   type ShellPrimitiveKind,
   type TabletNavigationPattern,
 } from "@/core/ui";
+import * as shellCore from "@/core/ui/shell";
 
 /**
  * UI-04 — Shell pattern decision core tests (pure, framework-free).
@@ -130,30 +130,25 @@ describe("resolveShellPattern — decision boundaries", () => {
   });
 });
 
-describe("splitBottomNavItems — deterministic bottom-bar content rule (UI-05)", () => {
-  const items = [1, 2, 3, 4, 5, 6, 7].map((n) => ({ href: `/${n}`, label: `Item ${n}` }));
-
-  it("primary = first 4 configured items; remainder exposed via More drawer only when non-empty", () => {
-    const split = splitBottomNavItems(items);
-    expect(split.primary.map((item) => item.href)).toEqual(["/1", "/2", "/3", "/4"]);
-    expect(split.remainder.map((item) => item.href)).toEqual(["/5", "/6", "/7"]);
-  });
-
-  it("≤ limit items → remainder empty (no More drawer)", () => {
-    const short = splitBottomNavItems(items.slice(0, 3));
-    expect(short.primary).toHaveLength(3);
-    expect(short.remainder).toEqual([]);
-    const exact = splitBottomNavItems(items.slice(0, 4));
-    expect(exact.primary).toHaveLength(4);
-    expect(exact.remainder).toEqual([]);
-  });
-
-  it("preserves configuration order and is a pure function", () => {
-    const a = splitBottomNavItems(items);
-    const b = splitBottomNavItems([...items]);
-    expect(a).toEqual(b);
-    expect([...a.primary, ...a.remainder].map((item) => item.href)).toEqual(
-      items.map((item) => item.href),
+describe("R1 — the retired 'first four + More' rule is GONE from the decision core", () => {
+  /**
+   * The owner retired the bottom bar's overflow presentation: every configured destination now renders in
+   * the bar and wraps. The platform constant and the split rule were REMOVED rather than left as dead
+   * compatibility logic, so the module no longer publishes either — this test fails if a future change
+   * reintroduces a "first N + remainder" content rule beside the wrapping bar.
+   */
+  it("no longer exports the limit or the split rule", () => {
+    expect(Object.keys(shellCore)).not.toContain("BOTTOM_NAV_PRIMARY_LIMIT");
+    expect(Object.keys(shellCore)).not.toContain("splitBottomNavItems");
+    expect(Object.keys(shellCore).sort()).toEqual(
+      [
+        "SHELL_BANDS",
+        "bandClassName",
+        "contentWidthClass",
+        "densityClass",
+        "mobileSurfaceBands",
+        "resolveShellPattern",
+      ].sort(),
     );
   });
 });

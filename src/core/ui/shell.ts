@@ -167,31 +167,16 @@ function mobileDecision(kind: ShellPrimitiveKind, trigger: boolean, ctaPresent: 
   };
 }
 
-/**
- * Deterministic BottomNavigation content rule (UI-05, requirement B).
+/** R1 — THE RETIRED "FIRST FOUR + MORE" RULE.
  *
- * The bottom bar shows the FIRST `BOTTOM_NAV_PRIMARY_LIMIT` (4) navigation items
- * in CONFIGURATION order; any remainder is exposed through the "More" drawer when
- * it is non-empty. This uses ONLY the existing ordered site content model
- * (`site.config.json` `navigation`) — no new mobile-navigation configuration
- * namespace and no invented business semantics. The limit is a Foundation-owned
- * design constant (a small bar with ≥44px touch targets).
+ * The bottom bar used to render the first four configured destinations and expose the rest through a "More"
+ * drawer (`BOTTOM_NAV_PRIMARY_LIMIT`, `splitBottomNavItems`). The owner retired that presentation: EVERY
+ * destination now renders DIRECTLY in the bar, flowing left-to-right and wrapping onto as many rows as the
+ * width requires, and no overflow control or drawer exists. The constant and the split rule were therefore
+ * REMOVED rather than left as dead compatibility logic — nothing else consumed them, and a surviving rule
+ * would read as if the retired presentation were still supported. `shell-bottom-bar.tsx` renders the whole
+ * ordered list; `BOTTOM_NAV_LIST_CLASS` already owns the wrapping.
  */
-export const BOTTOM_NAV_PRIMARY_LIMIT = 4;
-
-export interface BottomNavSplit<T> {
-  /** The items shown directly in the bottom bar (first N in configured order). */
-  readonly primary: readonly T[];
-  /** Remaining items exposed via the "More" drawer (empty → no drawer). */
-  readonly remainder: readonly T[];
-}
-
-export function splitBottomNavItems<T>(items: readonly T[]): BottomNavSplit<T> {
-  return {
-    primary: items.slice(0, BOTTOM_NAV_PRIMARY_LIMIT),
-    remainder: items.slice(BOTTOM_NAV_PRIMARY_LIMIT),
-  };
-}
 
 /** Density → inert marker class. The DEFAULT (`comfortable`) emits nothing —
  *  the shipped shell is byte-identical. Opt-in values expose a hook for design

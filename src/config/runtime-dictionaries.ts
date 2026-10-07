@@ -36,10 +36,16 @@
  * SERVER/BUILD ONLY: its answers come from files, so it must never become reachable from a client chunk.
  */
 import type { Locale } from "@/core/locale";
+import { resolveSiteNotice } from "@/core/notice";
 
 import type { Dictionary } from "./i18n/dictionary";
-import { assertBookingLabelPresent } from "./i18n/invariants";
+import {
+  assertBookingLabelPresent,
+  assertSiteNoticeCopyPresent,
+  assertSpokeSwitcherLabelPresent,
+} from "./i18n/invariants";
 import type { SpokeRuntimeContext } from "./installation-runtime";
+import { spokeSwitcherForBuild } from "./spoke-routing";
 import { loadSpokeDictionaryRegistry } from "./spoke-dictionaries";
 
 /**
@@ -82,6 +88,26 @@ export function dictionaryAccessForRuntimeContext(
     effectiveDictionaries,
     context.siteConfig.bookingFeature,
     [...effectiveDictionaries.keys()],
+  );
+
+  // R1 — THE SITE-WIDE NOTICE COPY LOCK, over the SAME effective (site, locale) dictionaries. A Spoke that
+  // PRESENTS the notice (`siteNotice.mode: "shown"`) must resolve its wording in every locale it serves, and
+  // the diagnostic names the Spoke, the (Site, locale) key and the missing FIELD — so a blank notice is
+  // impossible to publish and impossible to misdiagnose.
+  assertSiteNoticeCopyPresent(
+    effectiveDictionaries,
+    resolveSiteNotice(context.siteConfig.siteNotice),
+    `Spoke "${context.id}"`,
+  );
+
+  // R1 — THE CROSS-SPOKE SWITCHER LABEL LOCK. The control is INSTALLATION-level chrome (`spokeSwitcher` in
+  // the Spoke collection) that appears on every page of every Spoke, so the build's own routing description
+  // — the ONE authority that knows whether this Installation authors one — decides whether every served
+  // locale must be able to name it. A build with no switcher checks nothing.
+  assertSpokeSwitcherLabelPresent(
+    effectiveDictionaries,
+    spokeSwitcherForBuild() !== null,
+    `Spoke "${context.id}"`,
   );
 
   return Object.freeze({

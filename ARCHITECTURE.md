@@ -573,6 +573,40 @@ Spoke Hub                       the installation's coordinator of its Spokes (no
 - A **Site** is a context inside a Spoke (a country, or the global one) — not a domain. Several Sites may live on
   one domain, and one Site may be served in several languages.
 
+### The organizational Hub boundary, and the Hub-scoped Spoke switcher (R1)
+
+The levels above are STRUCTURAL. One ORGANIZATIONAL rule sits on top of them, and it is binding:
+
+- **ONE Installation represents ONE Hub** for organizational/navigation purposes, and every Spoke that
+  Installation declares is a **member** of that Hub. **The declaration is the whole membership boundary** —
+  there is no `hubId`, no organization registry and no second membership record anywhere in the platform.
+- A **Hub-scoped Spoke switcher** (`spokeSwitcher`, the fifth manifest leaf) may therefore offer **only**
+  declared members, and every option's destination must route back to the member it names — its canonical
+  origin, one of its additional hostname claims, or an inspection hostname the policy nominates for it. The
+  ROUTING CHECK is the enforcement mechanism: an unrelated organization's hostname is refused at build time
+  because it is not a routing claim of any member.
+- A **domain suffix does not determine membership**: `support.acme.com`, `acme.de`, `acme-australia.com` and
+  `www.acme.com` may be members together when they are **declared** in the same Installation; an unrelated
+  `www.abc.com` is not switchable in that Hub no matter how its URL is authored.
+- **Template/provisioning lineage is NOT Hub membership.** A centrally managed template (for example a
+  white-label reseller template for several countries) may later provision and update INDEPENDENT
+  Installations. That is a template/update relationship: using such a template does **not** place a reseller's
+  website in the template owner's Hub switcher, and an autonomous reseller or customer remains its **own**
+  Hub/Installation. Only being declared as a Spoke in the same manifest creates membership.
+
+**The dimensions are not each other**, and the switcher collapses none of them:
+
+| Dimension | What it is | Control that moves within it |
+| --- | --- | --- |
+| **Hub** | the organizational/navigation association boundary — ONE per Installation | none: it is the SCOPE the switcher moves within |
+| **Spoke** | a complete website/domain context, a member of exactly one Hub | the Hub-scoped Spoke switcher (`spokeSwitcher`) |
+| **Site** | a country/global context INSIDE one Spoke | the Site selector |
+| **Location** | a physical/business location INSIDE one Site | the Location selector |
+| **Language** | an independent locale dimension | the Language selector |
+
+So the Spoke switcher moves **Spoke → Spoke within the SAME Hub**. It is not Site switching, not Location
+switching, not Language switching, and not arbitrary external navigation.
+
 ## The installation is the boundary
 
 **A Foundation installation is the smallest Foundation lifecycle unit.** One installation is:
@@ -1482,8 +1516,8 @@ that consumes the RESOLVED semantic intent (UI-02) and the shared primitives
     header-slot (top-bar) composition renders byte-identically to the previous
     shell at those widths.
   * **Mobile (<`md`) → intentionally modernized** to the declared mobile
-    pattern (the roadmap-Classic drawer; with Adaptive, the bottom bar + More
-    drawer).
+    pattern (the roadmap-Classic drawer; with Adaptive, the bottom bar — which
+    carries EVERY configured destination and wraps its rows; no overflow drawer).
   Note: this is NOT a "zero visual delta" claim across all viewports — the
   mobile navigation is intentionally the declared (modernized) pattern.
 

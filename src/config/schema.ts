@@ -7,6 +7,9 @@ import { isIanaTimeZone } from "@/core/business-hours";
 // contract and the content repository use — never a restated copy of the regex.
 import { CONTENT_SLUG_PATTERN } from "@/core/page-content";
 import { LOCALE_PATTERN } from "@/core/locale";
+// R1 — the ONE vocabulary for the optional site-wide notice (mode/tone). The schema and the shell's
+// resolver (`@/core/notice`) share it, so no component can treat a mode or a tone the build refused.
+import { SITE_NOTICE_MODES, SITE_NOTICE_TONES } from "@/core/notice";
 // LOC1 — the ONE shape rule and the ONE set of cross-reference rules for a Site's
 // OPTIONAL Location-selection policy. The schema applies the same functions the
 // resolver and the route boundary use, so none of the three can disagree.
@@ -713,6 +716,32 @@ export const legalEntrySchema = z.object({
  * (`position`, `iconOpen`, `iconClosed`) are accepted for shape-compatibility
  * but have no meaning in a footer group and are ignored by the footer renderer.
  */
+/**
+ * R1 — THE OPTIONAL SITE-WIDE NOTICE (generic shell chrome).
+ *
+ * An OPT-IN message the shell presents on EVERY page of the Spoke that enables it — the capability an
+ * adopter uses when every visitor must be told something (a demonstration site carries fictitious business
+ * information, a service is interrupted, an offer applies site-wide) WITHOUT copying that message into each
+ * page's authored content. The WORDS are not here: they are localized copy, read from the dictionary
+ * (`siteNotice.title` / `siteNotice.body`, see `@/config/i18n/dictionary`), and a Spoke that enables the
+ * notice without copy for a locale it serves is REFUSED at build time (`@/config/runtime-dictionaries` →
+ * `assertSiteNoticeCopyPresent`) rather than publishing a blank notice.
+ *
+ * The vocabulary itself lives in the pure domain (`@/core/notice`), so the schema, the loader, the resolver
+ * and the tests cannot drift about what a mode or a tone is.
+ */
+export const siteNoticeSchema = z
+  .object({
+    /** `shown` presents the notice; `hidden` silences it while its wording stays authored. */
+    mode: z.enum(SITE_NOTICE_MODES, { message: "supported modes: shown, hidden" }),
+    /**
+     * INTENT, never a colour: `information` (the default) or `attention`. The shell maps a tone onto
+     * accessible markup and an existing design token — no adopter-specific styling enters the platform.
+     */
+    tone: z.enum(SITE_NOTICE_TONES, { message: "supported tones: information, attention" }).optional(),
+  })
+  .strict();
+
 export const footerNavigationSchema = z
   .object({
     /** The group heading. OPTIONAL, plain text, never a link. */
@@ -1242,6 +1271,13 @@ export const siteConfigFileSchema = z
    * Absent → no footer group is rendered (every existing site is unaffected).
    */
   footerNavigation: footerNavigationSchema.optional(),
+  /**
+   * R1 — the OPTIONAL SITE-WIDE NOTICE this Spoke presents to every visitor on every page (generic shell
+   * chrome). Absent → no notice, no markup and no attribute, so every existing installation is unchanged.
+   * A Spoke that enables it must resolve its localized copy for every locale it serves; that requirement is
+   * enforced where the dictionaries are loaded (`@/config/runtime-dictionaries`).
+   */
+  siteNotice: siteNoticeSchema.optional(),
   /**
    * UI system configuration (UI-01). Optional, intent-level contract
    * namespace; see ARCHITECTURE.md — UI System Architecture & Configuration

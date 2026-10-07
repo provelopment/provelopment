@@ -7,7 +7,7 @@ import { formatAddress, resolveBusinessForLocale } from "@/core/business";
 import { resolveTimezone } from "@/core/business-hours";
 import { timezoneDisplayLabel } from "@/core/display-labels";
 import { CurrentStatus } from "./current-status";
-import { FOOTER_LINK_CLASS } from "./footer-link-class";
+import { FOOTER_HEADING_BOX_CLASS, FOOTER_HEADING_CLASS, FOOTER_LINK_CLASS } from "./footer-link-class";
 
 const WEEKDAY_ORDER: readonly Weekday[] = [
   "mon", "tue", "wed", "thu", "fri", "sat", "sun",
@@ -177,9 +177,11 @@ export function BusinessInfo({
   if (!business.locations.length && !primaryEmail && !primaryPhone) return null;
 
   return (
-    <div>
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        {dictionary.sections.contact}
+    <div className="min-w-0">
+      {/* R1 — the ONE footer heading contract: the typography and the text's box come from the shared footer
+          module, so this column's heading aligns with the linked Connect heading and the other groups. */}
+      <h2 className={FOOTER_HEADING_CLASS}>
+        <span className={FOOTER_HEADING_BOX_CLASS}>{dictionary.sections.contact}</span>
       </h2>
 
       {primaryEmail ? (

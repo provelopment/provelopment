@@ -158,6 +158,33 @@ export const dictionarySchema = z.object({
     /** Localized footer labels keyed by legal slug. */
     labels: z.record(z.string(), z.string()),
   }),
+  /**
+   * R1 — the OPTIONAL site-wide notice copy (`siteNotice` in `site.config.json`). OPTIONAL because the
+   * capability is opt-in: a deployment that presents no notice has no such section, and its absence is a
+   * valid state rather than a missing translation. A Spoke that ENABLES the notice must resolve BOTH fields
+   * for every locale it serves — enforced at build time (`assertSiteNoticeCopyPresent`), so an enabled
+   * notice can never render blank.
+   */
+  siteNotice: z
+    .object({
+      /** The notice's short leading line. */
+      title: z.string(),
+      /** The notice's sentence(s). */
+      body: z.string(),
+    })
+    .optional(),
+  /**
+   * R1 — the ACCESSIBLE NAME of the cross-Spoke switcher control. OPTIONAL for the same reason: only an
+   * Installation that authors `spokeSwitcher` in its manifest renders the control, and only then must every
+   * served locale be able to name it (enforced at build time, `assertSpokeSwitcherLabelPresent`). The
+   * labels a visitor READS are authored per option in the manifest — they name Spokes, so they are not a
+   * vocabulary term a locale dictionary could own.
+   */
+  spokeSwitcher: z
+    .object({
+      label: z.string(),
+    })
+    .optional(),
 });
 
 export type Dictionary = z.infer<typeof dictionarySchema>;
@@ -267,6 +294,9 @@ export const dictionaryOverrideSchema = z
     }).optional(),
     booking: optionalLeaves({ book: z.string() }).optional(),
     legal: optionalLeaves({ heading: z.string(), labels: overrideRecord }).optional(),
+    /** R1 — the site-wide notice copy and the switcher's accessible name, overridable like any section. */
+    siteNotice: optionalLeaves({ title: z.string(), body: z.string() }).optional(),
+    spokeSwitcher: optionalLeaves({ label: z.string() }).optional(),
   })
   .strict();
 

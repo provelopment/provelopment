@@ -216,7 +216,7 @@ describe("P6-3C — ONE authoritative top-region CTA (never per-viewport placeme
         mainId: "main",
         navigationLabel: "Primary",
         asideContent: items,
-        bottomNav: { label: "Primary", moreLabel: "More", links: [{ href: "/1", label: "One" }] },
+        bottomNav: { label: "Primary", links: [{ href: "/1", label: "One" }] },
         ctaLabel: "Book",
         ctaHref: "/book",
         locale: "en",

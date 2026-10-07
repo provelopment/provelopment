@@ -139,6 +139,25 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "required-Location policy and one regional page) and removes, each behind its own dev server — every write " +
     "through the harness's own guarded writers. The committed fixture, the selected deployment and the " +
     "repository are only ever READ (LOC1)",
+  "tests/browser/parity-chrome.scenario.mjs":
+    "OS temp only: TWO disposable copies of the committed synthetic deployment it materialises, patches (one " +
+    "presenting the site-wide notice with a long contact address, one without it) and removes, each behind its " +
+    "own dev server — every write through the harness's own guarded writers. The committed fixture, the " +
+    "selected deployment and the repository are only ever READ (R1)",
+  "tests/unit/spoke-host-aliases.test.ts":
+    "OS temp only: disposable Installation roots (manifest + one site.config.json per Spoke) it creates for the " +
+    "additional-hostname-claim proofs and removes afterwards — no deployment or committed fixture is touched (R1)",
+  "tests/unit/spoke-switcher.test.ts":
+    "OS temp only: disposable Installation roots it creates for the cross-Spoke switcher's build-time proofs " +
+    "(including one manifest it rewrites to prove a structural refusal) and removes afterwards (R1)",
+  "tests/support/four-spoke-installation.mjs":
+    "OS temp only: the disposable FOUR-SPOKE Installation (one Hub: manifest, per-Spoke configuration, " +
+    "dictionaries and content) it authors for the Hub-scoped switcher's browser proof, and the caller removes. " +
+    "The committed synthetic fixture is only ever READ (R1)",
+  "tests/browser/hub-switcher.scenario.mjs":
+    "OS temp only: the disposable four-Spoke Installation (materialised through that fixture builder) and its " +
+    "dev server; the browser reads the rendered pages. Every write goes through the harness's own guarded " +
+    "writers, and the copy is removed when the run ends (R1)",
   "tests/support/multihost-installation.mjs":
     "OS temp only: the disposable two-Spoke Installation it authors and the caller removes",
   "tests/unit/spoke-request-context.test.ts":
