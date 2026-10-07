@@ -2098,6 +2098,63 @@ Key behavior:
   Site**; keep or replace it. The old "My Site" placeholder is gone from
   visitor-facing copy.
 
+### Requiring a Location per Site (`sites[].locationSelection`) — LOC1
+
+Keep the two concepts apart first — they are independent:
+
+| Concept | What it is | Where it lives |
+| --- | --- | --- |
+| **Site** | the country/global context *inside* the active website (its own pages, languages and Locations) | the first URL segment (`/ca/en/...`) |
+| **Location** | the physical/business place *inside* that Site (address, phone, hours, currency) | `business.regions` + that Site's `business.pages` bindings |
+
+By default a Site is **optional-location**: the Location control offers an explicit *Unspecified*
+choice, and non-regional routes (`/ca/en`, `/ca/en/about`) are valid pages with no operating identity.
+A Site whose every page belongs to a place can instead say so — **once, about itself**:
+
+```jsonc
+"sites": [
+  {
+    "code": "ca",                                  // the Site this policy is about
+    "locales": ["en", "fr"],
+    "defaultLocale": "en",
+    "locationSelection": {
+      "mode": "required",                          // the ONLY mode; omit the block for optional behaviour
+      "default": "toronto"                         // YOUR choice — never inferred from order/locale/timezone
+    }
+  }
+]
+```
+
+What `required` changes, and nothing else:
+
+- **No unspecified state.** The Location control drops its *Unspecified* option; the configured
+  `default` Location is the natural selection and leads the list. The remaining Locations keep their
+  usual (label) order, and the inventory is still the ACTIVE Site's own Locations only.
+- **Non-regional URLs are completed into the default Location, publicly.** `/ca/en` →
+  `/ca/en/toronto`; `/ca/en/about` → `/ca/en/toronto/about` (when that Location has the page — else its
+  landing). `/{site}/{locale}` and `/{site}/{locale}/{page}` therefore always end up inside a Location.
+  The requested locale is kept when the default Location is bound to it; otherwise the Location's own
+  configured `defaultLocale` decides, exactly as the Location selector already does. A URL that already
+  names a Location — including one that is not the default — is answered unchanged.
+- **The Location stays in the URL.** Nothing is stored in a cookie, a session, `localStorage`, an
+  environment variable or any other hidden state: the URL is still the Location's authority, and the
+  redirect is the only mechanism.
+- **Discovery follows.** Because those non-regional URLs are redirects, a required Site's sitemap
+  publishes its Location inventory (landings and regional pages) and deliberately does not advertise
+  the non-regional forms as visitor destinations.
+- **Errors are configuration errors.** A policy that cannot be honoured is **rejected at build time**,
+  naming the Site, the configured `default` and the rule broken:
+  - `default` must exist in `business.regions`;
+  - the Site must actually bind Locations (`business.pages`);
+  - `default` must be one of THIS Site's Locations — another Site's Location can never satisfy it;
+  - `default` must have a usable landing in this Site (a locale bound to it with a landing entry).
+  It never becomes a runtime 404.
+
+Backward compatibility is intentional and total: **absent `locationSelection` = today's behaviour**.
+Existing Sites keep the *Unspecified* option, non-regional routes stay valid, and no configuration needs
+migrating. `mode` accepts exactly one value (`"required"`); there is no deployment-wide switch and no
+second spelling.
+
 ### Presentation localization, timezone heading & Connect gateway (Phase M refinement)
 
 - **Localized + English display names.** Add `englishLabel` to each
