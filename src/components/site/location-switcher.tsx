@@ -9,6 +9,8 @@ import {
   resolveLocationDestination,
   unspecifiedDestination,
 } from "@/core/regional-pages";
+// LOC1 — the ONE selector-ordering rule for a Site that REQUIRES a Location.
+import { orderedLocationIdsForSelector } from "@/core/location-selection";
 import { pathContextOr, sitePrefixPath } from "@/core/site";
 import { useClientRouting } from "./client-routing-context";
 
@@ -33,8 +35,12 @@ interface LocationSwitcherProps {
  *    is authoritative; page bindings only decide which combinations exist), so
  *    the list never shrinks to "locations compatible with my language" and is
  *    never lost after selecting a region;
- *  - an explicit **Unspecified** (default) option is ALWAYS present, returning
- *    to the equivalent non-regional page (`/en/toronto/about` → `/en/about`);
+ *  - an explicit **Unspecified** (default) option returns to the equivalent
+ *    non-regional page (`/en/toronto/about` → `/en/about`). It is present for
+ *    every OPTIONAL Site — and for a Site that REQUIRES a Location (LOC1) it is
+ *    deliberately NOT rendered, because such a Site has no unspecified visitor
+ *    state: its configured default Location is the natural selection and the
+ *    Location its non-regional URLs are completed into;
  *  - switching to a region preserves the current locale + page when that
  *    combination exists; when the current locale is not bound to the region,
  *    the region's configured `defaultLocale` + landing is chosen
@@ -67,16 +73,26 @@ export function LocationSwitcher({
   // never answer here, even when the two sites share a locale).
   const sitePrefix = sitePrefixPath(parsed.site);
   const entries = bindingsForSite(routing.pageBindings, parsed.site.code);
+  // LOC1 — THE ACTIVE SITE'S OWN LOCATION-SELECTION POLICY (`null` = the established optional
+  // behaviour). It travels ON the resolved Site, so it is read for THIS Site only and can never leak
+  // from, or into, another; the client re-derives no policy and infers no default Location.
+  const policy = parsed.site.locationSelection ?? null;
   // R1C — the inventory is THIS SITE's own locations (never another site's, and never the
   // deployment's full region list), exactly as this component's contract already stated: the
   // selector picks a place whose pages are shared with THIS site's tree, so a Location can never
   // be offered where it has no destination. Displayed order stays alphabetical by label, using the
-  // projection's plain sort label (`label ?? name ?? id`) — the same one the server used.
+  // projection's plain sort label (`label ?? name ?? id`) — the same one the server used — and a
+  // REQUIRED Site leads with its configured default Location (LOC1); optional ordering is untouched.
   const regionLabelOf = (regionId: string): string => routing.regionSortLabels[regionId] ?? regionId;
-  const availableRegions = [...regionsForSite(routing.pageBindings, parsed.site.code)].sort((a, b) =>
-    regionLabelOf(a).localeCompare(regionLabelOf(b), "en", { sensitivity: "base" }),
+  const availableRegions = orderedLocationIdsForSelector(
+    [...regionsForSite(routing.pageBindings, parsed.site.code)].sort((a, b) =>
+      regionLabelOf(a).localeCompare(regionLabelOf(b), "en", { sensitivity: "base" }),
+    ),
+    policy,
   );
-  const activeRegion = parsed.region ?? "";
+  // LOC1 — in a REQUIRED Site the visitor's Location is never unspecified: the configured default is the
+  // natural selection, and it is the Location this Site's non-regional URLs are completed into.
+  const activeRegion = parsed.region ?? policy?.default ?? "";
 
   function handleChange(nextRegion: string) {
     if (nextRegion === activeRegion) {
@@ -110,9 +126,13 @@ export function LocationSwitcher({
       onChange={(event) => handleChange(event.target.value)}
       className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
     >
-      <option key="" value="">
-        {unspecifiedLabel}
-      </option>
+      {/* LOC1 — an OPTIONAL Site keeps its explicit unspecified option exactly; a Site that REQUIRES a
+          Location offers none, because it has no unspecified visitor state to return to. */}
+      {policy === null ? (
+        <option key="" value="">
+          {unspecifiedLabel}
+        </option>
+      ) : null}
       {availableRegions.map((regionId) => (
         <option key={regionId} value={regionId}>
           {regionLabels[regionId]}

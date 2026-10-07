@@ -41,6 +41,12 @@ export async function sitemapForContext(
   for (const site of siteConfig.sites) {
     const bindings = bindingsForSite(siteConfig.pageBindings, site.code);
     const prefix = sitePrefixPath(site);
+    // LOC1 — A SITE THAT REQUIRES A LOCATION PUBLISHES NO UNSPECIFIED DESTINATION. Every non-regional
+    // path of such a Site is a redirect into its configured default Location, so the flat
+    // `/{site}/{locale}/{route}` form is not a visitor destination and is deliberately not advertised:
+    // the canonical inventory of that Site is the regional one emitted below. An OPTIONAL Site is
+    // unchanged.
+    const requiresLocation = (site.locationSelection ?? null) !== null;
 
     for (const siteLocale of site.locales) {
       const locale = siteLocale.path;
@@ -51,11 +57,13 @@ export async function sitemapForContext(
         (routePath) => !regional.includes(routePath),
       );
 
-      for (const route of buildSitemapRoutes({ pages: routePaths })) {
-        entries.push({
-          url: `${siteConfig.url}${sitePath(site, locale, route.replace(/^\//, "")) as string}`,
-          lastModified,
-        });
+      if (!requiresLocation) {
+        for (const route of buildSitemapRoutes({ pages: routePaths })) {
+          entries.push({
+            url: `${siteConfig.url}${sitePath(site, locale, route.replace(/^\//, "")) as string}`,
+            lastModified,
+          });
+        }
       }
 
       // Regional landings `/{locale}/{region}` (only configured for this locale + site).

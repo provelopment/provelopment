@@ -5,7 +5,8 @@ import { siteConfigFileSchema } from "./schema";
 import type { Business, BusinessContact } from "@/core/business";
 import { assertValidAddressPresentation } from "@/core/business";
 import type { OperationalRegion, PageRegionBinding } from "@/core/region";
-import { assertRegionsValid } from "@/core/region";
+import { assertRegionsValid, normalizePageRegionBindings, type AuthoredPageRegionBinding } from "@/core/region";
+import { assertLocationSelectionValid } from "@/core/location-selection";
 import { resolveSites } from "@/core/site";
 import type { SiteConfig, SitePageOverrides } from "./site-config";
 import { hubsForAuthoredSites } from "./hub-membership";
@@ -78,6 +79,13 @@ export function parseSiteConfig(raw: unknown): SiteConfig {
   // locale membership, address-presentation invariants). Loud at build time so
   // a regional page never silently falls back to a global/other identity.
   assertRegionsValid(regions, pageBindings, localeCodes);
+
+  // LOC1 — a Site that REQUIRES a Location must be able to honour it: the configured default must be an
+  // operating Location of THAT Site's own inventory with a usable landing destination, and a Site that
+  // binds no Location may not require one. The rules are the core module's — the very functions the
+  // schema validates with — so configuration validation and runtime resolution cannot disagree, and an
+  // unhonourable policy fails HERE rather than becoming a runtime 404.
+  assertLocationSelectionValid({ sites, regions, bindings: pageBindings });
 
   return {
     url: json.site.url,
@@ -215,18 +223,13 @@ function toRegions(json: SiteConfigFile): Readonly<Record<string, OperationalReg
  *    the DEFAULT site, so a single-site deployment keeps its configuration as it was.
  */
 function toPageBindings(
-  raw:
-    | readonly { site?: string; locale: string; region: string; slug?: string }[]
-    | undefined,
+  raw: readonly AuthoredPageRegionBinding[] | undefined,
   defaultSiteId: string,
 ): readonly PageRegionBinding[] {
-  return (raw ?? []).map((entry) => {
-    const site = entry.site ?? defaultSiteId;
-    if (entry.slug === undefined || entry.slug === entry.region) {
-      return { site, locale: entry.locale, region: entry.region, slug: null };
-    }
-    return { site, locale: entry.locale, region: entry.region, slug: entry.slug };
-  });
+  // THE ONE normalization rule, in the domain that owns the binding shape
+  // (`@/core/region`): the schema validates with the SAME function, so what the author wrote is
+  // understood identically here and there.
+  return normalizePageRegionBindings(raw, defaultSiteId);
 }
 
 /**
