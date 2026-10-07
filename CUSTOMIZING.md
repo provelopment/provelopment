@@ -2098,7 +2098,7 @@ Key behavior:
   Site**; keep or replace it. The old "My Site" placeholder is gone from
   visitor-facing copy.
 
-### Requiring a Location per Site (`sites[].locationSelection`) — LOC1
+### Requiring a Location per Site (`sites[].locationSelection`) — LOC1, LOC2
 
 Keep the two concepts apart first — they are independent:
 
@@ -2119,7 +2119,9 @@ A Site whose every page belongs to a place can instead say so — **once, about 
     "defaultLocale": "en",
     "locationSelection": {
       "mode": "required",                          // the ONLY mode; omit the block for optional behaviour
-      "default": "toronto"                         // YOUR choice — never inferred from order/locale/timezone
+      "default": "toronto",                        // YOUR choice — never inferred from order/locale/timezone
+      "localeDefaults": { "fr": "montreal" }       // OPTIONAL (LOC2): the Location that completes a
+                                                   // Location-less request in THAT locale — also YOUR choice
     }
   }
 ]
@@ -2136,6 +2138,17 @@ What `required` changes, and nothing else:
   The requested locale is kept when the default Location is bound to it; otherwise the Location's own
   configured `defaultLocale` decides, exactly as the Location selector already does. A URL that already
   names a Location — including one that is not the default — is answered unchanged.
+- **…and, if YOU say so, into a DIFFERENT Location per locale (LOC2).** When a Site's languages are
+  different places, name the Location that completes a Location-less request in that language:
+  `"localeDefaults": { "fr": "montreal" }` → `/ca/fr` → `/ca/fr/montreal`, while every locale you do not
+  name keeps the Site-wide `default`. Three things this is *not*:
+  - **not inference** — the platform knows no association between a language and a place, so nothing is
+    derived from a language, a country, a timezone or an order; if `fr` should land in Montréal, you
+    write it down;
+  - **not a replacement for the URL** — it is consulted ONLY while completing a request that names no
+    Location yet, so once a Location is in the URL the URL wins, in every locale;
+  - **not a second site-wide default** — it is a refinement of the completion, per Site and per locale,
+    and omitting `localeDefaults` is exactly the LOC1 behaviour.
 - **The Location stays in the URL.** Nothing is stored in a cookie, a session, `localStorage`, an
   environment variable or any other hidden state: the URL is still the Location's authority, and the
   redirect is the only mechanism.
@@ -2143,17 +2156,24 @@ What `required` changes, and nothing else:
   publishes its Location inventory (landings and regional pages) and deliberately does not advertise
   the non-regional forms as visitor destinations.
 - **Errors are configuration errors.** A policy that cannot be honoured is **rejected at build time**,
-  naming the Site, the configured `default` and the rule broken:
+  naming the Site, the configured Location and the rule broken:
   - `default` must exist in `business.regions`;
   - the Site must actually bind Locations (`business.pages`);
   - `default` must be one of THIS Site's Locations — another Site's Location can never satisfy it;
-  - `default` must have a usable landing in this Site (a locale bound to it with a landing entry).
+  - `default` must have a usable landing in this Site (a locale bound to it with a landing entry);
+  - and, for **each `localeDefaults` entry** (LOC2):
+    - the locale key must be one THIS Site serves;
+    - its Location must exist in `business.regions`;
+    - its Location must be one of THIS Site's Locations (the Site that owns it is named otherwise);
+    - its Location must have a landing in **that exact locale** — a refinement may never fall back to
+      another locale, because that is exactly what you authored it to prevent.
   It never becomes a runtime 404.
 
-Backward compatibility is intentional and total: **absent `locationSelection` = today's behaviour**.
-Existing Sites keep the *Unspecified* option, non-regional routes stay valid, and no configuration needs
-migrating. `mode` accepts exactly one value (`"required"`); there is no deployment-wide switch and no
-second spelling.
+Backward compatibility is intentional and total: **absent `locationSelection` = today's behaviour**, and
+**absent `localeDefaults` = the LOC1 behaviour**. Existing Sites keep the *Unspecified* option,
+non-regional routes stay valid, a required Site's locales you do not refine keep its site-wide `default`,
+and no configuration needs migrating. `mode` accepts exactly one value (`"required"`); there is no
+deployment-wide switch, no per-locale mode and no second spelling.
 
 ### Presentation localization, timezone heading & Connect gateway (Phase M refinement)
 

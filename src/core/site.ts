@@ -1,8 +1,7 @@
 import { pageRoutePath, pageRoutePathSegments } from "./page-route-path";
 import {
-  isLocationSelectionPolicy,
   locationSelectionIssue,
-  REQUIRED_LOCATION_SELECTION_MODE,
+  locationSelectionPolicyFrom,
   type AuthoredLocationSelection,
   type LocationSelectionPolicy,
 } from "./location-selection";
@@ -176,16 +175,14 @@ export function resolveSites(options: ResolveSitesOptions): SiteSet {
     if (seenCodes.has(code)) issues.push(`duplicate site "${code}"`);
     seenCodes.add(code);
 
-    // LOC1 — THE SITE'S OWN LOCATION-SELECTION POLICY, read through the ONE shape rule
-    // (`@/core/location-selection` — the very predicate the configuration schema applies). A block that
-    // is present but unusable is REPORTED, never silently dropped: a policy that reads as if it did
+    // LOC1/LOC2 — THE SITE'S OWN LOCATION-SELECTION POLICY, projected through the ONE authority
+    // (`@/core/location-selection` — the very predicate the configuration schema applies, so a LOC2
+    // `localeDefaults` refinement can never be dropped on the way to the runtime). A block that is
+    // present but unusable is REPORTED, never silently dropped: a policy that reads as if it did
     // something while doing nothing is exactly the outcome worth a loud failure.
     const authoredLocationSelection = raw.locationSelection;
-    const locationSelection: LocationSelectionPolicy | null = isLocationSelectionPolicy(
-      authoredLocationSelection,
-    )
-      ? { mode: REQUIRED_LOCATION_SELECTION_MODE, default: authoredLocationSelection.default }
-      : null;
+    const locationSelection: LocationSelectionPolicy | null =
+      locationSelectionPolicyFrom(authoredLocationSelection);
     if (authoredLocationSelection !== undefined && locationSelection === null) {
       issues.push(`site "${code}": ${locationSelectionIssue(authoredLocationSelection)}`);
     }

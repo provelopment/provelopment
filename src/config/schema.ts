@@ -1123,22 +1123,40 @@ const siteConfigEntrySchema = z
       .optional(),
     fallback: z.boolean().optional(),
     /**
-     * LOC1 — THIS SITE'S OPTIONAL LOCATION-SELECTION POLICY.
+     * LOC1/LOC2 — THIS SITE'S OPTIONAL LOCATION-SELECTION POLICY.
      *
      * STRUCTURAL TYPING ONLY. This leaf says "a block of this shape may be authored here" and nothing
-     * more: the ONE SHAPE rule (`mode === "required"`, a non-empty `default`) belongs to the ONE
-     * authority, `@/core/location-selection` (`locationSelectionIssue`), and is applied below — so the
-     * message an author sees is the message the resolver gives. The CROSS-REFERENCE rules (the default
-     * must be a configured Location of THIS Site's own inventory with a usable landing destination) are
+     * more: the ONE SHAPE rule (`mode === "required"`, a non-empty `default`, and — LOC2 — a
+     * `localeDefaults` object of non-empty entries) belongs to the ONE authority,
+     * `@/core/location-selection` (`locationSelectionIssue`), and is applied below — so the message an
+     * author sees is the message the resolver gives. The CROSS-REFERENCE rules (the default must be a
+     * configured Location of THIS Site's own inventory with a usable landing destination, and each LOC2
+     * refinement must be a locale THIS Site serves whose Location has a landing IN THAT EXACT locale) are
      * applied by the same module in the file-level refinement.
      *
+     * The refinement KEYS are typed with the ONE locale authority (`LOCALE_PATH_KEY_PATTERN`), never a
+     * second locale parser; whether the Site actually serves that locale is a cross-reference rule, not a
+     * shape rule, and lives in the module with the rest of them.
+     *
      * ABSENT is a first-class state: a Site that declares no policy keeps the established optional
-     * behaviour exactly, so no existing configuration becomes required-Location and none needs migrating.
+     * behaviour exactly, and a policy without `localeDefaults` keeps the LOC1 behaviour exactly, so no
+     * existing configuration becomes required-Location and none needs migrating.
      */
     locationSelection: z
       .object({
         mode: z.string().optional(),
         default: z.string().optional(),
+        localeDefaults: z
+          .record(
+            z
+              .string()
+              .regex(
+                LOCALE_PATH_KEY_PATTERN,
+                "must be a lowercase locale path key such as \"fr\" or \"fr-ca\"",
+              ),
+            z.string().min(1, "must name a Location of this site"),
+          )
+          .optional(),
       })
       .strict()
       .superRefine((value, ctx) => {

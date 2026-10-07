@@ -1871,7 +1871,7 @@ selector; the Layout switcher disabled → no Layout control. The Location inven
 site's** (`regionsForSite`): a location belongs to one Site's page tree, so a Site that binds none
 never offers another Site's locations — and never a destination that does not exist.
 
-### Required Locations — the per-Site location-selection policy (FOUNDATION-LOC1)
+### Required Locations — the per-Site location-selection policy (FOUNDATION-LOC1, LOC2)
 
 A **Site** is the country/global context inside the active website; a **Location** is the physical or
 business place *inside* that Site. Until LOC1 every Site had two visitor states — a Location, or the
@@ -1889,45 +1889,74 @@ page belongs to a place wants the opposite, and must be able to say so **about i
 ]
 ```
 
+**LOC2 — an explicit refinement per locale.** A multi-locale Site whose languages are *different places*
+would otherwise complete every language into one Location. The adopter may therefore name, **once and
+explicitly**, the Location that completes an otherwise Location-less request **for one locale**:
+
+```jsonc
+"locationSelection": {
+  "mode": "required",
+  "default": "toronto",              // the Site-wide fallback (LOC1)
+  "localeDefaults": { "fr": "montreal" }   // OPTIONAL, explicit, per locale path key
+}
+```
+
 The policy is **optional, per Site and explicit**:
 
 * **absent** → the established optional behaviour, EXACTLY: the Location selector keeps its explicit
   unspecified option, non-regional routes stay valid, and no existing configuration needs migrating.
   No Installation becomes required-Location by accident.
 * **`mode: "required"`** → the Site has **no visitor-facing unspecified state**. Its non-regional public
-  paths are completed into the configured default Location, and its Location control offers no
+  paths are completed into the Location the effective default answers, and its Location control offers no
   unspecified option. `"required"` is the ONLY mode; there is no second one, and no deployment-wide
   switch.
 * **`default`** → an adopter decision, **never inferred** — not from alphabetical order, binding order,
   locale, timezone, country, the browser, "the first region" or "the first binding".
+* **`localeDefaults`** (LOC2) → an adopter decision too, and **never locale→Location inference**: the
+  platform knows no association between a language and a place ("French means Montréal" exists nowhere
+  in it). Each entry is *authored* data keyed by a locale path key the Site serves, and an entry is used
+  **only while completing a request that does not yet name a Location** — see *Routing* below. It is
+  OPTIONAL, and a policy without it is exactly the LOC1 policy.
 
 **Routing.** `/{site}/{locale}` and `/{site}/{locale}/{page}` of a required Site answer with a PUBLIC
-redirect into the default Location, resolved by the accepted Location destination rule — the same page
-there when it exists, that Location's landing otherwise, and the accepted `regionDefaultLocale` rule
-when the requested locale is not bound to the Location. There is no second locale algorithm, no
-second destination rule and no hidden state: the Location stays **URL-authoritative**, so a request
-that already names one of the Site's Locations is answered exactly as it is (including a Location
-other than the default), and no cookie, session, client state or environment variable is consulted.
+redirect into the Location the **effective default** answers — `localeDefaults[locale] ?? default`, the
+ONE rule (`effectiveDefaultLocation`) every surface reads. The destination is resolved by the accepted
+Location destination rule: the same page there when it exists, that Location's landing otherwise, and
+the accepted `regionDefaultLocale` rule when the requested locale is not bound to the Location. There is
+no second locale algorithm, no second destination rule and no hidden state: the Location stays
+**URL-authoritative**, so a request that already names one of the Site's Locations is answered exactly
+as it is — including a Location other than the effective default, and including in a locale that has a
+refinement — and no cookie, session, client state or environment variable is consulted. **Language and
+Location stay independent dimensions**: LOC2 applies exactly and only where a required request names no
+Location yet, so once a Location is in the URL the URL wins.
 
 **Selection and inventory.** The Location control's inventory is unchanged (`regionsForSite` — the
-ACTIVE Site's own Locations); in required mode the configured default Location leads and the remaining
-Locations keep the accepted deterministic ordering. A Location of another Site can never satisfy a
-requirement, enter the routing or enter a selector: every lookup is Site-scoped
+ACTIVE Site's own Locations); in required mode the EFFECTIVE default Location for the locale being read
+leads — the refinement on the locale it names, the Site-wide default elsewhere — and the remaining
+Locations keep the accepted deterministic ordering. The active Location is still read from the URL: the
+refinement supplies the leading option, never the selection. A Location of another Site can never
+satisfy a requirement, enter the routing or enter a selector: every lookup is Site-scoped
 (`bindingsForSite`), by construction.
 
 **Discovery.** A required Site's canonical inventory is its regional one: its non-regional URLs are
-redirects, so they are deliberately not advertised as visitor destinations in the sitemap. Optional
-Sites are untouched.
+redirects, so they are deliberately not advertised as visitor destinations in the sitemap. LOC2 adds no
+discovery rule of its own — the regional canonical URLs remain the authoritative inventory and no
+locale-default-specific duplicate is emitted. Optional Sites are untouched.
 
 **Refusal, not repair.** A policy that cannot be honoured fails at **configuration/build time**, naming
-the Site, the configured default Location and the violated rule: the default must be an operating
-Location of `business.regions`; the Site must actually have Locations; the default must belong to THIS
-Site's inventory; and it must have a usable landing destination in this Site. An unhonourable policy is
-never allowed to become a runtime 404.
+the Site, the configured Location and the violated rule. For the Site-wide `default`: it must be an
+operating Location of `business.regions`; the Site must actually have Locations; it must belong to THIS
+Site's inventory; and it must have a usable landing destination in this Site. For EACH LOC2 refinement:
+its key must be a locale THIS Site serves; its Location must exist; it must be THIS Site's own inventory
+(the Site that owns it is named otherwise); and it must have a landing **in that exact locale** — a
+refinement is never allowed to fall back to another locale, because that fallback is precisely what it
+was authored to prevent. An unhonourable policy is never allowed to become a runtime 404.
 
 **What it is not.** It does not collapse Site into Location, it does not create a Location, it does not
-move a Location between Sites, it does not touch Languages or Layout, and it never applies to a Site
-that did not declare it.
+move a Location between Sites, it does not touch Languages or Layout, and it never applies to a Site that
+did not declare it. LOC2 in particular is **not** a locale→Location table: it introduces no association
+between a language and a place, infers no refinement from a language, a country, a timezone or an order,
+and changes nothing about a request whose URL already names a Location.
 
 ### The reference deployment demonstrates the full model
 
