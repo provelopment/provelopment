@@ -162,12 +162,27 @@ being declared as a Spoke in the same manifest.
 (shell chrome, never page content):
 
 ```json
-"siteNotice": { "mode": "shown", "tone": "information" }
+"siteNotice": { "mode": "shown", "tone": "information", "replacesDemoNotices": true }
 ```
 
 with its localized wording in each locale's dictionary (`"siteNotice": { "title": "…", "body": "…" }`).
 Absent configuration renders no markup at all. A Spoke that PRESENTS the notice must resolve both fields
 for every locale it serves — the build refuses it otherwise, naming the locale and the missing field.
+
+**`replacesDemoNotices` — one introductory notice per page.** OPTIONAL and absent by default: without it,
+nothing about a deployment changes. Set to `true` on a notice that is PRESENTED, it declares that the banner
+STANDS IN FOR the page-level introductory demonstration notices that page chrome would otherwise render —
+the one beside a demonstration contact form and the one on the Connect page — so a visitor reads ONE
+introductory notice instead of two. The banner itself is unchanged, it still renders exactly once through the
+shell, and no empty card or stray spacing is left where a notice was suppressed.
+
+It is about INTRODUCTORY notices only. Contact-form submission feedback, validation errors, success and
+failure messages, the `unconfiguredDemo` warning a visitor sees after an attempted submission, form
+accessibility and the connection methods are operational, and none of them is affected: the form still says —
+accurately — when a submission was not delivered.
+
+Because a replacement with no notice to replace anything *with* would remove a warning rather than
+consolidate it, the build REFUSES `"replacesDemoNotices": true` unless `"mode"` is `"shown"`.
 
 ## Update, and Upgrade (M20)
 

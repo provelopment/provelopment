@@ -13,6 +13,7 @@ import { Section } from "@/components/ui/section";
 import type { RuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
 import type { RuntimeDictionaryAccess } from "@/config/runtime-dictionaries";
 import type { SiteConfig } from "@/config/site-config";
+import { resolveSiteNotice } from "@/core/notice";
 
 /**
  * THE DEDICATED PAGE CHROME (S1); CONTEXT-BOUND INPUTS (FOUNDATION-MULTISITE-M13)
@@ -33,6 +34,15 @@ import type { SiteConfig } from "@/config/site-config";
  * answers and its asset resolver (for the connectivity-icon screening) arrive from the shared
  * composition, so these pages cannot read another Spoke's configuration. The booking-action
  * resolver is likewise built from the SAME context's configuration by the composition.
+ *
+ * R2 — ONE INTRODUCTORY NOTICE PER PAGE, IF THE SPOKE SAYS SO. Both pages used to add their own
+ * introductory demonstration notice on top of the site-wide banner, so a visitor read the same warning twice.
+ * A Spoke whose presented notice declares `replacesDemoNotices: true` (see `@/core/notice`) now renders that
+ * banner as the ONE introductory notice and neither page adds one of its own. A Spoke that declares nothing —
+ * every existing installation — keeps both notices exactly as they were, and a Spoke with NO notice keeps
+ * them too, because there would be nothing to replace them with. This is an INTRODUCTORY notice only:
+ * the contact form's submission feedback, its validation errors and its accessibility wiring are operational
+ * and stay untouched.
  */
 interface DedicatedPageChrome {
   readonly locale: string;
@@ -45,6 +55,18 @@ interface DedicatedPageChrome {
   readonly assets: RuntimeAssetOwnershipResolver;
 }
 
+/**
+ * R2 — DOES THIS SPOKE'S PRESENTED NOTICE STAND IN FOR THE PAGE-LEVEL INTRODUCTORY NOTICES?
+ *
+ * ONE question, answered ONCE, by the SAME pure resolver the shell uses to compose the banner
+ * (`@/core/notice`), so the banner's decision and this page chrome's decision cannot drift: both read the
+ * resolved notice, never the raw configuration. A Spoke with no notice — or one that does not opt in —
+ * answers `false`, and every page-level notice keeps rendering.
+ */
+function replacesIntroductoryNotices(siteConfig: SiteConfig): boolean {
+  return resolveSiteNotice(siteConfig.siteNotice)?.replacesDemoNotices === true;
+}
+
 /** The Connect page: the dictionary heading, the authored body, the configured methods. */
 export function ConnectPageContent({
   locale,
@@ -55,6 +77,7 @@ export function ConnectPageContent({
   assets,
 }: DedicatedPageChrome & { readonly page: ResolvedPage }) {
   const dictionary = dictionaryAccess.get(locale, siteId ?? siteConfig.defaultSite.code);
+  const replacesNotice = replacesIntroductoryNotices(siteConfig);
 
   return (
     <Section as="article">
@@ -104,9 +127,11 @@ export function ConnectPageContent({
         })}
       </Grid>
 
-      <p className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
-        {dictionary.connect.demoNotice}
-      </p>
+      {replacesNotice ? null : (
+        <p className="mt-8 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
+          {dictionary.connect.demoNotice}
+        </p>
+      )}
     </Section>
   );
 }
@@ -122,6 +147,10 @@ export function ContactPageContent({
   const dictionary = dictionaryAccess.get(locale, siteId ?? siteConfig.defaultSite.code);
   const config = siteConfig.contactFeature;
   const demoMode = config?.provider === "stub";
+  // R2 — an adopter that declares its notice stands in for the page-level introductory notices gets ONE
+  // notice per page, never a second card here. The FORM is untouched: `config` still decides the provider, and
+  // the form's own submission feedback (`unconfiguredDemo`) is operational, not introductory.
+  const replacesNotice = replacesIntroductoryNotices(siteConfig);
 
   return (
     <Section as="article">
@@ -129,7 +158,7 @@ export function ContactPageContent({
         {dictionary.contact.heading}
       </Heading>
 
-      {demoMode ? (
+      {demoMode && !replacesNotice ? (
         <p className="mt-4 rounded-lg border border-border bg-muted p-4 text-sm text-muted-foreground">
           {dictionary.contact.demoNotice}
         </p>
