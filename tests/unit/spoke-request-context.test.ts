@@ -17,7 +17,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 
-import { materializeMultihostInstallation, runtimeNamespaceFiles } from "../support/multihost-installation.mjs";
+import { materializeMultihostInstallation, spokeNamespacePlan } from "../support/multihost-installation.mjs";
 
 const fixture = materializeMultihostInstallation({ repositoryRoot: process.cwd() });
 const savedRoot = process.env.FOUNDATION_DEPLOYMENT_ROOT;
@@ -55,6 +55,10 @@ afterAll(() => {
  * The GENERATED namespace files each Spoke needs (`public/spokes/<segment>/assets/**`), materialised for the
  * duration of this suite and removed afterwards.
  *
+ * The FILES come from the CANONICAL asset plan (`spokeNamespacePlan` → `buildPlan`), which is the same plan
+ * `assets:sync` installs and the build-time catalog is derived from — so this suite can never install artwork
+ * the runtime inventory does not publish (FOUNDATION-MULTISITE-M16/M17).
+ *
  * The context-bound composition asserts that a configured icon LEAF has a matching asset file, so a test that
  * renders a context must give that context the namespace the platform would have generated — exactly what the
  * browser scenario does. Nothing here is authored state: both directories are generated output, git-ignored,
@@ -67,7 +71,7 @@ beforeAll(() => {
   for (const spoke of fixture.spokes) {
     const directory = path.join(generatedRoot, spoke.segment, "assets");
     mkdirSync(directory, { recursive: true });
-    for (const { from, to } of runtimeNamespaceFiles(spoke.root, spoke.id)) {
+    for (const { from, to } of spokeNamespacePlan(fixture.root, spoke.id)) {
       copyFileSync(from, path.join(directory, to));
     }
     created.push(path.join(generatedRoot, spoke.segment));
