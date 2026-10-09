@@ -84,11 +84,25 @@ describe("SiteNotice — the generic site-wide notice", () => {
     expect(resolveSiteNotice(undefined)).toBeNull();
     expect(resolveSiteNotice({})).toBeNull();
     expect(resolveSiteNotice({ mode: "hidden" })).toBeNull();
-    expect(resolveSiteNotice({ mode: "shown" })).toEqual({ mode: "shown", tone: "information" });
+    expect(resolveSiteNotice({ mode: "shown" })).toEqual({
+      mode: "shown",
+      tone: "information",
+      replacesDemoNotices: false,
+    });
     expect(resolveSiteNotice({ mode: "shown", tone: "attention" })).toEqual({
       mode: "shown",
       tone: "attention",
+      replacesDemoNotices: false,
     });
+    // R2 — the replacement opt-in is resolved WITH the notice, by the SAME pure rule the shell and the page
+    // chrome both ask, so neither can disagree about it; and a HIDDEN notice remains no notice at all, whatever
+    // it declares (the configuration schema refuses that combination in the first place).
+    expect(resolveSiteNotice({ mode: "shown", replacesDemoNotices: true })).toEqual({
+      mode: "shown",
+      tone: "information",
+      replacesDemoNotices: true,
+    });
+    expect(resolveSiteNotice({ mode: "hidden", replacesDemoNotices: true })).toBeNull();
   });
 });
 
