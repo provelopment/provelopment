@@ -727,8 +727,16 @@ export const legalEntrySchema = z.object({
  * notice without copy for a locale it serves is REFUSED at build time (`@/config/runtime-dictionaries` →
  * `assertSiteNoticeCopyPresent`) rather than publishing a blank notice.
  *
+ * R2 adds ONE optional leaf, `replacesDemoNotices`: the adopter's explicit statement that this presented
+ * notice REPLACES the page-level introductory demonstration notices some page chrome would otherwise render
+ * — the one beside a demonstration contact form and the one on the Connect page. A Spoke that declares it
+ * presents ONE introductory notice per page; a Spoke that does not declares nothing and keeps every one of
+ * those notices, so an existing installation is byte-identical. The refinement below refuses the opt-in
+ * beside a notice that is NOT presented, because replacement without a notice removes a warning instead of
+ * consolidating it.
+ *
  * The vocabulary itself lives in the pure domain (`@/core/notice`), so the schema, the loader, the resolver
- * and the tests cannot drift about what a mode or a tone is.
+ * and the tests cannot drift about what a mode, a tone or the replacement opt-in is.
  */
 export const siteNoticeSchema = z
   .object({
@@ -739,8 +747,28 @@ export const siteNoticeSchema = z
      * accessible markup and an existing design token — no adopter-specific styling enters the platform.
      */
     tone: z.enum(SITE_NOTICE_TONES, { message: "supported tones: information, attention" }).optional(),
+    /**
+     * R2 — THE REPLACEMENT OPT-IN. `true` declares that THIS notice STANDS IN FOR the page-level introductory
+     * demonstration notices some page chrome would otherwise render, so a page presents ONE introductory
+     * notice (the banner) instead of two. Absent or `false` leaves every one of those notices exactly as it
+     * was, which is why no existing installation changes.
+     *
+     * Meaningful ONLY for a PRESENTED notice — see the refinement below, which refuses it beside `hidden`.
+     */
+    replacesDemoNotices: z.boolean().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((notice, ctx) => {
+    if (notice.replacesDemoNotices === true && notice.mode !== "shown") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["replacesDemoNotices"],
+        message:
+          '"replacesDemoNotices": true requires "mode": "shown" — only a notice that is actually presented ' +
+          "can stand in for the page-level introductory notices. Present the notice, or drop the opt-in.",
+      });
+    }
+  });
 
 export const footerNavigationSchema = z
   .object({

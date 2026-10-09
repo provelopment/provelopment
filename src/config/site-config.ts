@@ -456,8 +456,9 @@ export interface SiteConfig {
   /**
    * R1 — the OPTIONAL site-wide notice this Spoke presents to every visitor on every page (generic shell
    * chrome). Threaded as AUTHORED (`siteNoticeSchema`): the ONE pure resolver (`resolveSiteNotice`,
-   * `@/core/notice`) decides whether a notice is presented and in what tone, so the shell and the build-time
-   * copy lock cannot disagree about what "shown" means.
+   * `@/core/notice`) decides whether a notice is presented, in what tone, and whether it REPLACES the
+   * page-level introductory demonstration notices — so the shell, the page chrome and the build-time copy lock
+   * cannot disagree about what "shown" or "replaces" means.
    */
   readonly siteNotice?: AuthoredSiteNotice;
 }
