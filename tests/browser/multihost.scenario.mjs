@@ -14,12 +14,19 @@
 //
 // OWNERSHIP. This is a FOUNDATION contract (a platform capability, not one deployment's copy), so it lives in
 // the harness's own directory and runs in the foundation scope. It writes only where the harness owns writes:
-// OS temp (its Installation) and the GENERATED Spoke namespaces it materialises and then removes.
+// OS temp (its Installation) and the GENERATED Spoke namespaces it materialises — from the CANONICAL asset
+// plan, never by inventing files — and then removes.
 import { request as httpRequest } from "node:http";
 import { setTimeout as sleep } from "node:timers/promises";
 import path from "node:path";
 
-import { materializeMultihostInstallation, runtimeNamespaceFiles, MULTIHOST_INSPECTION, MULTIHOST_SPOKES } from "../support/multihost-installation.mjs";
+import {
+  assertSpokeNamespaceAgreesWithCatalog,
+  materializeMultihostInstallation,
+  spokeNamespacePlan,
+  MULTIHOST_INSPECTION,
+  MULTIHOST_SPOKES,
+} from "../support/multihost-installation.mjs";
 // The FOUNDATION's CDP client, reused (never re-implemented): the harness passes the browser BINARY, exactly
 // as it does to a deployment-owned scenario, and each scenario owns the client it opens and closes.
 import { Cdp } from "./cdp.mjs";
@@ -71,11 +78,23 @@ function fingerprint(body) {
   return JSON.stringify(facts);
 }
 
-/** The generated namespace files ONE Spoke needs, written through the harness's own guarded writers. */
-async function materializeNamespace(harness, spoke) {
+/**
+ * The GENERATED namespace files ONE Spoke needs, written through the harness's own guarded writers.
+ *
+ * The FILES are the canonical plan's own rows for this Spoke's namespace (`spokeNamespacePlan`), so the
+ * scenario installs exactly what `assets:sync` would install and what the build-time catalog publishes —
+ * platform-owned artwork is never copied into a Spoke namespace, and nothing is invented here
+ * (FOUNDATION-MULTISITE-M16/M17).
+ *
+ * BEFORE writing, the mirror/catalog agreement is asserted for THIS Installation: if the generated catalog
+ * publishes this namespace and cannot see a file the plan installs, the run stops with a diagnostic naming the
+ * canonical preparation (`pnpm assets:sync` for this Installation) instead of a page that cannot compose.
+ */
+async function materializeNamespace(harness, installation, spoke) {
+  assertSpokeNamespaceAgreesWithCatalog(installation.root, spoke.id);
   const directory = path.join(harness.repositoryRoot, "public", "spokes", spoke.segment, "assets");
   await harness.mkdir(directory, { recursive: true });
-  for (const { from, to } of runtimeNamespaceFiles(spoke.root, spoke.id)) {
+  for (const { from, to } of spokeNamespacePlan(installation.root, spoke.id)) {
     harness.cpSync(from, path.join(directory, to), { recursive: false });
   }
 }
@@ -737,7 +756,7 @@ export async function run(chrome, harness) {
   let server = null;
 
   try {
-    for (const spoke of installation.spokes) await materializeNamespace(harness, spoke);
+    for (const spoke of installation.spokes) await materializeNamespace(harness, installation, spoke);
     const started = await startServer(harness, installation);
     server = started.server;
 

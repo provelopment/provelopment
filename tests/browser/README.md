@@ -97,6 +97,44 @@ and the repository's own files are read directly, exactly as before.
 `tests/architecture/write-ownership-guard.test.ts` proves both the guard's answers and that no mutating
 call bypasses it.
 
+### Generated asset state: one contract, two contexts
+
+The artwork the scenarios FETCH is generated output, not authored state: `pnpm assets:sync` derives
+`public/assets/**`, `public/spokes/<segment>/assets/**` — and the build-time catalog the runtime reads
+(`src/config/generated/runtime-asset-catalog.json`) — from the ONE asset plan, and `pnpm assets:check`
+fails if the mirror, the catalog and the plan disagree. Two consequences shape every browser run:
+
+- **A namespace that carries a published inventory answers ownership from that catalog, never from disk.**
+  The key's presence IS existence. A file materialised into such a namespace but absent from the catalog is
+  invisible to the runtime, so the mirror and the catalog must describe the SAME Installation and the SAME
+  files. An asset must be DECLARED and generated before the inventory is finalised; nothing may be added
+  afterwards.
+- **The two generations have different ownership contracts, so each scenario family must run against a
+  compatible generated inventory.** The generic scenarios serve a disposable copy of the committed synthetic
+  installation, which is LEGACY-shaped: its replaceable role artwork (the sidebar control icons among it)
+  legitimately belongs to the SHARED platform namespace (`/assets/**`). The multi-Spoke proof serves an
+  EXPLICIT two-Spoke installation, where exactly those roles belong to each SPOKE and the platform namespace
+  must not claim them. One generated mirror cannot satisfy both, so the environment must be prepared for the
+  context being run:
+
+  ```sh
+  # the generic Foundation + deployment scenarios (the legacy synthetic installation)
+  FOUNDATION_DEPLOYMENT_LAYOUT=override \
+  FOUNDATION_DEPLOYMENT_ROOT="$(pwd)/tests/fixtures/synthetic-deployment" pnpm assets:sync
+
+  # the explicit multi-Spoke proof (its own two-Spoke installation)
+  FOUNDATION_DEPLOYMENT_LAYOUT=override \
+  FOUNDATION_DEPLOYMENT_ROOT="<the two-Spoke Installation root>" pnpm assets:sync
+  ```
+
+  A repository with its own installed deployment needs neither override: its generated state already belongs
+  to the Installation its build selects, which is what `pnpm build` and `pnpm assets:sync` produce.
+
+`multihost.scenario.mjs` installs its Spoke namespaces FROM THAT PLAN (`spokeNamespacePlan`) and refuses the
+run when the catalog publishes a namespace it cannot see a planned file in, naming the preparation above
+instead of leaving the failure to a page that cannot compose. Artwork is never hand-copied into a generated
+namespace: a file no plan declares is a file no inventory can serve.
+
 ### The production-mode proof (`production-continuity.mjs`)
 
 The scenarios above drive a **development** server, which is the right trade-off for a 500+ check suite:

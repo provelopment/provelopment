@@ -133,7 +133,9 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
   "tests/browser/matrix.mjs": "the synthetic deployment copy, `.report/`, OS temp and the generated Spoke namespaces a multi-Spoke scenario materialises — all via scratch.mjs",
   "tests/browser/cdp.mjs": "the headless-Chrome profile directory it created, under OS temp",
   "tests/browser/multihost.scenario.mjs":
-    "OS temp (its disposable two-Spoke Installation) and `public/spokes/<segment>/**` — the GENERATED namespaces it materialises and removes for the cross-host asset proof",
+    "OS temp (its disposable two-Spoke Installation) and `public/spokes/<segment>/**` — the GENERATED " +
+    "namespaces it materialises FROM THE CANONICAL ASSET PLAN (never by inventing files) and removes for the " +
+    "cross-host asset proof",
   "tests/browser/required-location.scenario.mjs":
     "OS temp only: TWO disposable copies of the committed synthetic deployment it materialises, patches (one " +
     "required-Location policy and one regional page) and removes, each behind its own dev server — every write " +
