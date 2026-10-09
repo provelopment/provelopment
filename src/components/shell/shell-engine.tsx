@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AppShell } from "@/components/ui/app-shell";
 import { Cta, isCtaRenderable } from "@/components/ui/cta";
 import { ShellTopClearance } from "./shell-top-clearance";
-import { Sidebar } from "@/components/ui/sidebar";
+import { Sidebar, type SidebarSelectionPolicy } from "@/components/ui/sidebar";
 import type { PageRegionBinding } from "@/core/region";
 import type { ResolvedUiConfig } from "@/core/ui";
 import {
@@ -27,6 +27,34 @@ import {
 import { ShellBottomBar, type ShellBottomBarLink } from "./shell-bottom-bar";
 import { ShellMobileNav } from "./shell-mobile-nav";
 import type { SiteSet } from "@/core/site";
+
+/**
+ * R3 — THE SIDEBAR'S NAVIGATION-SELECTION POLICY, ONE BAND AT A TIME.
+ * =================================================================
+ *
+ * What SELECTING a destination inside the rail does to an OPEN rail, per viewport band. The composer declares
+ * it because the composer is what knows which band it is composing: each rail below is composed for exactly
+ * ONE band, behind a width gate this engine already owns, so no rail needs to measure the viewport itself and
+ * no second responsive system appears (`@/components/ui/sidebar` holds the vocabulary and the rule).
+ *
+ *   mobile   `"close"`     the mobile band's long-standing contract: below `md` the expanded rail is an
+ *                          OVERLAY, so choosing a destination dismisses it and the destination is immediately
+ *                          visible beside the collapsed sticky rail.
+ *   tablet   `"preserve"`  the expanded ≥md rail is IN FLOW — part of the page, not an overlay — so there is
+ *                          nothing to dismiss: the visitor's own Show/Hide control stays the only thing that
+ *                          changes it. An OPEN rail stays open; a CLOSED rail stays closed.
+ *   desktop  `"preserve"`  the same reasoning, stated separately.
+ *
+ * THREE SEPARATE ENTRIES, deliberately, even though tablet and desktop currently agree: the owner may revise
+ * one band's policy in a future task without touching the others, and an exhaustive `Record<ShellBand, …>`
+ * turns a fourth band into a type error rather than a silent default.
+ */
+export const SIDEBAR_SELECTION_POLICY_BY_BAND: Readonly<Record<ShellBand, SidebarSelectionPolicy>> =
+  Object.freeze({
+    mobile: "close",
+    tablet: "preserve",
+    desktop: "preserve",
+  });
 
 /**
  * ShellEngine (UI-04/UI-05 — Shell Engine).
@@ -441,7 +469,7 @@ export function ShellEngine({
         composition.decision.mobile.primitiveKind === "collapsed-sidebar",
     );
     const collapsible = collapsedSidebarComposed || resolved.shell.sidebar.collapsible;
-    const renderBand = (id: string, band: ShellBand) => {
+    const renderBand = (id: string, band: ShellBand, selection: SidebarSelectionPolicy) => {
       // UI1 — THE CANONICAL NO-PREFERENCE STATE OF A COMPOSED RAIL IS CLOSED. The visitor's
       // open/closed choice is ONE presentation preference (remembered by the primitive — see
       // `@/components/ui/sidebar-preference`), so an untoggled sidebar presents the SAME state in
@@ -461,6 +489,9 @@ export function ShellEngine({
           label={navigationLabel ?? "Navigation"}
           collapsible={collapsible}
           collapsed={collapsedInitial}
+          // R3 — THIS band's navigation-selection policy, from the ONE table above. The rail never infers a
+          // viewport: the band it is composed for is the band it belongs to.
+          selection={selection}
           // P6-1 — the disclosure consumes the SAME resolved control shape as
           // the mobile layer: missing leaves fall back to the shipped asset +
           // the localized Show/Hide label (resolveControlPresentation).
@@ -481,15 +512,18 @@ export function ShellEngine({
     // rail landmark is exposed, so there is no duplicate landmark, no second focusable navigation
     // and no hidden duplicate the tab order could reach); NAV1D adds the MOBILE band for a
     // composition that declares `persistent-sidebar`, replacing the disclosure it was substituted
-    // with. The instance rendered for each band is byte-identical to its neighbours — same
-    // primitive, same classes, same visitor-owned state — so the sidebar IS the same sidebar at
-    // every width; only WHEN it is presented differs.
+    // with. The instance rendered for each band is the same primitive with the same classes and the
+    // same visitor-owned state — the sidebar IS the same sidebar at every width; only WHEN it is
+    // presented, and (R3) what a navigation SELECTION does to it, differ, and each band states both
+    // where that band is composed.
     const railBands: readonly {
       readonly id: string;
       readonly band: ShellBand;
       readonly composed: number;
       readonly gate: string;
       readonly layouts: readonly ShellLayout[];
+      /** R3 — this band's own navigation-selection policy (see the table above). */
+      readonly selection: SidebarSelectionPolicy;
     }[] = [
       {
         id: "shell-sidebar-desktop",
@@ -497,6 +531,7 @@ export function ShellEngine({
         composed: desktopRail.length,
         gate: "hidden lg:block",
         layouts: desktopRailLayouts,
+        selection: SIDEBAR_SELECTION_POLICY_BY_BAND.desktop,
       },
       {
         id: "shell-sidebar-tablet",
@@ -504,6 +539,7 @@ export function ShellEngine({
         composed: tabletRail.length,
         gate: "hidden md:block lg:hidden",
         layouts: tabletRailLayouts,
+        selection: SIDEBAR_SELECTION_POLICY_BY_BAND.tablet,
       },
       {
         id: "shell-sidebar-mobile",
@@ -511,18 +547,19 @@ export function ShellEngine({
         composed: mobileRail.length,
         gate: "md:hidden",
         layouts: mobileRailLayouts,
+        selection: SIDEBAR_SELECTION_POLICY_BY_BAND.mobile,
       },
     ];
     return (
       <>
-        {railBands.map(({ id, band, composed, gate, layouts }) =>
+        {railBands.map(({ id, band, composed, gate, layouts, selection }) =>
           composed > 0 ? (
             <div
               key={id}
               className={gate}
               {...layoutScopeAttributes("rail", layouts, scopedLayouts)}
             >
-              {renderBand(id, band)}
+              {renderBand(id, band, selection)}
             </div>
           ) : null,
         )}
