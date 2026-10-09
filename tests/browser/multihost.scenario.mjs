@@ -86,9 +86,10 @@ function fingerprint(body) {
  * platform-owned artwork is never copied into a Spoke namespace, and nothing is invented here
  * (FOUNDATION-MULTISITE-M16/M17).
  *
- * BEFORE writing, the mirror/catalog agreement is asserted for THIS Installation: if the generated catalog
- * publishes this namespace and cannot see a file the plan installs, the run stops with a diagnostic naming the
- * canonical preparation (`pnpm assets:sync` for this Installation) instead of a page that cannot compose.
+ * BEFORE writing, the PUBLISHED catalog (the generated file the running application imports) is judged against
+ * this Installation's canonical plan: a stale inventory, or a shared platform namespace claiming a Spoke-owned
+ * replaceable role, stops the run with a diagnostic naming the Installation and the canonical preparation
+ * (`pnpm assets:sync` for it) instead of leaving the failure to a page that cannot compose.
  */
 async function materializeNamespace(harness, installation, spoke) {
   assertSpokeNamespaceAgreesWithCatalog(installation.root, spoke.id);

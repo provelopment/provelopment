@@ -130,9 +130,14 @@ fails if the mirror, the catalog and the plan disagree. Two consequences shape e
   A repository with its own installed deployment needs neither override: its generated state already belongs
   to the Installation its build selects, which is what `pnpm build` and `pnpm assets:sync` produce.
 
-`multihost.scenario.mjs` installs its Spoke namespaces FROM THAT PLAN (`spokeNamespacePlan`) and refuses the
-run when the catalog publishes a namespace it cannot see a planned file in, naming the preparation above
-instead of leaving the failure to a page that cannot compose. Artwork is never hand-copied into a generated
+`multihost.scenario.mjs` installs its Spoke namespaces FROM THAT PLAN (`spokeNamespacePlan`) and then judges the
+PUBLISHED catalog — the generated file the running application imports — against that plan
+(`assertSpokeNamespaceAgreesWithCatalog`). It refuses the run when a published inventory is missing a file the
+plan installs for the Installation being served, or when the shared platform namespace claims a replaceable role
+that Installation gives to a Spoke, naming the Installation and the preparation above instead of leaving the
+failure to a page that cannot compose. A namespace the published catalog does not carry at all is the accepted
+compatibility case: the resolver falls back to the filesystem, which is exactly the situation of a repository
+whose published catalog belongs to its own installed deployment. Artwork is never hand-copied into a generated
 namespace: a file no plan declares is a file no inventory can serve.
 
 ### The production-mode proof (`production-continuity.mjs`)

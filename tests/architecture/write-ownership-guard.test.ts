@@ -162,6 +162,10 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "writers, and the copy is removed when the run ends (R1)",
   "tests/support/multihost-installation.mjs":
     "OS temp only: the disposable two-Spoke Installation it authors and the caller removes",
+  "tests/unit/multihost-fixture-assets.test.ts":
+    "OS temp only: the disposable two-Spoke Installation (through the fixture builder) and this suite's own " +
+    "throwaway PUBLISHED catalogs, both removed when the suite ends. The repository's generated catalog, the " +
+    "canonical deployment and the committed fixtures are only ever READ (M16/M17)",
   "tests/unit/spoke-request-context.test.ts":
     "OS temp (its disposable two-Spoke Installation) and the GENERATED `public/spokes/<segment>/**` namespaces it materialises and removes",
   "tests/architecture/deployment-root-guard.test.ts": "OS temp trees for its layout proofs",

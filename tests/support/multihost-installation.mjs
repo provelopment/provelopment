@@ -51,9 +51,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 // THE ONE ASSET AUTHORITY. This fixture describes an Installation; it does not decide what that Installation's
-// artwork is. Both questions below are answered by the canonical plan and the catalog derived from it
-// (`scripts/sync-runtime-assets.mjs`), so a fixture can never disagree with the installer the platform ships.
-import { buildPlan, buildRuntimeAssetCatalog, runtimeNamespaces } from "../../scripts/sync-runtime-assets.mjs";
+// artwork is. The plan below comes from the canonical asset plan, while the PUBLISHED catalog is the generated
+// file the running application actually imports — two DIFFERENT authorities, and the guard keeps them apart.
+import {
+  buildPlan,
+  CATALOG_FILE,
+  CATALOG_RELATIVE,
+  CATALOG_VERSION,
+  runtimeNamespaces,
+} from "../../scripts/sync-runtime-assets.mjs";
 /**
  * THE INSTALLATION'S EXPLICIT INSPECTION POLICY (FOUNDATION-MULTISITE-M20)
  *
@@ -254,68 +260,167 @@ export function spokeNamespacePlan(installationRoot, spokeId) {
 }
 
 /**
- * THE MIRROR/CATALOG AGREEMENT, ASKED OF THE INSTALLATION ITSELF (FOUNDATION-MULTISITE-M16/M17).
+ * THE PUBLISHED, RUNTIME-IMPORTED CATALOG — read as data, never recomputed (FOUNDATION-MULTISITE-M16/M17).
  *
- * A namespace that carries a build-time inventory answers ownership from IMMUTABLE DATA — the key's presence
- * IS existence — so a file materialised into such a namespace but absent from its inventory is invisible to
- * the runtime: a broken image, or a 500 while composing the shell. Mirror and catalog must therefore describe
- * the SAME Installation and the SAME files, and this function refuses the run when they do not, naming the
- * canonical preparation instead of leaving the failure to a broken page.
+ * This is the authority the RUNNING APPLICATION consumes (`src/config/runtime-asset-catalog.ts` imports this
+ * same file as a module). A freshly computed catalog describes what the plan WOULD produce; it says nothing
+ * about what is published, and comparing two plan-derived copies can hide a stale file. Everything below reads
+ * THIS file.
  *
- * A namespace the catalog does not publish is the accepted COMPATIBILITY case — the resolver falls back to the
- * filesystem, which is what a repository whose generated state belongs to a different Installation exercises —
- * so there is nothing to disagree with, and this reports `inventoried: false`.
+ * @param {string} [catalogFile] the generated catalog's path
+ * @returns {{ file: string, present: boolean, version: number | null, namespaces: Record<string, Record<string, unknown>> }}
+ */
+export function readPublishedCatalog(catalogFile = CATALOG_FILE) {
+  if (!existsSync(catalogFile)) return { file: catalogFile, present: false, version: null, namespaces: {} };
+  const parsed = JSON.parse(readFileSync(catalogFile, "utf8"));
+  return {
+    file: catalogFile,
+    present: true,
+    version: typeof parsed.version === "number" ? parsed.version : null,
+    namespaces: parsed.namespaces ?? {},
+  };
+}
+
+/**
+ * THE EXPECTED / PUBLISHED AGREEMENT FOR ONE SPOKE'S NAMESPACE (FOUNDATION-MULTISITE-M16/M17).
+ *
+ * TWO AUTHORITIES, deliberately kept apart:
+ *
+ *   EXPECTED  the canonical plan for THIS Installation (`buildPlan`): which authored source each Spoke's
+ *             namespace must receive, and which replaceable roles belong to Spokes rather than to the platform.
+ *   PUBLISHED the generated catalog FILE the running application imports (see `readPublishedCatalog`). A
+ *             namespace that carries a published inventory answers ownership from IMMUTABLE DATA — the key's
+ *             presence IS existence, and nothing is read from disk — so a planned file absent from the
+ *             published inventory is invisible to the runtime: a broken image, or a 500 while composing.
+ *
+ * The agreement is therefore never "the plan agrees with a fresh copy of itself": a STALE published catalog is
+ * detected as such. A namespace the published catalog does not carry at all is the accepted COMPATIBILITY case
+ * — the resolver falls back to the filesystem, which is exactly the situation of a repository whose published
+ * catalog belongs to its OWN installed deployment — so it is reported (`inventoried: false`), never failed.
+ *
+ * In an explicit Installation the shared platform namespace must additionally not CLAIM a replaceable role the
+ * plan gives to a Spoke: that is the ownership defect the browser rows observe, detected here by name.
  *
  * @param {string} installationRoot the Installation root
  * @param {string} spokeId the Spoke whose namespace is about to be materialised
- * @returns {{ urlBase: string, files: string[], inventoried: boolean, missing: string[] }}
+ * @param {string} [catalogFile] the PUBLISHED generated catalog to judge (defaults to the runtime's own)
+ * @returns {{
+ *   installationRoot: string, catalogFile: string, catalogRelative: string, published: boolean,
+ *   version: number | null, urlBase: string, planned: string[], publishedInventory: string[] | null,
+ *   inventoried: boolean, missing: string[], replaceableRoles: string[], platformUrlBase: string,
+ *   platformPublished: string[] | null, platformClaims: string[], consistent: boolean,
+ * }}
  */
-export function assertSpokeNamespaceAgreesWithCatalog(installationRoot, spokeId) {
-  const namespace = runtimeNamespaces(installationRoot).find((entry) => entry.key === `spoke:${spokeId}`);
+export function spokeNamespaceAgreement(installationRoot, spokeId, catalogFile = CATALOG_FILE) {
+  const namespaces = runtimeNamespaces(installationRoot);
+  const namespace = namespaces.find((entry) => entry.key === `spoke:${spokeId}`);
   if (namespace === undefined) {
     throw new Error(
       `the Installation at "${installationRoot}" declares no generated namespace for Spoke "${spokeId}".`,
     );
   }
 
-  const files = spokeNamespacePlan(installationRoot, spokeId).map((row) => row.to);
-  const inventory = buildRuntimeAssetCatalog(installationRoot).namespaces[namespace.urlBase];
-  if (inventory === undefined) return { urlBase: namespace.urlBase, files, inventoried: false, missing: [] };
+  /** EXPECTED — the canonical plan for this Installation. */
+  const planRows = buildPlan(installationRoot);
+  const planned = planRows
+    .filter((row) => row.namespace === `spoke:${spokeId}`)
+    .map((row) => row.to)
+    .sort();
+  // The roles this Installation's plan gives to SPOKES: the replaceable material the platform must not claim.
+  const replaceableRoles = [
+    ...new Set(planRows.filter((row) => row.namespace.startsWith("spoke:")).map((row) => row.to)),
+  ].sort();
 
-  const missing = files.filter((name) => !Object.prototype.hasOwnProperty.call(inventory, name));
-  if (missing.length > 0) {
-    throw new Error(
-      "the generated asset MIRROR and the build-time CATALOG do not describe the same Installation: " +
-        `"${namespace.urlBase}" is published without ${missing.join(", ")}, yet the canonical plan installs ` +
-        "them. Prepare the generated state for THIS Installation before the browser run " +
-        `(FOUNDATION_DEPLOYMENT_LAYOUT=override FOUNDATION_DEPLOYMENT_ROOT="${installationRoot}" pnpm assets:sync), ` +
-        "so the mirror and the catalog are derived from the same plan. Never hand-copy artwork into a generated " +
-        "namespace: an inventoried namespace cannot see a file the catalog does not list " +
-        "(FOUNDATION-MULTISITE-M16/M17).",
-    );
-  }
-  return { urlBase: namespace.urlBase, files, inventoried: true, missing: [] };
+  /** PUBLISHED — the generated file the runtime imports, never a fresh plan-derived copy. */
+  const published = readPublishedCatalog(catalogFile);
+  const inventory = published.namespaces[namespace.urlBase];
+  const publishedInventory = inventory === undefined ? null : Object.keys(inventory).sort();
+  const missing =
+    publishedInventory === null ? [] : planned.filter((name) => !publishedInventory.includes(name));
+
+  const platformUrlBase = namespaces.find((entry) => entry.key === "platform").urlBase;
+  const platformEntry = published.namespaces[platformUrlBase];
+  const platformPublished = platformEntry === undefined ? null : Object.keys(platformEntry).sort();
+  const platformClaims =
+    platformPublished === null || replaceableRoles.length === 0
+      ? []
+      : replaceableRoles.filter((name) => platformPublished.includes(name));
+
+  return {
+    installationRoot,
+    catalogFile,
+    catalogRelative: CATALOG_RELATIVE,
+    published: published.present,
+    version: published.version,
+    urlBase: namespace.urlBase,
+    planned,
+    publishedInventory,
+    inventoried: publishedInventory !== null,
+    missing,
+    replaceableRoles,
+    platformUrlBase,
+    platformPublished,
+    platformClaims,
+    consistent: published.present && missing.length === 0 && platformClaims.length === 0,
+  };
 }
 
 /**
- * Every namespace THIS Installation declares, with the inventory the build published for each URL base — the
- * read-only view a suite needs to assert the ownership contract (which namespace owns which file) without
- * restating the plan.
+ * Refuses the run when the PUBLISHED catalog and the canonical plan disagree for this Spoke's namespace.
+ *
+ * Every diagnostic names the Installation, the PUBLISHED catalog file and the canonical preparation, so an
+ * operator can tell a stale generated catalog from an incompatible one without re-diagnosing a broken page.
  *
  * @param {string} installationRoot the Installation root
- * @returns {{ namespaces: { key: string, urlBase: string, inventory: string[] | null }[] }}
+ * @param {string} spokeId the Spoke whose namespace is about to be materialised
+ * @param {string} [catalogFile] the PUBLISHED generated catalog to judge
+ * @returns {ReturnType<typeof spokeNamespaceAgreement>} the agreement, when there is one
  */
-export function installationAssetContract(installationRoot) {
-  const catalog = buildRuntimeAssetCatalog(installationRoot).namespaces;
-  return {
-    namespaces: runtimeNamespaces(installationRoot).map((namespace) => ({
-      key: namespace.key,
-      urlBase: namespace.urlBase,
-      inventory: Object.prototype.hasOwnProperty.call(catalog, namespace.urlBase)
-        ? Object.keys(catalog[namespace.urlBase]).sort()
-        : null,
-    })),
-  };
+export function assertSpokeNamespaceAgreesWithCatalog(installationRoot, spokeId, catalogFile = CATALOG_FILE) {
+  const agreement = spokeNamespaceAgreement(installationRoot, spokeId, catalogFile);
+  const prepare =
+    `(FOUNDATION_DEPLOYMENT_LAYOUT=override FOUNDATION_DEPLOYMENT_ROOT="${installationRoot}" pnpm assets:sync)`;
+
+  if (!agreement.published) {
+    throw new Error(
+      `no generated asset catalog is published at "${agreement.catalogRelative}" (asked as ` +
+        `"${agreement.catalogFile}"), so the runtime inventory of "${installationRoot}" cannot be established. ` +
+        `Prepare it ${prepare} (FOUNDATION-MULTISITE-M16/M17).`,
+    );
+  }
+
+  if (agreement.version !== CATALOG_VERSION) {
+    throw new Error(
+      `the published asset catalog "${agreement.catalogRelative}" declares shape version ` +
+        `${agreement.version === null ? "(none)" : agreement.version}, but this build reads version ` +
+        `${CATALOG_VERSION} — it is stale for "${installationRoot}". Prepare it ${prepare} ` +
+        "(FOUNDATION-MULTISITE-M16/M17).",
+    );
+  }
+
+  if (agreement.missing.length > 0) {
+    throw new Error(
+      "the PUBLISHED asset catalog and the canonical plan do not describe the same Installation: " +
+        `"${agreement.urlBase}" is published in "${agreement.catalogRelative}" without ` +
+        `${agreement.missing.join(", ")}, yet the plan installs them for "${installationRoot}". The published ` +
+        `catalog is STALE for the Installation being served — prepare it ${prepare}. Never hand-copy artwork ` +
+        "into a generated namespace: an inventoried namespace cannot see a file the catalog does not list " +
+        "(FOUNDATION-MULTISITE-M16/M17).",
+    );
+  }
+
+  if (agreement.platformClaims.length > 0) {
+    throw new Error(
+      "the PUBLISHED asset catalog gives the SHARED platform namespace replaceable role artwork that this " +
+        `explicit Installation gives to its Spokes: "${agreement.platformUrlBase}" in ` +
+        `"${agreement.catalogRelative}" claims ${agreement.platformClaims.join(", ")}, while the plan installs ` +
+        `them per Spoke for "${installationRoot}". That published catalog belongs to a DIFFERENT, ` +
+        `legacy-shaped generated state — prepare the state for the Installation being served ${prepare} ` +
+        "(FOUNDATION-MULTISITE-M16/M17).",
+    );
+  }
+
+  return agreement;
 }
 
 /**
