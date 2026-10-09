@@ -203,12 +203,16 @@ describe("UI1 — navigation cannot own the sidebar state (architectural boundar
     // The visitor's control remains one caller of it, wired to the one control…
     expect(sidebar).toMatch(/function toggle\(\): void \{[\s\S]*?apply\(disclosureReducer\(/);
     expect(sidebar).toContain("onClick={toggle}");
-    // …and NAV1D-V2 adds the second caller: selecting a destination inside the rail dismisses the
-    // expanded OVERLAY, through the SAME writer. It is wired to the rail's own panel (never to the
-    // nav items, which stay plain data + href), and it is not derived from the route.
+    // …and NAV1D-V2/R3 adds the second caller: selecting a destination inside the rail dismisses the expanded
+    // OVERLAY where the band's policy says so (mobile), through the SAME writer. It is wired to the rail's own
+    // panel (never to the nav items, which stay plain data + href), it asks the ONE pure rule, and it is not
+    // derived from the route. WHICH bands dismiss it is the composer's decision, one band at a time (R3 —
+    // `tests/unit/sidebar-selection-policy.test.ts` proves the per-band matrix and the composer's own table).
     expect(sidebar).toContain('className="ui-sidebar-rail-panel" onClick={closeForSelection}');
-    expect(sidebar).toMatch(/function closeForSelection\(event: MouseEvent<HTMLDivElement>\): void \{[\s\S]*?apply\(DISCLOSURE_CLOSED\)/);
-    expect(sidebar).toMatch(/closeForSelection\(event[\s\S]*?closest\("a\[href\]"\)/);
+    expect(sidebar).toMatch(
+      /function closeForSelection\(event: MouseEvent<HTMLDivElement>\): void \{[\s\S]*?railDismissesOnSelection\(selection, collapsible, state, destination\)[\s\S]*?apply\(DISCLOSURE_CLOSED\)/,
+    );
+    expect(sidebar).toMatch(/target\.closest\("a\[href\]"\)/);
   });
 
   it("keeps navigation ITEMS inert with respect to the state (the rail's own panel owns the close)", () => {

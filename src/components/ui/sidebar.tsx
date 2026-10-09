@@ -42,6 +42,56 @@ function stateOf(preference: SidebarPreference): DisclosureState {
   return preference === "closed" ? DISCLOSURE_CLOSED : DISCLOSURE_OPEN;
 }
 
+/**
+ * R3 — WHAT SELECTING A DESTINATION INSIDE THE RAIL DOES TO THE RAIL, AS THE COMPOSER DECLARES IT.
+ * ==============================================================================================
+ *
+ * The rail's open/closed state belongs to the VISITOR (UI1) and is never derived from the route. Its automatic
+ * behaviour when a destination is selected is nonetheless a PRESENTATION fact that differs by band, so the
+ * shell composer — which already knows which band it is composing — declares it, one band at a time
+ * (`@/components/shell/shell-engine`, `SIDEBAR_SELECTION_POLICY_BY_BAND`):
+ *
+ *   `"close"`     selecting a destination dismisses an OPEN rail. This is the MOBILE band's contract: below
+ *                 `md` the expanded rail is an OVERLAY (`globals.css` — NAV1D-V2), so the moment the visitor
+ *                 picks a destination the overlay's job is done and the rail returns to its collapsed, sticky
+ *                 state, with the destination immediately visible beside it.
+ *   `"preserve"`  selecting a destination leaves the rail exactly as it was — an OPEN rail stays open, a
+ *                 CLOSED rail stays closed. This is the ≥md contract: there the expanded rail is IN FLOW, part
+ *                 of the page rather than an overlay, so there is nothing to dismiss and the visitor's own
+ *                 disclosure control stays the only thing that changes it.
+ *
+ * WHY THE COMPOSER DECIDES, AND WHY THREE SEPARATE POLICIES. A viewport width is not observable here without a
+ * second breakpoint detector (`matchMedia`, a resize listener, a media query read at runtime) — exactly the
+ * competing responsive system this platform refuses to have. The shell composes one rail per band, behind a
+ * width gate it already owns, so each band states its own policy where that band is composed. Mobile, tablet
+ * and desktop therefore hold three INDEPENDENT policies even where two of them currently agree: the owner can
+ * revise one without touching the others.
+ */
+export const SIDEBAR_SELECTION_POLICIES = ["close", "preserve"] as const;
+export type SidebarSelectionPolicy = (typeof SIDEBAR_SELECTION_POLICIES)[number];
+
+/** The policy a rail that does not declare one keeps: this primitive's long-standing behaviour. */
+export const DEFAULT_SIDEBAR_SELECTION_POLICY: SidebarSelectionPolicy = "close";
+
+/**
+ * DOES THIS SELECTION DISMISS THE RAIL? The ONE rule the rail's selection listener asks, extracted as a PURE
+ * function so every viewport/state combination is provable without a browser (the real click path is proved by
+ * the browser gate).
+ *
+ * A selection can only ever CLOSE a rail. No policy expands one: no navigation may open a rail the visitor did
+ * not ask for, and a rail with no disclosure state of its own (`collapsible: false`) has nothing to dismiss.
+ */
+export function railDismissesOnSelection(
+  selection: SidebarSelectionPolicy,
+  collapsible: boolean,
+  state: DisclosureState,
+  activatedDestination: boolean,
+): boolean {
+  if (selection !== "close") return false;
+  if (!collapsible || state !== DISCLOSURE_OPEN) return false;
+  return activatedDestination;
+}
+
 /** One state's control content as the markup declares it (see `controlContent`). */
 interface ControlContent {
   readonly icon: string | undefined;
@@ -166,9 +216,10 @@ function initialDisclosureState(collapsible: boolean, collapsed: boolean): Discl
  * mount BEFORE the first paint, so a document reload and a client-side navigation both arrive in the
  * state the visitor left behind. NAV1D-V2 — TWO ACTIONS change it, and both go through ONE writer and
  * ONE state owner (see `apply`): the visitor's own disclosure control, and SELECTING a destination
- * inside the rail, which dismisses the expanded OVERLAY so the destination is immediately visible
- * beside the collapsed sticky rail. The state is still never DERIVED from the route: no route, no
- * remount and no breakpoint opens, closes or resets the rail, and the close-on-selection path reads no
+ * inside the rail — in a band whose policy decides that a selection dismisses the rail (R3: the mobile
+ * band's expanded OVERLAY has done its job once a destination is chosen, while the in-flow ≥md rail is
+ * left exactly as the visitor set it). The state is still never DERIVED from the route: no route, no
+ * remount and no breakpoint opens, closes or resets the rail, and the selection path reads no
  * routing API. The canonical no-preference state is CLOSED, declared by the
  * composer (the shell engine) rather than inferred here.
  *
@@ -210,6 +261,12 @@ export interface SidebarProps {
   readonly open?: { readonly icon?: string; readonly text?: string };
   /** P6-1 — the RESOLVED "hide" control presentation (see `open`). */
   readonly close?: { readonly icon?: string; readonly text?: string };
+  /**
+   * R3 — what SELECTING a destination inside the rail does to this rail IN THIS BAND, declared by the composer
+   * (see `SIDEBAR_SELECTION_POLICIES` above). Absent → `DEFAULT_SIDEBAR_SELECTION_POLICY`, this primitive's
+   * long-standing behaviour, so a rail that does not declare a policy is untouched.
+   */
+  readonly selection?: SidebarSelectionPolicy;
   readonly className?: string;
 }
 
@@ -225,6 +282,7 @@ export function Sidebar({
   hideLabel,
   open,
   close,
+  selection = DEFAULT_SIDEBAR_SELECTION_POLICY,
   className,
 }: SidebarProps) {
   const [state, setState] = useState<DisclosureState>(() =>
@@ -300,30 +358,34 @@ export function Sidebar({
   }
 
   /**
-   * NAV1D-V2 — SELECTING A DESTINATION DISMISSES THE OPEN RAIL.
+   * NAV1D-V2 / R3 — SELECTING A DESTINATION, AS THIS BAND'S POLICY DECIDES IT.
    *
-   * The expanded rail is an OVERLAY (globals.css): it covers the page rather than shrinking it, so the
-   * moment the visitor picks a destination the overlay's job is done — the rail returns to its CLOSED,
-   * sticky state and the destination is immediately visible beside it. That is a NAVIGATION SELECTION
-   * dismissing a presentation, decided by the rail's own state owner: it is NOT route state, it is not
-   * driven by a breakpoint, and it does not depend on whether the destination differs from the current
-   * page (selecting the page you are already on closes the overlay too, and no route change is needed to
-   * observe it).
+   * In the MOBILE band the expanded rail is an OVERLAY (globals.css): it covers the page rather than shrinking
+   * it, so the moment the visitor picks a destination the overlay's job is done — the rail returns to its
+   * CLOSED, sticky state and the destination is immediately visible beside it. In the ≥md bands the expanded
+   * rail is IN FLOW, part of the page, so there is nothing to dismiss: the policy the composer assigned to
+   * THIS band says `"preserve"` and the selection leaves the rail exactly as the visitor left it. The rule
+   * itself is the pure `railDismissesOnSelection` above; this function only asks it.
    *
-   * WHY AN ACTIVATION IS ENOUGH, AND WHY IT IS DELEGATED HERE. Every ordinary way of choosing a link
-   * ends in a click event on the anchor — pointer activation, Enter on a focused link, and assistive
-   * technology alike — so one delegated listener covers all of them without a per-item handler, without
-   * reaching into the composer's navigation markup, and without importing any routing API (the state
-   * modules stay free of the router entirely). `NavItem` remains plain data + href: the close belongs to
-   * the RAIL that owns the state, never to the item.
+   * The decision stays with the rail's own state owner: it is NOT route state, NOT derived from a breakpoint
+   * (the composer already knows the band), and it does not depend on whether the destination differs from the
+   * current page — a mobile visitor selecting the page they are already on dismisses the overlay too, and no
+   * route change is needed to observe it.
    *
-   * The rail's own Show/Hide control is NOT inside this panel, so it is unaffected: hiding navigation
-   * still closes the rail without navigating, exactly as before.
+   * WHY AN ACTIVATION IS ENOUGH, AND WHY IT IS DELEGATED HERE. Every ordinary way of choosing a link ends in a
+   * click event on the anchor — pointer activation, Enter on a focused link, and assistive technology alike —
+   * so one delegated listener covers all of them without a per-item handler, without reaching into the
+   * composer's navigation markup, and without importing any routing API (the state modules stay free of the
+   * router entirely). `NavItem` remains plain data + href: the close belongs to the RAIL that owns the state,
+   * never to the item.
+   *
+   * The rail's own Show/Hide control is NOT inside this panel, so it is unaffected: hiding navigation still
+   * closes the rail without navigating, exactly as before, in every band.
    */
   function closeForSelection(event: MouseEvent<HTMLDivElement>): void {
-    if (!collapsible || state !== DISCLOSURE_OPEN) return;
     const target = event.target as Element | null;
-    if (!target || typeof target.closest !== "function" || !target.closest("a[href]")) return;
+    const destination = !!target && typeof target.closest === "function" && target.closest("a[href]") !== null;
+    if (!railDismissesOnSelection(selection, collapsible, state, destination)) return;
     apply(DISCLOSURE_CLOSED);
   }
 
