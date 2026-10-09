@@ -196,6 +196,11 @@ const TEST_SCRATCH_WRITERS: Record<string, string> = {
     "synthetic one-Spoke Installation trees under OS temp — the M13 server-composition isolation proofs' own " +
     "throwaway Installations (alpha/beta: a manifest, configuration, dictionaries and one authored page), " +
     "removed by exact ownership. The running deployment is only ever READ (M13)",
+  "tests/unit/notice-replacement.test.ts":
+    "disposable copies of the synthetic deployment under OS temp — the notice-replacement proofs' own " +
+    "throwaway Installations (manifest, configuration, dictionaries and the two authored pages each copy " +
+    "adds), removed by exact ownership. The committed fixture and the selected deployment are only ever " +
+    "READ (R2)",
   "tests/unit/context-metadata-isolation.test.ts":
     "synthetic one-Spoke Installation trees under OS temp — the M14 client-projection / OpenGraph / sitemap / " +
     "robots isolation proofs' own throwaway Installations (alpha/beta: a manifest, configuration, " +
