@@ -328,6 +328,57 @@ export function resolveLocaleDestination(
   return firstPage ? { region, slug: firstPage.slug } : null;
 }
 
+export interface LocalesAvailableInLocationOptions {
+  /** This SITE's bindings (`bindingsForSite`) — never the deployment's whole page inventory. */
+  readonly entries: readonly PageRegionBinding[];
+  /** The language PATH KEYS the Site itself serves, in the Site's own configuration order. */
+  readonly siteLocalePaths: readonly string[];
+  /** The Location the visitor is in. A Location is a place INSIDE one Site, never a Site's substitute. */
+  readonly region: string;
+  /** The page being read inside that Location: `null` for the Location's landing. */
+  readonly currentSlug: string | null;
+  /**
+   * The language the document is already being read in. It is always offered, so a selector can never
+   * drop the language it is displaying.
+   */
+  readonly currentLocalePath: string;
+}
+
+/**
+ * LOC3 — THE LANGUAGES ONE LOCATION ACTUALLY REACHES (FOUNDATION-LOC3)
+ * ==================================================================
+ *
+ * A LANGUAGE SWITCH IN A LOCATION STAYS IN THAT LOCATION, IN A LANGUAGE THAT LOCATION SERVES.
+ *
+ * Language and Location are independent dimensions (Phase M), and neither may silently become the other:
+ * a language option must never send the visitor to a different Location, and it must never be offered when
+ * this Location has nothing to answer it with. Both questions already have ONE answer in this module —
+ * `resolveLocaleDestination` returns a destination for a (locale, Location) pair exactly when that pair is
+ * BOUND (`hasPageEntry`), and `null` otherwise — so this function is the offer-set projection of that same
+ * rule and introduces no second regional model, no locale inference (never from a city, a country, a
+ * telephone number or a locale default) and no fallback to another Location.
+ *
+ *   GLOBAL context (`region === null`)   the caller does not ask here: a Site without a Location offers
+ *                                        its WHOLE language set, unchanged.
+ *   LOCATION context                     only the Site's own languages that reach THIS Location — plus the
+ *                                        language being read, which is never removed from its own selector.
+ *
+ * The result is a subset of `siteLocalePaths` in ITS order, so the selector's existing ordering rule (the
+ * Site's default language first, then by displayed name) composes on top of it unchanged, and server-rendered
+ * and hydrated option sets are identical because both read this pure function through the same projection.
+ */
+export function localesAvailableInLocation(
+  options: LocalesAvailableInLocationOptions,
+): readonly string[] {
+  const { entries, siteLocalePaths, region, currentSlug, currentLocalePath } = options;
+
+  return siteLocalePaths.filter(
+    (localePath) =>
+      localePath === currentLocalePath ||
+      resolveLocaleDestination(entries, localePath, region, currentSlug) !== null,
+  );
+}
+
 /**
  * The regional URL: `/{locale}/{region}` or `/{locale}/{region}/{slug}`, with the site's
  * public prefix in front when the page belongs to a site that is not the default one
