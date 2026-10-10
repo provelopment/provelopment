@@ -403,8 +403,9 @@ git fetch upstream
 Then follow
 [`instruction-manuals/foundation-upgrade.md`](instruction-manuals/foundation-upgrade.md),
 which classifies platform-owned vs adopter-owned material and protects your
-configuration, content and assets. (The brand accent is a platform token — re-apply it after an
-Upgrade; see [`CUSTOMIZING.md`](CUSTOMIZING.md) §3.)
+configuration, content and assets. (The brand accent is a platform token in `src/app/globals.css`, not a
+configuration value: an Upgrade replaces it, so your value has to be carried across and re-applied
+deliberately — see [`CUSTOMIZING.md`](CUSTOMIZING.md) §3 for that limitation.)
 
 ## Documentation
 
