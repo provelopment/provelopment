@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // it lives in the deployment capsule (`deployment/tests/**`, FOUNDATION-DEPLOYMENT-ISO-B2A) and runs in
 // the `deployment` Vitest project, whose setup selects the REAL installed deployment
 // (`tests/setup/real-deployment.ts`, ISO-H2). Its subject is the real capsule, never a fixture.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -26,7 +26,7 @@ import {
 // accepted runtime authorities refuse an installation-wide answer for a multi-Spoke Installation, and
 // "the" configuration would be the default-Spoke rule the runtime refuses). The reference `ww` Site,
 // its dictionaries, its pages and its origin live on this Spoke.
-import { foundationConfig as siteConfig, foundationSpoke } from "../support/spoke-contexts";
+import { foundationConfig as siteConfig, foundationSpoke, germanySpoke } from "../support/spoke-contexts";
 
 // M18 — the public route resolves its Spoke from the REQUEST BOUNDARY's private selection header
 // (`x-foundation-spoke-segment`), so a node test that drives the REAL route must present one, exactly as
@@ -44,6 +44,7 @@ import { HOME_CONTENT_SLUG } from "@/core/page-content";
 import { resolveUiConfig } from "@/core/ui";
 
 import { runtimeAssetFile, runtimeAssetUrl } from "../../../tests/support/runtime-assets";
+import { owningNamespaceIn } from "@/config/runtime-asset-resolver";
 
 /**
  * R1A — THE REFERENCE DEPLOYMENT'S CONFIGURATION AND ITS FIRST TWO PAGES.
@@ -101,13 +102,40 @@ describe("the reference deployment's own configuration", () => {
     expect(rawConfig().site.url).toBe(REFERENCE_ORIGIN);
   });
 
-  it("configures the favicon from an asset the repository actually ships", () => {
-    expect(siteConfig.assets?.favicon).toBe(`${REFERENCE_ORIGIN}/assets/favicon.svg`);
-    // The declared role must resolve to a file the runtime actually serves (S3E1C: the favicon is
-    // REPLACEABLE role artwork, so it ships in the sole Spoke's own namespace, not the platform tree), or
-    // the browser would 404 the very icon the configuration declares.
-    expect(runtimeAssetFile("favicon.svg")).not.toBeUndefined();
-    expect(runtimeAssetUrl("favicon.svg")).toBe("/spokes/foundation/assets/favicon.svg");
+  it("configures the favicon from the asset its own Spoke namespace publishes", () => {
+    // S3E1C — the favicon is REPLACEABLE role artwork, so the runtime publishes it in THIS Spoke's own
+    // namespace. The earlier expectation pinned the shared platform tree, where no such role is
+    // published: it accepted a URL the browser can only 404, which is the defect this test must catch.
+    const runtimeUrl = runtimeAssetUrl("favicon.svg");
+    expect(runtimeUrl).toBe("/spokes/foundation/assets/favicon.svg");
+    // The configured value is that runtime URL on this Spoke's own public origin, and the shipped JSON
+    // agrees with the loader: one value, no drift.
+    expect(siteConfig.assets?.favicon).toBe(`${REFERENCE_ORIGIN}${runtimeUrl}`);
+    expect(rawConfig().site.assets?.favicon).toBe(`${REFERENCE_ORIGIN}${runtimeUrl}`);
+    // The declared role resolves to a file this deployment actually SHIPS…
+    const file = runtimeAssetFile("favicon.svg");
+    expect(file).not.toBeUndefined();
+    expect(existsSync(file ?? "")).toBe(true);
+    // …and it is not the shared platform tree, which publishes no such role at all.
+    expect(runtimeUrl).not.toBe("/assets/favicon.svg");
+    expect(existsSync(platformFile("public", "assets", "favicon.svg"))).toBe(false);
+  });
+
+  it("configures the Germany Spoke's favicon from ITS OWN namespace, never the other Spoke's", () => {
+    const config = germanySpoke.config;
+    // The accepted runtime authority answers which of THIS Spoke's namespaces owns the role; the
+    // platform namespace does not hold it, so the answer is this Spoke's own namespace.
+    const owner = owningNamespaceIn("favicon.svg", germanySpoke.runtimeAssetNamespaces);
+    expect(owner, "the Germany Spoke's own namespace owns its favicon role").not.toBeNull();
+    expect(owner?.urlBase).not.toBe("/assets");
+    expect(owner?.urlBase).not.toContain("foundation");
+    // Configured = that namespace's URL on the Germany origin; a cross-Spoke or shared-tree URL is
+    // never acceptable, and the name it resolves under is the one actually installed there.
+    expect(config.assets?.favicon).toBe(`${config.url}${owner?.urlBase}/favicon.svg`);
+    expect(config.assets?.favicon).not.toContain("/spokes/foundation/");
+    // …and it is NOT the shared platform tree (which publishes no such role for any Spoke).
+    expect(config.assets?.favicon).not.toBe(`${config.url}/assets/favicon.svg`);
+    expect(existsSync(path.join(owner?.directory ?? "", "favicon.svg"))).toBe(true);
   });
 
   it("enables the visitor layout switcher without a competing navigation leaf", () => {

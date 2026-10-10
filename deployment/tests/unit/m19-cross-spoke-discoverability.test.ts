@@ -43,7 +43,7 @@ vi.mock("next/navigation", () => ({
 import { createPageSources } from "@/adapters/content/page-sources";
 import { createDirectionLinkResolver } from "@/adapters/maps";
 import { SiteFooter } from "@/components/site/site-footer";
-import { createRuntimeAssetOwnershipResolver } from "@/config/runtime-asset-resolver";
+import { createRuntimeAssetOwnershipResolver, owningNamespaceIn } from "@/config/runtime-asset-resolver";
 import { dictionaryAccessForRuntimeContext } from "@/config/runtime-dictionaries";
 import { germanySpoke, foundationSpoke, type DeploymentSpoke } from "../support/spoke-contexts";
 
@@ -95,7 +95,7 @@ describe("§3/§4 — each Spoke authors the OTHER Spoke's public root", () => {
 });
 
 describe("§2 — discoverability is authored navigation, NOT a Site inventory", () => {
-  for (const { spoke, otherOrigin } of CROSS_SPOKE) {
+  for (const { spoke, otherId, otherOrigin } of CROSS_SPOKE) {
     it(`${spoke.id}: declares ONE Site, and the other Spoke is not part of it`, () => {
       expect(spoke.config.sites.map((site) => site.code)).toEqual([spoke.config.defaultSite.code]);
       expect(spoke.config.sites).toHaveLength(1);
@@ -104,8 +104,20 @@ describe("§2 — discoverability is authored navigation, NOT a Site inventory",
       // The other Spoke's origin appears EXACTLY ONCE — as the authored footer link, never as a Site
       // url, a page binding, a resource root or any other inventory entry.
       expect(serialised.split(otherOrigin).length - 1).toBe(1);
-      // Configuration never names a Spoke's filesystem tree: only public origins.
-      expect(serialised).not.toContain("spokes/");
+      // Configuration names PUBLIC URLs only: this Spoke's own origin, and its OWN public runtime asset
+      // namespace. A URL under `/spokes/<segment>/assets/` is a legitimate public address (S3E1C
+      // publishes role artwork per Spoke); what must never appear is a private authoring path or an
+      // internal request mechanism, and never the other Spoke's namespace — so no asset can be
+      // answered, or silently borrowed, from the other website.
+      const own = owningNamespaceIn("favicon.svg", spoke.runtimeAssetNamespaces);
+      expect(own, "this Spoke's own namespace owns its favicon role").not.toBeNull();
+      expect(own?.urlBase).not.toBe("/assets");
+      expect(own?.urlBase).not.toContain(otherId);
+      expect(spoke.config.assets?.favicon).toBe(`${spoke.config.url}${own?.urlBase}/favicon.svg`);
+      expect(serialised).not.toContain(`/spokes/${otherId}/`);
+      for (const privatePath of ["deployment/", "content/assets/", "~spoke", "x-foundation-spoke-segment"]) {
+        expect(serialised).not.toContain(privatePath);
+      }
     });
   }
 /**

@@ -10,8 +10,9 @@ platform and, alongside it, a **concrete reference Installation** used for
 demonstration, acceptance and authoring examples: it declares more than one Spoke,
 each a complete website with its own `site.config.json`, languages, pages and
 artwork, and neutral placeholder identity throughout. You make your own website by
-editing **configuration, content and assets only**; platform code does not need to
-change.
+editing **configuration, content and assets**, plus the two documented brand surfaces that live in
+the platform itself (the theme accent token in `src/app/globals.css` and the brand font mapping in
+the layout — see [`CUSTOMIZING.md`](CUSTOMIZING.md) §3).
 
 The **immutable Foundation release** is platform-only: it is built from this source
 and excludes the reference Installation (`deployment/**`). An independent
@@ -241,8 +242,8 @@ file under the deployment's `content/` tree (`deployment/spokes/foundation/conte
 > CUSTOMIZING.md), and this reference site ships with it on.
 >
 > One intentional boundary: the reference pages' prose links to
-> **`https://foundation.provelopment.com/`** — the commercial Provelopment site, which is a separate
-> product built ON this template rather than part of it.
+> **`https://foundation.provelopment.com/`** — the Foundation project website, a separate
+> Foundation-derived application built ON this template rather than part of the template.
 >
 > A site that authors no home page still gets the configuration-driven starter landing page, and the
 > authoring roots' own documentation is never content. Technical routes (`/sitemap.xml`, `/robots.txt`)
@@ -266,8 +267,9 @@ file under the deployment's `content/` tree (`deployment/spokes/foundation/conte
    URLs. [`BRAND_ASSETS.md`](BRAND_ASSETS.md) is the complete role contract
    (filename, format, dimensions, config key, replacement and disable procedure).
 
-The template ships **no** `content/assets/branding/` tree and no example artwork: identity
-is yours to supply. Artwork-only roles (page banners, page background, status
+The template ships **no** `content/assets/branding/` tree and no branded example artwork: the
+identity roles resolve to the neutral files in `content/assets/placeholders/`, and identity is
+yours to supply. Artwork-only roles (page banners, page background, status
 graphic, social-preview image) ship nothing and stay off until configured.
 
 ## Add a page
@@ -401,7 +403,9 @@ git fetch upstream
 Then follow
 [`instruction-manuals/foundation-upgrade.md`](instruction-manuals/foundation-upgrade.md),
 which classifies platform-owned vs adopter-owned material and protects your
-configuration, content, assets and branding.
+configuration, content and assets. (The brand accent is a platform token in `src/app/globals.css`, not a
+configuration value: an Upgrade replaces it, so your value has to be carried across and re-applied
+deliberately — see [`CUSTOMIZING.md`](CUSTOMIZING.md) §3 for that limitation.)
 
 ## Documentation
 
@@ -453,21 +457,18 @@ claimed. An adopter replaces them with their own sites, languages and locations 
 [`CUSTOMIZING.md`](CUSTOMIZING.md) for the configuration and
 [`deployment/spokes/foundation/content/README.md`](deployment/spokes/foundation/content/README.md) for where the pages live.
 
-## The live Foundation site
+## The public addresses, and how they relate
 
-The real-world example is **<https://foundation.provelopment.com>** — the Provelopment
-Foundation's own website: real content, its own brand installation, and the capabilities
-this template provides.
+Four public addresses are easy to confuse. This documentation uses exactly these meanings:
 
-Its source is **not** in this repository and is **not** part of the public template
-distribution. That site is served by the private downstream application
-`provelopment/provelopment-web`, where it is one **site profile** among several — a
-multi-site application that derives from this template. A previously separate
-reference-site repository (`provelopment-foundation-site`) was archived when those sites
-were consolidated, and it is **not** the current implementation.
+| Address | What it is |
+| --- | --- |
+| [`provelopment/prodevelopment-foundation`](https://github.com/provelopment/prodevelopment-foundation) | **This repository**: the public, reusable, open-source platform, plus the reference Installation it ships. |
+| <https://foundation-template.prodevelopment.com> | The **Foundation template reference website**: the public reference Installation, built directly from this repository by the process in [`DEPLOYMENT.md`](DEPLOYMENT.md). Its German Spoke is <https://foundation-template-germany.prodevelopment.com>. |
+| <https://foundation.prodevelopment.com> | The **Foundation project website**: Provelopment's own public website explaining and demonstrating the Foundation project. It is served by a separate, private application derived from this template, is **not** part of this repository and **not** part of any published Foundation release, and you do not need it, its application or its content to use the template. |
+| <https://www.prodevelopment.com> | The **commercial Provelopment website**: a distinct Provelopment product site, neither the template reference website nor the Foundation project website. |
 
-You do not need that site, its application or its content to use this template: this
-repository is a complete, standalone starting point.
+This repository is a complete, standalone starting point: nothing above is required to build your own site.
 
 ## Licence
 
@@ -499,5 +500,5 @@ reproduce — Apache-2.0 §4(d) only applies when the distributed work already c
 The attribution obligations above are recorded next to the material they belong to.
 
 Documentation is covered by the same Apache-2.0 grant as the code for now; a dedicated
-documentation-licensing decision may be revisited later. The private `provelopment.com`
-application and its content are **not** made open source by this licence.
+documentation-licensing decision may be revisited later. The commercial Provelopment website and the private
+application that serves it are **not** made open source by this licence.

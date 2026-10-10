@@ -1192,6 +1192,16 @@ tint is **derived** (`color-mix(in srgb, var(--ui-foundation-accent) 50%, #fffff
 = `#a3aab4` for the shipped default, 7.67:1 on `#0F172A`) — never a second hex, and
 nothing else in the theme needs editing.
 
+> **This is a platform file, not configuration — and it is a present product limitation.** The
+> configuration schema carries no brand-accent key, so the accent (and, when you change it, the brand
+> font mapping) can only be changed by editing Foundation-owned platform files. Those edits are **not
+> upgrade-safe**: `src/**` is replaced when a different immutable release is adopted, so your value has
+> to be carried across and re-applied deliberately (§7), and a modified platform file no longer matches
+> the release byte-for-byte — the release identity, manifest and digest describe the release, not your
+> installation. Treat changing the accent as a deliberate platform-level decision. Everything else the
+> schema exposes (identity, navigation, features, `ui.*`, `site.assets.*`) is yours to configure without
+> touching platform code.
+
 `tests/unit/theme-color-contract.test.ts` enforces the relationship: exactly one
 hardcoded accent declaration (the approved value), both consumers derived, a
 derived dark tint, no crimson declarations, and no component carrying its own brand
@@ -2555,10 +2565,57 @@ The template deploys to Vercel directly from a Git repository. Follow
 [`DEPLOYMENT.md`](DEPLOYMENT.md): create a Vercel project from your repo,
 add your custom domain, and run through the go-live checklist.
 
-## 7. Staying Up to Date With Upstream
+## 7. Updating, and upgrading
 
-Keep your clone connected to the template repository so you can pull
-improvements:
+**An Update** changes your own material — `site.config.json`, dictionaries, pages, artwork — and leaves
+the Foundation release you run exactly as it is. Commit and push; that is the whole operation, and §1–§5
+above are the surface it covers.
+
+**An Upgrade** replaces the Foundation release itself. You deliberately select a **new immutable
+Foundation release** and establish the installation against it. One installation runs one Foundation
+release, so an Upgrade moves that whole installation — every website in it — together. The supported
+procedure, what it preserves, what it refuses and how to prove the result are in
+[`instruction-manuals/foundation-upgrade.md`](instruction-manuals/foundation-upgrade.md); the release
+identity, manifest and digest contract is in
+[`src/core/foundation-release/README.md`](src/core/foundation-release/README.md), and establishment itself in
+[`scripts/installation/README.md`](scripts/installation/README.md).
+
+**There is no in-place upgrade executor, and no `git merge` upgrades an installation.** Nothing in the
+platform fetches, merges or rewrites an existing installation on its own, and no command upgrades you in
+place: an Upgrade is a deliberate establishment of a **new** installation from the release you selected,
+with your authored material carried in as an input. Plan for that — the release as the platform, your
+capsule as the seed — rather than for an edit to the running installation.
+
+### What an Upgrade preserves, and what it replaces
+
+| Surface | On an Upgrade to a different immutable Foundation release |
+| --- | --- |
+| `site.config.json` (your values) | **Preserved** — your configuration is an input to establishment |
+| `content/**` (your pages and artwork) | **Preserved** |
+| `config/i18n/*` (your translations) | **Preserved** |
+| `public/assets/**` (the generated runtime mirror) | **Regenerated** — build output, never yours to edit; the source artwork you replace lives in `content/assets/**` and is preserved |
+| `src/**`, `tests/**`, build/deploy files | **Replaced** by the release you adopted |
+| schema/loader (`src/config/`) | **Replaced** — but additive and validated, so your configuration keeps building |
+| Foundation **default assets** you did not replace | **Replaced** by the release's defaults — this is expected |
+| a **platform file you edited** (for example the theme accent token) | **Replaced, not merged** — the release's own bytes win, so carry your value across and re-apply it deliberately (§3) |
+
+Decisions an Upgrade asks of you rather than performing for you:
+
+1. A new **required** configuration key or a changed config shape — the build fails loudly with an
+   actionable message telling you what to add;
+2. A new `site.assets.*` / `ui.theme.*` leaf whose **default** you did not override — your existing
+   values keep working; read the release's notes to see what the new default is;
+3. If you maintain a Foundation-derived deployment workspace, its canonical content/config/assets must be
+   **re-vendored** through that repository's `setup`/`generate` machinery and re-verified — a manual,
+   deliberate step.
+
+Nothing is changed silently under you: real structural changes surface as actionable build errors, and
+your own material stays yours.
+
+### Repository-shaped clones (a distinct, legacy workflow)
+
+A clone that was *derived from* this repository in the older **repository-shaped** style — the deployment
+at the repository root, updated by pulling from upstream — is maintained with Git:
 
 ```bash
 git remote add upstream https://github.com/provelopment/provelopment-foundation.git
@@ -2566,39 +2623,9 @@ git fetch upstream
 git merge upstream/main
 ```
 
-Because your changes are confined to configuration, content, and assets,
-merges are usually clean. When conflicts appear, your versions of
-`site.config.json`, `content/`, and asset files win; upstream wins for
-platform code unless you deliberately changed it.
-
-### What a future upstream pull preserves vs. replaces
-
-| Surface | On a future `git merge upstream/main` |
-| --- | --- |
-| `site.config.json` (your values) | **Preserved** — your versions win in a conflict |
-| `content/**` (your pages and assets) | **Preserved** |
-| `config/i18n/*` (your translations) | **Preserved** |
-| `public/assets/*` (your replaced files) | **Preserved** |
-| `src/**`, `tests/**`, build/deploy files | **Replaced** by the template's implementation |
-| schema/loader (`src/config/`) | **Replaced** — but additive/validated, so your config keeps building |
-| Foundation **default assets** you did not replace | **Replaced** by the new defaults — this is expected |
-
-The areas that require a **deliberate merge** rather than automatic acceptance:
-
-1. A new **required** configuration key or a changed config shape — the build
-   fails loudly with an actionable message telling you what to add;
-2. A new `site.assets.*`/`ui.theme.*` leaf whose **default** you did not
-   override — your existing values keep working, but read the release notes to
-   see what the new default is;
-3. If you maintain a Foundation-derived deployment workspace, the canonical
-   content/config/assets must be **re-vendored** through that repository's
-   `setup`/`generate` scripts and re-verified — that is a manual, deliberate
-   step.
-
-In short: the Foundation is designed so your customization survives upstream
-updates, but it does not pretend to be a merge engine. Real structural changes
-surface as actionable build errors, and real conflicts surface as merge
-conflicts you resolve on your side.
+Those instructions apply **only** to that legacy repository-shaped workflow. They are **not** how a
+current Foundation installation is upgraded: a current installation adopts a selected immutable release
+through the establishment procedure described above.
 
 ## 8. Validating Your Changes
 
