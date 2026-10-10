@@ -6,7 +6,18 @@ clone) from repository to a live production website on Vercel.
 ## Prerequisites
 
 - Admin access to the GitHub repository.
-- A Vercel account (the free Hobby tier suffices for most small businesses).
+- A Vercel account on a plan that suits how the site is used. **Foundation itself is free and
+  open source; hosting is a separate decision and may cost money.** Vercel restricts its free
+  **Hobby** plan to **non-commercial, personal use only** (its own wording in the Hobby plan
+  documentation, applying its fair-use guidelines), and describes its paid **Pro** and
+  **Enterprise** plans as the plans for businesses, so a **commercial business website needs a
+  paid plan**. Prices and conditions are the provider's to state and change — check them yourself
+  before you commit: [plans](https://vercel.com/docs/plans) ·
+  [Hobby plan](https://vercel.com/docs/plans/hobby) ·
+  [fair use](https://vercel.com/docs/limits/fair-use-guidelines) ·
+  [terms](https://vercel.com/legal/terms).
+- This runbook documents Vercel because that is what the public reference deployment uses. The
+  template itself is not tied to it, and no other host is documented here.
 - Access to the domain's DNS settings.
 - Node.js 24.x and pnpm 11.6.0 installed locally for verification builds.
 
@@ -17,7 +28,8 @@ clone) from repository to a live production website on Vercel.
 3. Vercel auto-detects Next.js. Confirm the build settings:
    - Install command: `pnpm install`
    - Build command: `pnpm build`
-   - No environment variables are required.
+   - No environment variables are required (see *Environment Variables* below for the optional
+     contact-webhook pair).
 4. Click **Deploy**. The first deployment uses the `*.vercel.app` domain.
 
 Every push to `main` now deploys to production automatically, and every
@@ -94,8 +106,10 @@ rather than a CI route.
 Before go-live, verify that the deployment's `site.config.json` matches reality. Where that file lives
 follows how the Installation is authored (S3F1): an explicit Installation declares its Spokes in
 `spokes.json` and each Spoke owns its own `site.config.json` — in this repository the capsule declares
-the Spoke `foundation`, so the file is `deployment/spokes/foundation/site.config.json` (a legacy
-Installation keeps it at the installation root instead).
+two Spokes, `foundation` and `germany`, so their files are
+`deployment/spokes/foundation/site.config.json` and
+`deployment/spokes/germany/site.config.json` (a legacy Installation keeps its single file at the
+installation root instead).
 
 - `site.url` must be the final production origin (`https://…`, no trailing
   slash). It drives the sitemap, hreflang alternates, canonical URLs, and
@@ -113,30 +127,46 @@ commit and push to trigger a redeploy.
 
 Run against the live domain:
 
-- [ ] `/` redirects to the default Site and Language — with the shipped
-      single-Site, single-Language configuration that is `/ww/en`.
-- [ ] `/ww/en` returns HTTP 200 (the landing page). Every page you author is served
-      by the same route at `/ww/en/<slug>`, and a configured location at
-      `/ww/en/<location>/<slug>`. This repository's own reference deployment ships two
-      example pages (`/ww/en` Home, `/ww/en/about` About); a clone that authors none
-      serves the starter landing page, and `/ww/en` is then the only page URL.
-- [ ] An unknown path such as `/ww/en/does-not-exist` returns HTTP **404**. Next.js
-      answers with its own 404 page: only build-discovered routes are served
-      (`dynamicParams = false`), so an unknown path never matches the page route.
-- [ ] `/sitemap.xml` lists every route for every Site and Language.
+- [ ] `/` completes to the default Site and default Language of the Spoke that answers your
+      hostname. The shipped reference Installation shows both cases:
+      `https://foundation-template.prodevelopment.com/` → `/ww/en` (Foundation Spoke, Site `ww`,
+      default language `en`), and `https://foundation-template-germany.prodevelopment.com/` →
+      `/de/de` (Germany Spoke, Site `de`, default language `de`).
+- [ ] `/ww/en` returns HTTP 200 (the landing page). Every page is served at
+      `/<site>/<language>/<slug>`, and a configured location at
+      `/<site>/<language>/<location>/<slug>`. This repository's reference Installation ships
+      **two Spokes**, each with its own pages: the Foundation Spoke serves `/ww/en` (Home),
+      `/ww/de`, `/ww/en/about` and `/ww/de/about`; the Germany Spoke serves `/de/de` (Home),
+      `/de/en`, the About pages and one page per location (`/de/de/berlin`,
+      `/de/de/frankfurt`, `/de/en/berlin`, `/de/en/frankfurt`). A clone that authors no page
+      still serves the configuration-driven starter landing page at its own `/<site>/<language>`.
+- [ ] An unknown path such as `/ww/en/does-not-exist` returns HTTP **404**. Next.js answers
+      with its own 404 page: only build-discovered routes are served (`dynamicParams = false`),
+      so an unknown path never matches the page route.
+- [ ] **Hostname isolation holds.** Each Spoke answers only the hostnames it claims: on the
+      Foundation Spoke's host the Germany Site is not served (`/de/de` → 404), and on the
+      Germany Spoke's host the Global Site is not served (`/ww/en` → 404).
+- [ ] `/sitemap.xml` lists every route for every Site and Language of that Spoke.
 - [ ] `/robots.txt` references the sitemap.
-- [ ] Page source contains `<html lang="en">`, hreflang `alternates`
-      (including `x-default`), canonical URL, and Open Graph tags — with `site.url`
-      set to your real origin (the template ships the placeholder
-      `https://www.example.com`, which those URLs use until you change it).
-- [ ] Social preview renders correctly (test with a sharing debugger such
-      as the LinkedIn Post Inspector or Facebook Sharing Debugger).
-- [ ] Social preview image renders correctly — `/<site>/<language>/opengraph-image`
-      is generated with no configuration.
-- [ ] Favicon renders correctly **once configured**: set `site.assets.favicon` in the
-      deployment's `site.config.json` (`deployment/spokes/foundation/site.config.json` in this
-      repository — the sole declared Spoke's file). The template ships no favicon, so a browser's
-      implicit `/favicon.ico` request returns 404 until then.
+- [ ] Page source contains `<html lang="en">`, hreflang `alternates` (including
+      `x-default`), canonical URL, and Open Graph tags — with `site.url` set to your real origin
+      (the template ships the placeholder `https://www.example.com`, which those URLs use until
+      you change it).
+- [ ] Social preview renders correctly (test with a sharing debugger such as the LinkedIn Post
+      Inspector or Facebook Sharing Debugger).
+- [ ] Social preview image renders correctly — `/<site>/<language>/opengraph-image` is
+      generated with no configuration.
+- [ ] Favicon renders correctly. Each reference Spoke ships a neutral placeholder
+      (`deployment/spokes/<spoke>/content/assets/placeholders/favicon.svg`) and declares it as
+      `site.assets.favicon` in that Spoke's own `site.config.json`. **Where the file must exist
+      at runtime depends on the authoring form:** an Installation that declares Spokes publishes
+      role artwork into that Spoke's own namespace (`/spokes/<spoke>/assets/<role>`, for example
+      `/spokes/foundation/assets/favicon.svg`), while a legacy single-root Installation
+      publishes it into the shared platform namespace (`/assets/favicon.svg`). Replace the
+      placeholder in place, or point `site.assets.favicon` at your own absolute URL, then run
+      `pnpm assets:sync`. No `favicon.ico` file ships, so a browser's implicit `/favicon.ico`
+      request is not served unless you add one. The full role contract is
+      [`BRAND_ASSETS.md`](BRAND_ASSETS.md).
 - [ ] Dark mode renders correctly (emulate `prefers-color-scheme: dark`).
 
 ## Rollback

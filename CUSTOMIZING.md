@@ -1192,6 +1192,12 @@ tint is **derived** (`color-mix(in srgb, var(--ui-foundation-accent) 50%, #fffff
 = `#a3aab4` for the shipped default, 7.67:1 on `#0F172A`) — never a second hex, and
 nothing else in the theme needs editing.
 
+> **This is a platform file, not configuration.** The configuration schema carries no brand-accent
+> key: `src/app/globals.css` is Foundation-owned, and `src/**` is **replaced** when you adopt a
+> different release (§7) — so re-apply your accent value after an Upgrade. Everything else the
+> schema exposes (identity, navigation, features, `ui.*`, `site.assets.*`) is yours to configure
+> without touching platform code.
+
 `tests/unit/theme-color-contract.test.ts` enforces the relationship: exactly one
 hardcoded accent declaration (the approved value), both consumers derived, a
 derived dark tint, no crimson declarations, and no component carrying its own brand
@@ -2566,8 +2572,9 @@ git fetch upstream
 git merge upstream/main
 ```
 
-Because your changes are confined to configuration, content, and assets,
-merges are usually clean. When conflicts appear, your versions of
+Because your changes are confined to configuration, content and assets — plus the two documented
+platform surfaces a re-brand touches (the theme accent token, and the brand font mapping if you
+change it) — merges are usually clean. When conflicts appear, your versions of
 `site.config.json`, `content/`, and asset files win; upstream wins for
 platform code unless you deliberately changed it.
 
@@ -2578,7 +2585,7 @@ platform code unless you deliberately changed it.
 | `site.config.json` (your values) | **Preserved** — your versions win in a conflict |
 | `content/**` (your pages and assets) | **Preserved** |
 | `config/i18n/*` (your translations) | **Preserved** |
-| `public/assets/*` (your replaced files) | **Preserved** |
+| `public/assets/**` (the generated runtime mirror) | **Regenerated** — it is build output, never yours to edit; the source artwork you replace lives in `content/assets/**` and is **preserved** |
 | `src/**`, `tests/**`, build/deploy files | **Replaced** by the template's implementation |
 | schema/loader (`src/config/`) | **Replaced** — but additive/validated, so your config keeps building |
 | Foundation **default assets** you did not replace | **Replaced** by the new defaults — this is expected |
