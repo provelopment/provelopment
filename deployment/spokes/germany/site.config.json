@@ -5,7 +5,7 @@
     "tagline": "An open-source website template you can own",
     "description": "This website is a working deployment of the Provelopment Foundation template: the same public code, downloadable and deployable by anyone. It is the template's own reference site, not a client website.",
     "assets": {
-      "favicon": "https://foundation-template-germany.provelopment.com/assets/favicon.svg"
+      "favicon": "https://foundation-template-germany.provelopment.com/spokes/germany/assets/favicon.svg"
     }
   },
   "i18n": {
