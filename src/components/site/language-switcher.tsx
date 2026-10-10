@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 
 import { displayNameWithEnglish } from "@/core/display-labels";
-import { bindingsForSite, regionalPath, resolveLocaleDestination } from "@/core/regional-pages";
+import { bindingsForSite, localesAvailableInLocation, regionalPath, resolveLocaleDestination } from "@/core/regional-pages";
 import { pathContextOr, siteLocalePath, sitePath, sitePrefixPath, siteSupportsLocalePath } from "@/core/site";
 import { useClientRouting } from "./client-routing-context";
 
@@ -41,6 +41,16 @@ function writeLocaleCookie(nextLocale: string): void {
  *    it, and the deterministic regional fallback is used otherwise (landing → first
  *    configured page) — still inside the same site.
  *
+ * LOC3 — AND IN A LOCATION, ONLY THE LANGUAGES THAT LOCATION SERVES. The option set is filtered by the ONE
+ * accepted regional rule (`localesAvailableInLocation` → `resolveLocaleDestination`), so:
+ *
+ *  - the GLOBAL state (`context.region === null`) still offers the site's entire language set — the whole
+ *    point of a Worldwide or otherwise Location-less context;
+ *  - a SELECTED LOCATION offers only its own usable languages (a one-language Location offers one option),
+ *    and the language currently being read is never dropped from its own selector;
+ *  - an option that could not reach a destination — or that would silently move the visitor to another
+ *    Location — is never rendered, so no language is ever presented as functional without a destination.
+ *
  * The site's own fallback policy decides what answers when the target locale has no copy of
  * the page: that is a locale fallback WITHIN the site, which the page-source contract
  * permits. A cross-site lookup is never performed to satisfy a language request.
@@ -62,6 +72,25 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
   const sitePrefix = sitePrefixPath(site);
   const entries = bindingsForSite(routing.pageBindings, site.code);
   const current = context.localePath;
+  // LOC3 — THE LANGUAGES THIS CONTEXT CAN ACTUALLY REACH. In the GLOBAL state nothing is filtered (the
+  // site's whole language set, exactly as before). In a LOCATION the accepted regional rule decides:
+  // `localesAvailableInLocation` keeps a language only when this Location is bound to it and the existing
+  // destination resolver can place the visitor there — so an option that would do nothing, or that would
+  // silently change the Location, is never rendered. The language being read is always kept.
+  const region = context.region;
+  const routeSlug = context.routePath === "" ? null : context.routePath;
+  const offeredPaths =
+    region === null
+      ? null
+      : new Set(
+          localesAvailableInLocation({
+            entries,
+            siteLocalePaths: site.locales.map((locale) => locale.path),
+            region,
+            currentSlug: routeSlug,
+            currentLocalePath: current,
+          }),
+        );
 
   function handleChange(nextLocale: string) {
     // A language switch stays INSIDE this site: a locale the site does not serve is never
@@ -99,11 +128,13 @@ export function LanguageSwitcher({ locale, label }: LanguageSwitcherProps) {
    */
   const registryLabel = (localePath: string): string =>
     routing.localeLabels[localePath] ?? localePath;
-  const sortedLocales = [...site.locales].sort((a, b) => {
-    if (a.path === defaultLocale) return -1;
-    if (b.path === defaultLocale) return 1;
-    return registryLabel(a.path).localeCompare(registryLabel(b.path), "en", { sensitivity: "base" });
-  });
+  const sortedLocales = [...site.locales]
+    .filter(({ path: localePath }) => offeredPaths === null || offeredPaths.has(localePath))
+    .sort((a, b) => {
+      if (a.path === defaultLocale) return -1;
+      if (b.path === defaultLocale) return 1;
+      return registryLabel(a.path).localeCompare(registryLabel(b.path), "en", { sensitivity: "base" });
+    });
 
   return (
     <select
